@@ -736,7 +736,7 @@ typedef struct DomainConstraintState
  * abstract superclass for all PlanState-type nodes.
  * ----------------
  */
-typedef struct PlanState
+typedef struct PlanState //CSI3130
 {
 	NodeTag		type;
 
@@ -1141,7 +1141,7 @@ typedef struct HashJoinState
 	bool		hj_InnerNotEmpty;
 	int matches_by_probing_inner;
 	int matches_by_probing_outer;
-	bool isNextFetchInner;
+	bool isNextFetchInner; //false -> outer, true -> inner
 } HashJoinState;
 
 

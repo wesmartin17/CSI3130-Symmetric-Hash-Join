@@ -297,7 +297,7 @@ ExecHashTableCreate(Hash *node, List *hashOperators)
 	hashtable->curbatch = 0;
 	hashtable->nbatch_original = nbatch;
 	hashtable->nbatch_outstart = nbatch;
-	hashtable->growEnabled = false;
+	hashtable->growEnabled = true; //CSI3130
 	hashtable->totalTuples = 0;
 	hashtable->innerBatchFile = NULL;
 	hashtable->outerBatchFile = NULL;
@@ -799,6 +799,7 @@ ExecHashGetBucketAndBatch(HashJoinTable hashtable,
  *
  * The current outer tuple must be stored in econtext->ecxt_outertuple.
  */
+ //CSI3130 returns heaptuple
 HashJoinTuple
 ExecScanHashBucket_probeouter(HashJoinState *hjstate,
 				   ExprContext *econtext)
@@ -839,7 +840,7 @@ ExecScanHashBucket_probeouter(HashJoinState *hjstate,
 			if (ExecQual(hjclauses, econtext, false))
 			{
 				hjstate->outer_hj_CurTuple = hashTuple;
-				return hashTuple;
+				return heapTuple;
 			}
 		}
 
@@ -898,7 +899,7 @@ ExecScanHashBucket_probeinner(HashJoinState *hjstate,
 			if (ExecQual(hjclauses, econtext, false))
 			{
 				hjstate->inner_hj_CurTuple = hashTuple;
-				return hashTuple;
+				return heapTuple;
 			}
 		}
 
