@@ -28,3 +28,4 @@ SELECT count(*) FROM cidrtmp WHERE a  = '121.111.63.82'::cidr;
 SELECT count(*) FROM cidrtmp WHERE a >= '121.111.63.82'::cidr;
 
 SELECT count(*) FROM cidrtmp WHERE a >  '121.111.63.82'::cidr;
+

@@ -1,15 +1,11 @@
 /*
- * contrib/ltree/_ltree_op.c
- *
- *
  * op function for ltree[]
  * Teodor Sigaev <teodor@stack.net>
  */
-#include "postgres.h"
-
-#include <ctype.h>
 
 #include "ltree.h"
+#include <ctype.h>
+#include "utils/array.h"
 
 PG_FUNCTION_INFO_V1(_ltree_isparent);
 PG_FUNCTION_INFO_V1(_ltree_r_isparent);
@@ -22,38 +18,42 @@ PG_FUNCTION_INFO_V1(_lt_q_rregex);
 PG_FUNCTION_INFO_V1(_ltxtq_exec);
 PG_FUNCTION_INFO_V1(_ltxtq_rexec);
 
+Datum		_ltree_r_isparent(PG_FUNCTION_ARGS);
+Datum		_ltree_r_risparent(PG_FUNCTION_ARGS);
+
 PG_FUNCTION_INFO_V1(_ltree_extract_isparent);
 PG_FUNCTION_INFO_V1(_ltree_extract_risparent);
 PG_FUNCTION_INFO_V1(_ltq_extract_regex);
 PG_FUNCTION_INFO_V1(_ltxtq_extract_exec);
+Datum		_ltree_extract_isparent(PG_FUNCTION_ARGS);
+Datum		_ltree_extract_risparent(PG_FUNCTION_ARGS);
+Datum		_ltq_extract_regex(PG_FUNCTION_ARGS);
+Datum		_ltxtq_extract_exec(PG_FUNCTION_ARGS);
 
 PG_FUNCTION_INFO_V1(_lca);
+Datum		_lca(PG_FUNCTION_ARGS);
 
 typedef Datum (*PGCALL2) (PG_FUNCTION_ARGS);
 
 #define NEXTVAL(x) ( (ltree*)( (char*)(x) + INTALIGN( VARSIZE(x) ) ) )
 
 static bool
-array_iterator(ArrayType *la, PGCALL2 callback, void *param, ltree **found)
+array_iterator(ArrayType *la, PGCALL2 callback, void *param, ltree ** found)
 {
 	int			num = ArrayGetNItems(ARR_NDIM(la), ARR_DIMS(la));
 	ltree	   *item = (ltree *) ARR_DATA_PTR(la);
 
-	if (ARR_NDIM(la) > 1)
+	if (ARR_NDIM(la) != 1)
 		ereport(ERROR,
 				(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
 				 errmsg("array must be one-dimensional")));
-	if (array_contains_nulls(la))
-		ereport(ERROR,
-				(errcode(ERRCODE_NULL_VALUE_NOT_ALLOWED),
-				 errmsg("array must not contain nulls")));
 
 	if (found)
 		*found = NULL;
 	while (num > 0)
 	{
 		if (DatumGetBool(DirectFunctionCall2(callback,
-											 PointerGetDatum(item), PointerGetDatum(param))))
+							 PointerGetDatum(item), PointerGetDatum(param))))
 		{
 
 			if (found)
@@ -71,7 +71,7 @@ Datum
 _ltree_isparent(PG_FUNCTION_ARGS)
 {
 	ArrayType  *la = PG_GETARG_ARRAYTYPE_P(0);
-	ltree	   *query = PG_GETARG_LTREE_P(1);
+	ltree	   *query = PG_GETARG_LTREE(1);
 	bool		res = array_iterator(la, ltree_isparent, (void *) query, NULL);
 
 	PG_FREE_IF_COPY(la, 0);
@@ -92,7 +92,7 @@ Datum
 _ltree_risparent(PG_FUNCTION_ARGS)
 {
 	ArrayType  *la = PG_GETARG_ARRAYTYPE_P(0);
-	ltree	   *query = PG_GETARG_LTREE_P(1);
+	ltree	   *query = PG_GETARG_LTREE(1);
 	bool		res = array_iterator(la, ltree_risparent, (void *) query, NULL);
 
 	PG_FREE_IF_COPY(la, 0);
@@ -113,7 +113,7 @@ Datum
 _ltq_regex(PG_FUNCTION_ARGS)
 {
 	ArrayType  *la = PG_GETARG_ARRAYTYPE_P(0);
-	lquery	   *query = PG_GETARG_LQUERY_P(1);
+	lquery	   *query = PG_GETARG_LQUERY(1);
 	bool		res = array_iterator(la, ltq_regex, (void *) query, NULL);
 
 	PG_FREE_IF_COPY(la, 0);
@@ -139,14 +139,10 @@ _lt_q_regex(PG_FUNCTION_ARGS)
 	bool		res = false;
 	int			num = ArrayGetNItems(ARR_NDIM(_query), ARR_DIMS(_query));
 
-	if (ARR_NDIM(_query) > 1)
+	if (ARR_NDIM(_query) != 1)
 		ereport(ERROR,
 				(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
 				 errmsg("array must be one-dimensional")));
-	if (array_contains_nulls(_query))
-		ereport(ERROR,
-				(errcode(ERRCODE_NULL_VALUE_NOT_ALLOWED),
-				 errmsg("array must not contain nulls")));
 
 	while (num > 0)
 	{
@@ -178,7 +174,7 @@ Datum
 _ltxtq_exec(PG_FUNCTION_ARGS)
 {
 	ArrayType  *la = PG_GETARG_ARRAYTYPE_P(0);
-	ltxtquery  *query = PG_GETARG_LTXTQUERY_P(1);
+	ltxtquery  *query = PG_GETARG_LTXTQUERY(1);
 	bool		res = array_iterator(la, ltxtq_exec, (void *) query, NULL);
 
 	PG_FREE_IF_COPY(la, 0);
@@ -200,7 +196,7 @@ Datum
 _ltree_extract_isparent(PG_FUNCTION_ARGS)
 {
 	ArrayType  *la = PG_GETARG_ARRAYTYPE_P(0);
-	ltree	   *query = PG_GETARG_LTREE_P(1);
+	ltree	   *query = PG_GETARG_LTREE(1);
 	ltree	   *found,
 			   *item;
 
@@ -211,8 +207,8 @@ _ltree_extract_isparent(PG_FUNCTION_ARGS)
 		PG_RETURN_NULL();
 	}
 
-	item = (ltree *) palloc0(VARSIZE(found));
-	memcpy(item, found, VARSIZE(found));
+	item = (ltree *) palloc(found->len);
+	memcpy(item, found, found->len);
 
 	PG_FREE_IF_COPY(la, 0);
 	PG_FREE_IF_COPY(query, 1);
@@ -223,7 +219,7 @@ Datum
 _ltree_extract_risparent(PG_FUNCTION_ARGS)
 {
 	ArrayType  *la = PG_GETARG_ARRAYTYPE_P(0);
-	ltree	   *query = PG_GETARG_LTREE_P(1);
+	ltree	   *query = PG_GETARG_LTREE(1);
 	ltree	   *found,
 			   *item;
 
@@ -234,8 +230,8 @@ _ltree_extract_risparent(PG_FUNCTION_ARGS)
 		PG_RETURN_NULL();
 	}
 
-	item = (ltree *) palloc0(VARSIZE(found));
-	memcpy(item, found, VARSIZE(found));
+	item = (ltree *) palloc(found->len);
+	memcpy(item, found, found->len);
 
 	PG_FREE_IF_COPY(la, 0);
 	PG_FREE_IF_COPY(query, 1);
@@ -246,7 +242,7 @@ Datum
 _ltq_extract_regex(PG_FUNCTION_ARGS)
 {
 	ArrayType  *la = PG_GETARG_ARRAYTYPE_P(0);
-	lquery	   *query = PG_GETARG_LQUERY_P(1);
+	lquery	   *query = PG_GETARG_LQUERY(1);
 	ltree	   *found,
 			   *item;
 
@@ -257,8 +253,8 @@ _ltq_extract_regex(PG_FUNCTION_ARGS)
 		PG_RETURN_NULL();
 	}
 
-	item = (ltree *) palloc0(VARSIZE(found));
-	memcpy(item, found, VARSIZE(found));
+	item = (ltree *) palloc(found->len);
+	memcpy(item, found, found->len);
 
 	PG_FREE_IF_COPY(la, 0);
 	PG_FREE_IF_COPY(query, 1);
@@ -269,7 +265,7 @@ Datum
 _ltxtq_extract_exec(PG_FUNCTION_ARGS)
 {
 	ArrayType  *la = PG_GETARG_ARRAYTYPE_P(0);
-	ltxtquery  *query = PG_GETARG_LTXTQUERY_P(1);
+	ltxtquery  *query = PG_GETARG_LTXTQUERY(1);
 	ltree	   *found,
 			   *item;
 
@@ -280,8 +276,8 @@ _ltxtq_extract_exec(PG_FUNCTION_ARGS)
 		PG_RETURN_NULL();
 	}
 
-	item = (ltree *) palloc0(VARSIZE(found));
-	memcpy(item, found, VARSIZE(found));
+	item = (ltree *) palloc(found->len);
+	memcpy(item, found, found->len);
 
 	PG_FREE_IF_COPY(la, 0);
 	PG_FREE_IF_COPY(query, 1);
@@ -296,15 +292,6 @@ _lca(PG_FUNCTION_ARGS)
 	ltree	   *item = (ltree *) ARR_DATA_PTR(la);
 	ltree	  **a,
 			   *res;
-
-	if (ARR_NDIM(la) > 1)
-		ereport(ERROR,
-				(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
-				 errmsg("array must be one-dimensional")));
-	if (array_contains_nulls(la))
-		ereport(ERROR,
-				(errcode(ERRCODE_NULL_VALUE_NOT_ALLOWED),
-				 errmsg("array must not contain nulls")));
 
 	a = (ltree **) palloc(sizeof(ltree *) * num);
 	while (num > 0)

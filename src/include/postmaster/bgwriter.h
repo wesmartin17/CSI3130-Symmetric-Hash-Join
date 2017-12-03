@@ -1,14 +1,11 @@
 /*-------------------------------------------------------------------------
  *
  * bgwriter.h
- *	  Exports from postmaster/bgwriter.c and postmaster/checkpointer.c.
+ *	  Exports from postmaster/bgwriter.c.
  *
- * The bgwriter process used to handle checkpointing duties too.  Now
- * there is a separate process, but we did not bother to split this header.
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
- *
- * src/include/postmaster/bgwriter.h
+ * $PostgreSQL: pgsql/src/include/postmaster/bgwriter.h,v 1.7 2005/08/20 23:26:33 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -23,21 +20,15 @@
 extern int	BgWriterDelay;
 extern int	CheckPointTimeout;
 extern int	CheckPointWarning;
-extern double CheckPointCompletionTarget;
 
-extern void BackgroundWriterMain(void) pg_attribute_noreturn();
-extern void CheckpointerMain(void) pg_attribute_noreturn();
+extern void BackgroundWriterMain(void);
 
-extern void RequestCheckpoint(int flags);
-extern void CheckpointWriteDelay(int flags, double progress);
+extern void RequestCheckpoint(bool waitforit, bool warnontime);
 
-extern bool ForwardFsyncRequest(RelFileNode rnode, ForkNumber forknum,
-					BlockNumber segno);
+extern bool ForwardFsyncRequest(RelFileNode rnode, BlockNumber segno);
 extern void AbsorbFsyncRequests(void);
 
-extern Size CheckpointerShmemSize(void);
-extern void CheckpointerShmemInit(void);
+extern Size BgWriterShmemSize(void);
+extern void BgWriterShmemInit(void);
 
-extern bool FirstCallSinceLastCheckpoint(void);
-
-#endif							/* _BGWRITER_H */
+#endif   /* _BGWRITER_H */

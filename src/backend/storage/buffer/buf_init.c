@@ -3,12 +3,12 @@
  * buf_init.c
  *	  buffer manager initialization routines
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/storage/buffer/buf_init.c
+ *	  $PostgreSQL: pgsql/src/backend/storage/buffer/buf_init.c,v 1.77 2005/10/15 02:49:24 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -18,11 +18,17 @@
 #include "storage/buf_internals.h"
 
 
-BufferDescPadded *BufferDescriptors;
+BufferDesc *BufferDescriptors;
 char	   *BufferBlocks;
-LWLockMinimallyPadded *BufferIOLWLockArray = NULL;
-WritebackContext BackendWritebackContext;
-CkptSortItem *CkptBufferIds;
+int32	   *PrivateRefCount;
+
+/* statistics counters */
+long int	ReadBufferCount;
+long int	ReadLocalBufferCount;
+long int	BufferHitCount;
+long int	LocalBufferHitCount;
+long int	BufferFlushCount;
+long int	LocalBufferFlushCount;
 
 
 /*
@@ -46,15 +52,22 @@ CkptSortItem *CkptBufferIds;
  *
  * IO_IN_PROGRESS -- this is a flag in the buffer descriptor.
  *		It must be set when an IO is initiated and cleared at
- *		the end of the IO.  It is there to make sure that one
+ *		the end of the IO.	It is there to make sure that one
  *		process doesn't start to use a buffer while another is
  *		faulting it in.  see WaitIO and related routines.
  *
  * refcount --	Counts the number of processes holding pins on a buffer.
  *		A buffer is pinned during IO and immediately after a BufferAlloc().
- *		Pins must be released before end of transaction.  For efficiency the
- *		shared refcount isn't increased if an individual backend pins a buffer
- *		multiple times. Check the PrivateRefCount infrastructure in bufmgr.c.
+ *		Pins must be released before end of transaction.
+ *
+ * PrivateRefCount -- Each buffer also has a private refcount that keeps
+ *		track of the number of times the buffer is pinned in the current
+ *		process.	This is used for two purposes: first, if we pin a
+ *		a buffer more than once, we only need to change the shared refcount
+ *		once, thus only lock the shared state once; second, when a transaction
+ *		aborts, it should only unpin the buffers exactly the number of times it
+ *		has pinned them, so that it will not blow away buffers of another
+ *		backend.
  */
 
 
@@ -68,61 +81,41 @@ void
 InitBufferPool(void)
 {
 	bool		foundBufs,
-				foundDescs,
-				foundIOLocks,
-				foundBufCkpt;
+				foundDescs;
 
-	/* Align descriptors to a cacheline boundary. */
-	BufferDescriptors = (BufferDescPadded *)
+	BufferDescriptors = (BufferDesc *)
 		ShmemInitStruct("Buffer Descriptors",
-						NBuffers * sizeof(BufferDescPadded),
-						&foundDescs);
+						NBuffers * sizeof(BufferDesc), &foundDescs);
 
 	BufferBlocks = (char *)
 		ShmemInitStruct("Buffer Blocks",
 						NBuffers * (Size) BLCKSZ, &foundBufs);
 
-	/* Align lwlocks to cacheline boundary */
-	BufferIOLWLockArray = (LWLockMinimallyPadded *)
-		ShmemInitStruct("Buffer IO Locks",
-						NBuffers * (Size) sizeof(LWLockMinimallyPadded),
-						&foundIOLocks);
-
-	LWLockRegisterTranche(LWTRANCHE_BUFFER_IO_IN_PROGRESS, "buffer_io");
-	LWLockRegisterTranche(LWTRANCHE_BUFFER_CONTENT, "buffer_content");
-
-	/*
-	 * The array used to sort to-be-checkpointed buffer ids is located in
-	 * shared memory, to avoid having to allocate significant amounts of
-	 * memory at runtime. As that'd be in the middle of a checkpoint, or when
-	 * the checkpointer is restarted, memory allocation failures would be
-	 * painful.
-	 */
-	CkptBufferIds = (CkptSortItem *)
-		ShmemInitStruct("Checkpoint BufferIds",
-						NBuffers * sizeof(CkptSortItem), &foundBufCkpt);
-
-	if (foundDescs || foundBufs || foundIOLocks || foundBufCkpt)
+	if (foundDescs || foundBufs)
 	{
-		/* should find all of these, or none of them */
-		Assert(foundDescs && foundBufs && foundIOLocks && foundBufCkpt);
+		/* both should be present or neither */
+		Assert(foundDescs && foundBufs);
 		/* note: this path is only taken in EXEC_BACKEND case */
 	}
 	else
 	{
+		BufferDesc *buf;
 		int			i;
+
+		buf = BufferDescriptors;
 
 		/*
 		 * Initialize all the buffer headers.
 		 */
-		for (i = 0; i < NBuffers; i++)
+		for (i = 0; i < NBuffers; buf++, i++)
 		{
-			BufferDesc *buf = GetBufferDescriptor(i);
-
 			CLEAR_BUFFERTAG(buf->tag);
-
-			pg_atomic_init_u32(&buf->state, 0);
+			buf->flags = 0;
+			buf->usage_count = 0;
+			buf->refcount = 0;
 			buf->wait_backend_pid = 0;
+
+			SpinLockInit(&buf->buf_hdr_lock);
 
 			buf->buf_id = i;
 
@@ -132,23 +125,41 @@ InitBufferPool(void)
 			 */
 			buf->freeNext = i + 1;
 
-			LWLockInitialize(BufferDescriptorGetContentLock(buf),
-							 LWTRANCHE_BUFFER_CONTENT);
-
-			LWLockInitialize(BufferDescriptorGetIOLock(buf),
-							 LWTRANCHE_BUFFER_IO_IN_PROGRESS);
+			buf->io_in_progress_lock = LWLockAssign();
+			buf->content_lock = LWLockAssign();
 		}
 
 		/* Correct last entry of linked list */
-		GetBufferDescriptor(NBuffers - 1)->freeNext = FREENEXT_END_OF_LIST;
+		BufferDescriptors[NBuffers - 1].freeNext = FREENEXT_END_OF_LIST;
 	}
 
 	/* Init other shared buffer-management stuff */
 	StrategyInitialize(!foundDescs);
+}
 
-	/* Initialize per-backend file flush context */
-	WritebackContextInit(&BackendWritebackContext,
-						 &backend_flush_after);
+/*
+ * Initialize access to shared buffer pool
+ *
+ * This is called during backend startup (whether standalone or under the
+ * postmaster).  It sets up for this backend's access to the already-existing
+ * buffer pool.
+ *
+ * NB: this is called before InitProcess(), so we do not have a PGPROC and
+ * cannot do LWLockAcquire; hence we can't actually access stuff in
+ * shared memory yet.  We are only initializing local data here.
+ * (See also InitBufferPoolBackend, over in bufmgr.c.)
+ */
+void
+InitBufferPoolAccess(void)
+{
+	/*
+	 * Allocate and zero local arrays of per-buffer info.
+	 */
+	PrivateRefCount = (int32 *) calloc(NBuffers, sizeof(int32));
+	if (!PrivateRefCount)
+		ereport(FATAL,
+				(errcode(ERRCODE_OUT_OF_MEMORY),
+				 errmsg("out of memory")));
 }
 
 /*
@@ -163,31 +174,13 @@ BufferShmemSize(void)
 	Size		size = 0;
 
 	/* size of buffer descriptors */
-	size = add_size(size, mul_size(NBuffers, sizeof(BufferDescPadded)));
-	/* to allow aligning buffer descriptors */
-	size = add_size(size, PG_CACHE_LINE_SIZE);
+	size = add_size(size, mul_size(NBuffers, sizeof(BufferDesc)));
 
 	/* size of data pages */
 	size = add_size(size, mul_size(NBuffers, BLCKSZ));
 
 	/* size of stuff controlled by freelist.c */
 	size = add_size(size, StrategyShmemSize());
-
-	/*
-	 * It would be nice to include the I/O locks in the BufferDesc, but that
-	 * would increase the size of a BufferDesc to more than one cache line,
-	 * and benchmarking has shown that keeping every BufferDesc aligned on a
-	 * cache line boundary is important for performance.  So, instead, the
-	 * array of I/O locks is allocated in a separate tranche.  Because those
-	 * locks are not highly contentended, we lay out the array with minimal
-	 * padding.
-	 */
-	size = add_size(size, mul_size(NBuffers, sizeof(LWLockMinimallyPadded)));
-	/* to allow aligning the above */
-	size = add_size(size, PG_CACHE_LINE_SIZE);
-
-	/* size of checkpoint sort array in bufmgr.c */
-	size = add_size(size, mul_size(NBuffers, sizeof(CkptSortItem)));
 
 	return size;
 }

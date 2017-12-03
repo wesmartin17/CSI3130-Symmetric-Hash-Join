@@ -1,11 +1,8 @@
-# src/bin/scripts/nls.mk
-CATALOG_NAME     = pgscripts
-AVAIL_LANGUAGES  = cs de es fr he it ja ko pl pt_BR ru sv zh_CN
-GETTEXT_FILES    = createdb.c createuser.c \
-                   dropdb.c dropuser.c \
+# $PostgreSQL: pgsql/src/bin/scripts/nls.mk,v 1.19 2005/07/29 15:13:11 momjian Exp $
+CATALOG_NAME    := pgscripts
+AVAIL_LANGUAGES := cs de es fr it ko pt_BR ro ru sk sl sv tr zh_CN zh_TW
+GETTEXT_FILES   := createdb.c createlang.c createuser.c \
+                   dropdb.c droplang.c dropuser.c \
                    clusterdb.c vacuumdb.c reindexdb.c \
-                   pg_isready.c \
-                   common.c \
-                   ../../fe_utils/print.c \
-                   ../../common/fe_memutils.c ../../common/username.c
-GETTEXT_TRIGGERS = simple_prompt yesno_prompt
+                   common.c
+GETTEXT_TRIGGERS:= _ simple_prompt

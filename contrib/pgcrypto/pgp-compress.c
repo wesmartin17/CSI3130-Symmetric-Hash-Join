@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,11 +26,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/pgp-compress.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/pgp-compress.c,v 1.5 2005/10/15 02:49:06 momjian Exp $
  */
 
 #include "postgres.h"
 
+#include "mbuf.h"
 #include "px.h"
 #include "pgp.h"
 
@@ -39,7 +40,7 @@
  * Compressed pkt writer
  */
 
-#ifdef HAVE_LIBZ
+#ifndef DISABLE_ZLIB
 
 #include <zlib.h>
 
@@ -68,7 +69,7 @@ z_free(void *priv, void *addr)
 }
 
 static int
-compress_init(PushFilter *next, void *init_arg, void **priv_p)
+compress_init(PushFilter * next, void *init_arg, void **priv_p)
 {
 	int			res;
 	struct ZipStat *st;
@@ -104,9 +105,9 @@ compress_init(PushFilter *next, void *init_arg, void **priv_p)
 
 /* writes compressed data packet */
 
-/* can handle zero-len incoming data, but shouldn't */
+/* cant handle zero-len incoming data, but shouldnt */
 static int
-compress_process(PushFilter *next, void *priv, const uint8 *data, int len)
+compress_process(PushFilter * next, void *priv, const uint8 *data, int len)
 {
 	int			res,
 				n_out;
@@ -139,7 +140,7 @@ compress_process(PushFilter *next, void *priv, const uint8 *data, int len)
 }
 
 static int
-compress_flush(PushFilter *next, void *priv)
+compress_flush(PushFilter * next, void *priv)
 {
 	int			res,
 				zres,
@@ -174,7 +175,7 @@ compress_free(void *priv)
 	struct ZipStat *st = priv;
 
 	deflateEnd(&st->stream);
-	px_memset(st, 0, sizeof(*st));
+	memset(st, 0, sizeof(*st));
 	px_free(st);
 }
 
@@ -184,7 +185,7 @@ static const PushFilterOps
 };
 
 int
-pgp_compress_filter(PushFilter **res, PGP_Context *ctx, PushFilter *dst)
+pgp_compress_filter(PushFilter ** res, PGP_Context * ctx, PushFilter * dst)
 {
 	return pushf_create(res, &compress_filter, ctx, dst);
 }
@@ -203,7 +204,7 @@ struct DecomprData
 };
 
 static int
-decompress_init(void **priv_p, void *arg, PullFilter *src)
+decompress_init(void **priv_p, void *arg, PullFilter * src)
 {
 	PGP_Context *ctx = arg;
 	struct DecomprData *dec;
@@ -236,7 +237,7 @@ decompress_init(void **priv_p, void *arg, PullFilter *src)
 }
 
 static int
-decompress_read(void *priv, PullFilter *src, int len,
+decompress_read(void *priv, PullFilter * src, int len,
 				uint8 **data_p, uint8 *buf, int buflen)
 {
 	int			res;
@@ -297,7 +298,7 @@ decompress_free(void *priv)
 	struct DecomprData *dec = priv;
 
 	inflateEnd(&dec->stream);
-	px_memset(dec, 0, sizeof(*dec));
+	memset(dec, 0, sizeof(*dec));
 	px_free(dec);
 }
 
@@ -307,20 +308,20 @@ static const PullFilterOps
 };
 
 int
-pgp_decompress_filter(PullFilter **res, PGP_Context *ctx, PullFilter *src)
+pgp_decompress_filter(PullFilter ** res, PGP_Context * ctx, PullFilter * src)
 {
 	return pullf_create(res, &decompress_filter, ctx, src);
 }
-#else							/* !HAVE_ZLIB */
+#else							/* DISABLE_ZLIB */
 
 int
-pgp_compress_filter(PushFilter **res, PGP_Context *ctx, PushFilter *dst)
+pgp_compress_filter(PushFilter ** res, PGP_Context * ctx, PushFilter * dst)
 {
 	return PXE_PGP_UNSUPPORTED_COMPR;
 }
 
 int
-pgp_decompress_filter(PullFilter **res, PGP_Context *ctx, PullFilter *src)
+pgp_decompress_filter(PullFilter ** res, PGP_Context * ctx, PullFilter * src)
 {
 	return PXE_PGP_UNSUPPORTED_COMPR;
 }

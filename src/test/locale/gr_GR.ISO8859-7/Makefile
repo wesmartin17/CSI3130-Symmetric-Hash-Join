@@ -1,7 +1,12 @@
-all:
+#
+# Makefile for example programs
+#
 
-test:
-	./runall
+all: 
+	-@echo "make: Nothing to be done for \`all'."
 
-clean:
+test: 
+	@./runall
+
+clean: 
 	rm -f *.out

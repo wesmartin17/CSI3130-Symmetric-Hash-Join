@@ -1,11 +1,19 @@
 /*
  * psql - the PostgreSQL interactive terminal
  *
- * Copyright (c) 2000-2017, PostgreSQL Global Development Group
+ * Copyright (c) 2000-2005, PostgreSQL Global Development Group
  *
- * src/bin/psql/prompt.c
+ * $PostgreSQL: pgsql/src/bin/psql/prompt.c,v 1.40.2.1 2006/01/03 23:32:34 tgl Exp $
  */
 #include "postgres_fe.h"
+#include "prompt.h"
+
+#include "libpq-fe.h"
+
+#include "settings.h"
+#include "common.h"
+#include "input.h"
+#include "variables.h"
 
 #ifdef WIN32
 #include <io.h>
@@ -16,12 +24,6 @@
 #include <unistd.h>
 #include <netdb.h>
 #endif
-
-#include "common.h"
-#include "input.h"
-#include "prompt.h"
-#include "settings.h"
-
 
 /*--------------------------
  * get_prompt
@@ -34,7 +36,6 @@
  * %M - database server "hostname.domainname", "[local]" for AF_UNIX
  *		sockets, "[local:/dir/name]" if not default
  * %m - like %M, but hostname only (before first dot), or always "[local]"
- * %p - backend pid
  * %> - database server port number
  * %n - database user name
  * %/ - current database
@@ -45,7 +46,6 @@
  *		in prompt2 -, *, ', or ";
  *		in prompt3 nothing
  * %x - transaction status: empty, *, !, ? (unknown or no connection)
- * %l - The line number inside the current statement, starting from 1.
  * %? - the error code of the last query (not yet implemented)
  * %% - a percent sign
  *
@@ -66,7 +66,7 @@
  */
 
 char *
-get_prompt(promptStatus_t status, ConditionalStack cstack)
+get_prompt(promptStatus_t status)
 {
 #define MAX_PROMPT_SIZE 256
 	static char destination[MAX_PROMPT_SIZE + 1];
@@ -74,11 +74,12 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 	bool		esc = false;
 	const char *p;
 	const char *prompt_string = "? ";
+	const char *prompt_name = NULL;
 
 	switch (status)
 	{
 		case PROMPT_READY:
-			prompt_string = pset.prompt1;
+			prompt_name = "PROMPT1";
 			break;
 
 		case PROMPT_CONTINUE:
@@ -87,21 +88,24 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 		case PROMPT_DOLLARQUOTE:
 		case PROMPT_COMMENT:
 		case PROMPT_PAREN:
-			prompt_string = pset.prompt2;
+			prompt_name = "PROMPT2";
 			break;
 
 		case PROMPT_COPY:
-			prompt_string = pset.prompt3;
+			prompt_name = "PROMPT3";
 			break;
 	}
+
+	if (prompt_name)
+		prompt_string = GetVariable(pset.vars, prompt_name);
 
 	destination[0] = '\0';
 
 	for (p = prompt_string;
-		 *p && strlen(destination) < sizeof(destination) - 1;
+		 p && *p && strlen(destination) < MAX_PROMPT_SIZE;
 		 p++)
 	{
-		memset(buf, 0, sizeof(buf));
+		memset(buf, 0, MAX_PROMPT_SIZE + 1);
 		if (esc)
 		{
 			switch (*p)
@@ -109,7 +113,7 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 					/* Current database */
 				case '/':
 					if (pset.db)
-						strlcpy(buf, PQdb(pset.db), sizeof(buf));
+						strncpy(buf, PQdb(pset.db), MAX_PROMPT_SIZE);
 					break;
 				case '~':
 					if (pset.db)
@@ -118,9 +122,9 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 
 						if (strcmp(PQdb(pset.db), PQuser(pset.db)) == 0 ||
 							((var = getenv("PGDATABASE")) && strcmp(var, PQdb(pset.db)) == 0))
-							strlcpy(buf, "~", sizeof(buf));
+							strcpy(buf, "~");
 						else
-							strlcpy(buf, PQdb(pset.db), sizeof(buf));
+							strncpy(buf, PQdb(pset.db), MAX_PROMPT_SIZE);
 					}
 					break;
 
@@ -134,7 +138,7 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 						/* INET socket */
 						if (host && host[0] && !is_absolute_path(host))
 						{
-							strlcpy(buf, host, sizeof(buf));
+							strncpy(buf, host, MAX_PROMPT_SIZE);
 							if (*p == 'm')
 								buf[strcspn(buf, ".")] = '\0';
 						}
@@ -145,9 +149,9 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 							if (!host
 								|| strcmp(host, DEFAULT_PGSOCKET_DIR) == 0
 								|| *p == 'm')
-								strlcpy(buf, "[local]", sizeof(buf));
+								strncpy(buf, "[local]", MAX_PROMPT_SIZE);
 							else
-								snprintf(buf, sizeof(buf), "[local:%s]", host);
+								snprintf(buf, MAX_PROMPT_SIZE, "[local:%s]", host);
 						}
 #endif
 					}
@@ -155,22 +159,12 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 					/* DB server port number */
 				case '>':
 					if (pset.db && PQport(pset.db))
-						strlcpy(buf, PQport(pset.db), sizeof(buf));
+						strncpy(buf, PQport(pset.db), MAX_PROMPT_SIZE);
 					break;
 					/* DB server user name */
 				case 'n':
 					if (pset.db)
-						strlcpy(buf, session_username(), sizeof(buf));
-					break;
-					/* backend pid */
-				case 'p':
-					if (pset.db)
-					{
-						int			pid = PQbackendPID(pset.db);
-
-						if (pid)
-							snprintf(buf, sizeof(buf), "%d", pid);
-					}
+						strncpy(buf, session_username(), MAX_PROMPT_SIZE);
 					break;
 
 				case '0':
@@ -188,11 +182,9 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 					switch (status)
 					{
 						case PROMPT_READY:
-							if (cstack != NULL && !conditional_active(cstack))
-								buf[0] = '@';
-							else if (!pset.db)
+							if (!pset.db)
 								buf[0] = '!';
-							else if (!pset.singleline)
+							else if (!GetVariableBool(pset.vars, "SINGLELINE"))
 								buf[0] = '=';
 							else
 								buf[0] = '^';
@@ -243,10 +235,6 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 						}
 					break;
 
-				case 'l':
-					snprintf(buf, sizeof(buf), UINT64_FORMAT, pset.stmt_lineno);
-					break;
-
 				case '?':
 					/* not here yet */
 					break;
@@ -261,17 +249,17 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 					/* execute command */
 				case '`':
 					{
-						FILE	   *fd;
+						FILE	   *fd = NULL;
 						char	   *file = pg_strdup(p + 1);
 						int			cmdend;
 
 						cmdend = strcspn(file, "`");
 						file[cmdend] = '\0';
-						fd = popen(file, "r");
+						if (file)
+							fd = popen(file, "r");
 						if (fd)
 						{
-							if (fgets(buf, sizeof(buf), fd) == NULL)
-								buf[0] = '\0';
+							fgets(buf, MAX_PROMPT_SIZE - 1, fd);
 							pclose(fd);
 						}
 						if (strlen(buf) > 0 && buf[strlen(buf) - 1] == '\n')
@@ -293,7 +281,7 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 						name[nameend] = '\0';
 						val = GetVariable(pset.vars, name);
 						if (val)
-							strlcpy(buf, val, sizeof(buf));
+							strncpy(buf, val, MAX_PROMPT_SIZE);
 						free(name);
 						p += nameend + 1;
 						break;
@@ -310,7 +298,7 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 					 */
 					buf[0] = (*p == '[') ? RL_PROMPT_START_IGNORE : RL_PROMPT_END_IGNORE;
 					buf[1] = '\0';
-#endif							/* USE_READLINE */
+#endif   /* USE_READLINE */
 					break;
 
 				default:
@@ -331,8 +319,9 @@ get_prompt(promptStatus_t status, ConditionalStack cstack)
 		}
 
 		if (!esc)
-			strlcat(destination, buf, sizeof(destination));
+			strncat(destination, buf, MAX_PROMPT_SIZE - strlen(destination));
 	}
 
+	destination[MAX_PROMPT_SIZE] = '\0';
 	return destination;
 }

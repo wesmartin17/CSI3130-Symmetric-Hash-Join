@@ -2,10 +2,10 @@
  *
  * geqo_copy.c
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/backend/optimizer/geqo/geqo_copy.c
+ * $PostgreSQL: pgsql/src/backend/optimizer/geqo/geqo_copy.c,v 1.15 2004/12/31 21:59:58 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -42,8 +42,7 @@
  *
  */
 void
-geqo_copy(PlannerInfo *root, Chromosome *chromo1, Chromosome *chromo2,
-		  int string_length)
+geqo_copy(Chromosome *chromo1, Chromosome *chromo2, int string_length)
 {
 	int			i;
 

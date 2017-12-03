@@ -1,20 +1,32 @@
 /*-------------------------------------------------------------------------
  *
  * pg_type.h
- *	  Hard-wired knowledge about some standard type OIDs.
+ *	  definition of the system "type" relation (pg_type)
+ *	  along with the relation's initial contents.
  *
- * XXX keep this in sync with src/include/catalog/pg_type.h
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/interfaces/ecpg/ecpglib/pg_type.h
+ * $PostgreSQL: pgsql/src/interfaces/ecpg/ecpglib/pg_type.h,v 1.5 2004/12/31 22:03:47 pgsql Exp $
+ *
+ * NOTES
+ *	  the genbki.sh script reads this file and generates .bki
+ *	  information from the DATA() statements.
  *
  *-------------------------------------------------------------------------
  */
 #ifndef PG_TYPE_H
 #define PG_TYPE_H
 
+/* ----------------
+ *		initial contents of pg_type
+ * ----------------
+ */
+
+/* keep the following ordered by OID so that later changes can be made easier*/
+
+/* OIDS 1 - 99 */
 #define BOOLOID			16
 #define BYTEAOID		17
 #define CHAROID			18
@@ -57,23 +69,5 @@
 #define ZPBITOID	 1560
 #define VARBITOID	  1562
 #define NUMERICOID		1700
-#define REFCURSOROID	1790
-#define REGPROCEDUREOID 2202
-#define REGOPEROID		2203
-#define REGOPERATOROID	2204
-#define REGCLASSOID		2205
-#define REGTYPEOID		2206
-#define REGROLEOID		4096
-#define REGNAMESPACEOID		4089
-#define REGTYPEARRAYOID 2211
-#define UUIDOID 2950
-#define LSNOID			3220
-#define TSVECTOROID		3614
-#define GTSVECTOROID	3642
-#define TSQUERYOID		3615
-#define REGCONFIGOID	3734
-#define REGDICTIONARYOID	3769
-#define JSONBOID 3802
-#define INT4RANGEOID		3904
 
-#endif							/* PG_TYPE_H */
+#endif   /* PG_TYPE_H */

@@ -4,24 +4,19 @@
  *
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/commands/view.h
+ * $PostgreSQL: pgsql/src/include/commands/view.h,v 1.22 2005/02/02 06:36:01 neilc Exp $
  *
  *-------------------------------------------------------------------------
  */
 #ifndef VIEW_H
 #define VIEW_H
 
-#include "catalog/objectaddress.h"
 #include "nodes/parsenodes.h"
 
-extern void validateWithCheckOption(const char *value);
+extern void DefineView(RangeVar *view, Query *view_parse, bool replace);
+extern void RemoveView(const RangeVar *view, DropBehavior behavior);
 
-extern ObjectAddress DefineView(ViewStmt *stmt, const char *queryString,
-		   int stmt_location, int stmt_len);
-
-extern void StoreViewQuery(Oid viewOid, Query *viewParse, bool replace);
-
-#endif							/* VIEW_H */
+#endif   /* VIEW_H */

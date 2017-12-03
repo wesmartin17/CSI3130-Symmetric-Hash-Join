@@ -1,697 +1,417 @@
-# Russian message translation file for initdb
-# Copyright (C) 2004-2016 PostgreSQL Global Development Group
-# This file is distributed under the same license as the PostgreSQL package.
-# Serguei A. Mokhov <mokhov@cs.concordia.ca>, 2004-2005.
-# Oleg Bartunov <oleg@sai.msu.su>, 2004.
-# Sergey Burladyan <eshkinkot@gmail.com>, 2009.
-# Andrey Sudnik <sudnikand@yandex.ru>, 2010.
-# Dmitriy Olshevskiy <olshevskiy87@bk.ru>, 2014.
-# Alexander Lakhin <exclusion@gmail.com>, 2012-2017.
+# ru.po
+# INITDB Translated Messages into the Russian Language (KOI8-R)
+#
+# Copyright (c) 2004 Serguei A. Mokhov, mokhov@cs.concordia.ca
+# Distributed under the same licensing terms as PostgreSQL itself.
+#
+# $PostgreSQL: pgsql/src/bin/initdb/po/ru.po,v 1.15 2005/01/17 21:21:08 petere Exp $
+#
+# ChangeLog:
+#   - January 17, 2005: complete translation for 8.0, Serguei A. Mokhov <mokhov@cs.concordia.ca>
+#   - December, 2004: New translation by Oleg Bartunov <oleg@sai.msu.su>
+#   - March 27 - December 10, 2004: Initial Translation, Serguei A. Mokhov <mokhov@cs.concordia.ca>
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: initdb (PostgreSQL current)\n"
-"Report-Msgid-Bugs-To: pgsql-bugs@postgresql.org\n"
-"POT-Creation-Date: 2017-04-02 23:46+0000\n"
-"PO-Revision-Date: 2017-04-03 14:13+0300\n"
-"Language-Team: Russian <pgsql-ru-general@postgresql.org>\n"
-"Language: ru\n"
+"Project-Id-Version: PostgreSQL 8.0\n"
+"POT-Creation-Date: 2005-01-17 19:04+0000\n"
+"PO-Revision-Date: 2005-01-17 15:19-0500\n"
+"Last-Translator: Serguei A. Mokhov <mokhov@cs.concordia.ca>\n"
+"Language-Team: pgsql-ru-general <pgsql-ru-general@postgresql.org>\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=koi8-r\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
-"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"Last-Translator: Alexander Lakhin <exclusion@gmail.com>\n"
+"X-Poedit-Language: Russian\n"
+"X-Poedit-Country: RUSSIAN FEDERATION\n"
 
-#: ../../common/exec.c:127 ../../common/exec.c:241 ../../common/exec.c:284
-#, c-format
-msgid "could not identify current directory: %s"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ я┌п╣п╨я┐я┴п╦п╧ п╨п╟я┌п╟п╩п╬пЁ: %s"
-
-#: ../../common/exec.c:146
-#, c-format
-msgid "invalid binary \"%s\""
-msgstr "п╫п╣п╡п╣я─п╫я▀п╧ п╦я│п©п╬п╩п╫я▐п╣п╪я▀п╧ я└п╟п╧п╩ \"%s\""
-
-#: ../../common/exec.c:195
-#, c-format
-msgid "could not read binary \"%s\""
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©я─п╬я┤п╦я┌п╟я┌я▄ п╦я│п©п╬п╩п╫я▐п╣п╪я▀п╧ я└п╟п╧п╩ \"%s\""
-
-#: ../../common/exec.c:202
-#, c-format
-msgid "could not find a \"%s\" to execute"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╫п╟п╧я┌п╦ п╥п╟п©я┐я│п╨п╟п╣п╪я▀п╧ я└п╟п╧п╩ \"%s\""
-
-#: ../../common/exec.c:257 ../../common/exec.c:293
-#, c-format
-msgid "could not change directory to \"%s\": %s"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╣я─п╣п╧я┌п╦ п╡ п╨п╟я┌п╟п╩п╬пЁ \"%s\": %s"
-
-#: ../../common/exec.c:272
-#, c-format
-msgid "could not read symbolic link \"%s\""
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©я─п╬я┤п╦я┌п╟я┌я▄ я│п╦п╪п╡п╬п╩п╦я┤п╣я│п╨я┐я▌ я│я│я▀п╩п╨я┐ \"%s\""
-
-#: ../../common/exec.c:523
-#, c-format
-msgid "pclose failed: %s"
-msgstr "п╬я┬п╦п╠п╨п╟ pclose: %s"
-
-#: ../../common/fe_memutils.c:35 ../../common/fe_memutils.c:75
-#: ../../common/fe_memutils.c:98
-#, c-format
-msgid "out of memory\n"
-msgstr "п╫п╣я┘п╡п╟я┌п╨п╟ п©п╟п╪я▐я┌п╦\n"
-
-#: ../../common/fe_memutils.c:92
-#, c-format
-msgid "cannot duplicate null pointer (internal error)\n"
-msgstr "п©п╬п©я▀я┌п╨п╟ п╢я┐п╠п╩п╦я─п╬п╡п╟п╫п╦я▐ п╫я┐п╩п╣п╡п╬пЁп╬ я┐п╨п╟п╥п╟я┌п╣п╩я▐ (п╡п╫я┐я┌я─п╣п╫п╫я▐я▐ п╬я┬п╦п╠п╨п╟)\n"
-
-#: ../../common/file_utils.c:82 ../../common/file_utils.c:186
-#, c-format
-msgid "%s: could not stat file \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╦п╫я└п╬я─п╪п╟я├п╦я▌ п╬ я└п╟п╧п╩п╣ \"%s\": %s\n"
-
-#: ../../common/file_utils.c:162
-#, c-format
-msgid "%s: could not open directory \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬я┌п╨я─я▀я┌я▄ п╨п╟я┌п╟п╩п╬пЁ \"%s\": %s\n"
-
-#: ../../common/file_utils.c:198
-#, c-format
-msgid "%s: could not read directory \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©я─п╬я┤п╦я┌п╟я┌я▄ п╨п╟я┌п╟п╩п╬пЁ \"%s\": %s\n"
-
-#: ../../common/file_utils.c:231 ../../common/file_utils.c:291
-#: ../../common/file_utils.c:367
-#, c-format
-msgid "%s: could not open file \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬я┌п╨я─я▀я┌я▄ я└п╟п╧п╩ \"%s\": %s\n"
-
-#: ../../common/file_utils.c:304 ../../common/file_utils.c:376
-#, c-format
-msgid "%s: could not fsync file \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ я│п╦п╫я┘я─п╬п╫п╦п╥п╦я─п╬п╡п╟я┌я▄ я│ п╓п║ я└п╟п╧п╩ \"%s\": %s\n"
-
-#: ../../common/file_utils.c:387
-#, c-format
-msgid "%s: could not rename file \"%s\" to \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╣я─п╣п╦п╪п╣п╫п╬п╡п╟я┌я▄ я└п╟п╧п╩ \"%s\" п╡ \"%s\": %s\n"
-
-#: ../../common/pgfnames.c:45
-#, c-format
-msgid "could not open directory \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬я┌п╨я─я▀я┌я▄ п╨п╟я┌п╟п╩п╬пЁ \"%s\": %s\n"
-
-#: ../../common/pgfnames.c:72
-#, c-format
-msgid "could not read directory \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©я─п╬я┤п╦я┌п╟я┌я▄ п╨п╟я┌п╟п╩п╬пЁ \"%s\": %s\n"
-
-#: ../../common/pgfnames.c:84
-#, c-format
-msgid "could not close directory \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╥п╟п╨я─я▀я┌я▄ п╨п╟я┌п╟п╩п╬пЁ \"%s\": %s\n"
-
-#: ../../common/restricted_token.c:68
-#, c-format
-msgid "%s: WARNING: cannot create restricted tokens on this platform\n"
-msgstr "%s: п÷п═п∙п■пёп÷п═п∙п√п■п∙п²п≤п∙: п╡ я█я┌п╬п╧ п·п║ п╫п╣п╩я▄п╥я▐ я│п╬п╥п╢п╟п╡п╟я┌я▄ п╬пЁя─п╟п╫п╦я┤п╣п╫п╫я▀п╣ п╪п╟я─п╨п╣я─я▀\n"
-
-#: ../../common/restricted_token.c:77
-#, c-format
-msgid "%s: could not open process token: error code %lu\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬я┌п╨я─я▀я┌я▄ п╪п╟я─п╨п╣я─ п©я─п╬я├п╣я│я│п╟ (п╨п╬п╢ п╬я┬п╦п╠п╨п╦: %lu)\n"
-
-#: ../../common/restricted_token.c:90
-#, c-format
-msgid "%s: could not allocate SIDs: error code %lu\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╢пЁп╬я┌п╬п╡п╦я┌я▄ я│я┌я─я┐п╨я┌я┐я─я▀ SID (п╨п╬п╢ п╬я┬п╦п╠п╨п╦: %lu)\n"
-
-#: ../../common/restricted_token.c:110
-#, c-format
-msgid "%s: could not create restricted token: error code %lu\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ я│п╬п╥п╢п╟я┌я▄ п╬пЁя─п╟п╫п╦я┤п╣п╫п╫я▀п╧ п╪п╟я─п╨п╣я─ (п╨п╬п╢ п╬я┬п╦п╠п╨п╦: %lu)\n"
-
-#: ../../common/restricted_token.c:132
-#, c-format
-msgid "%s: could not start process for command \"%s\": error code %lu\n"
-msgstr ""
-"%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╥п╟п©я┐я│я┌п╦я┌я▄ п©я─п╬я├п╣я│я│ п╢п╩я▐ п╨п╬п╪п╟п╫п╢я▀ \"%s\" (п╨п╬п╢ п╬я┬п╦п╠п╨п╦: %lu)\n"
-
-#: ../../common/restricted_token.c:170
-#, c-format
-msgid "%s: could not re-execute with restricted token: error code %lu\n"
-msgstr ""
-"%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╣я─п╣п╥п╟п©я┐я│я┌п╦я┌я▄я│я▐ я│ п╬пЁя─п╟п╫п╦я┤п╣п╫п╫я▀п╪ п╪п╟я─п╨п╣я─п╬п╪ (п╨п╬п╢ п╬я┬п╦п╠п╨п╦: %lu)\n"
-
-#: ../../common/restricted_token.c:186
-#, c-format
-msgid "%s: could not get exit code from subprocess: error code %lu\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╨п╬п╢ п╡я▀я┘п╬п╢п╟ п╬я┌ п©п╬п╢п©я─п╬я├п╣я│я│п╟ (п╨п╬п╢ п╬я┬п╦п╠п╨п╦: %lu)\n"
-
-#: ../../common/rmtree.c:77
-#, c-format
-msgid "could not stat file or directory \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╦п╫я└п╬я─п╪п╟я├п╦я▌ п╬ я└п╟п╧п╩п╣ п╦п╩п╦ п╨п╟я┌п╟п╩п╬пЁп╣ \"%s\": %s\n"
-
-#: ../../common/rmtree.c:104 ../../common/rmtree.c:121
-#, c-format
-msgid "could not remove file or directory \"%s\": %s\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п©я─п╦ я┐п╢п╟п╩п╣п╫п╦п╦ я└п╟п╧п╩п╟ п╦п╩п╦ п╨п╟я┌п╟п╩п╬пЁп╟ \"%s\": %s\n"
-
-#: ../../common/username.c:43
-#, c-format
-msgid "could not look up effective user ID %ld: %s"
-msgstr "п╡я▀я▐я│п╫п╦я┌я▄ я█я└я└п╣п╨я┌п╦п╡п╫я▀п╧ п╦п╢п╣п╫я┌п╦я└п╦п╨п╟я┌п╬я─ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐ (%ld) п╫п╣ я┐п╢п╟п╩п╬я│я▄: %s"
-
-#: ../../common/username.c:45
-msgid "user does not exist"
-msgstr "п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▄ п╫п╣ я│я┐я┴п╣я│я┌п╡я┐п╣я┌"
-
-#: ../../common/username.c:60
-#, c-format
-msgid "user name lookup failure: error code %lu"
-msgstr "я─п╟я│п©п╬п╥п╫п╟я┌я▄ п╦п╪я▐ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐ п╫п╣ я┐п╢п╟п╩п╬я│я▄ (п╨п╬п╢ п╬я┬п╦п╠п╨п╦: %lu)"
-
-#: ../../common/wait_error.c:45
-#, c-format
-msgid "command not executable"
-msgstr "п╫п╣п╦я│п©п╬п╩п╫я▐п╣п╪п╟я▐ п╨п╬п╪п╟п╫п╢п╟"
-
-#: ../../common/wait_error.c:49
-#, c-format
-msgid "command not found"
-msgstr "п╨п╬п╪п╟п╫п╢п╟ п╫п╣ п╫п╟п╧п╢п╣п╫п╟"
-
-#: ../../common/wait_error.c:54
-#, c-format
-msgid "child process exited with exit code %d"
-msgstr "п╢п╬я┤п╣я─п╫п╦п╧ п©я─п╬я├п╣я│я│ п╥п╟п╡п╣я─я┬п╦п╩я│я▐ я│ п╨п╬п╢п╬п╪ п╡п╬п╥п╡я─п╟я┌п╟ %d"
-
-#: ../../common/wait_error.c:61
-#, c-format
-msgid "child process was terminated by exception 0x%X"
-msgstr "п╢п╬я┤п╣я─п╫п╦п╧ п©я─п╬я├п╣я│я│ п©я─п╣я─п╡п╟п╫ п╦я│п╨п╩я▌я┤п╣п╫п╦п╣п╪ 0x%X"
-
-#: ../../common/wait_error.c:71
-#, c-format
-msgid "child process was terminated by signal %s"
-msgstr "п╢п╬я┤п╣я─п╫п╦п╧ п©я─п╬я├п╣я│я│ п╥п╟п╡п╣я─я┬я▒п╫ п©п╬ я│п╦пЁп╫п╟п╩я┐ %s"
-
-#: ../../common/wait_error.c:75
-#, c-format
-msgid "child process was terminated by signal %d"
-msgstr "п╢п╬я┤п╣я─п╫п╦п╧ п©я─п╬я├п╣я│я│ п╥п╟п╡п╣я─я┬я▒п╫ п©п╬ я│п╦пЁп╫п╟п╩я┐ %d"
-
-#: ../../common/wait_error.c:80
-#, c-format
-msgid "child process exited with unrecognized status %d"
-msgstr "п╢п╬я┤п╣я─п╫п╦п╧ п©я─п╬я├п╣я│я│ п╥п╟п╡п╣я─я┬п╦п╩я│я▐ я│ п╫п╣я─п╟я│п©п╬п╥п╫п╟п╫п╫я▀п╪ я│п╬я│я┌п╬я▐п╫п╦п╣п╪ %d"
-
-#: ../../port/dirmod.c:221
-#, c-format
-msgid "could not set junction for \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ я│п╬п╥п╢п╟я┌я▄ я│п╡я▐п╥я▄ п╢п╩я▐ п╨п╟я┌п╟п╩п╬пЁп╟ \"%s\": %s\n"
-
-#: ../../port/dirmod.c:298
-#, c-format
-msgid "could not get junction for \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ я│п╡я▐п╥я▄ п╢п╩я▐ п╨п╟я┌п╟п╩п╬пЁп╟ \"%s\": %s\n"
-
-#: initdb.c:331
+#: initdb.c:251
+#: initdb.c:265
 #, c-format
 msgid "%s: out of memory\n"
-msgstr "%s: п╫п╣я┘п╡п╟я┌п╨п╟ п©п╟п╪я▐я┌п╦\n"
+msgstr "%s: не хватило памяти\n"
 
-#: initdb.c:441 initdb.c:1442
+#: initdb.c:372
+#: initdb.c:1406
 #, c-format
 msgid "%s: could not open file \"%s\" for reading: %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬я┌п╨я─я▀я┌я▄ я└п╟п╧п╩ \"%s\" п╢п╩я▐ я┤я┌п╣п╫п╦я▐: %s\n"
+msgstr "%s: не удалось открыть файл \"%s\" для чтения: %s\n"
 
-#: initdb.c:497 initdb.c:813 initdb.c:841
+#: initdb.c:433
+#: initdb.c:1033
+#: initdb.c:1060
 #, c-format
 msgid "%s: could not open file \"%s\" for writing: %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬я┌п╨я─я▀я┌я▄ я└п╟п╧п╩ \"%s\" п╢п╩я▐ п╥п╟п©п╦я│п╦: %s\n"
+msgstr "%s: не удалось открыть файл \"%s\" для записи: %s\n"
 
-#: initdb.c:505 initdb.c:513 initdb.c:820 initdb.c:847
+#: initdb.c:441
+#: initdb.c:449
+#: initdb.c:1040
+#: initdb.c:1066
 #, c-format
 msgid "%s: could not write file \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╥п╟п©п╦я│п╟я┌я▄ я└п╟п╧п╩ \"%s\": %s\n"
+msgstr "%s: не удалось записать в файл \"%s\": %s\n"
 
-#: initdb.c:532
+#: initdb.c:468
 #, c-format
 msgid "%s: could not execute command \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╡я▀п©п╬п╩п╫п╦я┌я▄ п╨п╬п╪п╟п╫п╢я┐ \"%s\": %s\n"
+msgstr "%s: не удалось выполнить команду \"%s\": %s\n"
 
-#: initdb.c:548
+#: initdb.c:591
 #, c-format
 msgid "%s: removing data directory \"%s\"\n"
-msgstr "%s: я┐п╢п╟п╩п╣п╫п╦п╣ п╨п╟я┌п╟п╩п╬пЁп╟ п╢п╟п╫п╫я▀я┘ \"%s\"\n"
+msgstr "%s: удаление директории данных \"%s\"\n"
 
-#: initdb.c:551
+#: initdb.c:594
 #, c-format
 msgid "%s: failed to remove data directory\n"
-msgstr "%s: п╬я┬п╦п╠п╨п╟ п©я─п╦ я┐п╢п╟п╩п╣п╫п╦п╦ п╨п╟я┌п╟п╩п╬пЁп╟ п╢п╟п╫п╫я▀я┘\n"
+msgstr "%s: ошибка при удалении директории данных\n"
 
-#: initdb.c:557
+#: initdb.c:600
 #, c-format
 msgid "%s: removing contents of data directory \"%s\"\n"
-msgstr "%s: я┐п╢п╟п╩п╣п╫п╦п╣ я│п╬п╢п╣я─п╤п╦п╪п╬пЁп╬ п╨п╟я┌п╟п╩п╬пЁп╟ п╢п╟п╫п╫я▀я┘ \"%s\"\n"
+msgstr "%s: удаление содержимого директории данных \"%s\"\n"
 
-#: initdb.c:560
+#: initdb.c:603
 #, c-format
 msgid "%s: failed to remove contents of data directory\n"
-msgstr "%s: п╬я┬п╦п╠п╨п╟ п©я─п╦ я┐п╢п╟п╩п╣п╫п╦п╦ я│п╬п╢п╣я─п╤п╦п╪п╬пЁп╬ п╨п╟я┌п╟п╩п╬пЁп╟ п╢п╟п╫п╫я▀я┘\n"
+msgstr "%s: ошибка при удалении содержимого директории данных\n"
 
-#: initdb.c:566
-#, c-format
-msgid "%s: removing transaction log directory \"%s\"\n"
-msgstr "%s: я┐п╢п╟п╩п╣п╫п╦п╣ п╨п╟я┌п╟п╩п╬пЁп╟ п╤я┐я─п╫п╟п╩п╟ я┌я─п╟п╫п╥п╟п╨я├п╦п╧ \"%s\"\n"
-
-#: initdb.c:569
-#, c-format
-msgid "%s: failed to remove transaction log directory\n"
-msgstr "%s: п╬я┬п╦п╠п╨п╟ п©я─п╦ я┐п╢п╟п╩п╣п╫п╦п╦ п╨п╟я┌п╟п╩п╬пЁп╟ п╤я┐я─п╫п╟п╩п╟ я┌я─п╟п╫п╥п╟п╨я├п╦п╧\n"
-
-#: initdb.c:575
-#, c-format
-msgid "%s: removing contents of transaction log directory \"%s\"\n"
-msgstr "%s: п╬я┤п╦я│я┌п╨п╟ п╨п╟я┌п╟п╩п╬пЁп╟ п╤я┐я─п╫п╟п╩п╟ я┌я─п╟п╫п╥п╟п╨я├п╦п╧ \"%s\"\n"
-
-#: initdb.c:578
-#, c-format
-msgid "%s: failed to remove contents of transaction log directory\n"
-msgstr "%s: п╬я┬п╦п╠п╨п╟ п©я─п╦ п╬я┤п╦я│я┌п╨п╣ п╨п╟я┌п╟п╩п╬пЁп╟ п╤я┐я─п╫п╟п╩п╟ я┌я─п╟п╫п╥п╟п╨я├п╦п╧\n"
-
-#: initdb.c:587
+#: initdb.c:612
 #, c-format
 msgid "%s: data directory \"%s\" not removed at user's request\n"
-msgstr "%s: п╨п╟я┌п╟п╩п╬пЁ п╢п╟п╫п╫я▀я┘ \"%s\" п╫п╣ п╠я▀п╩ я┐п╢п╟п╩я▒п╫ п©п╬ п╥п╟п©я─п╬я│я┐ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐\n"
+msgstr "%s: директория данных \"%s\" не удалена по запросу пользователя\n"
 
-#: initdb.c:592
-#, c-format
-msgid "%s: transaction log directory \"%s\" not removed at user's request\n"
-msgstr ""
-"%s: п╨п╟я┌п╟п╩п╬пЁ п╤я┐я─п╫п╟п╩п╟ я┌я─п╟п╫п╥п╟п╨я├п╦п╧ \"%s\" п╫п╣ п╠я▀п╩ я┐п╢п╟п╩я▒п╫ п©п╬ п╥п╟п©я─п╬я│я┐ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐\n"
-
-#: initdb.c:613
+#: initdb.c:638
 #, c-format
 msgid ""
 "%s: cannot be run as root\n"
 "Please log in (using, e.g., \"su\") as the (unprivileged) user that will\n"
 "own the server process.\n"
 msgstr ""
-"п≈п╟п©я┐я│п╨п╟я┌я▄ %s п╬я┌ п╦п╪п╣п╫п╦ root п╫п╣п╩я▄п╥я▐.\n"
-"п÷п╬п╤п╟п╩я┐п╧я│я┌п╟, п©п╣я─п╣п╨п╩я▌я┤п╦я┌п╣я│я▄ п╫п╟ п╬п╠я▀я┤п╫п╬пЁп╬ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐ (п╫п╟п©я─п╦п╪п╣я─,\n"
-"п╦я│п©п╬п╩я▄п╥я┐я▐ \"su\"), п╨п╬я┌п╬я─я▀п╧ п╠я┐п╢п╣я┌ п╥п╟п©я┐я│п╨п╟я┌я▄ я│п╣я─п╡п╣я─п╫я▀п╧ п©я─п╬я├п╣я│я│.\n"
+"%s: нельзя запускать под root'ом\n"
+"Пожалуйста, зайдите как (непривилегированный) пользователь (например,\n"
+"используя \"su\"), под которым будет выполняться серверный процесс.\n"
 
-#: initdb.c:649
+#: initdb.c:687
 #, c-format
 msgid "%s: \"%s\" is not a valid server encoding name\n"
-msgstr "%s: \"%s\" - п╫п╣п╡п╣я─п╫п╬п╣ п╦п╪я▐ я│п╣я─п╡п╣я─п╫п╬п╧ п╨п╬п╢п╦я─п╬п╡п╨п╦\n"
+msgstr "%s: \"%s\" не является верной кодировкой сервера\n"
 
-#: initdb.c:769
+#: initdb.c:842
 #, c-format
-msgid "%s: file \"%s\" does not exist\n"
-msgstr "%s: я└п╟п╧п╩ \"%s\" п╫п╣ я│я┐я┴п╣я│я┌п╡я┐п╣я┌\n"
+msgid "%s: warning: encoding mismatch\n"
+msgstr "%s: внимание: несоответствие кодировки\n"
 
-#: initdb.c:771 initdb.c:780 initdb.c:790
+#: initdb.c:844
 #, c-format
 msgid ""
-"This might mean you have a corrupted installation or identified\n"
+"The encoding you selected (%s) and the encoding that the selected\n"
+"locale uses (%s) are not known to match.  This may lead to\n"
+"misbehavior in various character string processing functions.  To fix\n"
+"this situation, rerun %s and either do not specify an encoding\n"
+"explicitly, or choose a matching combination.\n"
+msgstr ""
+"Кодировка которую вы выбрали (%s) и кодировка выбранной\n"
+"локали (%s) не совпадают.  Это может привести к неожиданным\n"
+"результатам в различных функциях связанных с обработкой строк. \n"
+"Для исправления  перезапустите %s и, либо не указывайте\n"
+"кодировку, либо задайте правильную комбинацию кодировки и локали.\n"
+
+#: initdb.c:974
+#, c-format
+msgid "%s: could not create directory \"%s\": %s\n"
+msgstr "%s: не удалось создать директорию \"%s\": %s\n"
+
+#: initdb.c:1002
+#, c-format
+msgid ""
+"%s: file \"%s\" does not exist\n"
+"This means you have a corrupted installation or identified\n"
 "the wrong directory with the invocation option -L.\n"
 msgstr ""
-"п╜я┌п╬ п╬п╥п╫п╟я┤п╟п╣я┌, я┤я┌п╬ п╡п╟я┬п╟ я┐я│я┌п╟п╫п╬п╡п╨п╟ PostgreSQL п╦я│п©п╬я─я┤п╣п╫п╟ п╦п╩п╦ п╡ п©п╟я─п╟п╪п╣я┌я─п╣ -L\n"
-"п╥п╟п╢п╟п╫ п╫п╣п©я─п╟п╡п╦п╩я▄п╫я▀п╧ п╨п╟я┌п╟п╩п╬пЁ.\n"
+"%s: файл \"%s\" не существует\n"
+"Это означает, что у вас проблемы с установкой или указана\n"
+"неправильная директория в опции запуска -L.\n"
 
-#: initdb.c:777
-#, c-format
-msgid "%s: could not access file \"%s\": %s\n"
-msgstr "%s: п╫п╣я┌ п╢п╬я│я┌я┐п©п╟ п╨ я└п╟п╧п╩я┐ \"%s\": %s\n"
-
-#: initdb.c:788
-#, c-format
-msgid "%s: file \"%s\" is not a regular file\n"
-msgstr "%s: \"%s\" - п╫п╣ п╬п╠я▀я┤п╫я▀п╧ я└п╟п╧п╩\n"
-
-#: initdb.c:933
-#, c-format
+#: initdb.c:1084
 msgid "selecting default max_connections ... "
-msgstr "п╡я▀п╠п╦я─п╟п╣я┌я│я▐ п╥п╫п╟я┤п╣п╫п╦п╣ max_connections... "
+msgstr "выбирается значение по-умолчанию для max_connections ... "
 
-#: initdb.c:963
-#, c-format
+#: initdb.c:1120
 msgid "selecting default shared_buffers ... "
-msgstr "п╡я▀п╠п╦я─п╟п╣я┌я│я▐ п╥п╫п╟я┤п╣п╫п╦п╣ shared_buffers... "
+msgstr "выбирается значение по-умолчанию для shared_buffers ... "
 
-#: initdb.c:996
-#, c-format
-msgid "selecting dynamic shared memory implementation ... "
-msgstr "п╡я▀п╠п╬я─ я─п╣п╟п╩п╦п╥п╟я├п╦п╦ п╢п╦п╫п╟п╪п╦я┤п╣я│п╨п╬п╧ я─п╟п╥п╢п╣п╩я▐п╣п╪п╬п╧ п©п╟п╪я▐я┌п╦ ... "
-
-#: initdb.c:1014
+#: initdb.c:1153
 msgid "creating configuration files ... "
-msgstr "я│п╬п╥п╢п╟п╫п╦п╣ п╨п╬п╫я└п╦пЁя┐я─п╟я├п╦п╬п╫п╫я▀я┘ я└п╟п╧п╩п╬п╡... "
+msgstr "создание конфигурационных файлов ... "
 
-#: initdb.c:1146 initdb.c:1166 initdb.c:1253 initdb.c:1269
+#: initdb.c:1254
 #, c-format
-msgid "%s: could not change permissions of \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╪п╣п╫я▐я┌я▄ п©я─п╟п╡п╟ п╢п╩я▐ \"%s\": %s\n"
+msgid "creating template1 database in %s/base/1 ... "
+msgstr "создание базы template1 в %s/base/1 ... "
 
-#: initdb.c:1293
-#, c-format
-msgid "running bootstrap script ... "
-msgstr "п╡я▀п©п╬п╩п╫я▐п╣я┌я│я▐ п©п╬п╢пЁп╬я┌п╬п╡п╦я┌п╣п╩я▄п╫я▀п╧ я│п╨я─п╦п©я┌ ... "
-
-#: initdb.c:1309
+#: initdb.c:1270
 #, c-format
 msgid ""
 "%s: input file \"%s\" does not belong to PostgreSQL %s\n"
 "Check your installation or specify the correct path using the option -L.\n"
 msgstr ""
-"%s: п╡я┘п╬п╢п╫п╬п╧ я└п╟п╧п╩ \"%s\" п╫п╣ п©я─п╦п╫п╟п╢п╩п╣п╤п╦я┌ PostgreSQL %s\n"
-"п÷я─п╬п╡п╣я─я▄я┌п╣ п©я─п╟п╡п╦п╩я▄п╫п╬я│я┌я▄ я┐я│я┌п╟п╫п╬п╡п╨п╦ п╦п╩п╦ я┐п╨п╟п╤п╦я┌п╣ п╨п╬я─я─п╣п╨я┌п╫я▀п╧ п©я┐я┌я▄ п╡ п©п╟я─п╟п╪п╣я┌я─п╣ -"
-"L.\n"
+"%s: входной файл \"%s\" не принадлежит PostgreSQL %s\n"
+"Проверьте вашу установку или укажите правильный путь с помощью опции -L.\n"
 
-#: initdb.c:1419
+#: initdb.c:1345
+msgid "initializing pg_shadow ... "
+msgstr "инициализация pg_shadow ... "
+
+#: initdb.c:1381
 msgid "Enter new superuser password: "
-msgstr "п▓п╡п╣п╢п╦я┌п╣ п╫п╬п╡я▀п╧ п©п╟я─п╬п╩я▄ я│я┐п©п╣я─п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐: "
+msgstr "Введите новый пароль администратора: "
 
-#: initdb.c:1420
+#: initdb.c:1382
 msgid "Enter it again: "
-msgstr "п÷п╬п╡я┌п╬я─п╦я┌п╣ п╣пЁп╬: "
+msgstr "Введите его снова: "
 
-#: initdb.c:1423
-#, c-format
+#: initdb.c:1385
 msgid "Passwords didn't match.\n"
-msgstr "п÷п╟я─п╬п╩п╦ п╫п╣ я│п╬п╡п©п╟п╢п╟я▌я┌.\n"
+msgstr "Пароли не совпадают.\n"
 
-#: initdb.c:1449
+#: initdb.c:1412
 #, c-format
 msgid "%s: could not read password from file \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©я─п╬я┤п╦я┌п╟я┌я▄ п©п╟я─п╬п╩я▄ п╦п╥ я└п╟п╧п╩п╟ \"%s\": %s\n"
+msgstr "%s: не удалось считать пароль из файла \"%s\": %s\n"
 
-#: initdb.c:1452
-#, c-format
-msgid "%s: password file \"%s\" is empty\n"
-msgstr "%s: я└п╟п╧п╩ п©п╟я─п╬п╩я▐ \"%s\" п©я┐я│я┌\n"
+#: initdb.c:1425
+msgid "setting password ... "
+msgstr "установка пароля ... "
 
-#: initdb.c:2012
+#: initdb.c:1446
 #, c-format
+msgid "%s: The password file was not generated. Please report this problem.\n"
+msgstr "%s: Не удалось сгенерировать пароль. Пожалуйста, сообщите об этой проблеме.\n"
+
+#: initdb.c:1474
+msgid "enabling unlimited row size for system tables ... "
+msgstr "разрешение неограниченного размера строки для системных таблиц ... "
+
+#: initdb.c:1547
+msgid "initializing pg_depend ... "
+msgstr "инициализация pg_depend ... "
+
+#: initdb.c:1575
+msgid "creating system views ... "
+msgstr "создание системных представлений ... "
+
+#: initdb.c:1611
+msgid "loading pg_description ... "
+msgstr "загрузка pg_description ... "
+
+#: initdb.c:1650
+msgid "creating conversions ... "
+msgstr "создание конверсий ... "
+
+#: initdb.c:1704
+msgid "setting privileges on built-in objects ... "
+msgstr "установка привилегий для встроенных объектов ... "
+
+#: initdb.c:1762
+msgid "creating information schema ... "
+msgstr "создание информационной схемы ... "
+
+#: initdb.c:1819
+msgid "vacuuming database template1 ... "
+msgstr "сборка мусора в базе template1 ... "
+
+#: initdb.c:1873
+msgid "copying template1 to template0 ... "
+msgstr "копирование template1 в template0 ... "
+
+#: initdb.c:1930
 msgid "caught signal\n"
-msgstr "п©п╬п╩я┐я┤п╣п╫ я│п╦пЁп╫п╟п╩\n"
+msgstr "перехвачен сигнал\n"
 
-#: initdb.c:2018
+#: initdb.c:1936
 #, c-format
 msgid "could not write to child process: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╥п╟п©п╦я│п╟я┌я▄ п╡ п©п╬я┌п╬п╨ п╢п╬я┤п╣я─п╫п╣пЁп╬ п©я─п╬я├п╣я│я│п╟: %s\n"
+msgstr "не удалось записать в дочерний процесс: %s\n"
 
-#: initdb.c:2026
-#, c-format
+#: initdb.c:1944
 msgid "ok\n"
-msgstr "п╬п╨\n"
+msgstr "ок\n"
 
-#: initdb.c:2116
-#, c-format
-msgid "%s: setlocale() failed\n"
-msgstr "%s: п╬я┬п╦п╠п╨п╟ п╡ setlocale()\n"
-
-#: initdb.c:2134
-#, c-format
-msgid "%s: failed to restore old locale \"%s\"\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╡п╬я│я│я┌п╟п╫п╬п╡п╦я┌я▄ я│я┌п╟я─я┐я▌ п╩п╬п╨п╟п╩я▄ \"%s\"\n"
-
-#: initdb.c:2144
+#: initdb.c:1992
 #, c-format
 msgid "%s: invalid locale name \"%s\"\n"
-msgstr "%s: п╬я┬п╦п╠п╬я┤п╫п╬п╣ п╦п╪я▐ п╩п╬п╨п╟п╩п╦ \"%s\"\n"
+msgstr "%s: ошибочное имя локали \"%s\"\n"
 
-#: initdb.c:2156
-#, c-format
-msgid ""
-"%s: invalid locale settings; check LANG and LC_* environment variables\n"
-msgstr ""
-"%s: п╫п╣п╡п╣я─п╫я▀п╣ я┐я│я┌п╟п╫п╬п╡п╨п╦ п╩п╬п╨п╟п╩п╦; п©я─п╬п╡п╣я─я▄я┌п╣ п©п╣я─п╣п╪п╣п╫п╫я▀п╣ п╬п╨я─я┐п╤п╣п╫п╦я▐ LANG п╦ LC_*\n"
-
-#: initdb.c:2184
-#, c-format
-msgid "%s: encoding mismatch\n"
-msgstr "%s: п╫п╣я│п╬п╬я┌п╡п╣я┌я│я┌п╡п╦п╣ п╨п╬п╢п╦я─п╬п╡п╨п╦\n"
-
-#: initdb.c:2186
-#, c-format
-msgid ""
-"The encoding you selected (%s) and the encoding that the\n"
-"selected locale uses (%s) do not match.  This would lead to\n"
-"misbehavior in various character string processing functions.\n"
-"Rerun %s and either do not specify an encoding explicitly,\n"
-"or choose a matching combination.\n"
-msgstr ""
-"п▓я▀п╠я─п╟п╫п╫п╟я▐ п╡п╟п╪п╦ п╨п╬п╢п╦я─п╬п╡п╨п╟ (%s) п╫п╣ я│п╬п╡п©п╟п╢п╟п╣я┌ я│ п╨п╬п╢п╦я─п╬п╡п╨п╬п╧\n"
-"п╩п╬п╨п╟п╩п╦ (%s). п╜я┌п╬ п╪п╬п╤п╣я┌ п©я─п╦п╡п╣я│я┌п╦ п╨ п╫п╣п©я─п╟п╡п╦п╩я▄п╫п╬п╧ я─п╟п╠п╬я┌п╣\n"
-"я─п╟п╥п╩п╦я┤п╫я▀я┘ я└я┐п╫п╨я├п╦п╧ п╬п╠я─п╟п╠п╬я┌п╨п╦ я┌п╣п╨я│я┌п╬п╡я▀я┘ я│я┌я─п╬п╨.\n"
-"п■п╩я▐ п╦я│п©я─п╟п╡п╩п╣п╫п╦я▐ п©п╣я─п╣п╥п╟п©я┐я│я┌п╦я┌п╣ %s, п╫п╣ я┐п╨п╟п╥я▀п╡п╟я▐ п╨п╬п╢п╦я─п╬п╡п╨я┐ я▐п╡п╫п╬, \n"
-"п╩п╦п╠п╬ п╡я▀п╠п╣я─п╦я┌п╣ п©п╬п╢я┘п╬п╢я▐я┴п╣п╣ я│п╬я┤п╣я┌п╟п╫п╦п╣ п©п╟я─п╟п╪п╣я┌я─п╬п╡ п╩п╬п╨п╟п╩п╦п╥п╟я├п╦п╦.\n"
-
-#: initdb.c:2258
+#: initdb.c:2059
 #, c-format
 msgid ""
 "%s initializes a PostgreSQL database cluster.\n"
 "\n"
 msgstr ""
-"%s п╦п╫п╦я├п╦п╟п╩п╦п╥п╦я─я┐п╣я┌ п╨п╩п╟я│я┌п╣я─ PostgreSQL.\n"
+"%s инициализирует кластер PostgreSQL.\n"
 "\n"
 
-#: initdb.c:2259
-#, c-format
+#: initdb.c:2060
 msgid "Usage:\n"
-msgstr "п≤я│п©п╬п╩я▄п╥п╬п╡п╟п╫п╦п╣:\n"
+msgstr "Использование:\n"
 
-#: initdb.c:2260
+#: initdb.c:2061
 #, c-format
 msgid "  %s [OPTION]... [DATADIR]\n"
-msgstr "  %s [п÷п░п═п░п°п∙п╒п═]... [п п░п╒п░п⌡п·п⌠]\n"
+msgstr "  %s [OPTION]... [DATADIR]\n"
 
-#: initdb.c:2261
-#, c-format
+#: initdb.c:2062
 msgid ""
 "\n"
 "Options:\n"
 msgstr ""
 "\n"
-"п÷п╟я─п╟п╪п╣я┌я─я▀:\n"
+"Опции:\n"
 
-#: initdb.c:2262
-#, c-format
-msgid ""
-"  -A, --auth=METHOD         default authentication method for local "
-"connections\n"
-msgstr ""
-"  -A, --auth=п°п∙п╒п·п■          п╪п╣я┌п╬п╢ п©я─п╬п╡п╣я─п╨п╦ п©п╬п╢п╩п╦п╫п╫п╬я│я┌п╦ п©п╬ я┐п╪п╬п╩я┤п╟п╫п╦я▌\n"
-"                            п╢п╩я▐ п╩п╬п╨п╟п╩я▄п╫я▀я┘ п©п╬п╢п╨п╩я▌я┤п╣п╫п╦п╧\n"
-
-#: initdb.c:2263
-#, c-format
-msgid ""
-"      --auth-host=METHOD    default authentication method for local TCP/IP "
-"connections\n"
-msgstr ""
-"      --auth-host=п°п∙п╒п·п■     п╪п╣я┌п╬п╢ п©я─п╬п╡п╣я─п╨п╦ п©п╬п╢п╩п╦п╫п╫п╬я│я┌п╦ п©п╬ я┐п╪п╬п╩я┤п╟п╫п╦я▌\n"
-"                            п╢п╩я▐ п╩п╬п╨п╟п╩я▄п╫я▀я┘ TCP/IP-п©п╬п╢п╨п╩я▌я┤п╣п╫п╦п╧\n"
-
-#: initdb.c:2264
-#, c-format
-msgid ""
-"      --auth-local=METHOD   default authentication method for local-socket "
-"connections\n"
-msgstr ""
-"      --auth-local=п°п∙п╒п·п■    п╪п╣я┌п╬п╢ п©я─п╬п╡п╣я─п╨п╦ п©п╬п╢п╩п╦п╫п╫п╬я│я┌п╦ п©п╬ я┐п╪п╬п╩я┤п╟п╫п╦я▌\n"
-"                            п╢п╩я▐ п╩п╬п╨п╟п╩я▄п╫я▀я┘ п©п╬п╢п╨п╩я▌я┤п╣п╫п╦п╧ я┤п╣я─п╣п╥ я│п╬п╨п╣я┌\n"
-
-#: initdb.c:2265
-#, c-format
+#: initdb.c:2063
 msgid " [-D, --pgdata=]DATADIR     location for this database cluster\n"
-msgstr " [-D, --pgdata=]п п░п╒п░п⌡п·п⌠     я─п╟я│п©п╬п╩п╬п╤п╣п╫п╦п╣ п╢п╟п╫п╫я▀я┘ я█я┌п╬пЁп╬ п╨п╩п╟я│я┌п╣я─п╟ п▒п■\n"
+msgstr " [-D, --pgdata=]DATADIR   местонахождение для этого кластера баз данных\n"
 
-#: initdb.c:2266
-#, c-format
+#: initdb.c:2064
 msgid "  -E, --encoding=ENCODING   set default encoding for new databases\n"
-msgstr "  -E, --encoding=п п·п■п≤п═п·п▓п п░  п╨п╬п╢п╦я─п╬п╡п╨п╟ п©п╬ я┐п╪п╬п╩я┤п╟п╫п╦я▌ п╢п╩я▐ п╫п╬п╡я▀я┘ п╠п╟п╥\n"
+msgstr "  -E, --encoding=ENCODING  установить кодировку по-умолчанию для новых баз\n"
 
-#: initdb.c:2267
-#, c-format
-msgid "      --locale=LOCALE       set default locale for new databases\n"
-msgstr "      --locale=п⌡п·п п░п⌡п╛       п╩п╬п╨п╟п╩я▄ п©п╬ я┐п╪п╬п╩я┤п╟п╫п╦я▌ п╢п╩я▐ п╫п╬п╡я▀я┘ п╠п╟п╥\n"
+#: initdb.c:2065
+msgid "  --locale=LOCALE           initialize database cluster with given locale\n"
+msgstr "  --locale=LOCALE           инициализировать кластер баз данных с указанной локалью\n"
 
-#: initdb.c:2268
-#, c-format
+#: initdb.c:2066
 msgid ""
-"      --lc-collate=, --lc-ctype=, --lc-messages=LOCALE\n"
-"      --lc-monetary=, --lc-numeric=, --lc-time=LOCALE\n"
-"                            set default locale in the respective category "
-"for\n"
-"                            new databases (default taken from environment)\n"
+"  --lc-collate, --lc-ctype, --lc-messages=LOCALE\n"
+"  --lc-monetary, --lc-numeric, --lc-time=LOCALE\n"
+"                            initialize database cluster with given locale\n"
+"                            in the respective category (default taken from\n"
+"                            environment)\n"
 msgstr ""
-"      --lc-collate=, --lc-ctype=, --lc-messages=п⌡п·п п░п⌡п╛\n"
-"      --lc-monetary=, --lc-numeric=, --lc-time=п⌡п·п п░п⌡п╛\n"
-"                            я┐я│я┌п╟п╫п╬п╡п╦я┌я▄ я│п╬п╬я┌п╡п╣я┌я│я┌п╡я┐я▌я┴п╦п╧ п©п╟я─п╟п╪п╣я┌я─ п╩п╬п╨п╟п╩п╦\n"
-"                            п╢п╩я▐ п╫п╬п╡я▀я┘ п╠п╟п╥ (п╡п╪п╣я│я┌п╬ п╥п╫п╟я┤п╣п╫п╦я▐ п╦п╥ п╬п╨я─я┐п╤п╣п╫п╦я▐)\n"
+"  --lc-collate, --lc-ctype, --lc-messages=LOCALE\n"
+"  --lc-monetary, --lc-numeric, --lc-time=LOCALE\n"
+"                            инициализировать кластер баз данных с\n"
+"                            указанной локалью в соответствующей категории\n"
+"                            (значения по-умолчанию берутся из окружения)\n"
 
-#: initdb.c:2272
-#, c-format
-msgid "      --no-locale           equivalent to --locale=C\n"
-msgstr "      --no-locale           я█п╨п╡п╦п╡п╟п╩п╣п╫я┌п╫п╬ --locale=C\n"
+#: initdb.c:2071
+msgid "  --no-locale               equivalent to --locale=C\n"
+msgstr "  --no-locale               эквивалентно --locale=C\n"
 
-#: initdb.c:2273
-#, c-format
-msgid ""
-"      --pwfile=FILE         read password for the new superuser from file\n"
-msgstr ""
-"      --pwfile=п╓п░п≥п⌡         п©я─п╬я┤п╦я┌п╟я┌я▄ п©п╟я─п╬п╩я▄ я│я┐п©п╣я─п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐ п╦п╥ я└п╟п╧п╩п╟\n"
+#: initdb.c:2072
+msgid "  -A, --auth=METHOD         default authentication method for local connections\n"
+msgstr "  -A, --auth=METHOD          метод аутентификации по-умолчанию для локальных соединений\n"
 
-#: initdb.c:2274
-#, c-format
-msgid ""
-"  -T, --text-search-config=CFG\n"
-"                            default text search configuration\n"
-msgstr ""
-"  -T, --text-search-config=п п·п²п╓п≤п⌠пёп═п░п╕п≤п╞\n"
-"                            п╨п╬п╫я└п╦пЁя┐я─п╟я├п╦я▐ я┌п╣п╨я│я┌п╬п╡п╬пЁп╬ п©п╬п╦я│п╨п╟ п©п╬ я┐п╪п╬п╩я┤п╟п╫п╦я▌\n"
-
-#: initdb.c:2276
-#, c-format
+#: initdb.c:2073
 msgid "  -U, --username=NAME       database superuser name\n"
-msgstr "  -U, --username=п≤п°п╞        п╦п╪я▐ я│я┐п©п╣я─п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐ п▒п■\n"
+msgstr "  -U, --username=NAME       имя администратора базы данных\n"
 
-#: initdb.c:2277
-#, c-format
-msgid ""
-"  -W, --pwprompt            prompt for a password for the new superuser\n"
-msgstr "  -W, --pwprompt            п╥п╟п©я─п╬я│п╦я┌я▄ п©п╟я─п╬п╩я▄ я│я┐п©п╣я─п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐\n"
+#: initdb.c:2074
+msgid "  -W, --pwprompt            prompt for a password for the new superuser\n"
+msgstr "  -W, --pwprompt            запросить пароль для нового администратора\n"
 
-#: initdb.c:2278
-#, c-format
-msgid ""
-"  -X, --waldir=WALDIR       location for the write-ahead log directory\n"
-msgstr "  -X, --waldir=п п░п╒п░п⌡п·п⌠      я─п╟я│п©п╬п╩п╬п╤п╣п╫п╦п╣ п╤я┐я─п╫п╟п╩п╟ я┌я─п╟п╫п╥п╟п╨я├п╦п╧\n"
+#: initdb.c:2075
+msgid "  --pwfile=FILE             read password for the new superuser from file\n"
+msgstr "  --pwfile=FILE             считать пароль для нового администратора из файла\n"
 
-#: initdb.c:2279
-#, c-format
+#: initdb.c:2076
+msgid "  -?, --help                show this help, then exit\n"
+msgstr "  -?, --help                показать эту помощь и выйти\n"
+
+#: initdb.c:2077
+msgid "  -V, --version             output version information, then exit\n"
+msgstr "  -V, --version             показать версию и выйти\n"
+
+#: initdb.c:2078
 msgid ""
 "\n"
 "Less commonly used options:\n"
 msgstr ""
 "\n"
-"п═п╣п╢п╨п╬ п╦я│п©п╬п╩я▄п╥я┐п╣п╪я▀п╣ п©п╟я─п╟п╪п╣я┌я─я▀:\n"
+"Редко используемые опции:\n"
 
-#: initdb.c:2280
-#, c-format
+#: initdb.c:2079
 msgid "  -d, --debug               generate lots of debugging output\n"
-msgstr "  -d, --debug               п╡я▀п╢п╟п╡п╟я┌я▄ п╪п╫п╬пЁп╬ п╬я┌п╩п╟п╢п╬я┤п╫я▀я┘ я│п╬п╬п╠я┴п╣п╫п╦п╧\n"
+msgstr "  -d, --debug               выдавать много отладочных сообщений\n"
 
-#: initdb.c:2281
-#, c-format
-msgid "  -k, --data-checksums      use data page checksums\n"
-msgstr "  -k, --data-checksums      п╡п╨п╩я▌я┤п╦я┌я▄ п╨п╬п╫я┌я─п╬п╩я▄ я├п╣п╩п╬я│я┌п╫п╬я│я┌п╦ я│я┌я─п╟п╫п╦я├\n"
-
-#: initdb.c:2282
-#, c-format
-msgid "  -L DIRECTORY              where to find the input files\n"
-msgstr "  -L п п░п╒п░п⌡п·п⌠                я─п╟я│п©п╬п╩п╬п╤п╣п╫п╦п╣ п╡я┘п╬п╢п╫я▀я┘ я└п╟п╧п╩п╬п╡\n"
-
-#: initdb.c:2283
-#, c-format
-msgid "  -n, --no-clean            do not clean up after errors\n"
-msgstr "  -n, --no-clean            п╫п╣ п╬я┤п╦я┴п╟я┌я▄ п©п╬я│п╩п╣ п╬я┬п╦п╠п╬п╨\n"
-
-#: initdb.c:2284
-#, c-format
-msgid ""
-"  -N, --no-sync             do not wait for changes to be written safely to "
-"disk\n"
-msgstr ""
-"  -N, --no-sync             п╫п╣ п╤п╢п╟я┌я▄ п╥п╟п╡п╣я─я┬п╣п╫п╦я▐ я│п╬я┘я─п╟п╫п╣п╫п╦я▐ п╢п╟п╫п╫я▀я┘ п╫п╟ п╢п╦я│п╨п╣\n"
-
-#: initdb.c:2285
-#, c-format
+#: initdb.c:2080
 msgid "  -s, --show                show internal settings\n"
-msgstr "  -s, --show                п©п╬п╨п╟п╥п╟я┌я▄ п╡п╫я┐я┌я─п╣п╫п╫п╦п╣ я┐я│я┌п╟п╫п╬п╡п╨п╦\n"
+msgstr "  -s, --show                показать внутренние установки\n"
 
-#: initdb.c:2286
-#, c-format
-msgid "  -S, --sync-only           only sync data directory\n"
-msgstr ""
-"  -S, --sync-only           я┌п╬п╩я▄п╨п╬ я│п╦п╫я┘я─п╬п╫п╦п╥п╦я─п╬п╡п╟я┌я▄ я│ п╓п║ п╨п╟я┌п╟п╩п╬пЁ п╢п╟п╫п╫я▀я┘\n"
+#: initdb.c:2081
+msgid "  -L DIRECTORY              where to find the input files\n"
+msgstr "  -L DIRECTORY              где найти входные файлы\n"
 
-#: initdb.c:2287
-#, c-format
-msgid ""
-"\n"
-"Other options:\n"
-msgstr ""
-"\n"
-"п■я─я┐пЁп╦п╣ п©п╟я─п╟п╪п╣я┌я─я▀:\n"
+#: initdb.c:2082
+msgid "  -n, --noclean             do not clean up after errors\n"
+msgstr "  -n, --noclean             не очищать после ошибок\n"
 
-#: initdb.c:2288
-#, c-format
-msgid "  -V, --version             output version information, then exit\n"
-msgstr "  -V, --version             п©п╬п╨п╟п╥п╟я┌я▄ п╡п╣я─я│п╦я▌ п╦ п╡я▀п╧я┌п╦\n"
-
-#: initdb.c:2289
-#, c-format
-msgid "  -?, --help                show this help, then exit\n"
-msgstr "  -?, --help                п©п╬п╨п╟п╥п╟я┌я▄ я█я┌я┐ я│п©я─п╟п╡п╨я┐ п╦ п╡я▀п╧я┌п╦\n"
-
-#: initdb.c:2290
-#, c-format
+#: initdb.c:2083
 msgid ""
 "\n"
 "If the data directory is not specified, the environment variable PGDATA\n"
 "is used.\n"
 msgstr ""
 "\n"
-"п∙я│п╩п╦ п╨п╟я┌п╟п╩п╬пЁ п╢п╟п╫п╫я▀я┘ п╫п╣ я┐п╨п╟п╥п╟п╫, п╦я│п©п╬п╩я▄п╥я┐п╣я┌я│я▐ п©п╣я─п╣п╪п╣п╫п╫п╟я▐ п╬п╨я─я┐п╤п╣п╫п╦я▐ PGDATA.\n"
+"Если директория данных не указана, используется значение переменной окружения PGDATA.\n"
 
-#: initdb.c:2292
-#, c-format
+#: initdb.c:2085
 msgid ""
 "\n"
 "Report bugs to <pgsql-bugs@postgresql.org>.\n"
 msgstr ""
 "\n"
-"п·п╠ п╬я┬п╦п╠п╨п╟я┘ я│п╬п╬п╠я┴п╟п╧я┌п╣ п©п╬ п╟п╢я─п╣я│я┐ <pgsql-bugs@postgresql.org>.\n"
+"Сообщения об ошибках: <pgsql-bugs@postgresql.org>.\n"
 
-#: initdb.c:2300
+#: initdb.c:2178
+msgid "Running in debug mode.\n"
+msgstr "Выполнение в режиме отладки.\n"
+
+#: initdb.c:2182
+msgid "Running in noclean mode.  Mistakes will not be cleaned up.\n"
+msgstr "Выполнение в режиме 'noclean'.  Сборка мусора и чистка после ошибок производиться не будет.\n"
+
+#: initdb.c:2219
+#: initdb.c:2236
+#: initdb.c:2456
+#, c-format
+msgid "Try \"%s --help\" for more information.\n"
+msgstr "Наберите \"%s --help\" для более подробной информации.\n"
+
+#: initdb.c:2234
+#, c-format
+msgid "%s: too many command-line arguments (first is \"%s\")\n"
+msgstr "%s: слишком много аргументов командной строки (первый: \"%s\")\n"
+
+#: initdb.c:2242
+#, c-format
+msgid "%s: password prompt and password file may not be specified together\n"
+msgstr "%s: запрос пароля и файл паролей не могут указываться вместе\n"
+
+#: initdb.c:2248
 msgid ""
 "\n"
 "WARNING: enabling \"trust\" authentication for local connections\n"
-"You can change this by editing pg_hba.conf or using the option -A, or\n"
-"--auth-local and --auth-host, the next time you run initdb.\n"
+"You can change this by editing pg_hba.conf or using the -A option the\n"
+"next time you run initdb.\n"
 msgstr ""
 "\n"
-"п÷п═п∙п■пёп÷п═п∙п√п■п∙п²п≤п∙: п╦я│п©п╬п╩я▄п╥я┐п╣я┌я│я▐ п©я─п╬п╡п╣я─п╨п╟ п©п╬п╢п╩п╦п╫п╫п╬я│я┌п╦ \"trust\" п╢п╩я▐ п╩п╬п╨п╟п╩я▄п╫я▀я┘ "
-"п©п╬п╢п╨п╩я▌я┤п╣п╫п╦п╧.\n"
-"п■я─я┐пЁп╬п╧ п╪п╣я┌п╬п╢ п╪п╬п╤п╫п╬ п╡я▀п╠я─п╟я┌я▄, п╬я┌я─п╣п╢п╟п╨я┌п╦я─п╬п╡п╟п╡ pg_hba.conf п╦п╩п╦ п╦я│п©п╬п╩я▄п╥я┐я▐ п╨п╩я▌я┤п╦ -"
-"A,\n"
-"--auth-local п╦п╩п╦ --auth-host п©я─п╦ я│п╩п╣п╢я┐я▌я┴п╣п╪ п╡я▀п©п╬п╩п╫п╣п╫п╦п╦ initdb.\n"
+"ВНИМАНИЕ: используется аутентификация \"trust\" для локальных подсоединений.\n"
+"Вы можете её поменять, отредактировав pg_hba.conf или используя опцию -A,\n"
+"при следующем выполнении initdb.\n"
 
-#: initdb.c:2322
+#: initdb.c:2272
 #, c-format
-msgid "%s: invalid authentication method \"%s\" for \"%s\" connections\n"
-msgstr ""
-"%s: п╫п╣я─п╟я│п©п╬п╥п╫п╟п╫п╫я▀п╧ п╪п╣я┌п╬п╢ п©я─п╬п╡п╣я─п╨п╦ п©п╬п╢п╩п╦п╫п╫п╬я│я┌п╦ \"%s\" п╢п╩я▐ п©п╬п╢п╨п╩я▌я┤п╣п╫п╦п╧ \"%s\"\n"
+msgid "%s: unrecognized authentication method \"%s\"\n"
+msgstr "%s: нераспознанный метод аутентификации \"%s\"\n"
 
-#: initdb.c:2338
+#: initdb.c:2282
 #, c-format
-msgid ""
-"%s: must specify a password for the superuser to enable %s authentication\n"
-msgstr ""
-"%s: п╢п╩я▐ п©я─п╦п╪п╣п╫п╣п╫п╦я▐ п╪п╣я┌п╬п╢п╟ %s п╫п╣п╬п╠я┘п╬п╢п╦п╪п╬ я┐п╨п╟п╥п╟я┌я▄ п©п╟я─п╬п╩я▄ я│я┐п©п╣я─п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐\n"
+msgid "%s: must specify a password for the superuser to enable %s authentication\n"
+msgstr "%s: необходимо указать пароль администратора для включения аутентификации %s\n"
 
-#: initdb.c:2366
+#: initdb.c:2297
 #, c-format
 msgid ""
 "%s: no data directory specified\n"
@@ -699,44 +419,60 @@ msgid ""
 "will reside.  Do this with either the invocation option -D or the\n"
 "environment variable PGDATA.\n"
 msgstr ""
-"%s: п╨п╟я┌п╟п╩п╬пЁ п╢п╟п╫п╫я▀я┘ п╫п╣ п╬п©я─п╣п╢п╣п╩я▒п╫.\n"
-"п▓я▀ п╢п╬п╩п╤п╫я▀ я┐п╨п╟п╥п╟я┌я▄, пЁп╢п╣ п╠я┐п╢я┐я┌ я─п╟я│п©п╬п╩п╟пЁп╟я┌я▄я│я▐ п╢п╟п╫п╫я▀п╣ я█я┌п╬п╧ п║пёп▒п■.\n"
-"п╜я┌п╬ п╪п╬п╤п╫п╬ я│п╢п╣п╩п╟я┌я▄, п╢п╬п╠п╟п╡п╦п╡ п╨п╩я▌я┤ -D п╦п╩п╦ я┐я│я┌п╟п╫п╬п╡п╦п╡ п©п╣я─п╣п╪п╣п╫п╫я┐я▌\n"
-"п╬п╨я─я┐п╤п╣п╫п╦я▐ PGDATA.\n"
+"%s: директория данных не указана\n"
+"Вы должны указать директорию для расположения данных для\n"
+"для этой системы.  Это можно сделать с помощью указания опции -D\n"
+"или установки переменной окружения PGDATA.\n"
 
-#: initdb.c:2404
+#: initdb.c:2329
 #, c-format
 msgid ""
 "The program \"postgres\" is needed by %s but was not found in the\n"
 "same directory as \"%s\".\n"
 "Check your installation.\n"
 msgstr ""
-"п÷я─п╬пЁя─п╟п╪п╪п╟ \"postgres\" п╫я┐п╤п╫п╟ п╢п╩я▐ %s, п╫п╬ п╬п╫п╟ п╫п╣ п╫п╟п╧п╢п╣п╫п╟\n"
-"п╡ п╨п╟я┌п╟п╩п╬пЁп╣ \"%s\".\n"
-"п÷я─п╬п╡п╣я─я▄я┌п╣ п©я─п╟п╡п╦п╩я▄п╫п╬я│я┌я▄ я┐я│я┌п╟п╫п╬п╡п╨п╦ п║пёп▒п■.\n"
+"Программа \"postgres\" нужна для %s, но она не найдена в \n"
+"той же директории, что и \"%s\".\n"
+"Проверьте вашу установку.\n"
 
-#: initdb.c:2411
+#: initdb.c:2336
 #, c-format
 msgid ""
 "The program \"postgres\" was found by \"%s\"\n"
 "but was not the same version as %s.\n"
 "Check your installation.\n"
 msgstr ""
-"п÷я─п╬пЁя─п╟п╪п╪п╟ \"postgres\" п╫п╟п╧п╢п╣п╫п╟ п╡ \"%s\",\n"
-"п╫п╬ п╣я▒ п╡п╣я─я│п╦я▐ п╬я┌п╩п╦я┤п╟п╣я┌я│я▐ п╬я┌ п╡п╣я─я│п╦п╦ %s.\n"
-"п÷я─п╬п╡п╣я─я▄я┌п╣ п©я─п╟п╡п╦п╩я▄п╫п╬я│я┌я▄ я┐я│я┌п╟п╫п╬п╡п╨п╦ п║пёп▒п■.\n"
+"Программа \"postgres\" найдена рядом с %s, но не\n"
+"с той же версией как %s.\n"
+"Проверьте вашу установку.\n"
 
-#: initdb.c:2430
+#: initdb.c:2355
 #, c-format
 msgid "%s: input file location must be an absolute path\n"
-msgstr "%s: я─п╟я│п©п╬п╩п╬п╤п╣п╫п╦п╣ п╡я┘п╬п╢п╫я▀я┘ я└п╟п╧п╩п╬п╡ п╢п╬п╩п╤п╫п╬ п╥п╟п╢п╟п╡п╟я┌я▄я│я▐ п╟п╠я│п╬п╩я▌я┌п╫я▀п╪ п©я┐я┌я▒п╪\n"
+msgstr "%s: местонахождение входного файла должно быть абсолютным путём\n"
 
-#: initdb.c:2449
+#: initdb.c:2363
 #, c-format
-msgid "The database cluster will be initialized with locale \"%s\".\n"
-msgstr "п п╩п╟я│я┌п╣я─ п╠п╟п╥ п╢п╟п╫п╫я▀я┘ п╠я┐п╢п╣я┌ п╦п╫п╦я├п╦п╟п╩п╦п╥п╦я─п╬п╡п╟п╫ я│ п╩п╬п╨п╟п╩я▄я▌ \"%s\".\n"
+msgid "%s: could not determine valid short version string\n"
+msgstr "%s: не в состоянии определить правильную короткую строку версии\n"
 
-#: initdb.c:2452
+#: initdb.c:2416
+#, c-format
+msgid ""
+"The files belonging to this database system will be owned by user \"%s\".\n"
+"This user must also own the server process.\n"
+"\n"
+msgstr ""
+"Файлы, сопутствующие этой системе баз данных, будут\n"
+"принадлежать пользователю \"%s\". Этот пользователь\n"
+"также должен быть владельцем процесса сервера.\n"
+
+#: initdb.c:2426
+#, c-format
+msgid "The database cluster will be initialized with locale %s.\n"
+msgstr "Кластер баз данных будет инициализирован с локалью %s.\n"
+
+#: initdb.c:2429
 #, c-format
 msgid ""
 "The database cluster will be initialized with locales\n"
@@ -747,7 +483,7 @@ msgid ""
 "  NUMERIC:  %s\n"
 "  TIME:     %s\n"
 msgstr ""
-"п п╩п╟я│я┌п╣я─ п╠п╟п╥ п╢п╟п╫п╫я▀я┘ п╠я┐п╢п╣я┌ п╦п╫п╦я├п╦п╟п╩п╦п╥п╦я─п╬п╡п╟п╫ я│п╬ я│п╩п╣п╢я┐я▌я┴п╦п╪п╦ п©п╟я─п╟п╪п╣я┌я─п╟п╪п╦ п╩п╬п╨п╟п╩п╦:\n"
+"Кластер баз данных будет инициализирован со следующими локалями:\n"
 "  COLLATE:  %s\n"
 "  CTYPE:    %s\n"
 "  MESSAGES: %s\n"
@@ -755,338 +491,129 @@ msgstr ""
 "  NUMERIC:  %s\n"
 "  TIME:     %s\n"
 
-#: initdb.c:2476
+#: initdb.c:2454
 #, c-format
 msgid "%s: could not find suitable encoding for locale \"%s\"\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╫п╟п╧я┌п╦ п©п╬п╢я┘п╬п╢я▐я┴я┐я▌ п╨п╬п╢п╦я─п╬п╡п╨я┐ п╢п╩я▐ п╩п╬п╨п╟п╩п╦ \"%s\"\n"
+msgstr "%s: не удалось найти подходящую кодировку для локали \"%s\"\n"
 
-#: initdb.c:2478
+#: initdb.c:2455
 #, c-format
 msgid "Rerun %s with the -E option.\n"
-msgstr "п÷п╣я─п╣п╥п╟п©я┐я│я┌п╦я┌п╣ %s я│ п©п╟я─п╟п╪п╣я┌я─п╬п╪ -E.\n"
+msgstr "Перезапустите %s с опцией -E.\n"
 
-#: initdb.c:2479 initdb.c:3103 initdb.c:3124
+#: initdb.c:2462
 #, c-format
-msgid "Try \"%s --help\" for more information.\n"
-msgstr "п■п╩я▐ п╢п╬п©п╬п╩п╫п╦я┌п╣п╩я▄п╫п╬п╧ п╦п╫я└п╬я─п╪п╟я├п╦п╦ п©п╬п©я─п╬п╠я┐п╧я┌п╣ \"%s --help\".\n"
+msgid "The default database encoding has accordingly been set to %s.\n"
+msgstr "Кодировка базы по умолчанию установлена в %s.\n"
 
-#: initdb.c:2491
-#, c-format
-msgid ""
-"Encoding \"%s\" implied by locale is not allowed as a server-side encoding.\n"
-"The default database encoding will be set to \"%s\" instead.\n"
-msgstr ""
-"п п╬п╢п╦я─п╬п╡п╨п╟ \"%s\", п©п╬п╢я─п╟п╥я┐п╪п╣п╡п╟п╣п╪п╟я▐ п╩п╬п╨п╟п╩я▄я▌, п╫п╣ пЁп╬п╢п╦я┌я│я▐ п╢п╩я▐ я│п╣я─п╡п╣я─п╟.\n"
-"п▓п╪п╣я│я┌п╬ п╫п╣я▒ п╡ п╨п╟я┤п╣я│я┌п╡п╣ п╨п╬п╢п╦я─п╬п╡п╨п╦ п▒п■ п©п╬ я┐п╪п╬п╩я┤п╟п╫п╦я▌ п╠я┐п╢п╣я┌ п╡я▀п╠я─п╟п╫п╟ \"%s\".\n"
-
-#: initdb.c:2499
-#, c-format
-msgid "%s: locale \"%s\" requires unsupported encoding \"%s\"\n"
-msgstr "%s: п╢п╩я▐ п╩п╬п╨п╟п╩п╦ \"%s\" я┌я─п╣п╠я┐п╣я┌я│я▐ п╫п╣п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣п╪п╟я▐ п╨п╬п╢п╦я─п╬п╡п╨п╟ \"%s\"\n"
-
-#: initdb.c:2502
-#, c-format
-msgid ""
-"Encoding \"%s\" is not allowed as a server-side encoding.\n"
-"Rerun %s with a different locale selection.\n"
-msgstr ""
-"п п╬п╢п╦я─п╬п╡п╨п╟ \"%s\" п╫п╣п╢п╬п©я┐я│я┌п╦п╪п╟ п╡ п╨п╟я┤п╣я│я┌п╡п╣ п╨п╬п╢п╦я─п╬п╡п╨п╦ я│п╣я─п╡п╣я─п╟.\n"
-"п÷п╣я─п╣п╥п╟п©я┐я│я┌п╦я┌п╣ %s, п╡я▀п╠я─п╟п╡ п╢я─я┐пЁя┐я▌ п╩п╬п╨п╟п╩я▄.\n"
-
-#: initdb.c:2511
-#, c-format
-msgid "The default database encoding has accordingly been set to \"%s\".\n"
-msgstr ""
-"п п╬п╢п╦я─п╬п╡п╨п╟ п▒п■ п©п╬ я┐п╪п╬п╩я┤п╟п╫п╦я▌, п╡я▀п╠я─п╟п╫п╫п╟я▐ п╡ я│п╬п╬я┌п╡п╣я┌я│я┌п╡п╦п╦ я│ п╫п╟я│я┌я─п╬п╧п╨п╟п╪п╦: \"%s\".\n"
-
-#: initdb.c:2582
-#, c-format
-msgid ""
-"%s: could not find suitable text search configuration for locale \"%s\"\n"
-msgstr ""
-"%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╫п╟п╧я┌п╦ п©п╬п╢я┘п╬п╢я▐я┴я┐я▌ п╨п╬п╫я└п╦пЁя┐я─п╟я├п╦я▌ я┌п╣п╨я│я┌п╬п╡п╬пЁп╬ п©п╬п╦я│п╨п╟ п╢п╩я▐ п╩п╬п╨п╟п╩п╦ "
-"\"%s\"\n"
-
-#: initdb.c:2593
-#, c-format
-msgid ""
-"%s: warning: suitable text search configuration for locale \"%s\" is "
-"unknown\n"
-msgstr ""
-"%s: п╡п╫п╦п╪п╟п╫п╦п╣: п╢п╩я▐ п╩п╬п╨п╟п╩п╦ \"%s\" п╫п╣я┌ п╦п╥п╡п╣я│я┌п╫п╬п╧ п╨п╬п╫я└п╦пЁя┐я─п╟я├п╦п╦ я┌п╣п╨я│я┌п╬п╡п╬пЁп╬ "
-"п©п╬п╦я│п╨п╟\n"
-
-#: initdb.c:2598
-#, c-format
-msgid ""
-"%s: warning: specified text search configuration \"%s\" might not match "
-"locale \"%s\"\n"
-msgstr ""
-"%s: п╡п╫п╦п╪п╟п╫п╦п╣: я┐п╨п╟п╥п╟п╫п╫п╟я▐ п╨п╬п╫я└п╦пЁя┐я─п╟я├п╦я▐ я┌п╣п╨я│я┌п╬п╡п╬пЁп╬ п©п╬п╦я│п╨п╟ \"%s\" п╪п╬п╤п╣я┌ п╫п╣ "
-"я│п╬п╬я┌п╡п╣я┌я│я┌п╡п╬п╡п╟я┌я▄ п╩п╬п╨п╟п╩п╦ \"%s\"\n"
-
-#: initdb.c:2603
-#, c-format
-msgid "The default text search configuration will be set to \"%s\".\n"
-msgstr "п▓я▀п╠я─п╟п╫п╟ п╨п╬п╫я└п╦пЁя┐я─п╟я├п╦я▐ я┌п╣п╨я│я┌п╬п╡п╬пЁп╬ п©п╬п╦я│п╨п╟ п©п╬ я┐п╪п╬п╩я┤п╟п╫п╦я▌ \"%s\".\n"
-
-#: initdb.c:2647 initdb.c:2733
+#: initdb.c:2503
 #, c-format
 msgid "creating directory %s ... "
-msgstr "я│п╬п╥п╢п╟п╫п╦п╣ п╨п╟я┌п╟п╩п╬пЁп╟ %s... "
+msgstr "создание директории %s ... "
 
-#: initdb.c:2653 initdb.c:2739 initdb.c:2807 initdb.c:2863
-#, c-format
-msgid "%s: could not create directory \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ я│п╬п╥п╢п╟я┌я▄ п╨п╟я┌п╟п╩п╬пЁ \"%s\": %s\n"
-
-#: initdb.c:2665 initdb.c:2751
+#: initdb.c:2517
 #, c-format
 msgid "fixing permissions on existing directory %s ... "
-msgstr "п╦я│п©я─п╟п╡п╩п╣п╫п╦п╣ п©я─п╟п╡ п╢п╩я▐ я│я┐я┴п╣я│я┌п╡я┐я▌я┴п╣пЁп╬ п╨п╟я┌п╟п╩п╬пЁп╟ %s... "
+msgstr "исправление прав на существующую директорию %s ... "
 
-#: initdb.c:2671 initdb.c:2757
+#: initdb.c:2523
 #, c-format
 msgid "%s: could not change permissions of directory \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╪п╣п╫я▐я┌я▄ п©я─п╟п╡п╟ п╢п╩я▐ п╨п╟я┌п╟п╩п╬пЁп╟ \"%s\": %s\n"
+msgstr "%s: не удалось поменять права на директорию \"%s\": %s\n"
 
-#: initdb.c:2686 initdb.c:2772
-#, c-format
-msgid "%s: directory \"%s\" exists but is not empty\n"
-msgstr "%s: п╨п╟я┌п╟п╩п╬пЁ \"%s\" я│я┐я┴п╣я│я┌п╡я┐п╣я┌, п╫п╬ п╬п╫ п╫п╣ п©я┐я│я┌\n"
-
-#: initdb.c:2692
+#: initdb.c:2536
 #, c-format
 msgid ""
+"%s: directory \"%s\" exists but is not empty\n"
 "If you want to create a new database system, either remove or empty\n"
 "the directory \"%s\" or run %s\n"
 "with an argument other than \"%s\".\n"
 msgstr ""
-"п∙я│п╩п╦ п╡я▀ я┘п╬я┌п╦я┌п╣ я│п╬п╥п╢п╟я┌я▄ п╫п╬п╡я┐я▌ я│п╦я│я┌п╣п╪я┐ п╠п╟п╥ п╢п╟п╫п╫я▀я┘,\n"
-"я┐п╢п╟п╩п╦я┌п╣ п╦п╩п╦ п╬я┤п╦я│я┌п╦я┌п╣ п╨п╟я┌п╟п╩п╬пЁ \"%s\",\n"
-"п╩п╦п╠п╬ п©я─п╦ п╥п╟п©я┐я│п╨п╣ %s п╡ п╨п╟я┤п╣я│я┌п╡п╣ п©я┐я┌п╦ я┐п╨п╟п╤п╦я┌п╣ п╫п╣ \"%s\".\n"
+"%s: директория \"%s\" существует, но не пуста.\n"
+"Если вы хотите создать новую систему баз данных, удалите либо всю \n"
+"директорию \"%s\" или её содержимое или выполните %s\n"
+"с аргументом отличным от \"%s\".\n"
 
-#: initdb.c:2700 initdb.c:2785 initdb.c:3137
+#: initdb.c:2545
 #, c-format
 msgid "%s: could not access directory \"%s\": %s\n"
-msgstr "%s: п╫п╣я┌ п╢п╬я│я┌я┐п©п╟ п╨ п╨п╟я┌п╟п╩п╬пЁя┐ \"%s\": %s\n"
+msgstr "%s: нет доступа к директории \"%s\": %s\n"
 
-#: initdb.c:2724
+#: initdb.c:2554
 #, c-format
-msgid "%s: transaction log directory location must be an absolute path\n"
-msgstr ""
-"%s: я─п╟я│п©п╬п╩п╬п╤п╣п╫п╦п╣ п╨п╟я┌п╟п╩п╬пЁп╟ п╤я┐я─п╫п╟п╩п╟ я┌я─п╟п╫п╥п╟п╨я├п╦п╧ п╢п╬п╩п╤п╫п╬ п╬п©я─п╣п╢п╣п╩я▐я┌я▄я│я▐ п╟п╠я│п╬п╩я▌я┌п╫я▀п╪ "
-"п©я┐я┌я▒п╪\n"
+msgid "creating directory %s/%s ... "
+msgstr "создание директории %s/%s ... "
 
-#: initdb.c:2778
-#, c-format
-msgid ""
-"If you want to store the transaction log there, either\n"
-"remove or empty the directory \"%s\".\n"
-msgstr ""
-"п∙я│п╩п╦ п╡я▀ я┘п╬я┌п╦я┌п╣ я┘я─п╟п╫п╦я┌я▄ п╤я┐я─п╫п╟п╩ я┌я─п╟п╫п╥п╟п╨я├п╦п╧ п╥п╢п╣я│я▄,\n"
-"я┐п╢п╟п╩п╦я┌п╣ п╦п╩п╦ п╬я┤п╦я│я┌п╦я┌п╣ п╨п╟я┌п╟п╩п╬пЁ \"%s\".\n"
-
-#: initdb.c:2793
-#, c-format
-msgid "%s: could not create symbolic link \"%s\": %s\n"
-msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ я│п╬п╥п╢п╟я┌я▄ я│п╦п╪п╡п╬п╩п╦я┤п╣я│п╨я┐я▌ я│я│я▀п╩п╨я┐ \"%s\": %s\n"
-
-#: initdb.c:2798
-#, c-format
-msgid "%s: symlinks are not supported on this platform"
-msgstr "%s: я│п╦п╪п╡п╬п╩п╦я┤п╣я│п╨п╦п╣ я│я│я▀п╩п╨п╦ п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟я▌я┌я│я▐ п╡ я█я┌п╬п╧ п·п║"
-
-#: initdb.c:2822
-#, c-format
-msgid ""
-"It contains a dot-prefixed/invisible file, perhaps due to it being a mount "
-"point.\n"
-msgstr ""
-"п·п╫ я│п╬п╢п╣я─п╤п╦я┌ я└п╟п╧п╩ я│ я┌п╬я┤п╨п╬п╧ (п╫п╣п╡п╦п╢п╦п╪я▀п╧), п╡п╬п╥п╪п╬п╤п╫п╬ я█я┌п╬ я┌п╬я┤п╨п╟ п╪п╬п╫я┌п╦я─п╬п╡п╟п╫п╦я▐.\n"
-
-#: initdb.c:2825
-#, c-format
-msgid ""
-"It contains a lost+found directory, perhaps due to it being a mount point.\n"
-msgstr "п·п╫ я│п╬п╢п╣я─п╤п╦я┌ п©п╬п╢п╨п╟я┌п╟п╩п╬пЁ lost+found, п╡п╬п╥п╪п╬п╤п╫п╬ я█я┌п╬ я┌п╬я┤п╨п╟ п╪п╬п╫я┌п╦я─п╬п╡п╟п╫п╦я▐.\n"
-
-#: initdb.c:2828
-#, c-format
-msgid ""
-"Using a mount point directly as the data directory is not recommended.\n"
-"Create a subdirectory under the mount point.\n"
-msgstr ""
-"п≤я│п©п╬п╩я▄п╥п╬п╡п╟я┌я▄ п╡ п╨п╟я┤п╣я│я┌п╡п╣ п╨п╟я┌п╟п╩п╬пЁп╟ п╢п╟п╫п╫я▀я┘ я┌п╬я┤п╨я┐ п╪п╬п╫я┌п╦я─п╬п╡п╟п╫п╦я▐ п╫п╣ "
-"я─п╣п╨п╬п╪п╣п╫п╢я┐п╣я┌я│я▐.\n"
-"п║п╬п╥п╢п╟п╧я┌п╣ п╡ п╪п╬п╫я┌п╦я─я┐п╣п╪п╬п╪ я─п╣я│я┐я─я│п╣ п©п╬п╢п╨п╟я┌п╟п╩п╬пЁ п╦ п╦я│п©п╬п╩я▄п╥я┐п╧я┌п╣ п╣пЁп╬.\n"
-
-#: initdb.c:2848
-#, c-format
-msgid "creating subdirectories ... "
-msgstr "я│п╬п╥п╢п╟п╫п╦п╣ п©п╬п╢п╨п╟я┌п╟п╩п╬пЁп╬п╡... "
-
-#: initdb.c:2895
-msgid "performing post-bootstrap initialization ... "
-msgstr "п╡я▀п©п╬п╩п╫я▐п╣я┌я│я▐ п╥п╟п╨п╩я▌я┤п╦я┌п╣п╩я▄п╫п╟я▐ п╦п╫п╦я├п╦п╟п╩п╦п╥п╟я├п╦я▐ ... "
-
-#: initdb.c:3047
-#, c-format
-msgid "Running in debug mode.\n"
-msgstr "п÷я─п╬пЁя─п╟п╪п╪п╟ п╥п╟п©я┐я┴п╣п╫п╟ п╡ я─п╣п╤п╦п╪п╣ п╬я┌п╩п╟п╢п╨п╦.\n"
-
-#: initdb.c:3051
-#, c-format
-msgid "Running in no-clean mode.  Mistakes will not be cleaned up.\n"
-msgstr ""
-"п÷я─п╬пЁя─п╟п╪п╪п╟ п╥п╟п©я┐я┴п╣п╫п╟ п╡ я─п╣п╤п╦п╪п╣ 'no-clean' - п╬я┤п╦я│я┌п╨п╦ п╦ п╦я│п©я─п╟п╡п╩п╣п╫п╦я▐ п╬я┬п╦п╠п╬п╨ п╫п╣ "
-"п╠я┐п╢п╣я┌.\n"
-
-#: initdb.c:3122
-#, c-format
-msgid "%s: too many command-line arguments (first is \"%s\")\n"
-msgstr "%s: я│п╩п╦я┬п╨п╬п╪ п╪п╫п╬пЁп╬ п╟я─пЁя┐п╪п╣п╫я┌п╬п╡ п╨п╬п╪п╟п╫п╢п╫п╬п╧ я│я┌я─п╬п╨п╦ (п©п╣я─п╡я▀п╧: \"%s\")\n"
-
-#: initdb.c:3142 initdb.c:3208
-msgid "syncing data to disk ... "
-msgstr "я│п╬я┘я─п╟п╫п╣п╫п╦п╣ п╢п╟п╫п╫я▀я┘ п╫п╟ п╢п╦я│п╨п╣... "
-
-#: initdb.c:3151
-#, c-format
-msgid "%s: password prompt and password file cannot be specified together\n"
-msgstr "%s: п╫п╣п╩я▄п╥я▐ п╬п╢п╫п╬п╡я─п╣п╪п╣п╫п╫п╬ п╥п╟п©я─п╬я│п╦я┌я▄ п©п╟я─п╬п╩я▄ п╦ п©я─п╬я┤п╦я┌п╟я┌я▄ п©п╟я─п╬п╩я▄ п╦п╥ я└п╟п╧п╩п╟\n"
-
-#: initdb.c:3175
-#, c-format
-msgid ""
-"%s: superuser name \"%s\" is disallowed; role names cannot begin with \"pg_"
-"\"\n"
-msgstr ""
-"%s: п╦п╪я▐ \"%s\" п╢п╩я▐ я│я┐п©п╣я─п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐ п╫п╣ п╢п╬п©я┐я│п╨п╟п╣я┌я│я▐; п╦п╪п╣п╫п╟ я─п╬п╩п╣п╧ п╫п╣ п╪п╬пЁя┐я┌ "
-"п╫п╟я┤п╦п╫п╟я┌я▄я│я▐ я│ \"pg_\"\n"
-
-#: initdb.c:3179
-#, c-format
-msgid ""
-"The files belonging to this database system will be owned by user \"%s\".\n"
-"This user must also own the server process.\n"
-"\n"
-msgstr ""
-"п╓п╟п╧п╩я▀, п╬я┌п╫п╬я│я▐я┴п╦п╣я│я▐ п╨ я█я┌п╬п╧ п║пёп▒п■, п╠я┐п╢я┐я┌ п©я─п╦п╫п╟п╢п╩п╣п╤п╟я┌я▄ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▌ \"%s\".\n"
-"п·я┌ п╣пЁп╬ п╦п╪п╣п╫п╦ я┌п╟п╨п╤п╣ п╠я┐п╢п╣я┌ п╥п╟п©я┐я│п╨п╟я┌я▄я│я▐ п©я─п╬я├п╣я│я│ я│п╣я─п╡п╣я─п╟.\n"
-"\n"
-
-#: initdb.c:3195
-#, c-format
-msgid "Data page checksums are enabled.\n"
-msgstr "п п╬п╫я┌я─п╬п╩я▄ я├п╣п╩п╬я│я┌п╫п╬я│я┌п╦ я│я┌я─п╟п╫п╦я├ п╢п╟п╫п╫я▀я┘ п╡п╨п╩я▌я┤я▒п╫.\n"
-
-#: initdb.c:3197
-#, c-format
-msgid "Data page checksums are disabled.\n"
-msgstr "п п╬п╫я┌я─п╬п╩я▄ я├п╣п╩п╬я│я┌п╫п╬я│я┌п╦ я│я┌я─п╟п╫п╦я├ п╢п╟п╫п╫я▀я┘ п╬я┌п╨п╩я▌я┤я▒п╫.\n"
-
-#: initdb.c:3214
-#, c-format
-msgid ""
-"\n"
-"Sync to disk skipped.\n"
-"The data directory might become corrupt if the operating system crashes.\n"
-msgstr ""
-"\n"
-"п║п╬я┘я─п╟п╫п╣п╫п╦п╣ п╢п╟п╫п╫я▀я┘ п╫п╟ п╢п╦я│п╨ п©я─п╬п©я┐я│п╨п╟п╣я┌я│я▐.\n"
-"п п╟я┌п╟п╩п╬пЁ п╢п╟п╫п╫я▀я┘ п╪п╬п╤п╣я┌ п©п╬п╡я─п╣п╢п╦я┌я▄я│я▐ п©я─п╦ я│п╠п╬п╣ п╬п©п╣я─п╟я├п╦п╬п╫п╫п╬п╧ я│п╦я│я┌п╣п╪я▀.\n"
-
-#. translator: This is a placeholder in a shell command.
-#: initdb.c:3240
-msgid "logfile"
-msgstr "я└п╟п╧п╩_п╤я┐я─п╫п╟п╩п╟"
-
-#: initdb.c:3242
+#: initdb.c:2622
 #, c-format
 msgid ""
 "\n"
 "Success. You can now start the database server using:\n"
 "\n"
-"    %s\n"
+"    %s%s%s%spostmaster -D %s%s%s\n"
+"or\n"
+"    %s%s%s%spg_ctl -D %s%s%s -l logfile start\n"
 "\n"
 msgstr ""
 "\n"
-"п⌠п╬я┌п╬п╡п╬. п╒п╣п©п╣я─я▄ п╡я▀ п╪п╬п╤п╣я┌п╣ п╥п╟п©я┐я│я┌п╦я┌я▄ я│п╣я─п╡п╣я─ п╠п╟п╥ п╢п╟п╫п╫я▀я┘:\n"
+"Успех. Вы теперь можете запустить сервер баз данных:\n"
 "\n"
-"    %s\n"
+"    %s%s%s%spostmaster -D %s%s%s\n"
+"или\n"
+"    %s%s%s%spg_ctl -D %s%s%s -l logfile start\n"
 "\n"
 
-#~ msgid "%s: locale name too long, skipped: \"%s\"\n"
-#~ msgstr "%s: я│п╩п╦я┬п╨п╬п╪ п╢п╩п╦п╫п╫п╬п╣ п╦п╪я▐ п╩п╬п╨п╟п╩п╦, п©я─п╬п©я┐я┴п╣п╫п╬: \"%s\"\n"
+#: ../../port/dirmod.c:75
+#: ../../port/dirmod.c:88
+#: ../../port/dirmod.c:101
+msgid "out of memory\n"
+msgstr "нехватка памяти\n"
 
-#~ msgid "%s: locale name has non-ASCII characters, skipped: \"%s\"\n"
-#~ msgstr "%s: п╦п╪я▐ п╩п╬п╨п╟п╩п╦ я│п╬п╢п╣я─п╤п╦я┌ п╫п╣ ASCII-я│п╦п╪п╡п╬п╩я▀, п©я─п╬п©я┐я┴п╣п╫п╬: \"%s\"\n"
+#: ../../port/exec.c:194
+#: ../../port/exec.c:308
+#: ../../port/exec.c:351
+#, c-format
+msgid "could not identify current directory: %s"
+msgstr "не удалось идентифицировать текущую директорию: %s"
 
-#~ msgid "No usable system locales were found.\n"
-#~ msgstr "п÷я─п╦пЁп╬п╢п╫я▀п╣ п╩п╬п╨п╟п╩п╦ п╡ я│п╦я│я┌п╣п╪п╣ п╫п╣ п╫п╟п╧п╢п╣п╫я▀.\n"
+#: ../../port/exec.c:213
+#, c-format
+msgid "invalid binary \"%s\""
+msgstr "неверный бинарный \"%s\""
 
-#~ msgid "Use the option \"--debug\" to see details.\n"
-#~ msgstr "п■п╬п╠п╟п╡я▄я┌п╣ п©п╟я─п╟п╪п╣я┌я─ \"--debug\", я┤я┌п╬п╠я▀ я┐п╥п╫п╟я┌я▄ п©п╬п╢я─п╬п╠п╫п╬я│я┌п╦.\n"
+#: ../../port/exec.c:262
+#, c-format
+msgid "could not read binary \"%s\""
+msgstr "не удалось считать бинарный \"%s\""
 
-#~ msgid "creating template1 database in %s/base/1 ... "
-#~ msgstr "я│п╬п╥п╢п╟п╫п╦п╣ п╠п╟п╥я▀ template1 п╡ %s/base/1... "
+#: ../../port/exec.c:269
+#, c-format
+msgid "could not find a \"%s\" to execute"
+msgstr "\"%s\" не найден для выполнения"
 
-#~ msgid "initializing pg_authid ... "
-#~ msgstr "п╦п╫п╦я├п╦п╟п╩п╦п╥п╟я├п╦я▐ pg_authid... "
+#: ../../port/exec.c:324
+#: ../../port/exec.c:360
+#, c-format
+msgid "could not change directory to \"%s\""
+msgstr "не удалось поменять директорию на \"%s\""
 
-#~ msgid "setting password ... "
-#~ msgstr "я┐я│я┌п╟п╫п╬п╡п╨п╟ п©п╟я─п╬п╩я▐... "
+#: ../../port/exec.c:339
+#, c-format
+msgid "could not read symbolic link \"%s\""
+msgstr "не удалось считать символическую ссылку \"%s\""
 
-#~ msgid "initializing dependencies ... "
-#~ msgstr "п╦п╫п╦я├п╦п╟п╩п╦п╥п╟я├п╦я▐ п╥п╟п╡п╦я│п╦п╪п╬я│я┌п╣п╧... "
+#: ../../port/exec.c:587
+#, c-format
+msgid "child process exited with exit code %d"
+msgstr "дочерний процесс завершился с кодом возврата %d"
 
-#~ msgid "creating system views ... "
-#~ msgstr "я│п╬п╥п╢п╟п╫п╦п╣ я│п╦я│я┌п╣п╪п╫я▀я┘ п©я─п╣п╢я│я┌п╟п╡п╩п╣п╫п╦п╧... "
+#: ../../port/exec.c:590
+#, c-format
+msgid "child process was terminated by signal %d"
+msgstr "дочерний процесс завершён сигналом %d"
 
-#~ msgid "loading system objects' descriptions ... "
-#~ msgstr "п╥п╟пЁя─я┐п╥п╨п╟ п╬п©п╦я│п╟п╫п╦п╧ я│п╦я│я┌п╣п╪п╫я▀я┘ п╬п╠я┼п╣п╨я┌п╬п╡... "
+#: ../../port/exec.c:593
+#, c-format
+msgid "child process exited with unrecognized status %d"
+msgstr "дочерний процесс завершился с нераспознанным статусом %d"
 
-#~ msgid "creating collations ... "
-#~ msgstr "я│п╬п╥п╢п╟п╫п╦п╣ п©я─п╟п╡п╦п╩ я│п╬я─я┌п╦я─п╬п╡п╨п╦... "
-
-#~ msgid "not supported on this platform\n"
-#~ msgstr "п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐ п╡ я█я┌п╬п╧ п·п║\n"
-
-#~ msgid "creating conversions ... "
-#~ msgstr "я│п╬п╥п╢п╟п╫п╦п╣ п©я─п╣п╬п╠я─п╟п╥п╬п╡п╟п╫п╦п╧... "
-
-#~ msgid "creating dictionaries ... "
-#~ msgstr "я│п╬п╥п╢п╟п╫п╦п╣ я│п╩п╬п╡п╟я─п╣п╧... "
-
-#~ msgid "setting privileges on built-in objects ... "
-#~ msgstr "я┐я│я┌п╟п╫п╬п╡п╨п╟ п©я─п╟п╡ п╢п╩я▐ п╡я│я┌я─п╬п╣п╫п╫я▀я┘ п╬п╠я┼п╣п╨я┌п╬п╡... "
-
-#~ msgid "creating information schema ... "
-#~ msgstr "я│п╬п╥п╢п╟п╫п╦п╣ п╦п╫я└п╬я─п╪п╟я├п╦п╬п╫п╫п╬п╧ я│я┘п╣п╪я▀... "
-
-#~ msgid "loading PL/pgSQL server-side language ... "
-#~ msgstr "п╥п╟пЁя─я┐п╥п╨п╟ я│п╣я─п╡п╣я─п╫п╬пЁп╬ я▐п╥я▀п╨п╟ PL/pgSQL... "
-
-#~ msgid "vacuuming database template1 ... "
-#~ msgstr "п╬я┤п╦я│я┌п╨п╟ п╠п╟п╥я▀ п╢п╟п╫п╫я▀я┘ template1... "
-
-#~ msgid "copying template1 to template0 ... "
-#~ msgstr "п╨п╬п©п╦я─п╬п╡п╟п╫п╦п╣ template1 п╡ template0... "
-
-#~ msgid "copying template1 to postgres ... "
-#~ msgstr "п╨п╬п©п╦я─п╬п╡п╟п╫п╦п╣ template1 п╡ postgres... "
-
-#~ msgid "%s: could not close directory \"%s\": %s\n"
-#~ msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╥п╟п╨я─я▀я┌я▄ п╨п╟я┌п╟п╩п╬пЁ \"%s\": %s\n"
-
-#~ msgid "%s: could not obtain information about current user: %s\n"
-#~ msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╦п╫я└п╬я─п╪п╟я├п╦я▌ п╬ я┌п╣п╨я┐я┴п╣п╪ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩п╣: %s\n"
-
-#~ msgid "%s: could not get current user name: %s\n"
-#~ msgstr "%s: п╫п╣ я┐п╢п╟п╩п╬я│я▄ я┐п╥п╫п╟я┌я▄ п╦п╪я▐ я┌п╣п╨я┐я┴п╣пЁп╬ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐: %s\n"
-
-#~ msgid "Using the top-level directory of a mount point is not recommended.\n"
-#~ msgstr ""
-#~ "п≤я│п©п╬п╩я▄п╥п╬п╡п╟я┌я▄ п╡ п╨п╟я┤п╣я│я┌п╡п╣ п╬я│п╫п╬п╡п╫п╬пЁп╬ п╨п╟я┌п╟п╩п╬пЁп╟ я┌п╬я┤п╨я┐ п╪п╬п╫я┌п╦я─п╬п╡п╟п╫п╦я▐ п╫п╣ "
-#~ "я─п╣п╨п╬п╪п╣п╫п╢я┐п╣я┌я│я▐.\n"

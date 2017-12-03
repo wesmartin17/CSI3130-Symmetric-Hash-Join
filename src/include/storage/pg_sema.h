@@ -6,14 +6,14 @@
  * PostgreSQL requires counting semaphores (the kind that keep track of
  * multiple unlock operations, and will allow an equal number of subsequent
  * lock operations before blocking).  The underlying implementation is
- * not the same on every platform.  This file defines the API that must
+ * not the same on every platform.	This file defines the API that must
  * be provided by each port.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/storage/pg_sema.h
+ * $PostgreSQL: pgsql/src/include/storage/pg_sema.h,v 1.7 2004/12/31 22:03:42 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -21,36 +21,53 @@
 #define PG_SEMA_H
 
 /*
- * struct PGSemaphoreData and pointer type PGSemaphore are the data structure
- * representing an individual semaphore.  The contents of PGSemaphoreData vary
- * across implementations and must never be touched by platform-independent
- * code; hence, PGSemaphoreData is declared as an opaque struct here.
+ * PGSemaphoreData and pointer type PGSemaphore are the data structure
+ * representing an individual semaphore.  The contents of PGSemaphoreData
+ * vary across implementations and must never be touched by platform-
+ * independent code.  PGSemaphoreData structures are always allocated
+ * in shared memory (to support implementations where the data changes during
+ * lock/unlock).
  *
- * However, Windows is sufficiently unlike our other ports that it doesn't
- * seem worth insisting on ABI compatibility for Windows too.  Hence, on
- * that platform just define PGSemaphore as HANDLE.
+ * pg_config.h must define exactly one of the USE_xxx_SEMAPHORES symbols.
  */
-#ifndef USE_WIN32_SEMAPHORES
-typedef struct PGSemaphoreData *PGSemaphore;
-#else
-typedef HANDLE PGSemaphore;
+
+#ifdef USE_NAMED_POSIX_SEMAPHORES
+
+#include <semaphore.h>
+
+typedef sem_t *PGSemaphoreData;
 #endif
 
+#ifdef USE_UNNAMED_POSIX_SEMAPHORES
 
-/* Report amount of shared memory needed */
-extern Size PGSemaphoreShmemSize(int maxSemas);
+#include <semaphore.h>
+
+typedef sem_t PGSemaphoreData;
+#endif
+
+#ifdef USE_SYSV_SEMAPHORES
+
+typedef struct PGSemaphoreData
+{
+	int			semId;			/* semaphore set identifier */
+	int			semNum;			/* semaphore number within set */
+} PGSemaphoreData;
+#endif
+
+typedef PGSemaphoreData *PGSemaphore;
+
 
 /* Module initialization (called during postmaster start or shmem reinit) */
 extern void PGReserveSemaphores(int maxSemas, int port);
 
-/* Allocate a PGSemaphore structure with initial count 1 */
-extern PGSemaphore PGSemaphoreCreate(void);
+/* Initialize a PGSemaphore structure to represent a sema with count 1 */
+extern void PGSemaphoreCreate(PGSemaphore sema);
 
 /* Reset a previously-initialized PGSemaphore to have count 0 */
 extern void PGSemaphoreReset(PGSemaphore sema);
 
 /* Lock a semaphore (decrement count), blocking if count would be < 0 */
-extern void PGSemaphoreLock(PGSemaphore sema);
+extern void PGSemaphoreLock(PGSemaphore sema, bool interruptOK);
 
 /* Unlock a semaphore (increment count) */
 extern void PGSemaphoreUnlock(PGSemaphore sema);
@@ -58,4 +75,4 @@ extern void PGSemaphoreUnlock(PGSemaphore sema);
 /* Lock a semaphore only if able to do so without blocking */
 extern bool PGSemaphoreTryLock(PGSemaphore sema);
 
-#endif							/* PG_SEMA_H */
+#endif   /* PG_SEMA_H */

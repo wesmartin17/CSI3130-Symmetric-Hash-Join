@@ -3,10 +3,10 @@
  * fastpath.h
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/tcop/fastpath.h
+ * $PostgreSQL: pgsql/src/include/tcop/fastpath.h,v 1.18 2004/12/31 22:03:44 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -15,7 +15,6 @@
 
 #include "lib/stringinfo.h"
 
-extern int	GetOldFunctionMessage(StringInfo buf);
-extern void HandleFunctionRequest(StringInfo msgBuf);
+extern int	HandleFunctionRequest(StringInfo msgBuf);
 
-#endif							/* FASTPATH_H */
+#endif   /* FASTPATH_H */

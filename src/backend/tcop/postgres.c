@@ -3,12 +3,12 @@
  * postgres.c
  *	  POSTGRES C Backend Interface
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/tcop/postgres.c
+ *	  $PostgreSQL: pgsql/src/backend/tcop/postgres.c,v 1.468.2.4 2006/04/18 00:52:41 momjian Exp $
  *
  * NOTES
  *	  this is the "main" module of the postgres backend and
@@ -19,70 +19,59 @@
 
 #include "postgres.h"
 
-#include <fcntl.h>
-#include <limits.h>
-#include <signal.h>
 #include <unistd.h>
+#include <signal.h>
+#include <fcntl.h>
 #include <sys/socket.h>
-#ifdef HAVE_SYS_SELECT_H
+#if HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#ifdef HAVE_SYS_RESOURCE_H
-#include <sys/time.h>
-#include <sys/resource.h>
+#ifdef HAVE_GETOPT_H
+#include <getopt.h>
 #endif
 
-#ifndef HAVE_GETRUSAGE
-#include "rusagestub.h"
-#endif
-
-#include "access/parallel.h"
 #include "access/printtup.h"
-#include "access/xact.h"
+#include "access/xlog.h"
 #include "catalog/pg_type.h"
 #include "commands/async.h"
 #include "commands/prepare.h"
+#include "commands/trigger.h"
 #include "libpq/libpq.h"
 #include "libpq/pqformat.h"
 #include "libpq/pqsignal.h"
 #include "miscadmin.h"
 #include "nodes/print.h"
+#include "optimizer/cost.h"
 #include "optimizer/planner.h"
-#include "pgstat.h"
-#include "pg_trace.h"
 #include "parser/analyze.h"
 #include "parser/parser.h"
-#include "pg_getopt.h"
-#include "postmaster/autovacuum.h"
-#include "postmaster/postmaster.h"
-#include "replication/logicallauncher.h"
-#include "replication/logicalworker.h"
-#include "replication/slot.h"
-#include "replication/walsender.h"
 #include "rewrite/rewriteHandler.h"
-#include "storage/bufmgr.h"
+#include "storage/freespace.h"
 #include "storage/ipc.h"
+#include "storage/pg_shmem.h"
 #include "storage/proc.h"
-#include "storage/procsignal.h"
 #include "storage/sinval.h"
 #include "tcop/fastpath.h"
 #include "tcop/pquery.h"
 #include "tcop/tcopprot.h"
 #include "tcop/utility.h"
+#include "utils/flatfiles.h"
+#include "utils/guc.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/ps_status.h"
-#include "utils/snapmgr.h"
-#include "utils/timeout.h"
-#include "utils/timestamp.h"
 #include "mb/pg_wchar.h"
 
+#include "pgstat.h"
+
+extern int	optind;
+extern char *optarg;
 
 /* ----------------
  *		global variables
  * ----------------
  */
-const char *debug_query_string; /* client-supplied query string */
+const char *debug_query_string; /* for pgmonitor and log_min_error_statement */
 
 /* Note: whereToSendOutput is initialized for the bootstrap/standalone case */
 CommandDest whereToSendOutput = DestDebug;
@@ -90,14 +79,10 @@ CommandDest whereToSendOutput = DestDebug;
 /* flag for logging end of session */
 bool		Log_disconnections = false;
 
-int			log_statement = LOGSTMT_NONE;
+LogStmtLevel log_statement = LOGSTMT_NONE;
 
 /* GUC variable for maximum stack depth (measured in kilobytes) */
-int			max_stack_depth = 100;
-
-/* wait N seconds to allow attach from a debugger */
-int			PostAuthDelay = 0;
-
+int			max_stack_depth = 2048;
 
 
 /* ----------------
@@ -106,22 +91,19 @@ int			PostAuthDelay = 0;
  */
 
 /* max_stack_depth converted to bytes for speed of checking */
-static long max_stack_depth_bytes = 100 * 1024L;
+static int	max_stack_depth_bytes = 2048 * 1024;
 
-/*
- * Stack base pointer -- initialized by PostmasterMain and inherited by
- * subprocesses. This is not static because old versions of PL/Java modify
- * it directly. Newer versions use set_stack_base(), but we want to stay
- * binary-compatible for the time being.
- */
+/* stack base pointer (initialized by PostgresMain) */
+/* Do not make static so PL/Java can modifiy it */
 char	   *stack_base_ptr = NULL;
 
+
 /*
- * On IA64 we also have to remember the register stack base.
+ * Flag to mark SIGHUP. Whenever the main loop comes around it
+ * will reread the configuration file. (Better than doing the
+ * reading in the signal handler, ey?)
  */
-#if defined(__ia64__) || defined(__ia64)
-char	   *register_stack_base_ptr = NULL;
-#endif
+static volatile sig_atomic_t got_SIGHUP = false;
 
 /*
  * Flag to keep track of whether we have started a transaction.
@@ -144,55 +126,44 @@ static bool doing_extended_query_message = false;
 static bool ignore_till_sync = false;
 
 /*
- * Flag to keep track of whether statement timeout timer is active.
- */
-static bool stmt_timeout_active = false;
-
-/*
  * If an unnamed prepared statement exists, it's stored here.
  * We keep it separate from the hashtable kept by commands/prepare.c
  * in order to reduce overhead for short-lived queries.
  */
-static CachedPlanSource *unnamed_stmt_psrc = NULL;
+static MemoryContext unnamed_stmt_context = NULL;
+static PreparedStatement *unnamed_stmt_pstmt = NULL;
 
-/* assorted command-line switches */
-static const char *userDoption = NULL;	/* -D switch */
-static bool EchoQuery = false;	/* -E switch */
-static bool UseSemiNewlineNewline = false;	/* -j switch */
 
-/* whether or not, and why, we were canceled by conflict with recovery */
-static bool RecoveryConflictPending = false;
-static bool RecoveryConflictRetryable = true;
-static ProcSignalReason RecoveryConflictReason;
+static bool EchoQuery = false;	/* default don't echo */
 
-/* reused buffer to pass to SendRowDescriptionMessage() */
-static MemoryContext row_description_context = NULL;
-static StringInfoData row_description_buf;
+/*
+ * people who want to use EOF should #define DONTUSENEWLINE in
+ * tcop/tcopdebug.h
+ */
+#ifndef TCOP_DONTUSENEWLINE
+static int	UseNewLine = 1;		/* Use newlines query delimiters (the default) */
+#else
+static int	UseNewLine = 0;		/* Use EOF as query delimiters */
+#endif   /* TCOP_DONTUSENEWLINE */
+
 
 /* ----------------------------------------------------------------
  *		decls for routines only used in this file
  * ----------------------------------------------------------------
  */
 static int	InteractiveBackend(StringInfo inBuf);
-static int	interactive_getc(void);
 static int	SocketBackend(StringInfo inBuf);
 static int	ReadCommand(StringInfo inBuf);
-static void forbidden_in_wal_sender(char firstchar);
-static List *pg_rewrite_query(Query *query);
-static bool check_log_statement(List *stmt_list);
-static int	errdetail_execute(List *raw_parsetree_list);
-static int	errdetail_params(ParamListInfo params);
-static int	errdetail_abort(void);
-static int	errdetail_recovery_conflict(void);
+static bool log_after_parse(List *raw_parsetree_list,
+				const char *query_string, char **prepare_string);
+static List *pg_rewrite_queries(List *querytree_list);
 static void start_xact_command(void);
 static void finish_xact_command(void);
 static bool IsTransactionExitStmt(Node *parsetree);
-static bool IsTransactionExitStmtList(List *pstmts);
-static bool IsTransactionStmtList(List *pstmts);
-static void drop_unnamed_stmt(void);
+static bool IsTransactionExitStmtList(List *parseTrees);
+static bool IsTransactionStmtList(List *parseTrees);
+static void SigHupHandler(SIGNAL_ARGS);
 static void log_disconnections(int code, Datum arg);
-static void enable_statement_timeout(void);
-static void disable_statement_timeout(void);
 
 
 /* ----------------------------------------------------------------
@@ -214,6 +185,8 @@ static int
 InteractiveBackend(StringInfo inBuf)
 {
 	int			c;				/* character read from getc() */
+	bool		end = false;	/* end-of-input flag */
+	bool		backslashSeen = false;	/* have we seen a \ ? */
 
 	/*
 	 * display a prompt and obtain input from the user
@@ -221,63 +194,68 @@ InteractiveBackend(StringInfo inBuf)
 	printf("backend> ");
 	fflush(stdout);
 
-	resetStringInfo(inBuf);
+	/* Reset inBuf to empty */
+	inBuf->len = 0;
+	inBuf->data[0] = '\0';
+	inBuf->cursor = 0;
 
-	/*
-	 * Read characters until EOF or the appropriate delimiter is seen.
-	 */
-	while ((c = interactive_getc()) != EOF)
+	for (;;)
 	{
-		if (c == '\n')
+		if (UseNewLine)
 		{
-			if (UseSemiNewlineNewline)
+			/*
+			 * if we are using \n as a delimiter, then read characters until
+			 * the \n.
+			 */
+			while ((c = getc(stdin)) != EOF)
 			{
-				/*
-				 * In -j mode, semicolon followed by two newlines ends the
-				 * command; otherwise treat newline as regular character.
-				 */
-				if (inBuf->len > 1 &&
-					inBuf->data[inBuf->len - 1] == '\n' &&
-					inBuf->data[inBuf->len - 2] == ';')
+				if (c == '\n')
 				{
-					/* might as well drop the second newline */
-					break;
+					if (backslashSeen)
+					{
+						/* discard backslash from inBuf */
+						inBuf->data[--inBuf->len] = '\0';
+						backslashSeen = false;
+						continue;
+					}
+					else
+					{
+						/* keep the newline character */
+						appendStringInfoChar(inBuf, '\n');
+						break;
+					}
 				}
-			}
-			else
-			{
-				/*
-				 * In plain mode, newline ends the command unless preceded by
-				 * backslash.
-				 */
-				if (inBuf->len > 0 &&
-					inBuf->data[inBuf->len - 1] == '\\')
-				{
-					/* discard backslash from inBuf */
-					inBuf->data[--inBuf->len] = '\0';
-					/* discard newline too */
-					continue;
-				}
+				else if (c == '\\')
+					backslashSeen = true;
 				else
-				{
-					/* keep the newline character, but end the command */
-					appendStringInfoChar(inBuf, '\n');
-					break;
-				}
+					backslashSeen = false;
+
+				appendStringInfoChar(inBuf, (char) c);
 			}
+
+			if (c == EOF)
+				end = true;
+		}
+		else
+		{
+			/*
+			 * otherwise read characters until EOF.
+			 */
+			while ((c = getc(stdin)) != EOF)
+				appendStringInfoChar(inBuf, (char) c);
+
+			if (inBuf->len == 0)
+				end = true;
 		}
 
-		/* Not newline, or newline treated as regular character */
-		appendStringInfoChar(inBuf, (char) c);
+		if (end)
+			return EOF;
+
+		/*
+		 * otherwise we have a user query so process it.
+		 */
+		break;
 	}
-
-	/* No input before EOF signal means time to quit. */
-	if (c == EOF && inBuf->len == 0)
-		return EOF;
-
-	/*
-	 * otherwise we have a user query so process it.
-	 */
 
 	/* Add '\0' to make it look the same as message case. */
 	appendStringInfoChar(inBuf, (char) '\0');
@@ -290,32 +268,6 @@ InteractiveBackend(StringInfo inBuf)
 	fflush(stdout);
 
 	return 'Q';
-}
-
-/*
- * interactive_getc -- collect one character from stdin
- *
- * Even though we are not reading from a "client" process, we still want to
- * respond to signals, particularly SIGTERM/SIGQUIT.
- */
-static int
-interactive_getc(void)
-{
-	int			c;
-
-	/*
-	 * This will not process catchup interrupts or notifications while
-	 * reading. But those can't really be relevant for a standalone backend
-	 * anyway. To properly handle SIGTERM there's a hack in die() that
-	 * directly processes interrupts at this stage...
-	 */
-	CHECK_FOR_INTERRUPTS();
-
-	c = getc(stdin);
-
-	ProcessClientReadInterrupt(true);
-
-	return c;
 }
 
 /* ----------------
@@ -334,28 +286,13 @@ SocketBackend(StringInfo inBuf)
 	/*
 	 * Get message type code from the frontend.
 	 */
-	HOLD_CANCEL_INTERRUPTS();
-	pq_startmsgread();
 	qtype = pq_getbyte();
 
 	if (qtype == EOF)			/* frontend disconnected */
 	{
-		if (IsTransactionState())
-			ereport(COMMERROR,
-					(errcode(ERRCODE_CONNECTION_FAILURE),
-					 errmsg("unexpected EOF on client connection with an open transaction")));
-		else
-		{
-			/*
-			 * Can't send DEBUG log messages to client at this point. Since
-			 * we're disconnecting right away, we don't need to restore
-			 * whereToSendOutput.
-			 */
-			whereToSendOutput = DestNone;
-			ereport(DEBUG1,
-					(errcode(ERRCODE_CONNECTION_DOES_NOT_EXIST),
-					 errmsg("unexpected EOF on client connection")));
-		}
+		ereport(COMMERROR,
+				(errcode(ERRCODE_PROTOCOL_VIOLATION),
+				 errmsg("unexpected EOF on client connection")));
 		return qtype;
 	}
 
@@ -376,52 +313,17 @@ SocketBackend(StringInfo inBuf)
 				/* old style without length word; convert */
 				if (pq_getstring(inBuf))
 				{
-					if (IsTransactionState())
-						ereport(COMMERROR,
-								(errcode(ERRCODE_CONNECTION_FAILURE),
-								 errmsg("unexpected EOF on client connection with an open transaction")));
-					else
-					{
-						/*
-						 * Can't send DEBUG log messages to client at this
-						 * point. Since we're disconnecting right away, we
-						 * don't need to restore whereToSendOutput.
-						 */
-						whereToSendOutput = DestNone;
-						ereport(DEBUG1,
-								(errcode(ERRCODE_CONNECTION_DOES_NOT_EXIST),
-								 errmsg("unexpected EOF on client connection")));
-					}
+					ereport(COMMERROR,
+							(errcode(ERRCODE_PROTOCOL_VIOLATION),
+							 errmsg("unexpected EOF on client connection")));
 					return EOF;
 				}
 			}
 			break;
 
 		case 'F':				/* fastpath function call */
+			/* we let fastpath.c cope with old-style input of this */
 			doing_extended_query_message = false;
-			if (PG_PROTOCOL_MAJOR(FrontendProtocol) < 3)
-			{
-				if (GetOldFunctionMessage(inBuf))
-				{
-					if (IsTransactionState())
-						ereport(COMMERROR,
-								(errcode(ERRCODE_CONNECTION_FAILURE),
-								 errmsg("unexpected EOF on client connection with an open transaction")));
-					else
-					{
-						/*
-						 * Can't send DEBUG log messages to client at this
-						 * point. Since we're disconnecting right away, we
-						 * don't need to restore whereToSendOutput.
-						 */
-						whereToSendOutput = DestNone;
-						ereport(DEBUG1,
-								(errcode(ERRCODE_CONNECTION_DOES_NOT_EXIST),
-								 errmsg("unexpected EOF on client connection")));
-					}
-					return EOF;
-				}
-			}
 			break;
 
 		case 'X':				/* terminate */
@@ -469,7 +371,7 @@ SocketBackend(StringInfo inBuf)
 		default:
 
 			/*
-			 * Otherwise we got garbage from the frontend.  We treat this as
+			 * Otherwise we got garbage from the frontend.	We treat this as
 			 * fatal because we have probably lost message boundary sync, and
 			 * there's no good way to recover.
 			 */
@@ -489,9 +391,6 @@ SocketBackend(StringInfo inBuf)
 		if (pq_getmessage(inBuf, 0))
 			return EOF;			/* suitable message already logged */
 	}
-	else
-		pq_endmsgread();
-	RESUME_CANCEL_INTERRUPTS();
 
 	return qtype;
 }
@@ -516,85 +415,97 @@ ReadCommand(StringInfo inBuf)
 }
 
 /*
- * ProcessClientReadInterrupt() - Process interrupts specific to client reads
+ * prepare_for_client_read -- set up to possibly block on client input
  *
- * This is called just after low-level reads. That might be after the read
- * finished successfully, or it was interrupted via interrupt.
- *
- * Must preserve errno!
+ * This must be called immediately before any low-level read from the
+ * client connection.  It is necessary to do it at a sufficiently low level
+ * that there won't be any other operations except the read kernel call
+ * itself between this call and the subsequent client_read_ended() call.
+ * In particular there mustn't be use of malloc() or other potentially
+ * non-reentrant libc functions.  This restriction makes it safe for us
+ * to allow interrupt service routines to execute nontrivial code while
+ * we are waiting for input.
  */
 void
-ProcessClientReadInterrupt(bool blocked)
+prepare_for_client_read(void)
 {
-	int			save_errno = errno;
-
 	if (DoingCommandRead)
 	{
-		/* Check for general interrupts that arrived while reading */
-		CHECK_FOR_INTERRUPTS();
+		/* Enable immediate processing of asynchronous signals */
+		EnableNotifyInterrupt();
+		EnableCatchupInterrupt();
 
-		/* Process sinval catchup interrupts that happened while reading */
-		if (catchupInterruptPending)
-			ProcessCatchupInterrupt();
+		/* Allow "die" interrupt to be processed while waiting */
+		ImmediateInterruptOK = true;
 
-		/* Process sinval catchup interrupts that happened while reading */
-		if (notifyInterruptPending)
-			ProcessNotifyInterrupt();
-	}
-	else if (ProcDiePending && blocked)
-	{
-		/*
-		 * We're dying. It's safe (and sane) to handle that now.
-		 */
+		/* And don't forget to detect one that already arrived */
+		QueryCancelPending = false;
 		CHECK_FOR_INTERRUPTS();
 	}
-
-	errno = save_errno;
 }
 
 /*
- * ProcessClientWriteInterrupt() - Process interrupts specific to client writes
- *
- * This is called just after low-level writes. That might be after the read
- * finished successfully, or it was interrupted via interrupt. 'blocked' tells
- * us whether the
- *
- * Must preserve errno!
+ * client_read_ended -- get out of the client-input state
  */
 void
-ProcessClientWriteInterrupt(bool blocked)
+client_read_ended(void)
 {
-	int			save_errno = errno;
+	if (DoingCommandRead)
+	{
+		ImmediateInterruptOK = false;
+		QueryCancelPending = false;		/* forget any CANCEL signal */
+
+		DisableNotifyInterrupt();
+		DisableCatchupInterrupt();
+	}
+}
+
+
+/*
+ * Parse a query string and pass it through the rewriter.
+ *
+ * A list of Query nodes is returned, since the string might contain
+ * multiple queries and/or the rewriter might expand one query to several.
+ *
+ * NOTE: this routine is no longer used for processing interactive queries,
+ * but it is still needed for parsing of SQL function bodies.
+ */
+List *
+pg_parse_and_rewrite(const char *query_string,	/* string to execute */
+					 Oid *paramTypes,	/* parameter types */
+					 int numParams)		/* number of parameters */
+{
+	List	   *raw_parsetree_list;
+	List	   *querytree_list;
+	ListCell   *list_item;
 
 	/*
-	 * We only want to process the interrupt here if socket writes are
-	 * blocking to increase the chance to get an error message to the client.
-	 * If we're not blocked there'll soon be a CHECK_FOR_INTERRUPTS(). But if
-	 * we're blocked we'll never get out of that situation if the client has
-	 * died.
+	 * (1) parse the request string into a list of raw parse trees.
 	 */
-	if (ProcDiePending && blocked)
-	{
-		/*
-		 * We're dying. It's safe (and sane) to handle that now. But we don't
-		 * want to send the client the error message as that a) would possibly
-		 * block again b) would possibly lead to sending an error message to
-		 * the client, while we already started to send something else.
-		 */
-		if (whereToSendOutput == DestRemote)
-			whereToSendOutput = DestNone;
+	raw_parsetree_list = pg_parse_query(query_string);
 
-		CHECK_FOR_INTERRUPTS();
+	/*
+	 * (2) Do parse analysis and rule rewrite.
+	 */
+	querytree_list = NIL;
+	foreach(list_item, raw_parsetree_list)
+	{
+		Node	   *parsetree = (Node *) lfirst(list_item);
+
+		querytree_list = list_concat(querytree_list,
+									 pg_analyze_and_rewrite(parsetree,
+															paramTypes,
+															numParams));
 	}
 
-	errno = save_errno;
+	return querytree_list;
 }
 
 /*
  * Do raw parsing (only).
  *
- * A list of parsetrees (RawStmt nodes) is returned, since there might be
- * multiple commands in the given string.
+ * A list of parsetrees is returned, since there might be multiple
+ * commands in the given string.
  *
  * NOTE: for interactive queries, it is important to keep this routine
  * separate from the analysis & rewrite stages.  Analysis and rewriting
@@ -608,8 +519,6 @@ pg_parse_query(const char *query_string)
 {
 	List	   *raw_parsetree_list;
 
-	TRACE_POSTGRESQL_QUERY_PARSE_START(query_string);
-
 	if (log_parser_stats)
 		ResetUsage();
 
@@ -618,23 +527,88 @@ pg_parse_query(const char *query_string)
 	if (log_parser_stats)
 		ShowUsage("PARSER STATISTICS");
 
-#ifdef COPY_PARSE_PLAN_TREES
-	/* Optional debugging check: pass raw parsetrees through copyObject() */
-	{
-		List	   *new_list = copyObject(raw_parsetree_list);
-
-		/* This checks both copyObject() and the equal() routines... */
-		if (!equal(new_list, raw_parsetree_list))
-			elog(WARNING, "copyObject() failed to produce an equal raw parse tree");
-		else
-			raw_parsetree_list = new_list;
-	}
-#endif
-
-	TRACE_POSTGRESQL_QUERY_PARSE_DONE(query_string);
-
 	return raw_parsetree_list;
 }
+
+static bool
+log_after_parse(List *raw_parsetree_list, const char *query_string,
+				char **prepare_string)
+{
+	ListCell   *parsetree_item;
+	bool		log_this_statement = (log_statement == LOGSTMT_ALL);
+
+	*prepare_string = NULL;
+
+	/* Check if we need to log the statement, and get prepare_string. */
+	foreach(parsetree_item, raw_parsetree_list)
+	{
+		Node	   *parsetree = (Node *) lfirst(parsetree_item);
+		const char *commandTag;
+
+		if (IsA(parsetree, ExplainStmt) &&
+			((ExplainStmt *) parsetree)->analyze)
+			parsetree = (Node *) (((ExplainStmt *) parsetree)->query);
+
+		if (IsA(parsetree, PrepareStmt))
+			parsetree = (Node *) (((PrepareStmt *) parsetree)->query);
+
+		if (IsA(parsetree, SelectStmt) &&
+			((SelectStmt *) parsetree)->into == NULL)
+			continue;			/* optimization for frequent command */
+
+		if (log_statement == LOGSTMT_MOD &&
+			(IsA(parsetree, InsertStmt) ||
+			 IsA(parsetree, UpdateStmt) ||
+			 IsA(parsetree, DeleteStmt) ||
+			 IsA(parsetree, TruncateStmt) ||
+			 (IsA(parsetree, CopyStmt) &&
+			  ((CopyStmt *) parsetree)->is_from)))		/* COPY FROM */
+			log_this_statement = true;
+
+		commandTag = CreateCommandTag(parsetree);
+		if ((log_statement == LOGSTMT_MOD ||
+			 log_statement == LOGSTMT_DDL) &&
+			(strncmp(commandTag, "CREATE ", strlen("CREATE ")) == 0 ||
+			 IsA(parsetree, SelectStmt) ||		/* SELECT INTO, CREATE AS */
+			 strncmp(commandTag, "ALTER ", strlen("ALTER ")) == 0 ||
+			 strncmp(commandTag, "DROP ", strlen("DROP ")) == 0 ||
+			 IsA(parsetree, GrantStmt) ||		/* GRANT or REVOKE */
+			 IsA(parsetree, CommentStmt)))
+			log_this_statement = true;
+
+		/*
+		 * For the first EXECUTE we find, record the client statement used by
+		 * the PREPARE.  PREPARE doesn't save the parse tree so we have no
+		 * way to conditionally output based on the type of query prepared.
+		 */
+		if (IsA(parsetree, ExecuteStmt))
+		{
+			ExecuteStmt *stmt = (ExecuteStmt *) parsetree;
+			PreparedStatement *entry;
+
+			if (*prepare_string == NULL &&
+				(entry = FetchPreparedStatement(stmt->name, false)) != NULL &&
+				entry->query_string)
+			{
+				*prepare_string = palloc(strlen(entry->query_string) +
+									  strlen("  [PREPARE:  %s]") - 2 + 1);
+				sprintf(*prepare_string, "  [PREPARE:  %s]",
+						entry->query_string);
+			}
+		}
+	}
+
+	if (log_this_statement)
+	{
+		ereport(LOG,
+				(errmsg("statement: %s%s", query_string,
+						*prepare_string ? *prepare_string : "")));
+		return true;
+	}
+	else
+		return false;
+}
+
 
 /*
  * Given a raw parsetree (gram.y output), and optionally information about
@@ -646,14 +620,9 @@ pg_parse_query(const char *query_string)
  * NOTE: for reasons mentioned above, this must be separate from raw parsing.
  */
 List *
-pg_analyze_and_rewrite(RawStmt *parsetree, const char *query_string,
-					   Oid *paramTypes, int numParams,
-					   QueryEnvironment *queryEnv)
+pg_analyze_and_rewrite(Node *parsetree, Oid *paramTypes, int numParams)
 {
-	Query	   *query;
 	List	   *querytree_list;
-
-	TRACE_POSTGRESQL_QUERY_REWRITE_START(query_string);
 
 	/*
 	 * (1) Perform parse analysis.
@@ -661,8 +630,7 @@ pg_analyze_and_rewrite(RawStmt *parsetree, const char *query_string,
 	if (log_parser_stats)
 		ResetUsage();
 
-	query = parse_analyze(parsetree, query_string, paramTypes, numParams,
-						  queryEnv);
+	querytree_list = parse_analyze(parsetree, paramTypes, numParams);
 
 	if (log_parser_stats)
 		ShowUsage("PARSE ANALYSIS STATISTICS");
@@ -670,141 +638,93 @@ pg_analyze_and_rewrite(RawStmt *parsetree, const char *query_string,
 	/*
 	 * (2) Rewrite the queries, as necessary
 	 */
-	querytree_list = pg_rewrite_query(query);
-
-	TRACE_POSTGRESQL_QUERY_REWRITE_DONE(query_string);
+	querytree_list = pg_rewrite_queries(querytree_list);
 
 	return querytree_list;
 }
 
 /*
- * Do parse analysis and rewriting.  This is the same as pg_analyze_and_rewrite
- * except that external-parameter resolution is determined by parser callback
- * hooks instead of a fixed list of parameter datatypes.
- */
-List *
-pg_analyze_and_rewrite_params(RawStmt *parsetree,
-							  const char *query_string,
-							  ParserSetupHook parserSetup,
-							  void *parserSetupArg,
-							  QueryEnvironment *queryEnv)
-{
-	ParseState *pstate;
-	Query	   *query;
-	List	   *querytree_list;
-
-	Assert(query_string != NULL);	/* required as of 8.4 */
-
-	TRACE_POSTGRESQL_QUERY_REWRITE_START(query_string);
-
-	/*
-	 * (1) Perform parse analysis.
-	 */
-	if (log_parser_stats)
-		ResetUsage();
-
-	pstate = make_parsestate(NULL);
-	pstate->p_sourcetext = query_string;
-	pstate->p_queryEnv = queryEnv;
-	(*parserSetup) (pstate, parserSetupArg);
-
-	query = transformTopLevelStmt(pstate, parsetree);
-
-	if (post_parse_analyze_hook)
-		(*post_parse_analyze_hook) (pstate, query);
-
-	free_parsestate(pstate);
-
-	if (log_parser_stats)
-		ShowUsage("PARSE ANALYSIS STATISTICS");
-
-	/*
-	 * (2) Rewrite the queries, as necessary
-	 */
-	querytree_list = pg_rewrite_query(query);
-
-	TRACE_POSTGRESQL_QUERY_REWRITE_DONE(query_string);
-
-	return querytree_list;
-}
-
-/*
- * Perform rewriting of a query produced by parse analysis.
+ * Perform rewriting of a list of queries produced by parse analysis.
  *
- * Note: query must just have come from the parser, because we do not do
- * AcquireRewriteLocks() on it.
+ * Note: queries must just have come from the parser, because we do not do
+ * AcquireRewriteLocks() on them.
  */
 static List *
-pg_rewrite_query(Query *query)
+pg_rewrite_queries(List *querytree_list)
 {
-	List	   *querytree_list;
-
-	if (Debug_print_parse)
-		elog_node_display(LOG, "parse tree", query,
-						  Debug_pretty_print);
+	List	   *new_list = NIL;
+	ListCell   *list_item;
 
 	if (log_parser_stats)
 		ResetUsage();
 
-	if (query->commandType == CMD_UTILITY)
+	/*
+	 * rewritten queries are collected in new_list.  Note there may be more or
+	 * fewer than in the original list.
+	 */
+	foreach(list_item, querytree_list)
 	{
-		/* don't rewrite utilities, just dump 'em into result list */
-		querytree_list = list_make1(query);
+		Query	   *querytree = (Query *) lfirst(list_item);
+
+		if (Debug_print_parse)
+			elog_node_display(DEBUG1, "parse tree", querytree,
+							  Debug_pretty_print);
+
+		if (querytree->commandType == CMD_UTILITY)
+		{
+			/* don't rewrite utilities, just dump 'em into new_list */
+			new_list = lappend(new_list, querytree);
+		}
+		else
+		{
+			/* rewrite regular queries */
+			List	   *rewritten = QueryRewrite(querytree);
+
+			new_list = list_concat(new_list, rewritten);
+		}
 	}
-	else
-	{
-		/* rewrite regular queries */
-		querytree_list = QueryRewrite(query);
-	}
+
+	querytree_list = new_list;
 
 	if (log_parser_stats)
 		ShowUsage("REWRITER STATISTICS");
 
 #ifdef COPY_PARSE_PLAN_TREES
-	/* Optional debugging check: pass querytree output through copyObject() */
-	{
-		List	   *new_list;
 
-		new_list = copyObject(querytree_list);
-		/* This checks both copyObject() and the equal() routines... */
-		if (!equal(new_list, querytree_list))
-			elog(WARNING, "copyObject() failed to produce equal parse tree");
-		else
-			querytree_list = new_list;
-	}
+	/*
+	 * Optional debugging check: pass querytree output through copyObject()
+	 */
+	new_list = (List *) copyObject(querytree_list);
+	/* This checks both copyObject() and the equal() routines... */
+	if (!equal(new_list, querytree_list))
+		elog(WARNING, "copyObject() failed to produce an equal parse tree");
+	else
+		querytree_list = new_list;
 #endif
 
 	if (Debug_print_rewritten)
-		elog_node_display(LOG, "rewritten parse tree", querytree_list,
+		elog_node_display(DEBUG1, "rewritten parse tree", querytree_list,
 						  Debug_pretty_print);
 
 	return querytree_list;
 }
 
 
-/*
- * Generate a plan for a single already-rewritten query.
- * This is a thin wrapper around planner() and takes the same parameters.
- */
-PlannedStmt *
-pg_plan_query(Query *querytree, int cursorOptions, ParamListInfo boundParams)
+/* Generate a plan for a single already-rewritten query. */
+Plan *
+pg_plan_query(Query *querytree, ParamListInfo boundParams)
 {
-	PlannedStmt *plan;
+	Plan	   *plan;
 
 	/* Utility commands have no plans. */
 	if (querytree->commandType == CMD_UTILITY)
 		return NULL;
 
-	/* Planner must have a snapshot in case it calls user-defined functions. */
-	Assert(ActiveSnapshotSet());
-
-	TRACE_POSTGRESQL_QUERY_PLAN_START();
-
 	if (log_planner_stats)
 		ResetUsage();
 
 	/* call the optimizer */
-	plan = planner(querytree, cursorOptions, boundParams);
+	plan = planner(querytree, false, 0, boundParams);
 
 	if (log_planner_stats)
 		ShowUsage("PLANNER STATISTICS");
@@ -812,7 +732,7 @@ pg_plan_query(Query *querytree, int cursorOptions, ParamListInfo boundParams)
 #ifdef COPY_PARSE_PLAN_TREES
 	/* Optional debugging check: pass plan output through copyObject() */
 	{
-		PlannedStmt *new_plan = copyObject(plan);
+		Plan	   *new_plan = (Plan *) copyObject(plan);
 
 		/*
 		 * equal() currently does not have routines to compare Plan nodes, so
@@ -832,9 +752,7 @@ pg_plan_query(Query *querytree, int cursorOptions, ParamListInfo boundParams)
 	 * Print plan if debugging.
 	 */
 	if (Debug_print_plan)
-		elog_node_display(LOG, "plan", plan, Debug_pretty_print);
-
-	TRACE_POSTGRESQL_QUERY_PLAN_DONE();
+		elog_node_display(DEBUG1, "plan", plan, Debug_pretty_print);
 
 	return plan;
 }
@@ -842,41 +760,45 @@ pg_plan_query(Query *querytree, int cursorOptions, ParamListInfo boundParams)
 /*
  * Generate plans for a list of already-rewritten queries.
  *
- * For normal optimizable statements, invoke the planner.  For utility
- * statements, just make a wrapper PlannedStmt node.
- *
- * The result is a list of PlannedStmt nodes.
+ * If needSnapshot is TRUE, we haven't yet set a snapshot for the current
+ * query.  A snapshot must be set before invoking the planner, since it
+ * might try to evaluate user-defined functions.  But we must not set a
+ * snapshot if the list contains only utility statements, because some
+ * utility statements depend on not having frozen the snapshot yet.
+ * (We assume that such statements cannot appear together with plannable
+ * statements in the rewriter's output.)
  */
 List *
-pg_plan_queries(List *querytrees, int cursorOptions, ParamListInfo boundParams)
+pg_plan_queries(List *querytrees, ParamListInfo boundParams,
+				bool needSnapshot)
 {
-	List	   *stmt_list = NIL;
+	List	   *plan_list = NIL;
 	ListCell   *query_list;
 
 	foreach(query_list, querytrees)
 	{
-		Query	   *query = lfirst_node(Query, query_list);
-		PlannedStmt *stmt;
+		Query	   *query = (Query *) lfirst(query_list);
+		Plan	   *plan;
 
 		if (query->commandType == CMD_UTILITY)
 		{
-			/* Utility commands require no planning. */
-			stmt = makeNode(PlannedStmt);
-			stmt->commandType = CMD_UTILITY;
-			stmt->canSetTag = query->canSetTag;
-			stmt->utilityStmt = query->utilityStmt;
-			stmt->stmt_location = query->stmt_location;
-			stmt->stmt_len = query->stmt_len;
+			/* Utility commands have no plans. */
+			plan = NULL;
 		}
 		else
 		{
-			stmt = pg_plan_query(query, cursorOptions, boundParams);
+			if (needSnapshot)
+			{
+				ActiveSnapshot = CopySnapshot(GetTransactionSnapshot());
+				needSnapshot = false;
+			}
+			plan = pg_plan_query(query, boundParams);
 		}
 
-		stmt_list = lappend(stmt_list, stmt);
+		plan_list = lappend(plan_list, plan);
 	}
 
-	return stmt_list;
+	return plan_list;
 }
 
 
@@ -892,29 +814,35 @@ exec_simple_query(const char *query_string)
 	MemoryContext oldcontext;
 	List	   *parsetree_list;
 	ListCell   *parsetree_item;
+	struct timeval start_t,
+				stop_t;
+	bool		save_log_duration = log_duration;
+	int			save_log_min_duration_statement = log_min_duration_statement;
 	bool		save_log_statement_stats = log_statement_stats;
+	char	   *prepare_string = NULL;
 	bool		was_logged = false;
-	bool		use_implicit_block;
-	char		msec_str[32];
 
 	/*
 	 * Report query to various monitoring facilities.
 	 */
 	debug_query_string = query_string;
 
-	pgstat_report_activity(STATE_RUNNING, query_string);
-
-	TRACE_POSTGRESQL_QUERY_START(query_string);
+	pgstat_report_activity(query_string);
 
 	/*
-	 * We use save_log_statement_stats so ShowUsage doesn't report incorrect
-	 * results because ResetUsage wasn't called.
+	 * We use save_log_* so "SET log_duration = true"  and "SET
+	 * log_min_duration_statement = true" don't report incorrect time because
+	 * gettimeofday() wasn't called. Similarly, log_statement_stats has to be
+	 * captured once.
 	 */
+	if (save_log_duration || save_log_min_duration_statement != -1)
+		gettimeofday(&start_t, NULL);
+
 	if (save_log_statement_stats)
 		ResetUsage();
 
 	/*
-	 * Start up a transaction command.  All queries generated by the
+	 * Start up a transaction command.	All queries generated by the
 	 * query_string will be in this same command block, *unless* we find a
 	 * BEGIN/COMMIT/ABORT statement; we have to force a new xact command after
 	 * one of those, else bad things will happen in xact.c. (Note that this
@@ -923,17 +851,25 @@ exec_simple_query(const char *query_string)
 	start_xact_command();
 
 	/*
-	 * Zap any pre-existing unnamed statement.  (While not strictly necessary,
+	 * Zap any pre-existing unnamed statement.	(While not strictly necessary,
 	 * it seems best to define simple-Query mode as if it used the unnamed
 	 * statement and portal; this ensures we recover any storage used by prior
 	 * unnamed operations.)
 	 */
-	drop_unnamed_stmt();
+	unnamed_stmt_pstmt = NULL;
+	if (unnamed_stmt_context)
+	{
+		DropDependentPortals(unnamed_stmt_context);
+		MemoryContextDelete(unnamed_stmt_context);
+	}
+	unnamed_stmt_context = NULL;
 
 	/*
 	 * Switch to appropriate context for constructing parsetrees.
 	 */
 	oldcontext = MemoryContextSwitchTo(MessageContext);
+
+	QueryContext = CurrentMemoryContext;
 
 	/*
 	 * Do basic parsing of the query or queries (this should be safe even if
@@ -941,15 +877,9 @@ exec_simple_query(const char *query_string)
 	 */
 	parsetree_list = pg_parse_query(query_string);
 
-	/* Log immediately if dictated by log_statement */
-	if (check_log_statement(parsetree_list))
-	{
-		ereport(LOG,
-				(errmsg("statement: %s", query_string),
-				 errhidestmt(true),
-				 errdetail_execute(parsetree_list)));
-		was_logged = true;
-	}
+	if (log_statement != LOGSTMT_NONE || save_log_min_duration_statement != -1)
+		was_logged = log_after_parse(parsetree_list, query_string,
+									 &prepare_string);
 
 	/*
 	 * Switch back to transaction context to enter the loop.
@@ -957,22 +887,11 @@ exec_simple_query(const char *query_string)
 	MemoryContextSwitchTo(oldcontext);
 
 	/*
-	 * For historical reasons, if multiple SQL statements are given in a
-	 * single "simple Query" message, we execute them as a single transaction,
-	 * unless explicit transaction control commands are included to make
-	 * portions of the list be separate transactions.  To represent this
-	 * behavior properly in the transaction machinery, we use an "implicit"
-	 * transaction block.
-	 */
-	use_implicit_block = (list_length(parsetree_list) > 1);
-
-	/*
 	 * Run through the raw parsetree(s) and process each one.
 	 */
 	foreach(parsetree_item, parsetree_list)
 	{
-		RawStmt    *parsetree = lfirst_node(RawStmt, parsetree_item);
-		bool		snapshot_set = false;
+		Node	   *parsetree = (Node *) lfirst(parsetree_item);
 		const char *commandTag;
 		char		completionTag[COMPLETION_TAG_BUFSIZE];
 		List	   *querytree_list,
@@ -983,13 +902,13 @@ exec_simple_query(const char *query_string)
 
 		/*
 		 * Get the command name for use in status display (it also becomes the
-		 * default completion tag, down inside PortalRun).  Set ps_status and
+		 * default completion tag, down inside PortalRun).	Set ps_status and
 		 * do any special start-of-SQL-command processing needed by the
 		 * destination.
 		 */
-		commandTag = CreateCommandTag(parsetree->stmt);
+		commandTag = CreateCommandTag(parsetree);
 
-		set_ps_display(commandTag, false);
+		set_ps_display(commandTag);
 
 		BeginCommand(commandTag, dest);
 
@@ -1002,37 +921,17 @@ exec_simple_query(const char *query_string)
 		 * state, but not many...)
 		 */
 		if (IsAbortedTransactionBlockState() &&
-			!IsTransactionExitStmt(parsetree->stmt))
+			!IsTransactionExitStmt(parsetree))
 			ereport(ERROR,
 					(errcode(ERRCODE_IN_FAILED_SQL_TRANSACTION),
 					 errmsg("current transaction is aborted, "
-							"commands ignored until end of transaction block"),
-					 errdetail_abort()));
+						"commands ignored until end of transaction block")));
 
 		/* Make sure we are in a transaction command */
 		start_xact_command();
 
-		/*
-		 * If using an implicit transaction block, and we're not already in a
-		 * transaction block, start an implicit block to force this statement
-		 * to be grouped together with any following ones.  (We must do this
-		 * each time through the loop; otherwise, a COMMIT/ROLLBACK in the
-		 * list would cause later statements to not be grouped.)
-		 */
-		if (use_implicit_block)
-			BeginImplicitTransactionBlock();
-
 		/* If we got a cancel signal in parsing or prior command, quit */
 		CHECK_FOR_INTERRUPTS();
-
-		/*
-		 * Set up a snapshot if parse analysis/planning will need one.
-		 */
-		if (analyze_requires_snapshot(parsetree))
-		{
-			PushActiveSnapshot(GetTransactionSnapshot());
-			snapshot_set = true;
-		}
 
 		/*
 		 * OK to analyze, rewrite, and plan this query.
@@ -1042,15 +941,9 @@ exec_simple_query(const char *query_string)
 		 */
 		oldcontext = MemoryContextSwitchTo(MessageContext);
 
-		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
-												NULL, 0, NULL);
+		querytree_list = pg_analyze_and_rewrite(parsetree, NULL, 0);
 
-		plantree_list = pg_plan_queries(querytree_list,
-										CURSOR_OPT_PARALLEL_OK, NULL);
-
-		/* Done with the snapshot used for parsing/planning */
-		if (snapshot_set)
-			PopActiveSnapshot();
+		plantree_list = pg_plan_queries(querytree_list, NULL, true);
 
 		/* If we got a cancel signal in analysis or planning, quit */
 		CHECK_FOR_INTERRUPTS();
@@ -1060,36 +953,29 @@ exec_simple_query(const char *query_string)
 		 * already is one, silently drop it.
 		 */
 		portal = CreatePortal("", true, true);
-		/* Don't display the portal in pg_cursors */
-		portal->visible = false;
 
-		/*
-		 * We don't have to copy anything into the portal, because everything
-		 * we are passing here is in MessageContext, which will outlive the
-		 * portal anyway.
-		 */
 		PortalDefineQuery(portal,
-						  NULL,
 						  query_string,
 						  commandTag,
+						  querytree_list,
 						  plantree_list,
-						  NULL);
+						  MessageContext);
 
 		/*
 		 * Start the portal.  No parameters here.
 		 */
-		PortalStart(portal, NULL, 0, InvalidSnapshot);
+		PortalStart(portal, NULL, InvalidSnapshot);
 
 		/*
 		 * Select the appropriate output format: text unless we are doing a
-		 * FETCH from a binary cursor.  (Pretty grotty to have to do this here
+		 * FETCH from a binary cursor.	(Pretty grotty to have to do this here
 		 * --- but it avoids grottiness in other places.  Ah, the joys of
 		 * backward compatibility...)
 		 */
 		format = 0;				/* TEXT is default */
-		if (IsA(parsetree->stmt, FetchStmt))
+		if (IsA(parsetree, FetchStmt))
 		{
-			FetchStmt  *stmt = (FetchStmt *) parsetree->stmt;
+			FetchStmt  *stmt = (FetchStmt *) parsetree;
 
 			if (!stmt->ismove)
 			{
@@ -1105,9 +991,7 @@ exec_simple_query(const char *query_string)
 		/*
 		 * Now we can create the destination receiver object.
 		 */
-		receiver = CreateDestReceiver(dest);
-		if (dest == DestRemote)
-			SetRemoteDestReceiverParams(receiver, portal);
+		receiver = CreateDestReceiver(dest, portal);
 
 		/*
 		 * Switch back to transaction context for execution.
@@ -1119,17 +1003,23 @@ exec_simple_query(const char *query_string)
 		 */
 		(void) PortalRun(portal,
 						 FETCH_ALL,
-						 true,	/* always top level */
-						 true,
 						 receiver,
 						 receiver,
 						 completionTag);
 
-		receiver->rDestroy(receiver);
+		(*receiver->rDestroy) (receiver);
 
 		PortalDrop(portal, false);
 
-		if (lnext(parsetree_item) == NULL)
+		if (IsA(parsetree, TransactionStmt))
+		{
+			/*
+			 * If this was a transaction control statement, commit it. We will
+			 * start a new xact command for the next command (if any).
+			 */
+			finish_xact_command();
+		}
+		else if (lnext(parsetree_item) == NULL)
 		{
 			/*
 			 * If this is the last parsetree of the query string, close down
@@ -1137,18 +1027,9 @@ exec_simple_query(const char *query_string)
 			 * is so that any end-of-transaction errors are reported before
 			 * the command-complete message is issued, to avoid confusing
 			 * clients who will expect either a command-complete message or an
-			 * error, not one and then the other.  Also, if we're using an
-			 * implicit transaction block, we must close that out first.
-			 */
-			if (use_implicit_block)
-				EndImplicitTransactionBlock();
-			finish_xact_command();
-		}
-		else if (IsA(parsetree->stmt, TransactionStmt))
-		{
-			/*
-			 * If this was a transaction control statement, commit it. We will
-			 * start a new xact command for the next command.
+			 * error, not one and then the other.  But for compatibility with
+			 * historical Postgres behavior, we do not force a transaction
+			 * boundary between queries appearing in a single query string.
 			 */
 			finish_xact_command();
 		}
@@ -1171,9 +1052,7 @@ exec_simple_query(const char *query_string)
 	}							/* end loop over parsetrees */
 
 	/*
-	 * Close down transaction statement, if one is open.  (This will only do
-	 * something if the parsetree list was empty; otherwise the last loop
-	 * iteration already did it.)
+	 * Close down transaction statement, if one is open.
 	 */
 	finish_xact_command();
 
@@ -1183,29 +1062,54 @@ exec_simple_query(const char *query_string)
 	if (!parsetree_list)
 		NullCommand(dest);
 
+	QueryContext = NULL;
+
 	/*
-	 * Emit duration logging if appropriate.
+	 * Combine processing here as we need to calculate the query duration in
+	 * both instances.
 	 */
-	switch (check_log_duration(msec_str, was_logged))
+	if (save_log_duration || save_log_min_duration_statement != -1)
 	{
-		case 1:
+		long		usecs;
+
+		gettimeofday(&stop_t, NULL);
+		if (stop_t.tv_usec < start_t.tv_usec)
+		{
+			stop_t.tv_sec--;
+			stop_t.tv_usec += 1000000;
+		}
+		usecs = (long) (stop_t.tv_sec - start_t.tv_sec) * 1000000 +
+			(long) (stop_t.tv_usec - start_t.tv_usec);
+
+		/* Only print duration if we previously printed the statement. */
+		if (was_logged && save_log_duration)
 			ereport(LOG,
-					(errmsg("duration: %s ms", msec_str),
-					 errhidestmt(true)));
-			break;
-		case 2:
+					(errmsg("duration: %ld.%03ld ms",
+							(long) ((stop_t.tv_sec - start_t.tv_sec) * 1000 +
+								  (stop_t.tv_usec - start_t.tv_usec) / 1000),
+						 (long) (stop_t.tv_usec - start_t.tv_usec) % 1000)));
+
+		/*
+		 * Output a duration_statement to the log if the query has exceeded
+		 * the min duration, or if we are to print all durations.
+		 */
+		if (save_log_min_duration_statement == 0 ||
+			(save_log_min_duration_statement > 0 &&
+			 usecs >= save_log_min_duration_statement * 1000))
 			ereport(LOG,
-					(errmsg("duration: %s ms  statement: %s",
-							msec_str, query_string),
-					 errhidestmt(true),
-					 errdetail_execute(parsetree_list)));
-			break;
+					(errmsg("duration: %ld.%03ld ms  statement: %s%s",
+							(long) ((stop_t.tv_sec - start_t.tv_sec) * 1000 +
+								  (stop_t.tv_usec - start_t.tv_usec) / 1000),
+							(long) (stop_t.tv_usec - start_t.tv_usec) % 1000,
+							query_string,
+							prepare_string ? prepare_string : "")));
 	}
 
 	if (save_log_statement_stats)
 		ShowUsage("QUERY STATISTICS");
 
-	TRACE_POSTGRESQL_QUERY_DONE(query_string);
+	if (prepare_string != NULL)
+		pfree(prepare_string);
 
 	debug_query_string = NULL;
 }
@@ -1217,43 +1121,41 @@ exec_simple_query(const char *query_string)
  */
 static void
 exec_parse_message(const char *query_string,	/* string to execute */
-				   const char *stmt_name,	/* name for prepared stmt */
-				   Oid *paramTypes, /* parameter types */
-				   int numParams)	/* number of parameters */
+				   const char *stmt_name,		/* name for prepared stmt */
+				   Oid *paramTypes,		/* parameter types */
+				   int numParams)		/* number of parameters */
 {
-	MemoryContext unnamed_stmt_context = NULL;
 	MemoryContext oldcontext;
 	List	   *parsetree_list;
-	RawStmt    *raw_parse_tree;
 	const char *commandTag;
-	List	   *querytree_list;
-	CachedPlanSource *psrc;
+	List	   *querytree_list,
+			   *plantree_list,
+			   *param_list;
 	bool		is_named;
 	bool		save_log_statement_stats = log_statement_stats;
-	char		msec_str[32];
 
 	/*
 	 * Report query to various monitoring facilities.
 	 */
 	debug_query_string = query_string;
 
-	pgstat_report_activity(STATE_RUNNING, query_string);
+	pgstat_report_activity(query_string);
 
-	set_ps_display("PARSE", false);
+	set_ps_display("PARSE");
 
 	if (save_log_statement_stats)
 		ResetUsage();
 
-	ereport(DEBUG2,
-			(errmsg("parse %s: %s",
-					*stmt_name ? stmt_name : "<unnamed>",
-					query_string)));
+	if (log_statement == LOGSTMT_ALL)
+		ereport(LOG,
+				(errmsg("statement: PREPARE %s AS %s",
+						(*stmt_name != '\0') ? stmt_name : "<unnamed>",
+						query_string)));
 
 	/*
 	 * Start up a transaction command so we can run parse analysis etc. (Note
 	 * that this will normally change current memory context.) Nothing happens
-	 * if we are already in one.  This also arms the statement timeout if
-	 * necessary.
+	 * if we are already in one.
 	 */
 	start_xact_command();
 
@@ -1263,12 +1165,12 @@ exec_parse_message(const char *query_string,	/* string to execute */
 	 * We have two strategies depending on whether the prepared statement is
 	 * named or not.  For a named prepared statement, we do parsing in
 	 * MessageContext and copy the finished trees into the prepared
-	 * statement's plancache entry; then the reset of MessageContext releases
-	 * temporary space used by parsing and rewriting. For an unnamed prepared
+	 * statement's private context; then the reset of MessageContext releases
+	 * temporary space used by parsing and planning.  For an unnamed prepared
 	 * statement, we assume the statement isn't going to hang around long, so
 	 * getting rid of temp space quickly is probably not worth the costs of
-	 * copying parse trees.  So in this case, we create the plancache entry's
-	 * query_context here, and do all the parsing work therein.
+	 * copying parse/plan trees.  So in this case, we set up a special context
+	 * for the unnamed statement, and do all the parsing/planning therein.
 	 */
 	is_named = (stmt_name[0] != '\0');
 	if (is_named)
@@ -1279,14 +1181,24 @@ exec_parse_message(const char *query_string,	/* string to execute */
 	else
 	{
 		/* Unnamed prepared statement --- release any prior unnamed stmt */
-		drop_unnamed_stmt();
-		/* Create context for parsing */
+		unnamed_stmt_pstmt = NULL;
+		if (unnamed_stmt_context)
+		{
+			DropDependentPortals(unnamed_stmt_context);
+			MemoryContextDelete(unnamed_stmt_context);
+		}
+		unnamed_stmt_context = NULL;
+		/* create context for parsing/planning */
 		unnamed_stmt_context =
-			AllocSetContextCreate(MessageContext,
+			AllocSetContextCreate(TopMemoryContext,
 								  "unnamed prepared statement",
-								  ALLOCSET_DEFAULT_SIZES);
+								  ALLOCSET_DEFAULT_MINSIZE,
+								  ALLOCSET_DEFAULT_INITSIZE,
+								  ALLOCSET_DEFAULT_MAXSIZE);
 		oldcontext = MemoryContextSwitchTo(unnamed_stmt_context);
 	}
+
+	QueryContext = CurrentMemoryContext;
 
 	/*
 	 * Do basic parsing of the query or queries (this should be safe even if
@@ -1302,20 +1214,17 @@ exec_parse_message(const char *query_string,	/* string to execute */
 	if (list_length(parsetree_list) > 1)
 		ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("cannot insert multiple commands into a prepared statement")));
+		errmsg("cannot insert multiple commands into a prepared statement")));
 
 	if (parsetree_list != NIL)
 	{
-		Query	   *query;
-		bool		snapshot_set = false;
+		Node	   *parsetree = (Node *) linitial(parsetree_list);
 		int			i;
-
-		raw_parse_tree = linitial_node(RawStmt, parsetree_list);
 
 		/*
 		 * Get the command name for possible use in status display.
 		 */
-		commandTag = CreateCommandTag(raw_parse_tree->stmt);
+		commandTag = CreateCommandTag(parsetree);
 
 		/*
 		 * If we are in an aborted transaction, reject all commands except
@@ -1326,44 +1235,29 @@ exec_parse_message(const char *query_string,	/* string to execute */
 		 * state, but not many...)
 		 */
 		if (IsAbortedTransactionBlockState() &&
-			!IsTransactionExitStmt(raw_parse_tree->stmt))
+			!IsTransactionExitStmt(parsetree))
 			ereport(ERROR,
 					(errcode(ERRCODE_IN_FAILED_SQL_TRANSACTION),
 					 errmsg("current transaction is aborted, "
-							"commands ignored until end of transaction block"),
-					 errdetail_abort()));
+						"commands ignored until end of transaction block")));
 
 		/*
-		 * Create the CachedPlanSource before we do parse analysis, since it
-		 * needs to see the unmodified raw parse tree.
-		 */
-		psrc = CreateCachedPlan(raw_parse_tree, query_string, commandTag);
-
-		/*
-		 * Set up a snapshot if parse analysis will need one.
-		 */
-		if (analyze_requires_snapshot(raw_parse_tree))
-		{
-			PushActiveSnapshot(GetTransactionSnapshot());
-			snapshot_set = true;
-		}
-
-		/*
-		 * Analyze and rewrite the query.  Note that the originally specified
-		 * parameter set is not required to be complete, so we have to use
-		 * parse_analyze_varparams().
+		 * OK to analyze, rewrite, and plan this query.  Note that the
+		 * originally specified parameter set is not required to be complete,
+		 * so we have to use parse_analyze_varparams().
 		 */
 		if (log_parser_stats)
 			ResetUsage();
 
-		query = parse_analyze_varparams(raw_parse_tree,
-										query_string,
-										&paramTypes,
-										&numParams);
+		querytree_list = parse_analyze_varparams(parsetree,
+												 &paramTypes,
+												 &numParams);
 
 		/*
-		 * Check all parameter types got determined.
+		 * Check all parameter types got determined, and convert array
+		 * representation to a list for storage.
 		 */
+		param_list = NIL;
 		for (i = 0; i < numParams; i++)
 		{
 			Oid			ptype = paramTypes[i];
@@ -1371,72 +1265,73 @@ exec_parse_message(const char *query_string,	/* string to execute */
 			if (ptype == InvalidOid || ptype == UNKNOWNOID)
 				ereport(ERROR,
 						(errcode(ERRCODE_INDETERMINATE_DATATYPE),
-						 errmsg("could not determine data type of parameter $%d",
-								i + 1)));
+					 errmsg("could not determine data type of parameter $%d",
+							i + 1)));
+			param_list = lappend_oid(param_list, ptype);
 		}
 
 		if (log_parser_stats)
 			ShowUsage("PARSE ANALYSIS STATISTICS");
 
-		querytree_list = pg_rewrite_query(query);
+		querytree_list = pg_rewrite_queries(querytree_list);
 
-		/* Done with the snapshot used for parsing */
-		if (snapshot_set)
-			PopActiveSnapshot();
+		/*
+		 * If this is the unnamed statement and it has parameters, defer query
+		 * planning until Bind.  Otherwise do it now.
+		 */
+		if (!is_named && numParams > 0)
+			plantree_list = NIL;
+		else
+			plantree_list = pg_plan_queries(querytree_list, NULL, true);
 	}
 	else
 	{
-		/* Empty input string.  This is legal. */
-		raw_parse_tree = NULL;
+		/* Empty input string.	This is legal. */
 		commandTag = NULL;
-		psrc = CreateCachedPlan(raw_parse_tree, query_string, commandTag);
 		querytree_list = NIL;
+		plantree_list = NIL;
+		param_list = NIL;
 	}
 
-	/*
-	 * CachedPlanSource must be a direct child of MessageContext before we
-	 * reparent unnamed_stmt_context under it, else we have a disconnected
-	 * circular subgraph.  Klugy, but less so than flipping contexts even more
-	 * above.
-	 */
-	if (unnamed_stmt_context)
-		MemoryContextSetParent(psrc->context, MessageContext);
-
-	/* Finish filling in the CachedPlanSource */
-	CompleteCachedPlan(psrc,
-					   querytree_list,
-					   unnamed_stmt_context,
-					   paramTypes,
-					   numParams,
-					   NULL,
-					   NULL,
-					   CURSOR_OPT_PARALLEL_OK,	/* allow parallel mode */
-					   true);	/* fixed result */
-
-	/* If we got a cancel signal during analysis, quit */
+	/* If we got a cancel signal in analysis or planning, quit */
 	CHECK_FOR_INTERRUPTS();
 
+	/*
+	 * Store the query as a prepared statement.  See above comments.
+	 */
 	if (is_named)
 	{
-		/*
-		 * Store the query as a prepared statement.
-		 */
-		StorePreparedStatement(stmt_name, psrc, false);
+		StorePreparedStatement(stmt_name,
+							   query_string,
+							   commandTag,
+							   querytree_list,
+							   plantree_list,
+							   param_list);
 	}
 	else
 	{
-		/*
-		 * We just save the CachedPlanSource into unnamed_stmt_psrc.
-		 */
-		SaveCachedPlan(psrc);
-		unnamed_stmt_psrc = psrc;
+		PreparedStatement *pstmt;
+
+		pstmt = (PreparedStatement *) palloc0(sizeof(PreparedStatement));
+		/* query_string needs to be copied into unnamed_stmt_context */
+		pstmt->query_string = pstrdup(query_string);
+		/* the rest is there already */
+		pstmt->commandTag = commandTag;
+		pstmt->query_list = querytree_list;
+		pstmt->plan_list = plantree_list;
+		pstmt->argtype_list = param_list;
+		pstmt->context = unnamed_stmt_context;
+		/* Now the unnamed statement is complete and valid */
+		unnamed_stmt_pstmt = pstmt;
 	}
 
 	MemoryContextSwitchTo(oldcontext);
 
+	QueryContext = NULL;
+
 	/*
 	 * We do NOT close the open transaction command here; that only happens
-	 * when the client sends Sync.  Instead, do CommandCounterIncrement just
+	 * when the client sends Sync.	Instead, do CommandCounterIncrement just
 	 * in case something happened during parse/plan.
 	 */
 	CommandCounterIncrement();
@@ -1446,26 +1341,6 @@ exec_parse_message(const char *query_string,	/* string to execute */
 	 */
 	if (whereToSendOutput == DestRemote)
 		pq_putemptymessage('1');
-
-	/*
-	 * Emit duration logging if appropriate.
-	 */
-	switch (check_log_duration(msec_str, false))
-	{
-		case 1:
-			ereport(LOG,
-					(errmsg("duration: %s ms", msec_str),
-					 errhidestmt(true)));
-			break;
-		case 2:
-			ereport(LOG,
-					(errmsg("duration: %s ms  parse %s: %s",
-							msec_str,
-							*stmt_name ? stmt_name : "<unnamed>",
-							query_string),
-					 errhidestmt(true)));
-			break;
-	}
 
 	if (save_log_statement_stats)
 		ShowUsage("PARSE MESSAGE STATISTICS");
@@ -1488,73 +1363,33 @@ exec_bind_message(StringInfo input_message)
 	int			numParams;
 	int			numRFormats;
 	int16	   *rformats = NULL;
-	CachedPlanSource *psrc;
-	CachedPlan *cplan;
+	int			i;
+	PreparedStatement *pstmt;
 	Portal		portal;
-	char	   *query_string;
-	char	   *saved_stmt_name;
 	ParamListInfo params;
-	MemoryContext oldContext;
-	bool		save_log_statement_stats = log_statement_stats;
-	bool		snapshot_set = false;
-	char		msec_str[32];
 
-	/* Get the fixed part of the message */
-	portal_name = pq_getmsgstring(input_message);
-	stmt_name = pq_getmsgstring(input_message);
+	pgstat_report_activity("<BIND>");
 
-	ereport(DEBUG2,
-			(errmsg("bind %s to %s",
-					*portal_name ? portal_name : "<unnamed>",
-					*stmt_name ? stmt_name : "<unnamed>")));
-
-	/* Find prepared statement */
-	if (stmt_name[0] != '\0')
-	{
-		PreparedStatement *pstmt;
-
-		pstmt = FetchPreparedStatement(stmt_name, true);
-		psrc = pstmt->plansource;
-	}
-	else
-	{
-		/* special-case the unnamed statement */
-		psrc = unnamed_stmt_psrc;
-		if (!psrc)
-			ereport(ERROR,
-					(errcode(ERRCODE_UNDEFINED_PSTATEMENT),
-					 errmsg("unnamed prepared statement does not exist")));
-	}
-
-	/*
-	 * Report query to various monitoring facilities.
-	 */
-	debug_query_string = psrc->query_string;
-
-	pgstat_report_activity(STATE_RUNNING, psrc->query_string);
-
-	set_ps_display("BIND", false);
-
-	if (save_log_statement_stats)
-		ResetUsage();
+	set_ps_display("BIND");
 
 	/*
 	 * Start up a transaction command so we can call functions etc. (Note that
 	 * this will normally change current memory context.) Nothing happens if
-	 * we are already in one.  This also arms the statement timeout if
-	 * necessary.
+	 * we are already in one.
 	 */
 	start_xact_command();
 
 	/* Switch back to message context */
 	MemoryContextSwitchTo(MessageContext);
 
+	/* Get the fixed part of the message */
+	portal_name = pq_getmsgstring(input_message);
+	stmt_name = pq_getmsgstring(input_message);
+
 	/* Get the parameter format codes */
 	numPFormats = pq_getmsgint(input_message, 2);
 	if (numPFormats > 0)
 	{
-		int			i;
-
 		pformats = (int16 *) palloc(numPFormats * sizeof(int16));
 		for (i = 0; i < numPFormats; i++)
 			pformats[i] = pq_getmsgint(input_message, 2);
@@ -1566,32 +1401,43 @@ exec_bind_message(StringInfo input_message)
 	if (numPFormats > 1 && numPFormats != numParams)
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-				 errmsg("bind message has %d parameter formats but %d parameters",
-						numPFormats, numParams)));
+			errmsg("bind message has %d parameter formats but %d parameters",
+				   numPFormats, numParams)));
 
-	if (numParams != psrc->num_params)
+	/* Find prepared statement */
+	if (stmt_name[0] != '\0')
+		pstmt = FetchPreparedStatement(stmt_name, true);
+	else
+	{
+		/* special-case the unnamed statement */
+		pstmt = unnamed_stmt_pstmt;
+		if (!pstmt)
+			ereport(ERROR,
+					(errcode(ERRCODE_UNDEFINED_PSTATEMENT),
+					 errmsg("unnamed prepared statement does not exist")));
+	}
+
+	if (numParams != list_length(pstmt->argtype_list))
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
 				 errmsg("bind message supplies %d parameters, but prepared statement \"%s\" requires %d",
-						numParams, stmt_name, psrc->num_params)));
+				   numParams, stmt_name, list_length(pstmt->argtype_list))));
 
 	/*
 	 * If we are in aborted transaction state, the only portals we can
 	 * actually run are those containing COMMIT or ROLLBACK commands. We
 	 * disallow binding anything else to avoid problems with infrastructure
-	 * that expects to run inside a valid transaction.  We also disallow
+	 * that expects to run inside a valid transaction.	We also disallow
 	 * binding any parameters, since we can't risk calling user-defined I/O
 	 * functions.
 	 */
 	if (IsAbortedTransactionBlockState() &&
-		(!(psrc->raw_parse_tree &&
-		   IsTransactionExitStmt(psrc->raw_parse_tree->stmt)) ||
+		(!IsTransactionExitStmtList(pstmt->query_list) ||
 		 numParams != 0))
 		ereport(ERROR,
 				(errcode(ERRCODE_IN_FAILED_SQL_TRANSACTION),
 				 errmsg("current transaction is aborted, "
-						"commands ignored until end of transaction block"),
-				 errdetail_abort()));
+						"commands ignored until end of transaction block")));
 
 	/*
 	 * Create the portal.  Allow silent replacement of an existing portal only
@@ -1602,64 +1448,30 @@ exec_bind_message(StringInfo input_message)
 	else
 		portal = CreatePortal(portal_name, false, false);
 
-	/*
-	 * Prepare to copy stuff into the portal's memory context.  We do all this
-	 * copying first, because it could possibly fail (out-of-memory) and we
-	 * don't want a failure to occur between GetCachedPlan and
-	 * PortalDefineQuery; that would result in leaking our plancache refcount.
-	 */
-	oldContext = MemoryContextSwitchTo(PortalGetHeapMemory(portal));
-
-	/* Copy the plan's query string into the portal */
-	query_string = pstrdup(psrc->query_string);
-
-	/* Likewise make a copy of the statement name, unless it's unnamed */
-	if (stmt_name[0])
-		saved_stmt_name = pstrdup(stmt_name);
-	else
-		saved_stmt_name = NULL;
-
-	/*
-	 * Set a snapshot if we have parameters to fetch (since the input
-	 * functions might need it) or the query isn't a utility command (and
-	 * hence could require redoing parse analysis and planning).  We keep the
-	 * snapshot active till we're done, so that plancache.c doesn't have to
-	 * take new ones.
-	 */
-	if (numParams > 0 ||
-		(psrc->raw_parse_tree &&
-		 analyze_requires_snapshot(psrc->raw_parse_tree)))
-	{
-		PushActiveSnapshot(GetTransactionSnapshot());
-		snapshot_set = true;
-	}
+	/* We need to output the parameter values someday */
+	if (log_statement == LOGSTMT_ALL)
+		ereport(LOG,
+				(errmsg("statement: <BIND> %s", portal_name)));
 
 	/*
 	 * Fetch parameters, if any, and store in the portal's memory context.
 	 */
 	if (numParams > 0)
 	{
-		int			paramno;
+		ListCell   *l;
+		MemoryContext oldContext;
 
-		params = (ParamListInfo) palloc(offsetof(ParamListInfoData, params) +
-										numParams * sizeof(ParamExternData));
-		/* we have static list of params, so no hooks needed */
-		params->paramFetch = NULL;
-		params->paramFetchArg = NULL;
-		params->parserSetup = NULL;
-		params->parserSetupArg = NULL;
-		params->numParams = numParams;
-		params->paramMask = NULL;
+		oldContext = MemoryContextSwitchTo(PortalGetHeapMemory(portal));
 
-		for (paramno = 0; paramno < numParams; paramno++)
+		params = (ParamListInfo)
+			palloc0((numParams + 1) * sizeof(ParamListInfoData));
+
+		i = 0;
+		foreach(l, pstmt->argtype_list)
 		{
-			Oid			ptype = psrc->param_types[paramno];
+			Oid			ptype = lfirst_oid(l);
 			int32		plength;
-			Datum		pval;
 			bool		isNull;
-			StringInfoData pbuf;
-			char		csave;
-			int16		pformat;
 
 			plength = pq_getmsgint(input_message, 4);
 			isNull = (plength == -1);
@@ -1667,11 +1479,21 @@ exec_bind_message(StringInfo input_message)
 			if (!isNull)
 			{
 				const char *pvalue = pq_getmsgbytes(input_message, plength);
+				int16		pformat;
+				StringInfoData pbuf;
+				char		csave;
+
+				if (numPFormats > 1)
+					pformat = pformats[i];
+				else if (numPFormats > 0)
+					pformat = pformats[0];
+				else
+					pformat = 0;	/* default = text */
 
 				/*
 				 * Rather than copying data around, we just set up a phony
 				 * StringInfo pointing to the correct portion of the message
-				 * buffer.  We assume we can scribble on the message buffer so
+				 * buffer.	We assume we can scribble on the message buffer so
 				 * as to maintain the convention that StringInfos have a
 				 * trailing null.  This is grotty but is a big win when
 				 * dealing with very large parameter strings.
@@ -1683,104 +1505,83 @@ exec_bind_message(StringInfo input_message)
 
 				csave = pbuf.data[plength];
 				pbuf.data[plength] = '\0';
-			}
-			else
-			{
-				pbuf.data = NULL;	/* keep compiler quiet */
-				csave = 0;
-			}
 
-			if (numPFormats > 1)
-				pformat = pformats[paramno];
-			else if (numPFormats > 0)
-				pformat = pformats[0];
-			else
-				pformat = 0;	/* default = text */
+				if (pformat == 0)
+				{
+					Oid			typinput;
+					Oid			typioparam;
+					char	   *pstring;
 
-			if (pformat == 0)	/* text mode */
-			{
-				Oid			typinput;
-				Oid			typioparam;
-				char	   *pstring;
+					getTypeInputInfo(ptype, &typinput, &typioparam);
 
-				getTypeInputInfo(ptype, &typinput, &typioparam);
-
-				/*
-				 * We have to do encoding conversion before calling the
-				 * typinput routine.
-				 */
-				if (isNull)
-					pstring = NULL;
-				else
+					/*
+					 * We have to do encoding conversion before calling the
+					 * typinput routine.
+					 */
 					pstring = pg_client_to_server(pbuf.data, plength);
+					params[i].value =
+						OidFunctionCall3(typinput,
+										 CStringGetDatum(pstring),
+										 ObjectIdGetDatum(typioparam),
+										 Int32GetDatum(-1));
+					/* Free result of encoding conversion, if any */
+					if (pstring != pbuf.data)
+						pfree(pstring);
+				}
+				else if (pformat == 1)
+				{
+					Oid			typreceive;
+					Oid			typioparam;
 
-				pval = OidInputFunctionCall(typinput, pstring, typioparam, -1);
+					/*
+					 * Call the parameter type's binary input converter
+					 */
+					getTypeBinaryInputInfo(ptype, &typreceive, &typioparam);
 
-				/* Free result of encoding conversion, if any */
-				if (pstring && pstring != pbuf.data)
-					pfree(pstring);
-			}
-			else if (pformat == 1)	/* binary mode */
-			{
-				Oid			typreceive;
-				Oid			typioparam;
-				StringInfo	bufptr;
+					params[i].value =
+						OidFunctionCall3(typreceive,
+										 PointerGetDatum(&pbuf),
+										 ObjectIdGetDatum(typioparam),
+										 Int32GetDatum(-1));
 
-				/*
-				 * Call the parameter type's binary input converter
-				 */
-				getTypeBinaryInputInfo(ptype, &typreceive, &typioparam);
-
-				if (isNull)
-					bufptr = NULL;
+					/* Trouble if it didn't eat the whole buffer */
+					if (pbuf.cursor != pbuf.len)
+						ereport(ERROR,
+							 (errcode(ERRCODE_INVALID_BINARY_REPRESENTATION),
+							  errmsg("incorrect binary data format in bind parameter %d",
+									 i + 1)));
+				}
 				else
-					bufptr = &pbuf;
-
-				pval = OidReceiveFunctionCall(typreceive, bufptr, typioparam, -1);
-
-				/* Trouble if it didn't eat the whole buffer */
-				if (!isNull && pbuf.cursor != pbuf.len)
+				{
 					ereport(ERROR,
-							(errcode(ERRCODE_INVALID_BINARY_REPRESENTATION),
-							 errmsg("incorrect binary data format in bind parameter %d",
-									paramno + 1)));
-			}
-			else
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-						 errmsg("unsupported format code: %d",
-								pformat)));
-				pval = 0;		/* keep compiler quiet */
-			}
+							(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+							 errmsg("unsupported format code: %d",
+									pformat)));
+				}
 
-			/* Restore message buffer contents */
-			if (!isNull)
+				/* Restore message buffer contents */
 				pbuf.data[plength] = csave;
+			}
 
-			params->params[paramno].value = pval;
-			params->params[paramno].isnull = isNull;
+			params[i].kind = PARAM_NUM;
+			params[i].id = i + 1;
+			params[i].ptype = ptype;
+			params[i].isnull = isNull;
 
-			/*
-			 * We mark the params as CONST.  This ensures that any custom plan
-			 * makes full use of the parameter values.
-			 */
-			params->params[paramno].pflags = PARAM_FLAG_CONST;
-			params->params[paramno].ptype = ptype;
+			i++;
 		}
+
+		params[i].kind = PARAM_INVALID;
+
+		MemoryContextSwitchTo(oldContext);
 	}
 	else
 		params = NULL;
-
-	/* Done storing stuff in portal's context */
-	MemoryContextSwitchTo(oldContext);
 
 	/* Get the result format codes */
 	numRFormats = pq_getmsgint(input_message, 2);
 	if (numRFormats > 0)
 	{
-		int			i;
-
 		rformats = (int16 *) palloc(numRFormats * sizeof(int16));
 		for (i = 0; i < numRFormats; i++)
 			rformats[i] = pq_getmsgint(input_message, 2);
@@ -1789,33 +1590,32 @@ exec_bind_message(StringInfo input_message)
 	pq_getmsgend(input_message);
 
 	/*
-	 * Obtain a plan from the CachedPlanSource.  Any cruft from (re)planning
-	 * will be generated in MessageContext.  The plan refcount will be
-	 * assigned to the Portal, so it will be released at portal destruction.
+	 * If we didn't plan the query before, do it now.  This allows the planner
+	 * to make use of the concrete parameter values we now have.
+	 *
+	 * This happens only for unnamed statements, and so switching into the
+	 * statement context for planning is correct (see notes in
+	 * exec_parse_message).
 	 */
-	cplan = GetCachedPlan(psrc, params, false, NULL);
+	if (pstmt->plan_list == NIL && pstmt->query_list != NIL)
+	{
+		MemoryContext oldContext = MemoryContextSwitchTo(pstmt->context);
+
+		pstmt->plan_list = pg_plan_queries(pstmt->query_list, params, true);
+		MemoryContextSwitchTo(oldContext);
+	}
 
 	/*
-	 * Now we can define the portal.
-	 *
-	 * DO NOT put any code that could possibly throw an error between the
-	 * above GetCachedPlan call and here.
+	 * Define portal and start execution.
 	 */
 	PortalDefineQuery(portal,
-					  saved_stmt_name,
-					  query_string,
-					  psrc->commandTag,
-					  cplan->stmt_list,
-					  cplan);
+					  pstmt->query_string,
+					  pstmt->commandTag,
+					  pstmt->query_list,
+					  pstmt->plan_list,
+					  pstmt->context);
 
-	/* Done with the snapshot used for parameter I/O and parsing/planning */
-	if (snapshot_set)
-		PopActiveSnapshot();
-
-	/*
-	 * And we're ready to start portal execution.
-	 */
-	PortalStart(portal, params, 0, InvalidSnapshot);
+	PortalStart(portal, params, InvalidSnapshot);
 
 	/*
 	 * Apply the result format requests to the portal.
@@ -1827,34 +1627,6 @@ exec_bind_message(StringInfo input_message)
 	 */
 	if (whereToSendOutput == DestRemote)
 		pq_putemptymessage('2');
-
-	/*
-	 * Emit duration logging if appropriate.
-	 */
-	switch (check_log_duration(msec_str, false))
-	{
-		case 1:
-			ereport(LOG,
-					(errmsg("duration: %s ms", msec_str),
-					 errhidestmt(true)));
-			break;
-		case 2:
-			ereport(LOG,
-					(errmsg("duration: %s ms  bind %s%s%s: %s",
-							msec_str,
-							*stmt_name ? stmt_name : "<unnamed>",
-							*portal_name ? "/" : "",
-							*portal_name ? portal_name : "",
-							psrc->query_string),
-					 errhidestmt(true),
-					 errdetail_params(params)));
-			break;
-	}
-
-	if (save_log_statement_stats)
-		ShowUsage("BIND MESSAGE STATISTICS");
-
-	debug_query_string = NULL;
 }
 
 /*
@@ -1870,14 +1642,12 @@ exec_execute_message(const char *portal_name, long max_rows)
 	Portal		portal;
 	bool		completed;
 	char		completionTag[COMPLETION_TAG_BUFSIZE];
-	const char *sourceText;
-	const char *prepStmtName;
-	ParamListInfo portalParams;
+	struct timeval start_t,
+				stop_t;
+	bool		save_log_duration = log_duration;
+	int			save_log_min_duration_statement = log_min_duration_statement;
 	bool		save_log_statement_stats = log_statement_stats;
-	bool		is_xact_command;
-	bool		execute_is_fetch;
-	bool		was_logged = false;
-	char		msec_str[32];
+	bool		execute_is_fetch = false;
 
 	/* Adjust destination to tell printtup.c what to do */
 	dest = whereToSendOutput;
@@ -1891,59 +1661,63 @@ exec_execute_message(const char *portal_name, long max_rows)
 				 errmsg("portal \"%s\" does not exist", portal_name)));
 
 	/*
+	 * If we re-issue an Execute protocol request against an existing portal,
+	 * then we are only fetching more rows rather than completely re-executing
+	 * the query from the start. atStart is never reset for a v3 portal, so we
+	 * are safe to use this check.
+	 */
+	if (!portal->atStart)
+		execute_is_fetch = true;
+
+	/*
 	 * If the original query was a null string, just return
 	 * EmptyQueryResponse.
 	 */
 	if (portal->commandTag == NULL)
 	{
-		Assert(portal->stmts == NIL);
+		Assert(portal->parseTrees == NIL);
 		NullCommand(dest);
 		return;
 	}
 
-	/* Does the portal contain a transaction command? */
-	is_xact_command = IsTransactionStmtList(portal->stmts);
-
-	/*
-	 * We must copy the sourceText and prepStmtName into MessageContext in
-	 * case the portal is destroyed during finish_xact_command. Can avoid the
-	 * copy if it's not an xact command, though.
-	 */
-	if (is_xact_command)
+	/* Should we display the portal names here? */
+	if (execute_is_fetch)
 	{
-		sourceText = pstrdup(portal->sourceText);
-		if (portal->prepStmtName)
-			prepStmtName = pstrdup(portal->prepStmtName);
-		else
-			prepStmtName = "<unnamed>";
-
-		/*
-		 * An xact command shouldn't have any parameters, which is a good
-		 * thing because they wouldn't be around after finish_xact_command.
-		 */
-		portalParams = NULL;
+		debug_query_string = "fetch message";
+		pgstat_report_activity("<FETCH>");
+	}
+	else if (portal->sourceText)
+	{
+		debug_query_string = portal->sourceText;
+		pgstat_report_activity(portal->sourceText);
 	}
 	else
 	{
-		sourceText = portal->sourceText;
-		if (portal->prepStmtName)
-			prepStmtName = portal->prepStmtName;
-		else
-			prepStmtName = "<unnamed>";
-		portalParams = portal->portalParams;
+		debug_query_string = "execute message";
+		pgstat_report_activity("<EXECUTE>");
 	}
 
+	set_ps_display(portal->commandTag);
+
 	/*
-	 * Report query to various monitoring facilities.
+	 * We use save_log_* so "SET log_duration = true"  and "SET
+	 * log_min_duration_statement = true" don't report incorrect time because
+	 * gettimeofday() wasn't called. Similarly, log_statement_stats has to be
+	 * captured once.
 	 */
-	debug_query_string = sourceText;
-
-	pgstat_report_activity(STATE_RUNNING, sourceText);
-
-	set_ps_display(portal->commandTag, false);
+	if (save_log_duration || save_log_min_duration_statement != -1)
+		gettimeofday(&start_t, NULL);
 
 	if (save_log_statement_stats)
 		ResetUsage();
+
+	if (log_statement == LOGSTMT_ALL)
+		/* We have the portal, so output the source query. */
+		ereport(LOG,
+				(errmsg("statement: %sEXECUTE %s  [PREPARE:  %s]",
+						(execute_is_fetch) ? "FETCH from " : "",
+						(*portal_name != '\0') ? portal_name : "<unnamed>",
+						portal->sourceText ? portal->sourceText : "")));
 
 	BeginCommand(portal->commandTag, dest);
 
@@ -1951,9 +1725,7 @@ exec_execute_message(const char *portal_name, long max_rows)
 	 * Create dest receiver in MessageContext (we don't want it in transaction
 	 * context, because that may get deleted if portal contains VACUUM).
 	 */
-	receiver = CreateDestReceiver(dest);
-	if (dest == DestRemoteExecute)
-		SetRemoteDestReceiverParams(receiver, portal);
+	receiver = CreateDestReceiver(dest, portal);
 
 	/*
 	 * Ensure we are in a transaction command (this should normally be the
@@ -1962,41 +1734,15 @@ exec_execute_message(const char *portal_name, long max_rows)
 	start_xact_command();
 
 	/*
-	 * If we re-issue an Execute protocol request against an existing portal,
-	 * then we are only fetching more rows rather than completely re-executing
-	 * the query from the start. atStart is never reset for a v3 portal, so we
-	 * are safe to use this check.
-	 */
-	execute_is_fetch = !portal->atStart;
-
-	/* Log immediately if dictated by log_statement */
-	if (check_log_statement(portal->stmts))
-	{
-		ereport(LOG,
-				(errmsg("%s %s%s%s: %s",
-						execute_is_fetch ?
-						_("execute fetch from") :
-						_("execute"),
-						prepStmtName,
-						*portal_name ? "/" : "",
-						*portal_name ? portal_name : "",
-						sourceText),
-				 errhidestmt(true),
-				 errdetail_params(portalParams)));
-		was_logged = true;
-	}
-
-	/*
 	 * If we are in aborted transaction state, the only portals we can
 	 * actually run are those containing COMMIT or ROLLBACK commands.
 	 */
 	if (IsAbortedTransactionBlockState() &&
-		!IsTransactionExitStmtList(portal->stmts))
+		!IsTransactionExitStmtList(portal->parseTrees))
 		ereport(ERROR,
 				(errcode(ERRCODE_IN_FAILED_SQL_TRANSACTION),
 				 errmsg("current transaction is aborted, "
-						"commands ignored until end of transaction block"),
-				 errdetail_abort()));
+						"commands ignored until end of transaction block")));
 
 	/* Check for cancel signal before we start execution */
 	CHECK_FOR_INTERRUPTS();
@@ -2009,20 +1755,18 @@ exec_execute_message(const char *portal_name, long max_rows)
 
 	completed = PortalRun(portal,
 						  max_rows,
-						  true, /* always top level */
-						  !execute_is_fetch && max_rows == FETCH_ALL,
 						  receiver,
 						  receiver,
 						  completionTag);
 
-	receiver->rDestroy(receiver);
+	(*receiver->rDestroy) (receiver);
 
 	if (completed)
 	{
-		if (is_xact_command)
+		if (IsTransactionStmtList(portal->parseTrees))
 		{
 			/*
-			 * If this was a transaction control statement, commit it.  We
+			 * If this was a transaction control statement, commit it.	We
 			 * will start a new xact command for the next command (if any).
 			 */
 			finish_xact_command();
@@ -2034,9 +1778,6 @@ exec_execute_message(const char *portal_name, long max_rows)
 			 * those that start or end a transaction block.
 			 */
 			CommandCounterIncrement();
-
-			/* full command has been executed, reset timeout */
-			disable_statement_timeout();
 		}
 
 		/* Send appropriate CommandComplete to client */
@@ -2050,264 +1791,51 @@ exec_execute_message(const char *portal_name, long max_rows)
 	}
 
 	/*
-	 * Emit duration logging if appropriate.
+	 * Combine processing here as we need to calculate the query duration in
+	 * both instances.
 	 */
-	switch (check_log_duration(msec_str, was_logged))
+	if (save_log_duration || save_log_min_duration_statement != -1)
 	{
-		case 1:
+		long		usecs;
+
+		gettimeofday(&stop_t, NULL);
+		if (stop_t.tv_usec < start_t.tv_usec)
+		{
+			stop_t.tv_sec--;
+			stop_t.tv_usec += 1000000;
+		}
+		usecs = (long) (stop_t.tv_sec - start_t.tv_sec) * 1000000 +
+			(long) (stop_t.tv_usec - start_t.tv_usec);
+
+		/* Only print duration if we previously printed the statement. */
+		if (log_statement == LOGSTMT_ALL && save_log_duration)
 			ereport(LOG,
-					(errmsg("duration: %s ms", msec_str),
-					 errhidestmt(true)));
-			break;
-		case 2:
+					(errmsg("duration: %ld.%03ld ms",
+							(long) ((stop_t.tv_sec - start_t.tv_sec) * 1000 +
+								  (stop_t.tv_usec - start_t.tv_usec) / 1000),
+						 (long) (stop_t.tv_usec - start_t.tv_usec) % 1000)));
+
+		/*
+		 * Output a duration_statement to the log if the query has exceeded
+		 * the min duration, or if we are to print all durations.
+		 */
+		if (save_log_min_duration_statement == 0 ||
+			(save_log_min_duration_statement > 0 &&
+			 usecs >= save_log_min_duration_statement * 1000))
 			ereport(LOG,
-					(errmsg("duration: %s ms  %s %s%s%s: %s",
-							msec_str,
-							execute_is_fetch ?
-							_("execute fetch from") :
-							_("execute"),
-							prepStmtName,
-							*portal_name ? "/" : "",
-							*portal_name ? portal_name : "",
-							sourceText),
-					 errhidestmt(true),
-					 errdetail_params(portalParams)));
-			break;
+					(errmsg("duration: %ld.%03ld ms  statement: %sEXECUTE %s  [PREPARE:  %s]",
+							(long) ((stop_t.tv_sec - start_t.tv_sec) * 1000 +
+								  (stop_t.tv_usec - start_t.tv_usec) / 1000),
+							(long) (stop_t.tv_usec - start_t.tv_usec) % 1000,
+							(execute_is_fetch) ? "FETCH from " : "",
+						  (*portal_name != '\0') ? portal_name : "<unnamed>",
+							portal->sourceText ? portal->sourceText : "")));
 	}
 
 	if (save_log_statement_stats)
-		ShowUsage("EXECUTE MESSAGE STATISTICS");
+		ShowUsage("QUERY STATISTICS");
 
 	debug_query_string = NULL;
-}
-
-/*
- * check_log_statement
- *		Determine whether command should be logged because of log_statement
- *
- * stmt_list can be either raw grammar output or a list of planned
- * statements
- */
-static bool
-check_log_statement(List *stmt_list)
-{
-	ListCell   *stmt_item;
-
-	if (log_statement == LOGSTMT_NONE)
-		return false;
-	if (log_statement == LOGSTMT_ALL)
-		return true;
-
-	/* Else we have to inspect the statement(s) to see whether to log */
-	foreach(stmt_item, stmt_list)
-	{
-		Node	   *stmt = (Node *) lfirst(stmt_item);
-
-		if (GetCommandLogLevel(stmt) <= log_statement)
-			return true;
-	}
-
-	return false;
-}
-
-/*
- * check_log_duration
- *		Determine whether current command's duration should be logged
- *
- * Returns:
- *		0 if no logging is needed
- *		1 if just the duration should be logged
- *		2 if duration and query details should be logged
- *
- * If logging is needed, the duration in msec is formatted into msec_str[],
- * which must be a 32-byte buffer.
- *
- * was_logged should be true if caller already logged query details (this
- * essentially prevents 2 from being returned).
- */
-int
-check_log_duration(char *msec_str, bool was_logged)
-{
-	if (log_duration || log_min_duration_statement >= 0)
-	{
-		long		secs;
-		int			usecs;
-		int			msecs;
-		bool		exceeded;
-
-		TimestampDifference(GetCurrentStatementStartTimestamp(),
-							GetCurrentTimestamp(),
-							&secs, &usecs);
-		msecs = usecs / 1000;
-
-		/*
-		 * This odd-looking test for log_min_duration_statement being exceeded
-		 * is designed to avoid integer overflow with very long durations:
-		 * don't compute secs * 1000 until we've verified it will fit in int.
-		 */
-		exceeded = (log_min_duration_statement == 0 ||
-					(log_min_duration_statement > 0 &&
-					 (secs > log_min_duration_statement / 1000 ||
-					  secs * 1000 + msecs >= log_min_duration_statement)));
-
-		if (exceeded || log_duration)
-		{
-			snprintf(msec_str, 32, "%ld.%03d",
-					 secs * 1000 + msecs, usecs % 1000);
-			if (exceeded && !was_logged)
-				return 2;
-			else
-				return 1;
-		}
-	}
-
-	return 0;
-}
-
-/*
- * errdetail_execute
- *
- * Add an errdetail() line showing the query referenced by an EXECUTE, if any.
- * The argument is the raw parsetree list.
- */
-static int
-errdetail_execute(List *raw_parsetree_list)
-{
-	ListCell   *parsetree_item;
-
-	foreach(parsetree_item, raw_parsetree_list)
-	{
-		RawStmt    *parsetree = lfirst_node(RawStmt, parsetree_item);
-
-		if (IsA(parsetree->stmt, ExecuteStmt))
-		{
-			ExecuteStmt *stmt = (ExecuteStmt *) parsetree->stmt;
-			PreparedStatement *pstmt;
-
-			pstmt = FetchPreparedStatement(stmt->name, false);
-			if (pstmt)
-			{
-				errdetail("prepare: %s", pstmt->plansource->query_string);
-				return 0;
-			}
-		}
-	}
-
-	return 0;
-}
-
-/*
- * errdetail_params
- *
- * Add an errdetail() line showing bind-parameter data, if available.
- */
-static int
-errdetail_params(ParamListInfo params)
-{
-	/* We mustn't call user-defined I/O functions when in an aborted xact */
-	if (params && params->numParams > 0 && !IsAbortedTransactionBlockState())
-	{
-		StringInfoData param_str;
-		MemoryContext oldcontext;
-		int			paramno;
-
-		/* Make sure any trash is generated in MessageContext */
-		oldcontext = MemoryContextSwitchTo(MessageContext);
-
-		initStringInfo(&param_str);
-
-		for (paramno = 0; paramno < params->numParams; paramno++)
-		{
-			ParamExternData *prm = &params->params[paramno];
-			Oid			typoutput;
-			bool		typisvarlena;
-			char	   *pstring;
-			char	   *p;
-
-			appendStringInfo(&param_str, "%s$%d = ",
-							 paramno > 0 ? ", " : "",
-							 paramno + 1);
-
-			if (prm->isnull || !OidIsValid(prm->ptype))
-			{
-				appendStringInfoString(&param_str, "NULL");
-				continue;
-			}
-
-			getTypeOutputInfo(prm->ptype, &typoutput, &typisvarlena);
-
-			pstring = OidOutputFunctionCall(typoutput, prm->value);
-
-			appendStringInfoCharMacro(&param_str, '\'');
-			for (p = pstring; *p; p++)
-			{
-				if (*p == '\'') /* double single quotes */
-					appendStringInfoCharMacro(&param_str, *p);
-				appendStringInfoCharMacro(&param_str, *p);
-			}
-			appendStringInfoCharMacro(&param_str, '\'');
-
-			pfree(pstring);
-		}
-
-		errdetail("parameters: %s", param_str.data);
-
-		pfree(param_str.data);
-
-		MemoryContextSwitchTo(oldcontext);
-	}
-
-	return 0;
-}
-
-/*
- * errdetail_abort
- *
- * Add an errdetail() line showing abort reason, if any.
- */
-static int
-errdetail_abort(void)
-{
-	if (MyProc->recoveryConflictPending)
-		errdetail("abort reason: recovery conflict");
-
-	return 0;
-}
-
-/*
- * errdetail_recovery_conflict
- *
- * Add an errdetail() line showing conflict source.
- */
-static int
-errdetail_recovery_conflict(void)
-{
-	switch (RecoveryConflictReason)
-	{
-		case PROCSIG_RECOVERY_CONFLICT_BUFFERPIN:
-			errdetail("User was holding shared buffer pin for too long.");
-			break;
-		case PROCSIG_RECOVERY_CONFLICT_LOCK:
-			errdetail("User was holding a relation lock for too long.");
-			break;
-		case PROCSIG_RECOVERY_CONFLICT_TABLESPACE:
-			errdetail("User was or might have been using tablespace that must be dropped.");
-			break;
-		case PROCSIG_RECOVERY_CONFLICT_SNAPSHOT:
-			errdetail("User query might have needed to see row versions that must be removed.");
-			break;
-		case PROCSIG_RECOVERY_CONFLICT_STARTUP_DEADLOCK:
-			errdetail("User transaction caused buffer deadlock with recovery.");
-			break;
-		case PROCSIG_RECOVERY_CONFLICT_DATABASE:
-			errdetail("User was connected to a database that must be dropped.");
-			break;
-		default:
-			break;
-			/* no errdetail */
-	}
-
-	return 0;
 }
 
 /*
@@ -2318,8 +1846,10 @@ errdetail_recovery_conflict(void)
 static void
 exec_describe_statement_message(const char *stmt_name)
 {
-	CachedPlanSource *psrc;
-	int			i;
+	PreparedStatement *pstmt;
+	TupleDesc	tupdesc;
+	ListCell   *l;
+	StringInfoData buf;
 
 	/*
 	 * Start up a transaction command. (Note that this will normally change
@@ -2332,41 +1862,32 @@ exec_describe_statement_message(const char *stmt_name)
 
 	/* Find prepared statement */
 	if (stmt_name[0] != '\0')
-	{
-		PreparedStatement *pstmt;
-
 		pstmt = FetchPreparedStatement(stmt_name, true);
-		psrc = pstmt->plansource;
-	}
 	else
 	{
 		/* special-case the unnamed statement */
-		psrc = unnamed_stmt_psrc;
-		if (!psrc)
+		pstmt = unnamed_stmt_pstmt;
+		if (!pstmt)
 			ereport(ERROR,
 					(errcode(ERRCODE_UNDEFINED_PSTATEMENT),
 					 errmsg("unnamed prepared statement does not exist")));
 	}
 
-	/* Prepared statements shouldn't have changeable result descs */
-	Assert(psrc->fixed_result);
-
 	/*
-	 * If we are in aborted transaction state, we can't run
-	 * SendRowDescriptionMessage(), because that needs catalog accesses.
-	 * Hence, refuse to Describe statements that return data.  (We shouldn't
-	 * just refuse all Describes, since that might break the ability of some
-	 * clients to issue COMMIT or ROLLBACK commands, if they use code that
-	 * blindly Describes whatever it does.)  We can Describe parameters
-	 * without doing anything dangerous, so we don't restrict that.
+	 * If we are in aborted transaction state, we can't safely create a result
+	 * tupledesc, because that needs catalog accesses.  Hence, refuse to
+	 * Describe statements that return data.  (We shouldn't just refuse all
+	 * Describes, since that might break the ability of some clients to issue
+	 * COMMIT or ROLLBACK commands, if they use code that blindly Describes
+	 * whatever it does.)  We can Describe parameters without doing anything
+	 * dangerous, so we don't restrict that.
 	 */
 	if (IsAbortedTransactionBlockState() &&
-		psrc->resultDesc)
+		PreparedStatementReturnsTuples(pstmt))
 		ereport(ERROR,
 				(errcode(ERRCODE_IN_FAILED_SQL_TRANSACTION),
 				 errmsg("current transaction is aborted, "
-						"commands ignored until end of transaction block"),
-				 errdetail_abort()));
+						"commands ignored until end of transaction block")));
 
 	if (whereToSendOutput != DestRemote)
 		return;					/* can't actually do anything... */
@@ -2374,33 +1895,25 @@ exec_describe_statement_message(const char *stmt_name)
 	/*
 	 * First describe the parameters...
 	 */
-	pq_beginmessage_reuse(&row_description_buf, 't'); /* parameter description
-													   * message type */
-	pq_sendint16(&row_description_buf, psrc->num_params);
+	pq_beginmessage(&buf, 't'); /* parameter description message type */
+	pq_sendint(&buf, list_length(pstmt->argtype_list), 2);
 
-	for (i = 0; i < psrc->num_params; i++)
+	foreach(l, pstmt->argtype_list)
 	{
-		Oid			ptype = psrc->param_types[i];
+		Oid			ptype = lfirst_oid(l);
 
-		pq_sendint32(&row_description_buf, (int) ptype);
+		pq_sendint(&buf, (int) ptype, 4);
 	}
-	pq_endmessage_reuse(&row_description_buf);
+	pq_endmessage(&buf);
 
 	/*
 	 * Next send RowDescription or NoData to describe the result...
 	 */
-	if (psrc->resultDesc)
-	{
-		List	   *tlist;
-
-		/* Get the plan's primary targetlist */
-		tlist = CachedPlanGetTargetList(psrc, NULL);
-
-		SendRowDescriptionMessage(&row_description_buf,
-								  psrc->resultDesc,
-								  tlist,
+	tupdesc = FetchPreparedStatementResultDesc(pstmt);
+	if (tupdesc)
+		SendRowDescriptionMessage(tupdesc,
+								  FetchPreparedStatementTargetList(pstmt),
 								  NULL);
-	}
 	else
 		pq_putemptymessage('n');	/* NoData */
 
@@ -2444,15 +1957,13 @@ exec_describe_portal_message(const char *portal_name)
 		ereport(ERROR,
 				(errcode(ERRCODE_IN_FAILED_SQL_TRANSACTION),
 				 errmsg("current transaction is aborted, "
-						"commands ignored until end of transaction block"),
-				 errdetail_abort()));
+						"commands ignored until end of transaction block")));
 
 	if (whereToSendOutput != DestRemote)
 		return;					/* can't actually do anything... */
 
 	if (portal->tupDesc)
-		SendRowDescriptionMessage(&row_description_buf,
-								  portal->tupDesc,
+		SendRowDescriptionMessage(portal->tupDesc,
 								  FetchPortalTargetList(portal),
 								  portal->formats);
 	else
@@ -2468,29 +1979,32 @@ start_xact_command(void)
 {
 	if (!xact_started)
 	{
+		ereport(DEBUG3,
+				(errmsg_internal("StartTransactionCommand")));
 		StartTransactionCommand();
+
+		/* Set statement timeout running, if any */
+		if (StatementTimeout > 0)
+			enable_sig_alarm(StatementTimeout, true);
+		else
+			cancel_from_timeout = false;
 
 		xact_started = true;
 	}
-
-	/*
-	 * Start statement timeout if necessary.  Note that this'll intentionally
-	 * not reset the clock on an already started timeout, to avoid the timing
-	 * overhead when start_xact_command() is invoked repeatedly, without an
-	 * interceding finish_xact_command() (e.g. parse/bind/execute).  If that's
-	 * not desired, the timeout has to be disabled explicitly.
-	 */
-	enable_statement_timeout();
 }
 
 static void
 finish_xact_command(void)
 {
-	/* cancel active statement timeout after each command */
-	disable_statement_timeout();
-
 	if (xact_started)
 	{
+		/* Cancel any active statement timeout before committing */
+		disable_sig_alarm(true);
+
+		/* Now commit the command */
+		ereport(DEBUG3,
+				(errmsg_internal("CommitTransactionCommand")));
+
 		CommitTransactionCommand();
 
 #ifdef MEMORY_CONTEXT_CHECKING
@@ -2501,7 +2015,8 @@ finish_xact_command(void)
 
 #ifdef SHOW_MEMORY_STATS
 		/* Print mem stats after each commit for leak tracking */
-		MemoryContextStats(TopMemoryContext);
+		if (ShowStats)
+			MemoryContextStats(TopMemoryContext);
 #endif
 
 		xact_started = false;
@@ -2514,7 +2029,6 @@ finish_xact_command(void)
  * ones that we allow in transaction-aborted state.
  */
 
-/* Test a bare parsetree */
 static bool
 IsTransactionExitStmt(Node *parsetree)
 {
@@ -2531,48 +2045,32 @@ IsTransactionExitStmt(Node *parsetree)
 	return false;
 }
 
-/* Test a list that contains PlannedStmt nodes */
 static bool
-IsTransactionExitStmtList(List *pstmts)
+IsTransactionExitStmtList(List *parseTrees)
 {
-	if (list_length(pstmts) == 1)
+	if (list_length(parseTrees) == 1)
 	{
-		PlannedStmt *pstmt = linitial_node(PlannedStmt, pstmts);
+		Query	   *query = (Query *) linitial(parseTrees);
 
-		if (pstmt->commandType == CMD_UTILITY &&
-			IsTransactionExitStmt(pstmt->utilityStmt))
+		if (query->commandType == CMD_UTILITY &&
+			IsTransactionExitStmt(query->utilityStmt))
 			return true;
 	}
 	return false;
 }
 
-/* Test a list that contains PlannedStmt nodes */
 static bool
-IsTransactionStmtList(List *pstmts)
+IsTransactionStmtList(List *parseTrees)
 {
-	if (list_length(pstmts) == 1)
+	if (list_length(parseTrees) == 1)
 	{
-		PlannedStmt *pstmt = linitial_node(PlannedStmt, pstmts);
+		Query	   *query = (Query *) linitial(parseTrees);
 
-		if (pstmt->commandType == CMD_UTILITY &&
-			IsA(pstmt->utilityStmt, TransactionStmt))
+		if (query->commandType == CMD_UTILITY &&
+			query->utilityStmt && IsA(query->utilityStmt, TransactionStmt))
 			return true;
 	}
 	return false;
-}
-
-/* Release any existing unnamed prepared statement */
-static void
-drop_unnamed_stmt(void)
-{
-	/* paranoia to avoid a dangling pointer in case of error */
-	if (unnamed_stmt_psrc)
-	{
-		CachedPlanSource *psrc = unnamed_stmt_psrc;
-
-		unnamed_stmt_psrc = NULL;
-		DropCachedPlan(psrc);
-	}
 }
 
 
@@ -2590,24 +2088,7 @@ drop_unnamed_stmt(void)
 void
 quickdie(SIGNAL_ARGS)
 {
-	sigaddset(&BlockSig, SIGQUIT);	/* prevent nested calls */
 	PG_SETMASK(&BlockSig);
-
-	/*
-	 * Prevent interrupts while exiting; though we just blocked signals that
-	 * would queue new interrupts, one may have been pending.  We don't want a
-	 * quickdie() downgraded to a mere query cancel.
-	 */
-	HOLD_INTERRUPTS();
-
-	/*
-	 * If we're aborting out of client auth, don't risk trying to send
-	 * anything to the client; we will likely violate the protocol, not to
-	 * mention that we may have interrupted the guts of OpenSSL or some
-	 * authentication library.
-	 */
-	if (ClientAuthInProgress && whereToSendOutput == DestRemote)
-		whereToSendOutput = DestNone;
 
 	/*
 	 * Ideally this should be ereport(FATAL), but then we'd not get control
@@ -2616,32 +2097,24 @@ quickdie(SIGNAL_ARGS)
 	ereport(WARNING,
 			(errcode(ERRCODE_CRASH_SHUTDOWN),
 			 errmsg("terminating connection because of crash of another server process"),
-			 errdetail("The postmaster has commanded this server process to roll back"
-					   " the current transaction and exit, because another"
-					   " server process exited abnormally and possibly corrupted"
-					   " shared memory."),
+	errdetail("The postmaster has commanded this server process to roll back"
+			  " the current transaction and exit, because another"
+			  " server process exited abnormally and possibly corrupted"
+			  " shared memory."),
 			 errhint("In a moment you should be able to reconnect to the"
 					 " database and repeat your command.")));
 
 	/*
-	 * We DO NOT want to run proc_exit() callbacks -- we're here because
-	 * shared memory may be corrupted, so we don't want to try to clean up our
-	 * transaction.  Just nail the windows shut and get out of town.  Now that
-	 * there's an atexit callback to prevent third-party code from breaking
-	 * things by calling exit() directly, we have to reset the callbacks
-	 * explicitly to make this work as intended.
-	 */
-	on_exit_reset();
-
-	/*
-	 * Note we do exit(2) not exit(0).  This is to force the postmaster into a
+	 * DO NOT proc_exit() -- we're here because shared memory may be
+	 * corrupted, so we don't want to try to clean up our transaction. Just
+	 * nail the windows shut and get out of town.
+	 *
+	 * Note we do exit(1) not exit(0).	This is to force the postmaster into a
 	 * system reset cycle if some idiot DBA sends a manual SIGQUIT to a random
 	 * backend.  This is necessary precisely because we don't clean up our
-	 * shared memory state.  (The "dead man switch" mechanism in pmsignal.c
-	 * should ensure the postmaster sees this as a crash, too, but no harm in
-	 * being doubly sure.)
+	 * shared memory state.
 	 */
-	exit(2);
+	exit(1);
 }
 
 /*
@@ -2658,21 +2131,41 @@ die(SIGNAL_ARGS)
 	{
 		InterruptPending = true;
 		ProcDiePending = true;
+
+		/*
+		 * If it's safe to interrupt, and we're waiting for input or a lock,
+		 * service the interrupt immediately
+		 */
+		if (ImmediateInterruptOK && InterruptHoldoffCount == 0 &&
+			CritSectionCount == 0)
+		{
+			/* bump holdoff count to make ProcessInterrupts() a no-op */
+			/* until we are done getting ready for it */
+			InterruptHoldoffCount++;
+			DisableNotifyInterrupt();
+			DisableCatchupInterrupt();
+			/* Make sure CheckDeadLock won't run while shutting down... */
+			LockWaitCancel();
+			InterruptHoldoffCount--;
+			ProcessInterrupts();
+		}
 	}
 
-	/* If we're still here, waken anything waiting on the process latch */
-	SetLatch(MyLatch);
-
-	/*
-	 * If we're in single user mode, we want to quit immediately - we can't
-	 * rely on latches as they wouldn't work when stdin/stdout is a file.
-	 * Rather ugly, but it's unlikely to be worthwhile to invest much more
-	 * effort just for the benefit of single user mode.
-	 */
-	if (DoingCommandRead && whereToSendOutput != DestRemote)
-		ProcessInterrupts();
-
 	errno = save_errno;
+}
+
+/*
+ * Timeout or shutdown signal from postmaster during client authentication.
+ * Simply exit(0).
+ *
+ * XXX: possible future improvement: try to send a message indicating
+ * why we are disconnecting.  Problem is to be sure we don't block while
+ * doing so, nor mess up the authentication message exchange.
+ */
+void
+authdie(SIGNAL_ARGS)
+{
+	exit(0);
 }
 
 /*
@@ -2691,10 +2184,29 @@ StatementCancelHandler(SIGNAL_ARGS)
 	{
 		InterruptPending = true;
 		QueryCancelPending = true;
-	}
 
-	/* If we're still here, waken anything waiting on the process latch */
-	SetLatch(MyLatch);
+		/*
+		 * If it's safe to interrupt, and we're waiting for a lock, service
+		 * the interrupt immediately.  No point in interrupting if we're
+		 * waiting for input, however.
+		 */
+		if (ImmediateInterruptOK && InterruptHoldoffCount == 0 &&
+			CritSectionCount == 0)
+		{
+			/* bump holdoff count to make ProcessInterrupts() a no-op */
+			/* until we are done getting ready for it */
+			InterruptHoldoffCount++;
+			if (LockWaitCancel())
+			{
+				DisableNotifyInterrupt();
+				DisableCatchupInterrupt();
+				InterruptHoldoffCount--;
+				ProcessInterrupts();
+			}
+			else
+				InterruptHoldoffCount--;
+		}
+	}
 
 	errno = save_errno;
 }
@@ -2703,7 +2215,6 @@ StatementCancelHandler(SIGNAL_ARGS)
 void
 FloatExceptionHandler(SIGNAL_ARGS)
 {
-	/* We're not returning, so no need to save errno */
 	ereport(ERROR,
 			(errcode(ERRCODE_FLOATING_POINT_EXCEPTION),
 			 errmsg("floating-point exception"),
@@ -2712,142 +2223,13 @@ FloatExceptionHandler(SIGNAL_ARGS)
 					   "invalid operation, such as division by zero.")));
 }
 
-/*
- * SIGHUP: set flag to re-read config file at next convenient time.
- *
- * Sets the ConfigReloadPending flag, which should be checked at convenient
- * places inside main loops. (Better than doing the reading in the signal
- * handler, ey?)
- */
-void
-PostgresSigHupHandler(SIGNAL_ARGS)
+/* SIGHUP: set flag to re-read config file at next convenient time */
+static void
+SigHupHandler(SIGNAL_ARGS)
 {
-	int			save_errno = errno;
-
-	ConfigReloadPending = true;
-	SetLatch(MyLatch);
-
-	errno = save_errno;
+	got_SIGHUP = true;
 }
 
-/*
- * RecoveryConflictInterrupt: out-of-line portion of recovery conflict
- * handling following receipt of SIGUSR1. Designed to be similar to die()
- * and StatementCancelHandler(). Called only by a normal user backend
- * that begins a transaction during recovery.
- */
-void
-RecoveryConflictInterrupt(ProcSignalReason reason)
-{
-	int			save_errno = errno;
-
-	/*
-	 * Don't joggle the elbow of proc_exit
-	 */
-	if (!proc_exit_inprogress)
-	{
-		RecoveryConflictReason = reason;
-		switch (reason)
-		{
-			case PROCSIG_RECOVERY_CONFLICT_STARTUP_DEADLOCK:
-
-				/*
-				 * If we aren't waiting for a lock we can never deadlock.
-				 */
-				if (!IsWaitingForLock())
-					return;
-
-				/* Intentional drop through to check wait for pin */
-
-			case PROCSIG_RECOVERY_CONFLICT_BUFFERPIN:
-
-				/*
-				 * If we aren't blocking the Startup process there is nothing
-				 * more to do.
-				 */
-				if (!HoldingBufferPinThatDelaysRecovery())
-					return;
-
-				MyProc->recoveryConflictPending = true;
-
-				/* Intentional drop through to error handling */
-
-			case PROCSIG_RECOVERY_CONFLICT_LOCK:
-			case PROCSIG_RECOVERY_CONFLICT_TABLESPACE:
-			case PROCSIG_RECOVERY_CONFLICT_SNAPSHOT:
-
-				/*
-				 * If we aren't in a transaction any longer then ignore.
-				 */
-				if (!IsTransactionOrTransactionBlock())
-					return;
-
-				/*
-				 * If we can abort just the current subtransaction then we are
-				 * OK to throw an ERROR to resolve the conflict. Otherwise
-				 * drop through to the FATAL case.
-				 *
-				 * XXX other times that we can throw just an ERROR *may* be
-				 * PROCSIG_RECOVERY_CONFLICT_LOCK if no locks are held in
-				 * parent transactions
-				 *
-				 * PROCSIG_RECOVERY_CONFLICT_SNAPSHOT if no snapshots are held
-				 * by parent transactions and the transaction is not
-				 * transaction-snapshot mode
-				 *
-				 * PROCSIG_RECOVERY_CONFLICT_TABLESPACE if no temp files or
-				 * cursors open in parent transactions
-				 */
-				if (!IsSubTransaction())
-				{
-					/*
-					 * If we already aborted then we no longer need to cancel.
-					 * We do this here since we do not wish to ignore aborted
-					 * subtransactions, which must cause FATAL, currently.
-					 */
-					if (IsAbortedTransactionBlockState())
-						return;
-
-					RecoveryConflictPending = true;
-					QueryCancelPending = true;
-					InterruptPending = true;
-					break;
-				}
-
-				/* Intentional drop through to session cancel */
-
-			case PROCSIG_RECOVERY_CONFLICT_DATABASE:
-				RecoveryConflictPending = true;
-				ProcDiePending = true;
-				InterruptPending = true;
-				break;
-
-			default:
-				elog(FATAL, "unrecognized conflict mode: %d",
-					 (int) reason);
-		}
-
-		Assert(RecoveryConflictPending && (QueryCancelPending || ProcDiePending));
-
-		/*
-		 * All conflicts apart from database cause dynamic errors where the
-		 * command or transaction can be retried at a later point with some
-		 * potential for success. No need to reset this, since non-retryable
-		 * conflict errors are currently FATAL.
-		 */
-		if (reason == PROCSIG_RECOVERY_CONFLICT_DATABASE)
-			RecoveryConflictRetryable = false;
-	}
-
-	/*
-	 * Set the process latch. This function essentially emulates signal
-	 * handlers like die() and StatementCancelHandler() and it seems prudent
-	 * to behave similarly as they do.
-	 */
-	SetLatch(MyLatch);
-
-	errno = save_errno;
-}
 
 /*
  * ProcessInterrupts: out-of-line portion of CHECK_FOR_INTERRUPTS() macro
@@ -2859,317 +2241,64 @@ RecoveryConflictInterrupt(ProcSignalReason reason)
 void
 ProcessInterrupts(void)
 {
-	/* OK to accept any interrupts now? */
+	/* OK to accept interrupt now? */
 	if (InterruptHoldoffCount != 0 || CritSectionCount != 0)
 		return;
 	InterruptPending = false;
-
 	if (ProcDiePending)
 	{
 		ProcDiePending = false;
-		QueryCancelPending = false; /* ProcDie trumps QueryCancel */
-		LockErrorCleanup();
-		/* As in quickdie, don't risk sending to client during auth */
-		if (ClientAuthInProgress && whereToSendOutput == DestRemote)
-			whereToSendOutput = DestNone;
-		if (ClientAuthInProgress)
-			ereport(FATAL,
-					(errcode(ERRCODE_QUERY_CANCELED),
-					 errmsg("canceling authentication due to timeout")));
-		else if (IsAutoVacuumWorkerProcess())
-			ereport(FATAL,
-					(errcode(ERRCODE_ADMIN_SHUTDOWN),
-					 errmsg("terminating autovacuum process due to administrator command")));
-		else if (IsLogicalWorker())
-			ereport(FATAL,
-					(errcode(ERRCODE_ADMIN_SHUTDOWN),
-					 errmsg("terminating logical replication worker due to administrator command")));
-		else if (IsLogicalLauncher())
-		{
-			ereport(DEBUG1,
-					(errmsg("logical replication launcher shutting down")));
-
-			/*
-			 * The logical replication launcher can be stopped at any time.
-			 * Use exit status 1 so the background worker is restarted.
-			 */
-			proc_exit(1);
-		}
-		else if (RecoveryConflictPending && RecoveryConflictRetryable)
-		{
-			pgstat_report_recovery_conflict(RecoveryConflictReason);
-			ereport(FATAL,
-					(errcode(ERRCODE_T_R_SERIALIZATION_FAILURE),
-					 errmsg("terminating connection due to conflict with recovery"),
-					 errdetail_recovery_conflict()));
-		}
-		else if (RecoveryConflictPending)
-		{
-			/* Currently there is only one non-retryable recovery conflict */
-			Assert(RecoveryConflictReason == PROCSIG_RECOVERY_CONFLICT_DATABASE);
-			pgstat_report_recovery_conflict(RecoveryConflictReason);
-			ereport(FATAL,
-					(errcode(ERRCODE_DATABASE_DROPPED),
-					 errmsg("terminating connection due to conflict with recovery"),
-					 errdetail_recovery_conflict()));
-		}
-		else
-			ereport(FATAL,
-					(errcode(ERRCODE_ADMIN_SHUTDOWN),
-					 errmsg("terminating connection due to administrator command")));
-	}
-	if (ClientConnectionLost)
-	{
-		QueryCancelPending = false; /* lost connection trumps QueryCancel */
-		LockErrorCleanup();
-		/* don't send to client, we already know the connection to be dead. */
-		whereToSendOutput = DestNone;
+		QueryCancelPending = false;		/* ProcDie trumps QueryCancel */
+		ImmediateInterruptOK = false;	/* not idle anymore */
+		DisableNotifyInterrupt();
+		DisableCatchupInterrupt();
 		ereport(FATAL,
-				(errcode(ERRCODE_CONNECTION_FAILURE),
-				 errmsg("connection to client lost")));
+				(errcode(ERRCODE_ADMIN_SHUTDOWN),
+			 errmsg("terminating connection due to administrator command")));
 	}
-
-	/*
-	 * If a recovery conflict happens while we are waiting for input from the
-	 * client, the client is presumably just sitting idle in a transaction,
-	 * preventing recovery from making progress.  Terminate the connection to
-	 * dislodge it.
-	 */
-	if (RecoveryConflictPending && DoingCommandRead)
+	if (QueryCancelPending)
 	{
-		QueryCancelPending = false; /* this trumps QueryCancel */
-		RecoveryConflictPending = false;
-		LockErrorCleanup();
-		pgstat_report_recovery_conflict(RecoveryConflictReason);
-		ereport(FATAL,
-				(errcode(ERRCODE_T_R_SERIALIZATION_FAILURE),
-				 errmsg("terminating connection due to conflict with recovery"),
-				 errdetail_recovery_conflict(),
-				 errhint("In a moment you should be able to reconnect to the"
-						 " database and repeat your command.")));
-	}
-
-	/*
-	 * Don't allow query cancel interrupts while reading input from the
-	 * client, because we might lose sync in the FE/BE protocol.  (Die
-	 * interrupts are OK, because we won't read any further messages from
-	 * the client in that case.)
-	 */
-	if (QueryCancelPending && QueryCancelHoldoffCount != 0)
-	{
-		/*
-		 * Re-arm InterruptPending so that we process the cancel request
-		 * as soon as we're done reading the message.
-		 */
-		InterruptPending = true;
-	}
-	else if (QueryCancelPending)
-	{
-		bool		lock_timeout_occurred;
-		bool		stmt_timeout_occurred;
-
 		QueryCancelPending = false;
-
-		/*
-		 * If LOCK_TIMEOUT and STATEMENT_TIMEOUT indicators are both set, we
-		 * need to clear both, so always fetch both.
-		 */
-		lock_timeout_occurred = get_timeout_indicator(LOCK_TIMEOUT, true);
-		stmt_timeout_occurred = get_timeout_indicator(STATEMENT_TIMEOUT, true);
-
-		/*
-		 * If both were set, we want to report whichever timeout completed
-		 * earlier; this ensures consistent behavior if the machine is slow
-		 * enough that the second timeout triggers before we get here.  A tie
-		 * is arbitrarily broken in favor of reporting a lock timeout.
-		 */
-		if (lock_timeout_occurred && stmt_timeout_occurred &&
-			get_timeout_finish_time(STATEMENT_TIMEOUT) < get_timeout_finish_time(LOCK_TIMEOUT))
-			lock_timeout_occurred = false;	/* report stmt timeout */
-
-		if (lock_timeout_occurred)
-		{
-			LockErrorCleanup();
-			ereport(ERROR,
-					(errcode(ERRCODE_LOCK_NOT_AVAILABLE),
-					 errmsg("canceling statement due to lock timeout")));
-		}
-		if (stmt_timeout_occurred)
-		{
-			LockErrorCleanup();
+		ImmediateInterruptOK = false;	/* not idle anymore */
+		DisableNotifyInterrupt();
+		DisableCatchupInterrupt();
+		if (cancel_from_timeout)
 			ereport(ERROR,
 					(errcode(ERRCODE_QUERY_CANCELED),
 					 errmsg("canceling statement due to statement timeout")));
-		}
-		if (IsAutoVacuumWorkerProcess())
-		{
-			LockErrorCleanup();
-			ereport(ERROR,
-					(errcode(ERRCODE_QUERY_CANCELED),
-					 errmsg("canceling autovacuum task")));
-		}
-		if (RecoveryConflictPending)
-		{
-			RecoveryConflictPending = false;
-			LockErrorCleanup();
-			pgstat_report_recovery_conflict(RecoveryConflictReason);
-			ereport(ERROR,
-					(errcode(ERRCODE_T_R_SERIALIZATION_FAILURE),
-					 errmsg("canceling statement due to conflict with recovery"),
-					 errdetail_recovery_conflict()));
-		}
-
-		/*
-		 * If we are reading a command from the client, just ignore the cancel
-		 * request --- sending an extra error message won't accomplish
-		 * anything.  Otherwise, go ahead and throw the error.
-		 */
-		if (!DoingCommandRead)
-		{
-			LockErrorCleanup();
+		else
 			ereport(ERROR,
 					(errcode(ERRCODE_QUERY_CANCELED),
 					 errmsg("canceling statement due to user request")));
-		}
 	}
-
-	if (IdleInTransactionSessionTimeoutPending)
-	{
-		/* Has the timeout setting changed since last we looked? */
-		if (IdleInTransactionSessionTimeout > 0)
-			ereport(FATAL,
-					(errcode(ERRCODE_IDLE_IN_TRANSACTION_SESSION_TIMEOUT),
-					 errmsg("terminating connection due to idle-in-transaction timeout")));
-		else
-			IdleInTransactionSessionTimeoutPending = false;
-
-	}
-
-	if (ParallelMessagePending)
-		HandleParallelMessages();
+	/* If we get here, do nothing (probably, QueryCancelPending was reset) */
 }
 
 
 /*
- * IA64-specific code to fetch the AR.BSP register for stack depth checks.
- *
- * We currently support gcc, icc, and HP-UX's native compiler here.
- *
- * Note: while icc accepts gcc asm blocks on x86[_64], this is not true on
- * ia64 (at least not in icc versions before 12.x).  So we have to carry a
- * separate implementation for it.
- */
-#if defined(__ia64__) || defined(__ia64)
-
-#if defined(__hpux) && !defined(__GNUC__) && !defined(__INTEL_COMPILER)
-/* Assume it's HP-UX native compiler */
-#include <ia64/sys/inline.h>
-#define ia64_get_bsp() ((char *) (_Asm_mov_from_ar(_AREG_BSP, _NO_FENCE)))
-#elif defined(__INTEL_COMPILER)
-/* icc */
-#include <asm/ia64regs.h>
-#define ia64_get_bsp() ((char *) __getReg(_IA64_REG_AR_BSP))
-#else
-/* gcc */
-static __inline__ char *
-ia64_get_bsp(void)
-{
-	char	   *ret;
-
-	/* the ;; is a "stop", seems to be required before fetching BSP */
-	__asm__ __volatile__(
-						 ";;\n"
-						 "	mov	%0=ar.bsp	\n"
-:						 "=r"(ret));
-
-	return ret;
-}
-#endif
-#endif							/* IA64 */
-
-
-/*
- * set_stack_base: set up reference point for stack depth checking
- *
- * Returns the old reference point, if any.
- */
-pg_stack_base_t
-set_stack_base(void)
-{
-	char		stack_base;
-	pg_stack_base_t old;
-
-#if defined(__ia64__) || defined(__ia64)
-	old.stack_base_ptr = stack_base_ptr;
-	old.register_stack_base_ptr = register_stack_base_ptr;
-#else
-	old = stack_base_ptr;
-#endif
-
-	/* Set up reference point for stack depth checking */
-	stack_base_ptr = &stack_base;
-#if defined(__ia64__) || defined(__ia64)
-	register_stack_base_ptr = ia64_get_bsp();
-#endif
-
-	return old;
-}
-
-/*
- * restore_stack_base: restore reference point for stack depth checking
- *
- * This can be used after set_stack_base() to restore the old value. This
- * is currently only used in PL/Java. When PL/Java calls a backend function
- * from different thread, the thread's stack is at a different location than
- * the main thread's stack, so it sets the base pointer before the call, and
- * restores it afterwards.
- */
-void
-restore_stack_base(pg_stack_base_t base)
-{
-#if defined(__ia64__) || defined(__ia64)
-	stack_base_ptr = base.stack_base_ptr;
-	register_stack_base_ptr = base.register_stack_base_ptr;
-#else
-	stack_base_ptr = base;
-#endif
-}
-
-/*
- * check_stack_depth/stack_is_too_deep: check for excessively deep recursion
+ * check_stack_depth: check for excessively deep recursion
  *
  * This should be called someplace in any recursive routine that might possibly
  * recurse deep enough to overflow the stack.  Most Unixen treat stack
  * overflow as an unrecoverable SIGSEGV, so we want to error out ourselves
- * before hitting the hardware limit.
- *
- * check_stack_depth() just throws an error summarily.  stack_is_too_deep()
- * can be used by code that wants to handle the error condition itself.
+ * before hitting the hardware limit.  Unfortunately we have no direct way
+ * to detect the hardware limit, so we have to rely on the admin to set a
+ * GUC variable for it ...
  */
 void
 check_stack_depth(void)
 {
-	if (stack_is_too_deep())
-	{
-		ereport(ERROR,
-				(errcode(ERRCODE_STATEMENT_TOO_COMPLEX),
-				 errmsg("stack depth limit exceeded"),
-				 errhint("Increase the configuration parameter \"max_stack_depth\" (currently %dkB), "
-						 "after ensuring the platform's stack depth limit is adequate.",
-						 max_stack_depth)));
-	}
-}
-
-bool
-stack_is_too_deep(void)
-{
 	char		stack_top_loc;
-	long		stack_depth;
+	int			stack_depth;
 
 	/*
-	 * Compute distance from reference point to my local variables
+	 * Compute distance from PostgresMain's local variables to my own
+	 *
+	 * Note: in theory stack_depth should be ptrdiff_t or some such, but since
+	 * the whole point of this code is to bound the value to something much
+	 * less than integer-sized, int should work fine.
 	 */
-	stack_depth = (long) (stack_base_ptr - &stack_top_loc);
+	stack_depth = (int) (stack_base_ptr - &stack_top_loc);
 
 	/*
 	 * Take abs value, since stacks grow up on some machines, down on others
@@ -3187,51 +2316,57 @@ stack_is_too_deep(void)
 	 */
 	if (stack_depth > max_stack_depth_bytes &&
 		stack_base_ptr != NULL)
-		return true;
-
-	/*
-	 * On IA64 there is a separate "register" stack that requires its own
-	 * independent check.  For this, we have to measure the change in the
-	 * "BSP" pointer from PostgresMain to here.  Logic is just as above,
-	 * except that we know IA64's register stack grows up.
-	 *
-	 * Note we assume that the same max_stack_depth applies to both stacks.
-	 */
-#if defined(__ia64__) || defined(__ia64)
-	stack_depth = (long) (ia64_get_bsp() - register_stack_base_ptr);
-
-	if (stack_depth > max_stack_depth_bytes &&
-		register_stack_base_ptr != NULL)
-		return true;
-#endif							/* IA64 */
-
-	return false;
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_STATEMENT_TOO_COMPLEX),
+				 errmsg("stack depth limit exceeded"),
+				 errhint("Increase the configuration parameter \"max_stack_depth\".")));
+	}
 }
 
-/* GUC check hook for max_stack_depth */
+/* GUC assign hook to update max_stack_depth_bytes from max_stack_depth */
 bool
-check_max_stack_depth(int *newval, void **extra, GucSource source)
+assign_max_stack_depth(int newval, bool doit, GucSource source)
 {
-	long		newval_bytes = *newval * 1024L;
-	long		stack_rlimit = get_stack_depth_rlimit();
-
-	if (stack_rlimit > 0 && newval_bytes > stack_rlimit - STACK_DEPTH_SLOP)
-	{
-		GUC_check_errdetail("\"max_stack_depth\" must not exceed %ldkB.",
-							(stack_rlimit - STACK_DEPTH_SLOP) / 1024L);
-		GUC_check_errhint("Increase the platform's stack depth limit via \"ulimit -s\" or local equivalent.");
-		return false;
-	}
+	/* Range check was already handled by guc.c */
+	if (doit)
+		max_stack_depth_bytes = newval * 1024;
 	return true;
 }
 
-/* GUC assign hook for max_stack_depth */
-void
-assign_max_stack_depth(int newval, void *extra)
-{
-	long		newval_bytes = newval * 1024L;
 
-	max_stack_depth_bytes = newval_bytes;
+static void
+usage(const char *progname)
+{
+	printf(_("%s is the PostgreSQL stand-alone backend.  It is not\nintended to be used by normal users.\n\n"), progname);
+
+	printf(_("Usage:\n  %s [OPTION]... [DBNAME]\n\n"), progname);
+	printf(_("Options:\n"));
+#ifdef USE_ASSERT_CHECKING
+	printf(_("  -A 1|0          enable/disable run-time assert checking\n"));
+#endif
+	printf(_("  -B NBUFFERS     number of shared buffers\n"));
+	printf(_("  -c NAME=VALUE   set run-time parameter\n"));
+	printf(_("  -d 0-5          debugging level (0 is off)\n"));
+	printf(_("  -D DATADIR      database directory\n"));
+	printf(_("  -e              use European date input format (DMY)\n"));
+	printf(_("  -E              echo query before execution\n"));
+	printf(_("  -F              turn fsync off\n"));
+	printf(_("  -N              do not use newline as interactive query delimiter\n"));
+	printf(_("  -o FILENAME     send stdout and stderr to given file\n"));
+	printf(_("  -P              disable system indexes\n"));
+	printf(_("  -s              show statistics after each query\n"));
+	printf(_("  -S WORK-MEM     set amount of memory for sorts (in kB)\n"));
+	printf(_("  --describe-config  describe configuration parameters, then exit\n"));
+	printf(_("  --help          show this help, then exit\n"));
+	printf(_("  --version       output version information, then exit\n"));
+	printf(_("\nDeveloper options:\n"));
+	printf(_("  -f s|i|n|m|h    forbid use of some plan types\n"));
+	printf(_("  -i              do not execute queries\n"));
+	printf(_("  -O              allow system table structure changes\n"));
+	printf(_("  -t pa|pl|ex     show timings after each query\n"));
+	printf(_("  -W NUM          wait NUM seconds to allow attach from a debugger\n"));
+	printf(_("\nReport bugs to <pgsql-bugs@postgresql.org>.\n"));
 }
 
 
@@ -3270,262 +2405,338 @@ set_debug_options(int debug_flag, GucContext context, GucSource source)
 }
 
 
-bool
-set_plan_disabling_options(const char *arg, GucContext context, GucSource source)
-{
-	const char *tmp = NULL;
-
-	switch (arg[0])
-	{
-		case 's':				/* seqscan */
-			tmp = "enable_seqscan";
-			break;
-		case 'i':				/* indexscan */
-			tmp = "enable_indexscan";
-			break;
-		case 'o':				/* indexonlyscan */
-			tmp = "enable_indexonlyscan";
-			break;
-		case 'b':				/* bitmapscan */
-			tmp = "enable_bitmapscan";
-			break;
-		case 't':				/* tidscan */
-			tmp = "enable_tidscan";
-			break;
-		case 'n':				/* nestloop */
-			tmp = "enable_nestloop";
-			break;
-		case 'm':				/* mergejoin */
-			tmp = "enable_mergejoin";
-			break;
-		case 'h':				/* hashjoin */
-			tmp = "enable_hashjoin";
-			break;
-	}
-	if (tmp)
-	{
-		SetConfigOption(tmp, "false", context, source);
-		return true;
-	}
-	else
-		return false;
-}
-
-
-const char *
-get_stats_option_name(const char *arg)
-{
-	switch (arg[0])
-	{
-		case 'p':
-			if (optarg[1] == 'a')	/* "parser" */
-				return "log_parser_stats";
-			else if (optarg[1] == 'l')	/* "planner" */
-				return "log_planner_stats";
-			break;
-
-		case 'e':				/* "executor" */
-			return "log_executor_stats";
-			break;
-	}
-
-	return NULL;
-}
-
-
 /* ----------------------------------------------------------------
- * process_postgres_switches
- *	   Parse command line arguments for PostgresMain
+ * PostgresMain
+ *	   postgres main loop -- all backends, interactive or otherwise start here
  *
- * This is called twice, once for the "secure" options coming from the
- * postmaster or command line, and once for the "insecure" options coming
- * from the client's startup packet.  The latter have the same syntax but
- * may be restricted in what they can do.
- *
- * argv[0] is ignored in either case (it's assumed to be the program name).
- *
- * ctx is PGC_POSTMASTER for secure options, PGC_BACKEND for insecure options
- * coming from the client, or PGC_SU_BACKEND for insecure options coming from
- * a superuser client.
- *
- * If a database name is present in the command line arguments, it's
- * returned into *dbname (this is allowed only if *dbname is initially NULL).
+ * argc/argv are the command line arguments to be used.  (When being forked
+ * by the postmaster, these are not the original argv array of the process.)
+ * username is the (possibly authenticated) PostgreSQL user name to be used
+ * for the session.
  * ----------------------------------------------------------------
  */
-void
-process_postgres_switches(int argc, char *argv[], GucContext ctx,
-						  const char **dbname)
+int
+PostgresMain(int argc, char *argv[], const char *username)
 {
-	bool		secure = (ctx == PGC_POSTMASTER);
-	int			errs = 0;
-	GucSource	gucsource;
 	int			flag;
+	const char *dbname = NULL;
+	char	   *userDoption = NULL;
+	bool		secure;
+	int			errs = 0;
+	int			debug_flag = -1;	/* -1 means not given */
+	List	   *guc_names = NIL;	/* for SUSET options */
+	List	   *guc_values = NIL;
+	GucContext	ctx;
+	GucSource	gucsource;
+	bool		am_superuser;
+	char	   *tmp;
+	int			firstchar;
+	char		stack_base;
+	StringInfoData input_message;
+	sigjmp_buf	local_sigjmp_buf;
+	volatile bool send_rfq = true;
 
-	if (secure)
+#define PendingConfigOption(name,val) \
+	(guc_names = lappend(guc_names, pstrdup(name)), \
+	 guc_values = lappend(guc_values, pstrdup(val)))
+
+	/*
+	 * Catch standard options before doing much else.  This even works on
+	 * systems without getopt_long.
+	 */
+	if (!IsUnderPostmaster && argc > 1)
 	{
-		gucsource = PGC_S_ARGV; /* switches came from command line */
-
-		/* Ignore the initial --single argument, if present */
-		if (argc > 1 && strcmp(argv[1], "--single") == 0)
+		if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-?") == 0)
 		{
-			argv++;
-			argc--;
+			usage(argv[0]);
+			exit(0);
+		}
+		if (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-V") == 0)
+		{
+			puts(PG_VERSIONSTR);
+			exit(0);
 		}
 	}
-	else
+
+	/*
+	 * initialize globals (already done if under postmaster, but not if
+	 * standalone; cheap enough to do over)
+	 */
+	MyProcPid = getpid();
+
+	/*
+	 * Fire up essential subsystems: error and memory management
+	 *
+	 * If we are running under the postmaster, this is done already.
+	 */
+	if (!IsUnderPostmaster)
+		MemoryContextInit();
+
+	set_ps_display("startup");
+
+	SetProcessingMode(InitProcessing);
+
+	/* Set up reference point for stack depth checking */
+	stack_base_ptr = &stack_base;
+
+	/* Compute paths, if we didn't inherit them from postmaster */
+	if (my_exec_path[0] == '\0')
 	{
-		gucsource = PGC_S_CLIENT;	/* switches came from client */
+		if (find_my_exec(argv[0], my_exec_path) < 0)
+			elog(FATAL, "%s: could not locate my own executable path",
+				 argv[0]);
 	}
 
-#ifdef HAVE_INT_OPTERR
+	if (pkglib_path[0] == '\0')
+		get_pkglib_path(my_exec_path, pkglib_path);
 
 	/*
-	 * Turn this off because it's either printed to stderr and not the log
-	 * where we'd want it, or argv[0] is now "--single", which would make for
-	 * a weird error message.  We print our own error message below.
+	 * Set default values for command-line options.
 	 */
-	opterr = 0;
-#endif
+	EchoQuery = false;
 
-	/*
-	 * Parse command-line options.  CAUTION: keep this in sync with
-	 * postmaster/postmaster.c (the option sets should not conflict) and with
-	 * the common help() function in main/main.c.
+	if (!IsUnderPostmaster)
+		InitializeGUCOptions();
+
+	/* ----------------
+	 *	parse command line arguments
+	 *
+	 *	There are now two styles of command line layout for the backend:
+	 *
+	 *	For interactive use (not started from postmaster) the format is
+	 *		postgres [switches] [databasename]
+	 *	If the databasename is omitted it is taken to be the user name.
+	 *
+	 *	When started from the postmaster, the format is
+	 *		postgres [secure switches] -p databasename [insecure switches]
+	 *	Switches appearing after -p came from the client (via "options"
+	 *	field of connection request).  For security reasons we restrict
+	 *	what these switches can do.
+	 * ----------------
 	 */
-	while ((flag = getopt(argc, argv, "B:bc:C:D:d:EeFf:h:ijk:lN:nOo:Pp:r:S:sTt:v:W:-:")) != -1)
+
+	/* all options are allowed until '-p' */
+	secure = true;
+	ctx = PGC_POSTMASTER;
+	gucsource = PGC_S_ARGV;		/* initial switches came from command line */
+
+	while ((flag = getopt(argc, argv, "A:B:c:D:d:Eef:FiNOPo:p:S:st:v:W:-:")) != -1)
 	{
 		switch (flag)
 		{
+			case 'A':
+#ifdef USE_ASSERT_CHECKING
+				SetConfigOption("debug_assertions", optarg, ctx, gucsource);
+#else
+				ereport(WARNING,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("assert checking is not compiled in")));
+#endif
+				break;
+
 			case 'B':
+
+				/*
+				 * specify the size of buffer pool
+				 */
 				SetConfigOption("shared_buffers", optarg, ctx, gucsource);
 				break;
 
-			case 'b':
-				/* Undocumented flag used for binary upgrades */
+			case 'D':			/* PGDATA or config directory */
 				if (secure)
-					IsBinaryUpgrade = true;
+					userDoption = optarg;
 				break;
 
-			case 'C':
-				/* ignored for consistency with the postmaster */
-				break;
-
-			case 'D':
-				if (secure)
-					userDoption = strdup(optarg);
-				break;
-
-			case 'd':
-				set_debug_options(atoi(optarg), ctx, gucsource);
+			case 'd':			/* debug level */
+				debug_flag = atoi(optarg);
 				break;
 
 			case 'E':
-				if (secure)
-					EchoQuery = true;
+
+				/*
+				 * E - echo the query the user entered
+				 */
+				EchoQuery = true;
 				break;
 
 			case 'e':
+
+				/*
+				 * Use European date input format (DMY)
+				 */
 				SetConfigOption("datestyle", "euro", ctx, gucsource);
 				break;
 
 			case 'F':
+
+				/*
+				 * turn off fsync
+				 */
 				SetConfigOption("fsync", "false", ctx, gucsource);
 				break;
 
 			case 'f':
-				if (!set_plan_disabling_options(optarg, ctx, gucsource))
-					errs++;
-				break;
 
-			case 'h':
-				SetConfigOption("listen_addresses", optarg, ctx, gucsource);
-				break;
-
-			case 'i':
-				SetConfigOption("listen_addresses", "*", ctx, gucsource);
-				break;
-
-			case 'j':
-				if (secure)
-					UseSemiNewlineNewline = true;
-				break;
-
-			case 'k':
-				SetConfigOption("unix_socket_directories", optarg, ctx, gucsource);
-				break;
-
-			case 'l':
-				SetConfigOption("ssl", "true", ctx, gucsource);
+				/*
+				 * f - forbid generation of certain plans
+				 */
+				tmp = NULL;
+				switch (optarg[0])
+				{
+					case 's':	/* seqscan */
+						tmp = "enable_seqscan";
+						break;
+					case 'i':	/* indexscan */
+						tmp = "enable_indexscan";
+						break;
+					case 'b':	/* bitmapscan */
+						tmp = "enable_bitmapscan";
+						break;
+					case 't':	/* tidscan */
+						tmp = "enable_tidscan";
+						break;
+					case 'n':	/* nestloop */
+						tmp = "enable_nestloop";
+						break;
+					case 'm':	/* mergejoin */
+						tmp = "enable_mergejoin";
+						break;
+					case 'h':	/* hashjoin */
+						tmp = "enable_hashjoin";
+						break;
+					default:
+						errs++;
+				}
+				if (tmp)
+					SetConfigOption(tmp, "false", ctx, gucsource);
 				break;
 
 			case 'N':
-				SetConfigOption("max_connections", optarg, ctx, gucsource);
-				break;
 
-			case 'n':
-				/* ignored for consistency with postmaster */
+				/*
+				 * N - Don't use newline as a query delimiter
+				 */
+				UseNewLine = 0;
 				break;
 
 			case 'O':
-				SetConfigOption("allow_system_table_mods", "true", ctx, gucsource);
-				break;
 
-			case 'o':
-				errs++;
+				/*
+				 * allow system table structure modifications
+				 */
+				if (secure)		/* XXX safe to allow from client??? */
+					allowSystemTableMods = true;
 				break;
 
 			case 'P':
-				SetConfigOption("ignore_system_indexes", "true", ctx, gucsource);
+
+				/*
+				 * ignore system indexes
+				 *
+				 * As of PG 7.4 this is safe to allow from the client, since
+				 * it only disables reading the system indexes, not writing
+				 * them. Worst case consequence is slowness.
+				 */
+				IgnoreSystemIndexes(true);
+				break;
+
+			case 'o':
+
+				/*
+				 * o - send output (stdout and stderr) to the given file
+				 */
+				if (secure)
+					StrNCpy(OutputFileName, optarg, MAXPGPATH);
 				break;
 
 			case 'p':
-				SetConfigOption("port", optarg, ctx, gucsource);
-				break;
 
-			case 'r':
-				/* send output (stdout and stderr) to the given file */
+				/*
+				 * p - special flag passed if backend was forked by a
+				 * postmaster.
+				 */
 				if (secure)
-					strlcpy(OutputFileName, optarg, MAXPGPATH);
+				{
+					dbname = strdup(optarg);
+
+					secure = false;		/* subsequent switches are NOT secure */
+					ctx = PGC_BACKEND;
+					gucsource = PGC_S_CLIENT;
+				}
 				break;
 
 			case 'S':
+
+				/*
+				 * S - amount of sort memory to use in 1k bytes
+				 */
 				SetConfigOption("work_mem", optarg, ctx, gucsource);
 				break;
 
 			case 's':
-				SetConfigOption("log_statement_stats", "true", ctx, gucsource);
-				break;
 
-			case 'T':
-				/* ignored for consistency with the postmaster */
+				/*
+				 * s - report usage statistics (timings) after each query
+				 *
+				 * Since log options are SUSET, we need to postpone unless
+				 * still in secure context
+				 */
+				if (ctx == PGC_BACKEND)
+					PendingConfigOption("log_statement_stats", "true");
+				else
+					SetConfigOption("log_statement_stats", "true",
+									ctx, gucsource);
 				break;
 
 			case 't':
+				/* ---------------
+				 *	tell postgres to report usage statistics (timings) for
+				 *	each query
+				 *
+				 *	-tpa[rser] = print stats for parser time of each query
+				 *	-tpl[anner] = print stats for planner time of each query
+				 *	-te[xecutor] = print stats for executor time of each query
+				 *	caution: -s can not be used together with -t.
+				 * ----------------
+				 */
+				tmp = NULL;
+				switch (optarg[0])
 				{
-					const char *tmp = get_stats_option_name(optarg);
-
-					if (tmp)
-						SetConfigOption(tmp, "true", ctx, gucsource);
-					else
+					case 'p':
+						if (optarg[1] == 'a')
+							tmp = "log_parser_stats";
+						else if (optarg[1] == 'l')
+							tmp = "log_planner_stats";
+						else
+							errs++;
+						break;
+					case 'e':
+						tmp = "log_executor_stats";
+						break;
+					default:
 						errs++;
-					break;
+						break;
 				}
+				if (tmp)
+				{
+					if (ctx == PGC_BACKEND)
+						PendingConfigOption(tmp, "true");
+					else
+						SetConfigOption(tmp, "true", ctx, gucsource);
+				}
+				break;
 
 			case 'v':
-
-				/*
-				 * -v is no longer used in normal operation, since
-				 * FrontendProtocol is already set before we get here. We keep
-				 * the switch only for possible use in standalone operation,
-				 * in case we ever support using normal FE/BE protocol with a
-				 * standalone backend.
-				 */
 				if (secure)
 					FrontendProtocol = (ProtocolVersion) atoi(optarg);
 				break;
 
 			case 'W':
-				SetConfigOption("post_auth_delay", optarg, ctx, gucsource);
+
+				/*
+				 * wait N seconds to allow attach from a debugger
+				 */
+				pg_usleep(atoi(optarg) * 1000000L);
 				break;
 
 			case 'c':
@@ -3548,7 +2759,15 @@ process_postgres_switches(int argc, char *argv[], GucContext ctx,
 									 errmsg("-c %s requires a value",
 											optarg)));
 					}
-					SetConfigOption(name, value, ctx, gucsource);
+
+					/*
+					 * If a SUSET option, must postpone evaluation, unless we
+					 * are still reading secure switches.
+					 */
+					if (ctx == PGC_BACKEND && IsSuperuserConfigOption(name))
+						PendingConfigOption(name, value);
+					else
+						SetConfigOption(name, value, ctx, gucsource);
 					free(name);
 					if (value)
 						free(value);
@@ -3559,102 +2778,41 @@ process_postgres_switches(int argc, char *argv[], GucContext ctx,
 				errs++;
 				break;
 		}
-
-		if (errs)
-			break;
 	}
 
 	/*
-	 * Optional database name should be there only if *dbname is NULL.
+	 * Process any additional GUC variable settings passed in startup packet.
+	 * These are handled exactly like command-line variables.
 	 */
-	if (!errs && dbname && *dbname == NULL && argc - optind >= 1)
-		*dbname = strdup(argv[optind++]);
-
-	if (errs || argc != optind)
+	if (MyProcPort != NULL)
 	{
-		if (errs)
-			optind--;			/* complain about the previous argument */
+		ListCell   *gucopts = list_head(MyProcPort->guc_options);
 
-		/* spell the error message a bit differently depending on context */
-		if (IsUnderPostmaster)
-			ereport(FATAL,
-					(errcode(ERRCODE_SYNTAX_ERROR),
-					 errmsg("invalid command-line argument for server process: %s", argv[optind]),
-					 errhint("Try \"%s --help\" for more information.", progname)));
-		else
-			ereport(FATAL,
-					(errcode(ERRCODE_SYNTAX_ERROR),
-					 errmsg("%s: invalid command-line argument: %s",
-							progname, argv[optind]),
-					 errhint("Try \"%s --help\" for more information.", progname)));
-	}
+		while (gucopts)
+		{
+			char	   *name;
+			char	   *value;
 
-	/*
-	 * Reset getopt(3) library so that it will work correctly in subprocesses
-	 * or when this function is called a second time with another array.
-	 */
-	optind = 1;
-#ifdef HAVE_INT_OPTRESET
-	optreset = 1;				/* some systems need this too */
-#endif
-}
+			name = lfirst(gucopts);
+			gucopts = lnext(gucopts);
 
+			value = lfirst(gucopts);
+			gucopts = lnext(gucopts);
 
-/* ----------------------------------------------------------------
- * PostgresMain
- *	   postgres main loop -- all backends, interactive or otherwise start here
- *
- * argc/argv are the command line arguments to be used.  (When being forked
- * by the postmaster, these are not the original argv array of the process.)
- * dbname is the name of the database to connect to, or NULL if the database
- * name should be extracted from the command line arguments or defaulted.
- * username is the PostgreSQL user name to be used for the session.
- * ----------------------------------------------------------------
- */
-void
-PostgresMain(int argc, char *argv[],
-			 const char *dbname,
-			 const char *username)
-{
-	int			firstchar;
-	StringInfoData input_message;
-	sigjmp_buf	local_sigjmp_buf;
-	volatile bool send_ready_for_query = true;
-	bool		disable_idle_in_transaction_timeout = false;
-
-	/* Initialize startup process environment if necessary. */
-	if (!IsUnderPostmaster)
-		InitStandaloneProcess(argv[0]);
-
-	SetProcessingMode(InitProcessing);
-
-	/*
-	 * Set default values for command-line options.
-	 */
-	if (!IsUnderPostmaster)
-		InitializeGUCOptions();
-
-	/*
-	 * Parse command-line options.
-	 */
-	process_postgres_switches(argc, argv, PGC_POSTMASTER, &dbname);
-
-	/* Must have gotten a database name, or have a default (the username) */
-	if (dbname == NULL)
-	{
-		dbname = username;
-		if (dbname == NULL)
-			ereport(FATAL,
-					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-					 errmsg("%s: no database nor user name specified",
-							progname)));
+			if (IsSuperuserConfigOption(name))
+				PendingConfigOption(name, value);
+			else
+				SetConfigOption(name, value, PGC_BACKEND, PGC_S_CLIENT);
+		}
 	}
 
 	/* Acquire configuration parameters, unless inherited from postmaster */
 	if (!IsUnderPostmaster)
 	{
-		if (!SelectConfigFiles(userDoption, progname))
+		if (!SelectConfigFiles(userDoption, argv[0]))
 			proc_exit(1);
+		/* If timezone is not set, determine what the OS uses */
+		pg_timezone_initialize();
 	}
 
 	/*
@@ -3665,63 +2823,80 @@ PostgresMain(int argc, char *argv[],
 	 * we have set up the handler.
 	 *
 	 * Also note: it's best not to use any signals that are SIG_IGNored in the
-	 * postmaster.  If such a signal arrives before we are able to change the
+	 * postmaster.	If such a signal arrives before we are able to change the
 	 * handler to non-SIG_IGN, it'll get dropped.  Instead, make a dummy
 	 * handler in the postmaster to reserve the signal. (Of course, this isn't
 	 * an issue for signals that are locally generated, such as SIGALRM and
 	 * SIGPIPE.)
 	 */
-	if (am_walsender)
-		WalSndSignals();
-	else
-	{
-		pqsignal(SIGHUP, PostgresSigHupHandler);	/* set flag to read config
-													 * file */
-		pqsignal(SIGINT, StatementCancelHandler);	/* cancel current query */
-		pqsignal(SIGTERM, die); /* cancel current query and exit */
+	pqsignal(SIGHUP, SigHupHandler);	/* set flag to read config file */
+	pqsignal(SIGINT, StatementCancelHandler);	/* cancel current query */
+	pqsignal(SIGTERM, die);		/* cancel current query and exit */
+	pqsignal(SIGQUIT, quickdie);	/* hard crash time */
+	pqsignal(SIGALRM, handle_sig_alarm);		/* timeout conditions */
 
-		/*
-		 * In a standalone backend, SIGQUIT can be generated from the keyboard
-		 * easily, while SIGTERM cannot, so we make both signals do die()
-		 * rather than quickdie().
-		 */
-		if (IsUnderPostmaster)
-			pqsignal(SIGQUIT, quickdie);	/* hard crash time */
-		else
-			pqsignal(SIGQUIT, die); /* cancel current query and exit */
-		InitializeTimeouts();	/* establishes SIGALRM handler */
+	/*
+	 * Ignore failure to write to frontend. Note: if frontend closes
+	 * connection, we will notice it and exit cleanly when control next
+	 * returns to outer loop.  This seems safer than forcing exit in the midst
+	 * of output during who-knows-what operation...
+	 */
+	pqsignal(SIGPIPE, SIG_IGN);
+	pqsignal(SIGUSR1, CatchupInterruptHandler);
+	pqsignal(SIGUSR2, NotifyInterruptHandler);
+	pqsignal(SIGFPE, FloatExceptionHandler);
 
-		/*
-		 * Ignore failure to write to frontend. Note: if frontend closes
-		 * connection, we will notice it and exit cleanly when control next
-		 * returns to outer loop.  This seems safer than forcing exit in the
-		 * midst of output during who-knows-what operation...
-		 */
-		pqsignal(SIGPIPE, SIG_IGN);
-		pqsignal(SIGUSR1, procsignal_sigusr1_handler);
-		pqsignal(SIGUSR2, SIG_IGN);
-		pqsignal(SIGFPE, FloatExceptionHandler);
-
-		/*
-		 * Reset some signals that are accepted by postmaster but not by
-		 * backend
-		 */
-		pqsignal(SIGCHLD, SIG_DFL); /* system() requires this on some
-									 * platforms */
-	}
+	/*
+	 * Reset some signals that are accepted by postmaster but not by backend
+	 */
+	pqsignal(SIGCHLD, SIG_DFL); /* system() requires this on some platforms */
 
 	pqinitmask();
 
-	if (IsUnderPostmaster)
-	{
-		/* We allow SIGQUIT (quickdie) at all times */
-		sigdelset(&BlockSig, SIGQUIT);
-	}
+	/* We allow SIGQUIT (quickdie) at all times */
+#ifdef HAVE_SIGPROCMASK
+	sigdelset(&BlockSig, SIGQUIT);
+#else
+	BlockSig &= ~(sigmask(SIGQUIT));
+#endif
 
 	PG_SETMASK(&BlockSig);		/* block everything except SIGQUIT */
 
-	if (!IsUnderPostmaster)
+
+	if (IsUnderPostmaster)
 	{
+		/* noninteractive case: nothing should be left after switches */
+		if (errs || argc != optind || dbname == NULL)
+		{
+			ereport(FATAL,
+					(errcode(ERRCODE_SYNTAX_ERROR),
+				 errmsg("invalid command-line arguments for server process"),
+			   errhint("Try \"%s --help\" for more information.", argv[0])));
+		}
+
+		BaseInit();
+	}
+	else
+	{
+		/* interactive case: database name can be last arg on command line */
+		if (errs || argc - optind > 1)
+		{
+			ereport(FATAL,
+					(errcode(ERRCODE_SYNTAX_ERROR),
+					 errmsg("%s: invalid command-line arguments",
+							argv[0]),
+			   errhint("Try \"%s --help\" for more information.", argv[0])));
+		}
+		else if (argc - optind == 1)
+			dbname = argv[optind];
+		else if ((dbname = username) == NULL)
+		{
+			ereport(FATAL,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("%s: no database nor user name specified",
+							argv[0])));
+		}
+
 		/*
 		 * Validate we have been given a reasonable-looking DataDir (if under
 		 * postmaster, assume postmaster did this already).
@@ -3737,31 +2912,28 @@ PostgresMain(int argc, char *argv[],
 		 */
 		CreateDataDirLockFile(false);
 
-		/* read control file (error checking and contains config ) */
-		LocalProcessControlFile(false);
+		BaseInit();
 
-		/* Initialize MaxBackends (if under postmaster, was done already) */
-		InitializeMaxBackends();
+		/*
+		 * Start up xlog for standalone backend, and register to have it
+		 * closed down at exit.
+		 */
+		StartupXLOG();
+		on_shmem_exit(ShutdownXLOG, 0);
+
+		/*
+		 * Read any existing FSM cache file, and register to write one out at
+		 * exit.
+		 */
+		LoadFreeSpaceMap();
+		on_shmem_exit(DumpFreeSpaceMap, 0);
+
+		/*
+		 * We have to build the flat file for pg_database, but not for the
+		 * user and group tables, since we won't try to do authentication.
+		 */
+		BuildFlatFiles(true);
 	}
-
-	/* Early initialization */
-	BaseInit();
-
-	/*
-	 * Create a per-backend PGPROC struct in shared memory, except in the
-	 * EXEC_BACKEND case where this was done in SubPostmasterMain. We must do
-	 * this before we can use LWLocks (and in the EXEC_BACKEND case we already
-	 * had to do some stuff with LWLocks).
-	 */
-#ifdef EXEC_BACKEND
-	if (!IsUnderPostmaster)
-		InitProcess();
-#else
-	InitProcess();
-#endif
-
-	/* We need to allow SIGINT, etc during the initial transaction */
-	PG_SETMASK(&UnBlockSig);
 
 	/*
 	 * General initialization.
@@ -3770,22 +2942,36 @@ PostgresMain(int argc, char *argv[],
 	 * it inside InitPostgres() instead.  In particular, anything that
 	 * involves database access should be there, not here.
 	 */
-	InitPostgres(dbname, InvalidOid, username, InvalidOid, NULL);
-
-	/*
-	 * If the PostmasterContext is still around, recycle the space; we don't
-	 * need it anymore after InitPostgres completes.  Note this does not trash
-	 * *MyProcPort, because ConnCreate() allocated that space with malloc()
-	 * ... else we'd need to copy the Port data first.  Also, subsidiary data
-	 * such as the username isn't lost either; see ProcessStartupPacket().
-	 */
-	if (PostmasterContext)
-	{
-		MemoryContextDelete(PostmasterContext);
-		PostmasterContext = NULL;
-	}
+	ereport(DEBUG3,
+			(errmsg_internal("InitPostgres")));
+	am_superuser = InitPostgres(dbname, username);
 
 	SetProcessingMode(NormalProcessing);
+
+	/*
+	 * Now that we know if client is a superuser, we can try to apply SUSET
+	 * GUC options that came from the client.
+	 */
+	ctx = am_superuser ? PGC_SUSET : PGC_USERSET;
+
+	if (debug_flag >= 0)
+		set_debug_options(debug_flag, ctx, PGC_S_CLIENT);
+
+	if (guc_names != NIL)
+	{
+		ListCell   *namcell,
+				   *valcell;
+
+		forboth(namcell, guc_names, valcell, guc_values)
+		{
+			char	   *name = (char *) lfirst(namcell);
+			char	   *value = (char *) lfirst(valcell);
+
+			SetConfigOption(name, value, ctx, PGC_S_CLIENT);
+			pfree(name);
+			pfree(value);
+		}
+	}
 
 	/*
 	 * Now all GUC states are fully set up.  Report them to client if
@@ -3800,26 +2986,17 @@ PostgresMain(int argc, char *argv[],
 	if (IsUnderPostmaster && Log_disconnections)
 		on_proc_exit(log_disconnections, 0);
 
-	/* Perform initialization specific to a WAL sender process. */
-	if (am_walsender)
-		InitWalSender();
-
-	/*
-	 * process any libraries that should be preloaded at backend start (this
-	 * likewise can't be done until GUC settings are complete)
-	 */
-	process_session_preload_libraries();
-
 	/*
 	 * Send this backend's cancellation info to the frontend.
 	 */
-	if (whereToSendOutput == DestRemote)
+	if (whereToSendOutput == DestRemote &&
+		PG_PROTOCOL_MAJOR(FrontendProtocol) >= 2)
 	{
 		StringInfoData buf;
 
 		pq_beginmessage(&buf, 'K');
-		pq_sendint32(&buf, (int32) MyProcPid);
-		pq_sendint32(&buf, (int32) MyCancelKey);
+		pq_sendint(&buf, (int32) MyProcPid, sizeof(int32));
+		pq_sendint(&buf, (int32) MyCancelKey, sizeof(int32));
 		pq_endmessage(&buf);
 		/* Need not flush since ReadyForQuery will do it. */
 	}
@@ -3836,20 +3013,9 @@ PostgresMain(int argc, char *argv[],
 	 */
 	MessageContext = AllocSetContextCreate(TopMemoryContext,
 										   "MessageContext",
-										   ALLOCSET_DEFAULT_SIZES);
-
-	/*
-	 * Create memory context and buffer used for RowDescription messages. As
-	 * SendRowDescriptionMessage(), via exec_describe_statement_message(), is
-	 * frequently executed for ever single statement, we don't want to
-	 * allocate a separate buffer every time.
-	 */
-	row_description_context = AllocSetContextCreate(TopMemoryContext,
-													"RowDescriptionContext",
-													ALLOCSET_DEFAULT_SIZES);
-	MemoryContextSwitchTo(row_description_context);
-	initStringInfo(&row_description_buf);
-	MemoryContextSwitchTo(TopMemoryContext);
+										   ALLOCSET_DEFAULT_MINSIZE,
+										   ALLOCSET_DEFAULT_INITSIZE,
+										   ALLOCSET_DEFAULT_MAXSIZE);
 
 	/*
 	 * Remember stand-alone backend startup time
@@ -3870,13 +3036,6 @@ PostgresMain(int argc, char *argv[],
 	 * always active, we have at least some chance of recovering from an error
 	 * during error recovery.  (If we get into an infinite loop thereby, it
 	 * will soon be stopped by overflow of elog.c's internal state stack.)
-	 *
-	 * Note that we use sigsetjmp(..., 1), so that this function's signal mask
-	 * (to wit, UnBlockSig) will be restored when longjmp'ing to here.  This
-	 * is essential in case we longjmp'd out of a signal handler on a platform
-	 * where that leaves the signal blocked.  It's not redundant with the
-	 * unblock in AbortTransaction() because the latter is only called if we
-	 * were inside a transaction.
 	 */
 
 	if (sigsetjmp(local_sigjmp_buf, 1) != 0)
@@ -3884,7 +3043,7 @@ PostgresMain(int argc, char *argv[],
 		/*
 		 * NOTE: if you are tempted to add more code in this if-block,
 		 * consider the high probability that it should be in
-		 * AbortTransaction() instead.  The only stuff done directly here
+		 * AbortTransaction() instead.	The only stuff done directly here
 		 * should be stuff that is guaranteed to apply *only* for outer-level
 		 * error recovery, such as adjusting the FE/BE protocol status.
 		 */
@@ -3897,20 +3056,20 @@ PostgresMain(int argc, char *argv[],
 
 		/*
 		 * Forget any pending QueryCancel request, since we're returning to
-		 * the idle loop anyway, and cancel any active timeout requests.  (In
-		 * future we might want to allow some timeout requests to survive, but
-		 * at minimum it'd be necessary to do reschedule_timeouts(), in case
-		 * we got here because of a query cancel interrupting the SIGALRM
-		 * interrupt handler.)	Note in particular that we must clear the
-		 * statement and lock timeout indicators, to prevent any future plain
-		 * query cancels from being misreported as timeouts in case we're
-		 * forgetting a timeout cancel.
+		 * the idle loop anyway, and cancel the statement timer if running.
 		 */
-		disable_all_timeouts(false);
-		QueryCancelPending = false; /* second to avoid race condition */
+		QueryCancelPending = false;
+		disable_sig_alarm(true);
+		QueryCancelPending = false;		/* again in case timeout occurred */
 
-		/* Not reading from the client anymore. */
+		/*
+		 * Turn off these interrupts too.  This is only needed here and not in
+		 * other exception-catching places since these interrupts are only
+		 * enabled while we wait for client input.
+		 */
 		DoingCommandRead = false;
+		DisableNotifyInterrupt();
+		DisableCatchupInterrupt();
 
 		/* Make sure libpq is in a good state */
 		pq_comm_reset();
@@ -3929,28 +3088,13 @@ PostgresMain(int argc, char *argv[],
 		 */
 		AbortCurrentTransaction();
 
-		if (am_walsender)
-			WalSndErrorCleanup();
-
-		/*
-		 * We can't release replication slots inside AbortTransaction() as we
-		 * need to be able to start and abort transactions while having a slot
-		 * acquired. But we never need to hold them across top level errors,
-		 * so releasing here is fine. There's another cleanup in ProcKill()
-		 * ensuring we'll correctly cleanup on FATAL errors as well.
-		 */
-		if (MyReplicationSlot != NULL)
-			ReplicationSlotRelease();
-
-		/* We also want to cleanup temporary slots on error. */
-		ReplicationSlotCleanup();
-
 		/*
 		 * Now return to normal top-level context and clear ErrorContext for
 		 * next time.
 		 */
 		MemoryContextSwitchTo(TopMemoryContext);
 		FlushErrorState();
+		QueryContext = NULL;
 
 		/*
 		 * If we were handling an extended-query-protocol message, initiate
@@ -3963,19 +3107,6 @@ PostgresMain(int argc, char *argv[],
 		/* We don't have a transaction command open anymore */
 		xact_started = false;
 
-		/*
-		 * If an error occurred while we were reading a message from the
-		 * client, we have potentially lost track of where the previous
-		 * message ends and the next one begins.  Even though we have
-		 * otherwise recovered from the error, we cannot safely read any more
-		 * messages from the client, so there isn't much we can do with the
-		 * connection anymore.
-		 */
-		if (pq_is_reading_msg())
-			ereport(FATAL,
-					(errcode(ERRCODE_PROTOCOL_VIOLATION),
-					 errmsg("terminating connection because protocol synchronization was lost")));
-
 		/* Now we can allow interrupts again */
 		RESUME_INTERRUPTS();
 	}
@@ -3983,8 +3114,10 @@ PostgresMain(int argc, char *argv[],
 	/* We can now handle ereport(ERROR) */
 	PG_exception_stack = &local_sigjmp_buf;
 
+	PG_SETMASK(&UnBlockSig);
+
 	if (!ignore_till_sync)
-		send_ready_for_query = true;	/* initially, or after error */
+		send_rfq = true;		/* initially, or after error */
 
 	/*
 	 * Non-error queries loop here.
@@ -4008,12 +3141,6 @@ PostgresMain(int argc, char *argv[],
 		initStringInfo(&input_message);
 
 		/*
-		 * Also consider releasing our catalog snapshot if any, so that it's
-		 * not preventing advance of global xmin while we wait for the client.
-		 */
-		InvalidateCatalogSnapshotConditionally();
-
-		/*
 		 * (1) If we've reached idle state, tell the frontend we're ready for
 		 * a new query.
 		 *
@@ -4023,48 +3150,25 @@ PostgresMain(int argc, char *argv[],
 		 * collector, and to update the PS stats display.  We avoid doing
 		 * those every time through the message loop because it'd slow down
 		 * processing of batched messages, and because we don't want to report
-		 * uncommitted updates (that confuses autovacuum).  The notification
-		 * processor wants a call too, if we are not in a transaction block.
+		 * uncommitted updates (that confuses autovacuum).
 		 */
-		if (send_ready_for_query)
+		if (send_rfq)
 		{
-			if (IsAbortedTransactionBlockState())
+			if (IsTransactionOrTransactionBlock())
 			{
-				set_ps_display("idle in transaction (aborted)", false);
-				pgstat_report_activity(STATE_IDLEINTRANSACTION_ABORTED, NULL);
-
-				/* Start the idle-in-transaction timer */
-				if (IdleInTransactionSessionTimeout > 0)
-				{
-					disable_idle_in_transaction_timeout = true;
-					enable_timeout_after(IDLE_IN_TRANSACTION_SESSION_TIMEOUT,
-										 IdleInTransactionSessionTimeout);
-				}
-			}
-			else if (IsTransactionOrTransactionBlock())
-			{
-				set_ps_display("idle in transaction", false);
-				pgstat_report_activity(STATE_IDLEINTRANSACTION, NULL);
-
-				/* Start the idle-in-transaction timer */
-				if (IdleInTransactionSessionTimeout > 0)
-				{
-					disable_idle_in_transaction_timeout = true;
-					enable_timeout_after(IDLE_IN_TRANSACTION_SESSION_TIMEOUT,
-										 IdleInTransactionSessionTimeout);
-				}
+				set_ps_display("idle in transaction");
+				pgstat_report_activity("<IDLE> in transaction");
 			}
 			else
 			{
-				ProcessCompletedNotifies();
-				pgstat_report_stat(false);
+				pgstat_report_tabstat();
 
-				set_ps_display("idle", false);
-				pgstat_report_activity(STATE_IDLE, NULL);
+				set_ps_display("idle");
+				pgstat_report_activity("<IDLE>");
 			}
 
 			ReadyForQuery(whereToSendOutput);
-			send_ready_for_query = false;
+			send_rfq = false;
 		}
 
 		/*
@@ -4073,6 +3177,7 @@ PostgresMain(int argc, char *argv[],
 		 * conditional since we don't want, say, reads on behalf of COPY FROM
 		 * STDIN doing the same thing.)
 		 */
+		QueryCancelPending = false;		/* forget any earlier CANCEL signal */
 		DoingCommandRead = true;
 
 		/*
@@ -4082,37 +3187,21 @@ PostgresMain(int argc, char *argv[],
 
 		/*
 		 * (4) disable async signal conditions again.
-		 *
-		 * Query cancel is supposed to be a no-op when there is no query in
-		 * progress, so if a query cancel arrived while we were idle, just
-		 * reset QueryCancelPending. ProcessInterrupts() has that effect when
-		 * it's called when DoingCommandRead is set, so check for interrupts
-		 * before resetting DoingCommandRead.
 		 */
-		CHECK_FOR_INTERRUPTS();
 		DoingCommandRead = false;
 
 		/*
-		 * (5) turn off the idle-in-transaction timeout
-		 */
-		if (disable_idle_in_transaction_timeout)
-		{
-			disable_timeout(IDLE_IN_TRANSACTION_SESSION_TIMEOUT, false);
-			disable_idle_in_transaction_timeout = false;
-		}
-
-		/*
-		 * (6) check for any other interesting events that happened while we
+		 * (5) check for any other interesting events that happened while we
 		 * slept.
 		 */
-		if (ConfigReloadPending)
+		if (got_SIGHUP)
 		{
-			ConfigReloadPending = false;
+			got_SIGHUP = false;
 			ProcessConfigFile(PGC_SIGHUP);
 		}
 
 		/*
-		 * (7) process the command.  But ignore it if we're skipping till
+		 * (6) process the command.  But ignore it if we're skipping till
 		 * Sync.
 		 */
 		if (ignore_till_sync && firstchar != EOF)
@@ -4124,21 +3213,12 @@ PostgresMain(int argc, char *argv[],
 				{
 					const char *query_string;
 
-					/* Set statement_timestamp() */
-					SetCurrentStatementStartTimestamp();
-
 					query_string = pq_getmsgstring(&input_message);
 					pq_getmsgend(&input_message);
 
-					if (am_walsender)
-					{
-						if (!exec_replication_command(query_string))
-							exec_simple_query(query_string);
-					}
-					else
-						exec_simple_query(query_string);
+					exec_simple_query(query_string);
 
-					send_ready_for_query = true;
+					send_rfq = true;
 				}
 				break;
 
@@ -4148,11 +3228,6 @@ PostgresMain(int argc, char *argv[],
 					const char *query_string;
 					int			numParams;
 					Oid		   *paramTypes = NULL;
-
-					forbidden_in_wal_sender(firstchar);
-
-					/* Set statement_timestamp() */
-					SetCurrentStatementStartTimestamp();
 
 					stmt_name = pq_getmsgstring(&input_message);
 					query_string = pq_getmsgstring(&input_message);
@@ -4173,10 +3248,6 @@ PostgresMain(int argc, char *argv[],
 				break;
 
 			case 'B':			/* bind */
-				forbidden_in_wal_sender(firstchar);
-
-				/* Set statement_timestamp() */
-				SetCurrentStatementStartTimestamp();
 
 				/*
 				 * this message is complex enough that it seems best to put
@@ -4190,11 +3261,6 @@ PostgresMain(int argc, char *argv[],
 					const char *portal_name;
 					int			max_rows;
 
-					forbidden_in_wal_sender(firstchar);
-
-					/* Set statement_timestamp() */
-					SetCurrentStatementStartTimestamp();
-
 					portal_name = pq_getmsgstring(&input_message);
 					max_rows = pq_getmsgint(&input_message, 4);
 					pq_getmsgend(&input_message);
@@ -4204,44 +3270,42 @@ PostgresMain(int argc, char *argv[],
 				break;
 
 			case 'F':			/* fastpath function call */
-				forbidden_in_wal_sender(firstchar);
-
-				/* Set statement_timestamp() */
-				SetCurrentStatementStartTimestamp();
-
-				/* Report query to various monitoring facilities. */
-				pgstat_report_activity(STATE_FASTPATH, NULL);
-				set_ps_display("<FASTPATH>", false);
+				/* Tell the collector what we're doing */
+				pgstat_report_activity("<FASTPATH> function call");
 
 				/* start an xact for this function invocation */
 				start_xact_command();
 
-				/*
-				 * Note: we may at this point be inside an aborted
-				 * transaction.  We can't throw error for that until we've
-				 * finished reading the function-call message, so
-				 * HandleFunctionRequest() must check for it after doing so.
-				 * Be careful not to do anything that assumes we're inside a
-				 * valid transaction here.
-				 */
-
 				/* switch back to message context */
 				MemoryContextSwitchTo(MessageContext);
 
-				HandleFunctionRequest(&input_message);
+				/* set snapshot in case function needs one */
+				ActiveSnapshot = CopySnapshot(GetTransactionSnapshot());
+
+				if (HandleFunctionRequest(&input_message) == EOF)
+				{
+					/* lost frontend connection during F message input */
+
+					/*
+					 * Reset whereToSendOutput to prevent ereport from
+					 * attempting to send any more messages to client.
+					 */
+					if (whereToSendOutput == DestRemote)
+						whereToSendOutput = DestNone;
+
+					proc_exit(0);
+				}
 
 				/* commit the function-invocation transaction */
 				finish_xact_command();
 
-				send_ready_for_query = true;
+				send_rfq = true;
 				break;
 
 			case 'C':			/* close */
 				{
 					int			close_type;
 					const char *close_target;
-
-					forbidden_in_wal_sender(firstchar);
 
 					close_type = pq_getmsgbyte(&input_message);
 					close_target = pq_getmsgstring(&input_message);
@@ -4255,7 +3319,13 @@ PostgresMain(int argc, char *argv[],
 							else
 							{
 								/* special-case the unnamed statement */
-								drop_unnamed_stmt();
+								unnamed_stmt_pstmt = NULL;
+								if (unnamed_stmt_context)
+								{
+									DropDependentPortals(unnamed_stmt_context);
+									MemoryContextDelete(unnamed_stmt_context);
+								}
+								unnamed_stmt_context = NULL;
 							}
 							break;
 						case 'P':
@@ -4270,13 +3340,13 @@ PostgresMain(int argc, char *argv[],
 						default:
 							ereport(ERROR,
 									(errcode(ERRCODE_PROTOCOL_VIOLATION),
-									 errmsg("invalid CLOSE message subtype %d",
-											close_type)));
+								   errmsg("invalid CLOSE message subtype %d",
+										  close_type)));
 							break;
 					}
 
 					if (whereToSendOutput == DestRemote)
-						pq_putemptymessage('3');	/* CloseComplete */
+						pq_putemptymessage('3');		/* CloseComplete */
 				}
 				break;
 
@@ -4284,11 +3354,6 @@ PostgresMain(int argc, char *argv[],
 				{
 					int			describe_type;
 					const char *describe_target;
-
-					forbidden_in_wal_sender(firstchar);
-
-					/* Set statement_timestamp() (needed for xact) */
-					SetCurrentStatementStartTimestamp();
 
 					describe_type = pq_getmsgbyte(&input_message);
 					describe_target = pq_getmsgstring(&input_message);
@@ -4305,8 +3370,8 @@ PostgresMain(int argc, char *argv[],
 						default:
 							ereport(ERROR,
 									(errcode(ERRCODE_PROTOCOL_VIOLATION),
-									 errmsg("invalid DESCRIBE message subtype %d",
-											describe_type)));
+								errmsg("invalid DESCRIBE message subtype %d",
+									   describe_type)));
 							break;
 					}
 				}
@@ -4321,7 +3386,7 @@ PostgresMain(int argc, char *argv[],
 			case 'S':			/* sync */
 				pq_getmsgend(&input_message);
 				finish_xact_command();
-				send_ready_for_query = true;
+				send_rfq = true;
 				break;
 
 				/*
@@ -4366,69 +3431,18 @@ PostgresMain(int argc, char *argv[],
 								firstchar)));
 		}
 	}							/* end of input-reading loop */
+
+	/* can't get here because the above loop never exits */
+	Assert(false);
+
+	return 1;					/* keep compiler quiet */
 }
 
-/*
- * Throw an error if we're a WAL sender process.
- *
- * This is used to forbid anything else than simple query protocol messages
- * in a WAL sender process.  'firstchar' specifies what kind of a forbidden
- * message was received, and is used to construct the error message.
- */
-static void
-forbidden_in_wal_sender(char firstchar)
-{
-	if (am_walsender)
-	{
-		if (firstchar == 'F')
-			ereport(ERROR,
-					(errcode(ERRCODE_PROTOCOL_VIOLATION),
-					 errmsg("fastpath function calls not supported in a replication connection")));
-		else
-			ereport(ERROR,
-					(errcode(ERRCODE_PROTOCOL_VIOLATION),
-					 errmsg("extended query protocol not supported in a replication connection")));
-	}
-}
-
-
-/*
- * Obtain platform stack depth limit (in bytes)
- *
- * Return -1 if unknown
- */
-long
-get_stack_depth_rlimit(void)
-{
-#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_STACK)
-	static long val = 0;
-
-	/* This won't change after process launch, so check just once */
-	if (val == 0)
-	{
-		struct rlimit rlim;
-
-		if (getrlimit(RLIMIT_STACK, &rlim) < 0)
-			val = -1;
-		else if (rlim.rlim_cur == RLIM_INFINITY)
-			val = LONG_MAX;
-		/* rlim_cur is probably of an unsigned type, so check for overflow */
-		else if (rlim.rlim_cur >= LONG_MAX)
-			val = LONG_MAX;
-		else
-			val = rlim.rlim_cur;
-	}
-	return val;
-#else							/* no getrlimit */
-#if defined(WIN32) || defined(__CYGWIN__)
-	/* On Windows we set the backend stack size in src/backend/Makefile */
-	return WIN32_STACK_RLIMIT;
-#else							/* not windows ... give up */
-	return -1;
-#endif
-#endif
-}
-
+#ifndef HAVE_GETRUSAGE
+#include "rusagestub.h"
+#else
+#include <sys/resource.h>
+#endif   /* HAVE_GETRUSAGE */
 
 static struct rusage Save_r;
 static struct timeval Save_t;
@@ -4438,6 +3452,8 @@ ResetUsage(void)
 {
 	getrusage(RUSAGE_SELF, &Save_r);
 	gettimeofday(&Save_t, NULL);
+	ResetBufferUsage();
+	/* ResetTupleCount(); */
 }
 
 void
@@ -4448,6 +3464,7 @@ ShowUsage(const char *title)
 				sys;
 	struct timeval elapse_t;
 	struct rusage r;
+	char	   *bufusage;
 
 	getrusage(RUSAGE_SELF, &r);
 	gettimeofday(&elapse_t, NULL);
@@ -4470,37 +3487,31 @@ ShowUsage(const char *title)
 	}
 
 	/*
-	 * The only stats we don't show here are ixrss, idrss, isrss.  It takes
-	 * some work to interpret them, and most platforms don't fill them in.
+	 * the only stats we don't show here are for memory usage -- i can't
+	 * figure out how to interpret the relevant fields in the rusage struct,
+	 * and they change names across o/s platforms, anyway. if you can figure
+	 * out what the entries mean, you can somehow extract resident set size,
+	 * shared text size, and unshared data and stack sizes.
 	 */
 	initStringInfo(&str);
 
-	appendStringInfoString(&str, "! system usage stats:\n");
+	appendStringInfo(&str, "! system usage stats:\n");
 	appendStringInfo(&str,
-					 "!\t%ld.%06ld s user, %ld.%06ld s system, %ld.%06ld s elapsed\n",
+				"!\t%ld.%06ld elapsed %ld.%06ld user %ld.%06ld system sec\n",
+					 (long) (elapse_t.tv_sec - Save_t.tv_sec),
+					 (long) (elapse_t.tv_usec - Save_t.tv_usec),
 					 (long) (r.ru_utime.tv_sec - Save_r.ru_utime.tv_sec),
 					 (long) (r.ru_utime.tv_usec - Save_r.ru_utime.tv_usec),
 					 (long) (r.ru_stime.tv_sec - Save_r.ru_stime.tv_sec),
-					 (long) (r.ru_stime.tv_usec - Save_r.ru_stime.tv_usec),
-					 (long) (elapse_t.tv_sec - Save_t.tv_sec),
-					 (long) (elapse_t.tv_usec - Save_t.tv_usec));
+					 (long) (r.ru_stime.tv_usec - Save_r.ru_stime.tv_usec));
 	appendStringInfo(&str,
-					 "!\t[%ld.%06ld s user, %ld.%06ld s system total]\n",
+					 "!\t[%ld.%06ld user %ld.%06ld sys total]\n",
 					 (long) user.tv_sec,
 					 (long) user.tv_usec,
 					 (long) sys.tv_sec,
 					 (long) sys.tv_usec);
+/* BeOS has rusage but only has some fields, and not these... */
 #if defined(HAVE_GETRUSAGE)
-	appendStringInfo(&str,
-					 "!\t%ld kB max resident size\n",
-#if defined(__darwin__)
-					 /* in bytes on macOS */
-					 r.ru_maxrss/1024
-#else
-					 /* in kilobytes on most other platforms */
-					 r.ru_maxrss
-#endif
-		);
 	appendStringInfo(&str,
 					 "!\t%ld/%ld [%ld/%ld] filesystem blocks in/out\n",
 					 r.ru_inblock - Save_r.ru_inblock,
@@ -4508,25 +3519,29 @@ ShowUsage(const char *title)
 					 r.ru_oublock - Save_r.ru_oublock,
 					 r.ru_inblock, r.ru_oublock);
 	appendStringInfo(&str,
-					 "!\t%ld/%ld [%ld/%ld] page faults/reclaims, %ld [%ld] swaps\n",
+			  "!\t%ld/%ld [%ld/%ld] page faults/reclaims, %ld [%ld] swaps\n",
 					 r.ru_majflt - Save_r.ru_majflt,
 					 r.ru_minflt - Save_r.ru_minflt,
 					 r.ru_majflt, r.ru_minflt,
 					 r.ru_nswap - Save_r.ru_nswap,
 					 r.ru_nswap);
 	appendStringInfo(&str,
-					 "!\t%ld [%ld] signals rcvd, %ld/%ld [%ld/%ld] messages rcvd/sent\n",
+		 "!\t%ld [%ld] signals rcvd, %ld/%ld [%ld/%ld] messages rcvd/sent\n",
 					 r.ru_nsignals - Save_r.ru_nsignals,
 					 r.ru_nsignals,
 					 r.ru_msgrcv - Save_r.ru_msgrcv,
 					 r.ru_msgsnd - Save_r.ru_msgsnd,
 					 r.ru_msgrcv, r.ru_msgsnd);
 	appendStringInfo(&str,
-					 "!\t%ld/%ld [%ld/%ld] voluntary/involuntary context switches\n",
+			 "!\t%ld/%ld [%ld/%ld] voluntary/involuntary context switches\n",
 					 r.ru_nvcsw - Save_r.ru_nvcsw,
 					 r.ru_nivcsw - Save_r.ru_nivcsw,
 					 r.ru_nvcsw, r.ru_nivcsw);
-#endif							/* HAVE_GETRUSAGE */
+#endif   /* HAVE_GETRUSAGE */
+
+	bufusage = ShowBufferUsage();
+	appendStringInfo(&str, "! buffer usage stats:\n%s", bufusage);
+	pfree(bufusage);
 
 	/* remove trailing newline */
 	if (str.data[str.len - 1] == '\n')
@@ -4534,7 +3549,7 @@ ShowUsage(const char *title)
 
 	ereport(LOG,
 			(errmsg_internal("%s", title),
-			 errdetail_internal("%s", str.data)));
+			 errdetail("%s", str.data)));
 
 	pfree(str.data);
 }
@@ -4546,66 +3561,30 @@ static void
 log_disconnections(int code, Datum arg)
 {
 	Port	   *port = MyProcPort;
-	long		secs;
-	int			usecs;
-	int			msecs;
+	struct timeval end;
 	int			hours,
 				minutes,
 				seconds;
 
-	TimestampDifference(port->SessionStartTime,
-						GetCurrentTimestamp(),
-						&secs, &usecs);
-	msecs = usecs / 1000;
+	gettimeofday(&end, NULL);
+	if (end.tv_usec < port->session_start.tv_usec)
+	{
+		end.tv_sec--;
+		end.tv_usec += 1000000;
+	}
+	end.tv_sec -= port->session_start.tv_sec;
+	end.tv_usec -= port->session_start.tv_usec;
 
-	hours = secs / SECS_PER_HOUR;
-	secs %= SECS_PER_HOUR;
-	minutes = secs / SECS_PER_MINUTE;
-	seconds = secs % SECS_PER_MINUTE;
+	/* for stricter accuracy here we could round - this is close enough */
+	hours = end.tv_sec / SECS_PER_HOUR;
+	end.tv_sec %= SECS_PER_HOUR;
+	minutes = end.tv_sec / SECS_PER_MINUTE;
+	seconds = end.tv_sec % SECS_PER_MINUTE;
 
 	ereport(LOG,
-			(errmsg("disconnection: session time: %d:%02d:%02d.%03d "
+			(errmsg("disconnection: session time: %d:%02d:%02d.%02d "
 					"user=%s database=%s host=%s%s%s",
-					hours, minutes, seconds, msecs,
+					hours, minutes, seconds, (int) (end.tv_usec / 10000),
 					port->user_name, port->database_name, port->remote_host,
-					port->remote_port[0] ? " port=" : "", port->remote_port)));
-}
-
-/*
- * Start statement timeout timer, if enabled.
- *
- * If there's already a timeout running, don't restart the timer.  That
- * enables compromises between accuracy of timeouts and cost of starting a
- * timeout.
- */
-static void
-enable_statement_timeout(void)
-{
-	/* must be within an xact */
-	Assert(xact_started);
-
-	if (StatementTimeout > 0)
-	{
-		if (!stmt_timeout_active)
-		{
-			enable_timeout_after(STATEMENT_TIMEOUT, StatementTimeout);
-			stmt_timeout_active = true;
-		}
-	}
-	else
-		disable_timeout(STATEMENT_TIMEOUT, false);
-}
-
-/*
- * Disable statement timeout, if active.
- */
-static void
-disable_statement_timeout(void)
-{
-	if (stmt_timeout_active)
-	{
-		disable_timeout(STATEMENT_TIMEOUT, false);
-
-		stmt_timeout_active = false;
-	}
+				  port->remote_port[0] ? " port=" : "", port->remote_port)));
 }

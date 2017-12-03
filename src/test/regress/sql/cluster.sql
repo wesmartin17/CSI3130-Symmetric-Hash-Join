@@ -73,8 +73,7 @@ SELECT a,b,c,substring(d for 30), length(d) from clstr_tst;
 -- Verify that foreign key link still works
 INSERT INTO clstr_tst (b, c) VALUES (1111, 'this should fail');
 
-SELECT conname FROM pg_constraint WHERE conrelid = 'clstr_tst'::regclass
-ORDER BY 1;
+SELECT conname FROM pg_constraint WHERE conrelid = 'clstr_tst'::regclass;
 
 
 SELECT relname, relkind,
@@ -105,13 +104,13 @@ WHERE pg_class.oid=indexrelid
 	AND indisclustered;
 
 -- Verify that clustering all tables does in fact cluster the right ones
-CREATE USER regress_clstr_user;
+CREATE USER clstr_user;
 CREATE TABLE clstr_1 (a INT PRIMARY KEY);
 CREATE TABLE clstr_2 (a INT PRIMARY KEY);
 CREATE TABLE clstr_3 (a INT PRIMARY KEY);
-ALTER TABLE clstr_1 OWNER TO regress_clstr_user;
-ALTER TABLE clstr_3 OWNER TO regress_clstr_user;
-GRANT SELECT ON clstr_2 TO regress_clstr_user;
+ALTER TABLE clstr_1 OWNER TO clstr_user;
+ALTER TABLE clstr_3 OWNER TO clstr_user;
+GRANT SELECT ON clstr_2 TO clstr_user;
 INSERT INTO clstr_1 VALUES (2);
 INSERT INTO clstr_1 VALUES (1);
 INSERT INTO clstr_2 VALUES (2);
@@ -123,7 +122,7 @@ INSERT INTO clstr_3 VALUES (1);
 CLUSTER clstr_2;
 
 CLUSTER clstr_1_pkey ON clstr_1;
-CLUSTER clstr_2 USING clstr_2_pkey;
+CLUSTER clstr_2_pkey ON clstr_2;
 SELECT * FROM clstr_1 UNION ALL
   SELECT * FROM clstr_2 UNION ALL
   SELECT * FROM clstr_3;
@@ -141,7 +140,7 @@ INSERT INTO clstr_3 VALUES (1);
 
 -- this user can only cluster clstr_1 and clstr_3, but the latter
 -- has not been clustered
-SET SESSION AUTHORIZATION regress_clstr_user;
+SET SESSION AUTHORIZATION clstr_user;
 CLUSTER;
 SELECT * FROM clstr_1 UNION ALL
   SELECT * FROM clstr_2 UNION ALL
@@ -154,71 +153,9 @@ INSERT INTO clstr_1 VALUES (1);
 CLUSTER clstr_1;
 SELECT * FROM clstr_1;
 
--- Test MVCC-safety of cluster. There isn't much we can do to verify the
--- results with a single backend...
-
-CREATE TABLE clustertest (key int PRIMARY KEY);
-
-INSERT INTO clustertest VALUES (10);
-INSERT INTO clustertest VALUES (20);
-INSERT INTO clustertest VALUES (30);
-INSERT INTO clustertest VALUES (40);
-INSERT INTO clustertest VALUES (50);
-
--- Use a transaction so that updates are not committed when CLUSTER sees 'em
-BEGIN;
-
--- Test update where the old row version is found first in the scan
-UPDATE clustertest SET key = 100 WHERE key = 10;
-
--- Test update where the new row version is found first in the scan
-UPDATE clustertest SET key = 35 WHERE key = 40;
-
--- Test longer update chain
-UPDATE clustertest SET key = 60 WHERE key = 50;
-UPDATE clustertest SET key = 70 WHERE key = 60;
-UPDATE clustertest SET key = 80 WHERE key = 70;
-
-SELECT * FROM clustertest;
-CLUSTER clustertest_pkey ON clustertest;
-SELECT * FROM clustertest;
-
-COMMIT;
-
-SELECT * FROM clustertest;
-
--- check that temp tables can be clustered
-create temp table clstr_temp (col1 int primary key, col2 text);
-insert into clstr_temp values (2, 'two'), (1, 'one');
-cluster clstr_temp using clstr_temp_pkey;
-select * from clstr_temp;
-drop table clstr_temp;
-
-RESET SESSION AUTHORIZATION;
-
--- Test CLUSTER with external tuplesorting
-
-create table clstr_4 as select * from tenk1;
-create index cluster_sort on clstr_4 (hundred, thousand, tenthous);
--- ensure we don't use the index in CLUSTER nor the checking SELECTs
-set enable_indexscan = off;
-
--- Use external sort:
-set maintenance_work_mem = '1MB';
-cluster clstr_4 using cluster_sort;
-select * from
-(select hundred, lag(hundred) over () as lhundred,
-        thousand, lag(thousand) over () as lthousand,
-        tenthous, lag(tenthous) over () as ltenthous from clstr_4) ss
-where row(hundred, thousand, tenthous) <= row(lhundred, lthousand, ltenthous);
-
-reset enable_indexscan;
-reset maintenance_work_mem;
-
 -- clean up
-DROP TABLE clustertest;
+\c -
 DROP TABLE clstr_1;
 DROP TABLE clstr_2;
 DROP TABLE clstr_3;
-DROP TABLE clstr_4;
-DROP USER regress_clstr_user;
+DROP USER clstr_user;

@@ -3,27 +3,19 @@
  * nodeUnique.c
  *	  Routines to handle unique'ing of queries where appropriate
  *
- * Unique is a very simple node type that just filters out duplicate
- * tuples from a stream of sorted tuples from its subplan.  It's essentially
- * a dumbed-down form of Group: the duplicate-removal functionality is
- * identical.  However, Unique doesn't do projection nor qual checking,
- * so it's marginally more efficient for cases where neither is needed.
- * (It's debatable whether the savings justifies carrying two plan node
- * types, though.)
- *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/executor/nodeUnique.c
+ *	  $PostgreSQL: pgsql/src/backend/executor/nodeUnique.c,v 1.48.2.2 2005/11/23 20:28:04 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
 /*
  * INTERFACE ROUTINES
  *		ExecUnique		- generate a unique'd temporary relation
- *		ExecInitUnique	- initialize node and subnodes
+ *		ExecInitUnique	- initialize node and subnodes..
  *		ExecEndUnique	- shutdown node and subnodes
  *
  * NOTES
@@ -33,26 +25,26 @@
 
 #include "postgres.h"
 
+#include "access/heapam.h"
 #include "executor/executor.h"
 #include "executor/nodeUnique.h"
-#include "miscadmin.h"
 #include "utils/memutils.h"
 
 
 /* ----------------------------------------------------------------
  *		ExecUnique
+ *
+ *		This is a very simple node which filters out duplicate
+ *		tuples from a stream of sorted tuples from a subplan.
  * ----------------------------------------------------------------
  */
-static TupleTableSlot *			/* return: a tuple or NULL */
-ExecUnique(PlanState *pstate)
+TupleTableSlot *				/* return: a tuple or NULL */
+ExecUnique(UniqueState *node)
 {
-	UniqueState *node = castNode(UniqueState, pstate);
 	Unique	   *plannode = (Unique *) node->ps.plan;
 	TupleTableSlot *resultTupleSlot;
 	TupleTableSlot *slot;
 	PlanState  *outerPlan;
-
-	CHECK_FOR_INTERRUPTS();
 
 	/*
 	 * get information from the node
@@ -62,8 +54,12 @@ ExecUnique(PlanState *pstate)
 
 	/*
 	 * now loop, returning only non-duplicate tuples. We assume that the
-	 * tuples arrive in sorted order so we can detect duplicates easily. The
-	 * first tuple of each group is returned.
+	 * tuples arrive in sorted order so we can detect duplicates easily.
+	 *
+	 * We return the first tuple from each group of duplicates (or the last
+	 * tuple of each group, when moving backwards).  At either end of the
+	 * subplan, clear the result slot so that we correctly return the
+	 * first/last tuple when reversing direction.
 	 */
 	for (;;)
 	{
@@ -73,13 +69,13 @@ ExecUnique(PlanState *pstate)
 		slot = ExecProcNode(outerPlan);
 		if (TupIsNull(slot))
 		{
-			/* end of subplan, so we're done */
+			/* end of subplan; reset in case we change direction */
 			ExecClearTuple(resultTupleSlot);
 			return NULL;
 		}
 
 		/*
-		 * Always return the first tuple from the subplan.
+		 * Always return the first/last tuple from the subplan.
 		 */
 		if (TupIsNull(resultTupleSlot))
 			break;
@@ -113,12 +109,9 @@ ExecUnique(PlanState *pstate)
  * ----------------------------------------------------------------
  */
 UniqueState *
-ExecInitUnique(Unique *node, EState *estate, int eflags)
+ExecInitUnique(Unique *node, EState *estate)
 {
 	UniqueState *uniquestate;
-
-	/* check for unsupported flags */
-	Assert(!(eflags & (EXEC_FLAG_BACKWARD | EXEC_FLAG_MARK)));
 
 	/*
 	 * create state structure
@@ -126,7 +119,6 @@ ExecInitUnique(Unique *node, EState *estate, int eflags)
 	uniquestate = makeNode(UniqueState);
 	uniquestate->ps.plan = (Plan *) node;
 	uniquestate->ps.state = estate;
-	uniquestate->ps.ExecProcNode = ExecUnique;
 
 	/*
 	 * Miscellaneous initialization
@@ -138,7 +130,11 @@ ExecInitUnique(Unique *node, EState *estate, int eflags)
 	uniquestate->tempContext =
 		AllocSetContextCreate(CurrentMemoryContext,
 							  "Unique",
-							  ALLOCSET_DEFAULT_SIZES);
+							  ALLOCSET_DEFAULT_MINSIZE,
+							  ALLOCSET_DEFAULT_INITSIZE,
+							  ALLOCSET_DEFAULT_MAXSIZE);
+
+#define UNIQUE_NSLOTS 1
 
 	/*
 	 * Tuple table initialization
@@ -148,7 +144,7 @@ ExecInitUnique(Unique *node, EState *estate, int eflags)
 	/*
 	 * then initialize outer plan
 	 */
-	outerPlanState(uniquestate) = ExecInitNode(outerPlan(node), estate, eflags);
+	outerPlanState(uniquestate) = ExecInitNode(outerPlan(node), estate);
 
 	/*
 	 * unique nodes do no projections, so initialize projection info for this
@@ -161,10 +157,19 @@ ExecInitUnique(Unique *node, EState *estate, int eflags)
 	 * Precompute fmgr lookup data for inner loop
 	 */
 	uniquestate->eqfunctions =
-		execTuplesMatchPrepare(node->numCols,
-							   node->uniqOperators);
+		execTuplesMatchPrepare(ExecGetResultType(&uniquestate->ps),
+							   node->numCols,
+							   node->uniqColIdx);
 
 	return uniquestate;
+}
+
+int
+ExecCountSlotsUnique(Unique *node)
+{
+	return ExecCountSlotsNode(outerPlan(node)) +
+		ExecCountSlotsNode(innerPlan(node)) +
+		UNIQUE_NSLOTS;
 }
 
 /* ----------------------------------------------------------------
@@ -187,7 +192,7 @@ ExecEndUnique(UniqueState *node)
 
 
 void
-ExecReScanUnique(UniqueState *node)
+ExecReScanUnique(UniqueState *node, ExprContext *exprCtxt)
 {
 	/* must clear result tuple so first input tuple is returned */
 	ExecClearTuple(node->ps.ps_ResultTupleSlot);
@@ -196,6 +201,6 @@ ExecReScanUnique(UniqueState *node)
 	 * if chgParam of subnode is not null then plan will be re-scanned by
 	 * first ExecProcNode.
 	 */
-	if (node->ps.lefttree->chgParam == NULL)
-		ExecReScan(node->ps.lefttree);
+	if (((PlanState *) node)->lefttree->chgParam == NULL)
+		ExecReScan(((PlanState *) node)->lefttree, exprCtxt);
 }

@@ -34,11 +34,11 @@
  *		plan normally and pass back the results.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/executor/nodeResult.c
+ *	  $PostgreSQL: pgsql/src/backend/executor/nodeResult.c,v 1.32 2005/10/15 02:49:17 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -47,7 +47,6 @@
 
 #include "executor/executor.h"
 #include "executor/nodeResult.h"
-#include "miscadmin.h"
 #include "utils/memutils.h"
 
 
@@ -64,15 +63,14 @@
  *		'nil' if the constant qualification is not satisfied.
  * ----------------------------------------------------------------
  */
-static TupleTableSlot *
-ExecResult(PlanState *pstate)
+TupleTableSlot *
+ExecResult(ResultState *node)
 {
-	ResultState *node = castNode(ResultState, pstate);
 	TupleTableSlot *outerTupleSlot;
+	TupleTableSlot *resultSlot;
 	PlanState  *outerPlan;
 	ExprContext *econtext;
-
-	CHECK_FOR_INTERRUPTS();
+	ExprDoneCond isDone;
 
 	econtext = node->ps.ps_ExprContext;
 
@@ -81,7 +79,9 @@ ExecResult(PlanState *pstate)
 	 */
 	if (node->rs_checkqual)
 	{
-		bool		qualResult = ExecQual(node->resconstantqual, econtext);
+		bool		qualResult = ExecQual((List *) node->resconstantqual,
+										  econtext,
+										  false);
 
 		node->rs_checkqual = false;
 		if (!qualResult)
@@ -92,8 +92,23 @@ ExecResult(PlanState *pstate)
 	}
 
 	/*
+	 * Check to see if we're still projecting out tuples from a previous scan
+	 * tuple (because there is a function-returning-set in the projection
+	 * expressions).  If so, try to project another one.
+	 */
+	if (node->ps.ps_TupFromTlist)
+	{
+		resultSlot = ExecProject(node->ps.ps_ProjInfo, &isDone);
+		if (isDone == ExprMultipleResult)
+			return resultSlot;
+		/* Done with that source tuple... */
+		node->ps.ps_TupFromTlist = false;
+	}
+
+	/*
 	 * Reset per-tuple memory context to free any expression evaluation
-	 * storage allocated in the previous tuple cycle.
+	 * storage allocated in the previous tuple cycle.  Note this can't happen
+	 * until we're done projecting out tuples from a scan tuple.
 	 */
 	ResetExprContext(econtext);
 
@@ -117,11 +132,13 @@ ExecResult(PlanState *pstate)
 			if (TupIsNull(outerTupleSlot))
 				return NULL;
 
+			node->ps.ps_OuterTupleSlot = outerTupleSlot;
+
 			/*
-			 * prepare to compute projection expressions, which will expect to
-			 * access the input tuples as varno OUTER.
+			 * XXX gross hack. use outer tuple as scan tuple for projection
 			 */
 			econtext->ecxt_outertuple = outerTupleSlot;
+			econtext->ecxt_scantuple = outerTupleSlot;
 		}
 		else
 		{
@@ -132,59 +149,35 @@ ExecResult(PlanState *pstate)
 			node->rs_done = true;
 		}
 
-		/* form the result tuple using ExecProject(), and return it */
-		return ExecProject(node->ps.ps_ProjInfo);
+		/*
+		 * form the result tuple using ExecProject(), and return it --- unless
+		 * the projection produces an empty set, in which case we must loop
+		 * back to see if there are more outerPlan tuples.
+		 */
+		resultSlot = ExecProject(node->ps.ps_ProjInfo, &isDone);
+
+		if (isDone != ExprEndResult)
+		{
+			node->ps.ps_TupFromTlist = (isDone == ExprMultipleResult);
+			return resultSlot;
+		}
 	}
 
 	return NULL;
 }
 
 /* ----------------------------------------------------------------
- *		ExecResultMarkPos
- * ----------------------------------------------------------------
- */
-void
-ExecResultMarkPos(ResultState *node)
-{
-	PlanState  *outerPlan = outerPlanState(node);
-
-	if (outerPlan != NULL)
-		ExecMarkPos(outerPlan);
-	else
-		elog(DEBUG2, "Result nodes do not support mark/restore");
-}
-
-/* ----------------------------------------------------------------
- *		ExecResultRestrPos
- * ----------------------------------------------------------------
- */
-void
-ExecResultRestrPos(ResultState *node)
-{
-	PlanState  *outerPlan = outerPlanState(node);
-
-	if (outerPlan != NULL)
-		ExecRestrPos(outerPlan);
-	else
-		elog(ERROR, "Result nodes do not support mark/restore");
-}
-
-/* ----------------------------------------------------------------
  *		ExecInitResult
  *
  *		Creates the run-time state information for the result node
- *		produced by the planner and initializes outer relations
+ *		produced by the planner and initailizes outer relations
  *		(child nodes).
  * ----------------------------------------------------------------
  */
 ResultState *
-ExecInitResult(Result *node, EState *estate, int eflags)
+ExecInitResult(Result *node, EState *estate)
 {
 	ResultState *resstate;
-
-	/* check for unsupported flags */
-	Assert(!(eflags & (EXEC_FLAG_MARK | EXEC_FLAG_BACKWARD)) ||
-		   outerPlan(node) != NULL);
 
 	/*
 	 * create state structure
@@ -192,7 +185,6 @@ ExecInitResult(Result *node, EState *estate, int eflags)
 	resstate = makeNode(ResultState);
 	resstate->ps.plan = (Plan *) node;
 	resstate->ps.state = estate;
-	resstate->ps.ExecProcNode = ExecResult;
 
 	resstate->rs_done = false;
 	resstate->rs_checkqual = (node->resconstantqual == NULL) ? false : true;
@@ -204,6 +196,8 @@ ExecInitResult(Result *node, EState *estate, int eflags)
 	 */
 	ExecAssignExprContext(estate, &resstate->ps);
 
+#define RESULT_NSLOTS 1
+
 	/*
 	 * tuple table initialization
 	 */
@@ -212,15 +206,19 @@ ExecInitResult(Result *node, EState *estate, int eflags)
 	/*
 	 * initialize child expressions
 	 */
-	resstate->ps.qual =
-		ExecInitQual(node->plan.qual, (PlanState *) resstate);
-	resstate->resconstantqual =
-		ExecInitQual((List *) node->resconstantqual, (PlanState *) resstate);
+	resstate->ps.targetlist = (List *)
+		ExecInitExpr((Expr *) node->plan.targetlist,
+					 (PlanState *) resstate);
+	resstate->ps.qual = (List *)
+		ExecInitExpr((Expr *) node->plan.qual,
+					 (PlanState *) resstate);
+	resstate->resconstantqual = ExecInitExpr((Expr *) node->resconstantqual,
+											 (PlanState *) resstate);
 
 	/*
 	 * initialize child nodes
 	 */
-	outerPlanState(resstate) = ExecInitNode(outerPlan(node), estate, eflags);
+	outerPlanState(resstate) = ExecInitNode(outerPlan(node), estate);
 
 	/*
 	 * we don't use inner plan
@@ -231,9 +229,15 @@ ExecInitResult(Result *node, EState *estate, int eflags)
 	 * initialize tuple type and projection info
 	 */
 	ExecAssignResultTypeFromTL(&resstate->ps);
-	ExecAssignProjectionInfo(&resstate->ps, NULL);
+	ExecAssignProjectionInfo(&resstate->ps);
 
 	return resstate;
+}
+
+int
+ExecCountSlotsResult(Result *node)
+{
+	return ExecCountSlotsNode(outerPlan(node)) + RESULT_NSLOTS;
 }
 
 /* ----------------------------------------------------------------
@@ -262,16 +266,17 @@ ExecEndResult(ResultState *node)
 }
 
 void
-ExecReScanResult(ResultState *node)
+ExecReScanResult(ResultState *node, ExprContext *exprCtxt)
 {
 	node->rs_done = false;
+	node->ps.ps_TupFromTlist = false;
 	node->rs_checkqual = (node->resconstantqual == NULL) ? false : true;
 
 	/*
-	 * If chgParam of subnode is not null then plan will be re-scanned by
+	 * if chgParam of subnode is not null then plan will be re-scanned by
 	 * first ExecProcNode.
 	 */
-	if (node->ps.lefttree &&
-		node->ps.lefttree->chgParam == NULL)
-		ExecReScan(node->ps.lefttree);
+	if (((PlanState *) node)->lefttree &&
+		((PlanState *) node)->lefttree->chgParam == NULL)
+		ExecReScan(((PlanState *) node)->lefttree, exprCtxt);
 }

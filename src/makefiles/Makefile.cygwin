@@ -1,10 +1,12 @@
-# src/makefiles/Makefile.cygwin
-
+# $PostgreSQL: pgsql/src/makefiles/Makefile.cygwin,v 1.6.6.2 2006/01/19 20:45:34 momjian Exp $
+DLLTOOL= dlltool
+DLLWRAP= dllwrap
 ifdef PGXS
 BE_DLLLIBS= -L$(libdir) -lpostgres
 else
 BE_DLLLIBS= -L$(top_builddir)/src/backend -lpostgres
 endif
+DLLINIT = $(top_builddir)/src/utils/dllinit.o
 
 # linking with -lm or -lc causes program to crash
 # (see http://sources.redhat.com/cygwin/faq/faq.html#SEC110)
@@ -14,24 +16,15 @@ AROPT = crs
 DLSUFFIX = .dll
 CFLAGS_SL =
 
+%.dll: %.o
+	$(DLLTOOL) --export-all --output-def $*.def $<
+	$(DLLWRAP) -o $@ --def $*.def $< $(DLLINIT) $(SHLIB_LINK)
+	rm -f $*.def
+
 ifneq (,$(findstring backend,$(subdir)))
 ifeq (,$(findstring conversion_procs,$(subdir)))
-ifeq (,$(findstring libpqwalreceiver,$(subdir)))
-ifeq (,$(findstring replication/pgoutput,$(subdir)))
-ifeq (,$(findstring snowball,$(subdir)))
 override CPPFLAGS+= -DBUILDING_DLL
 endif
-endif
-endif
-endif
-endif
-
-ifneq (,$(findstring src/common,$(subdir)))
-override CPPFLAGS+= -DBUILDING_DLL
-endif
-
-ifneq (,$(findstring src/port,$(subdir)))
-override CPPFLAGS+= -DBUILDING_DLL
 endif
 
 ifneq (,$(findstring timezone,$(subdir)))
@@ -47,6 +40,4 @@ ifneq (,$(findstring src/pl/plpython,$(subdir)))
 override CPPFLAGS+= -DUSE_DL_IMPORT
 endif
 
-# Rule for building a shared library from a single .o file
-%.dll: %.o
-	$(CC) $(CFLAGS)  -shared -o $@ $<  $(LDFLAGS) $(LDFLAGS_SL) $(BE_DLLLIBS)
+sqlmansect = 7

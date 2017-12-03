@@ -1,74 +1,55 @@
 #
 # PostgreSQL top level makefile
 #
-# GNUmakefile.in
+# $PostgreSQL: pgsql/GNUmakefile.in,v 1.42 2005/05/01 06:15:51 neilc Exp $
 #
 
 subdir =
 top_builddir = .
 include $(top_builddir)/src/Makefile.global
 
-$(call recurse,all install,src config)
-
 all:
-	+@echo "All of PostgreSQL successfully made. Ready to install."
-
-docs:
 	$(MAKE) -C doc all
-
-$(call recurse,world,doc src config contrib,all)
-world:
-	+@echo "PostgreSQL, contrib, and documentation successfully made. Ready to install."
-
-# build src/ before contrib/
-world-contrib-recurse: world-src-recurse
-
-html man:
-	$(MAKE) -C doc $@
+	$(MAKE) -C src all
+	$(MAKE) -C config all
+	@echo "All of PostgreSQL successfully made. Ready to install."
 
 install:
-	+@echo "PostgreSQL installation complete."
+	$(MAKE) -C doc $@
+	$(MAKE) -C src $@
+	$(MAKE) -C config $@
+	@echo "PostgreSQL installation complete."
 
-install-docs:
-	$(MAKE) -C doc install
-
-$(call recurse,install-world,doc src config contrib,install)
-install-world:
-	+@echo "PostgreSQL, contrib, and documentation installation complete."
-
-# build src/ before contrib/
-install-world-contrib-recurse: install-world-src-recurse
-
-$(call recurse,installdirs uninstall init-po update-po,doc src config)
-
-$(call recurse,distprep coverage,doc src config contrib)
+installdirs uninstall distprep:
+	$(MAKE) -C doc $@
+	$(MAKE) -C src $@
+	$(MAKE) -C config $@
 
 # clean, distclean, etc should apply to contrib too, even though
 # it's not built by default
-$(call recurse,clean,doc contrib src config)
 clean:
-	rm -rf tmp_install/
+	$(MAKE) -C doc $@
+	$(MAKE) -C contrib $@
+	$(MAKE) -C src $@
+	$(MAKE) -C config $@
 # Garbage from autoconf:
 	@rm -rf autom4te.cache/
 
 # Important: distclean `src' last, otherwise Makefile.global
 # will be gone too soon.
 distclean maintainer-clean:
-	$(MAKE) -C doc $@
-	$(MAKE) -C contrib $@
-	$(MAKE) -C config $@
-	$(MAKE) -C src $@
-	rm -rf tmp_install/
+	-$(MAKE) -C doc $@
+	-$(MAKE) -C contrib $@
+	-$(MAKE) -C config $@
+	-$(MAKE) -C src $@
+	-rm -f config.cache config.log config.status GNUmakefile
 # Garbage from autoconf:
 	@rm -rf autom4te.cache/
-	rm -f config.cache config.log config.status GNUmakefile
 
-check check-tests installcheck installcheck-parallel installcheck-tests:
-	$(MAKE) -C src/test/regress $@
+check: all
 
-$(call recurse,check-world,src/test src/pl src/interfaces/ecpg contrib src/bin,check)
-
-$(call recurse,installcheck-world,src/test src/pl src/interfaces/ecpg contrib src/bin,installcheck)
+check installcheck:
+	$(MAKE) -C src/test $@
 
 GNUmakefile: GNUmakefile.in $(top_builddir)/config.status
 	./config.status $@
@@ -76,24 +57,42 @@ GNUmakefile: GNUmakefile.in $(top_builddir)/config.status
 
 ##########################################################################
 
-distdir	= postgresql-$(VERSION)
-dummy	= =install=
-garbage = =*  "#"*  ."#"*  *~*  *.orig  *.rej  core  postgresql-*
+distdir	:= postgresql-$(VERSION)
+dummy	:= =install=
+garbage := =*  "#"*  ."#"*  *~*  *.orig  *.rej  core  postgresql-*
 
-dist: $(distdir).tar.gz $(distdir).tar.bz2
-	rm -rf $(distdir)
+dist: $(distdir).tar.gz 
+ifeq ($(split-dist), yes)
+dist: postgresql-base-$(VERSION).tar.gz postgresql-docs-$(VERSION).tar.gz postgresql-opt-$(VERSION).tar.gz postgresql-test-$(VERSION).tar.gz 
+endif
+dist:
+	-rm -rf $(distdir)
 
 $(distdir).tar: distdir
 	$(TAR) chf $@ $(distdir)
 
-.INTERMEDIATE: $(distdir).tar
+opt_files := \
+	src/tools src/tutorial \
+	$(addprefix src/pl/, plperl plpython tcl)
 
-distdir-location:
-	@echo $(distdir)
+docs_files := doc/postgres.tar.gz doc/src doc/TODO.detail
+
+postgresql-base-$(VERSION).tar: distdir
+	$(TAR) -c $(addprefix --exclude $(distdir)/, $(docs_files) $(opt_files) src/test) \
+	  -f $@ $(distdir)
+
+postgresql-docs-$(VERSION).tar: distdir
+	$(TAR) cf $@ $(addprefix $(distdir)/, $(docs_files))
+
+postgresql-opt-$(VERSION).tar: distdir
+	$(TAR) cf $@ $(addprefix $(distdir)/, $(opt_files))
+
+postgresql-test-$(VERSION).tar: distdir
+	$(TAR) cf $@ $(distdir)/src/test
 
 distdir:
-	rm -rf $(distdir)* $(dummy)
-	for x in `cd $(top_srcdir) && find . \( -name CVS -prune \) -o \( -name .git -prune \) -o -print`; do \
+	-rm -rf $(distdir)* $(dummy)
+	for x in `cd $(top_srcdir) && find . -name CVS -prune -o -print`; do \
 	  file=`expr X$$x : 'X\./\(.*\)'`; \
 	  if test -d "$(top_srcdir)/$$file" ; then \
 	    mkdir "$(distdir)/$$file" && chmod 777 "$(distdir)/$$file";	\
@@ -103,15 +102,13 @@ distdir:
 	  fi || exit; \
 	done
 	$(MAKE) -C $(distdir) distprep
-	$(MAKE) -C $(distdir)/doc/src/sgml/ INSTALL
-	cp $(distdir)/doc/src/sgml/INSTALL $(distdir)/
 	$(MAKE) -C $(distdir) distclean
-	rm -f $(distdir)/README.git
+	rm -f $(distdir)/README.CVS
 
-distcheck: dist
-	rm -rf $(dummy)
+distcheck: $(distdir).tar.gz
+	-rm -rf $(dummy)
 	mkdir $(dummy)
-	$(GZIP) -d -c $(distdir).tar.gz | $(TAR) xf -
+	$(GZIP) -d -c $< | $(TAR) xf -
 	install_prefix=`cd $(dummy) && pwd`; \
 	cd $(distdir) \
 	&& ./configure --prefix="$$install_prefix"
@@ -124,7 +121,8 @@ distcheck: dist
 	$(MAKE) -C $(distdir) dist
 # Room for improvement: Check here whether this distribution tarball
 # is sufficiently similar to the original one.
-	rm -rf $(distdir) $(dummy)
+	-rm -rf $(distdir) $(dummy)
 	@echo "Distribution integrity checks out."
 
-.PHONY: dist distdir distcheck docs install-docs world check-world install-world installcheck-world
+.PHONY: dist distdir distcheck
+unexport split-dist

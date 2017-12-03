@@ -1,9 +1,7 @@
 /*
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
- *
- * src/backend/port/dynloader/netbsd.c
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,14 +11,18 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *	  notice, this list of conditions and the following disclaimer in the
  *	  documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *	  must display the following acknowledgement:
+ *		This product includes software developed by the University of
+ *		California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *	  may be used to endorse or promote products derived from this software
  *	  without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -32,7 +34,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)dl.c	5.4 (Berkeley) 2/23/91";
-#endif							/* LIBC_SCCS and not lint */
+#endif   /* LIBC_SCCS and not lint */
 
 #include "postgres.h"
 
@@ -57,7 +59,7 @@ BSD44_derived_dlerror(void)
 void *
 BSD44_derived_dlopen(const char *file, int num)
 {
-#if !defined(HAVE_DLOPEN)
+#if defined(__mips__)
 	snprintf(error_message, sizeof(error_message),
 			 "dlopen (%s) not supported", file);
 	return NULL;
@@ -74,14 +76,14 @@ BSD44_derived_dlopen(const char *file, int num)
 void *
 BSD44_derived_dlsym(void *handle, const char *name)
 {
-#if !defined(HAVE_DLOPEN)
+#if defined(__mips__)
 	snprintf(error_message, sizeof(error_message),
 			 "dlsym (%s) failed", name);
 	return NULL;
+#elif defined(__ELF__)
+	return dlsym(handle, name);
 #else
 	void	   *vp;
-
-#ifndef __ELF__
 	char		buf[BUFSIZ];
 
 	if (*name != '_')
@@ -89,7 +91,6 @@ BSD44_derived_dlsym(void *handle, const char *name)
 		snprintf(buf, sizeof(buf), "_%s", name);
 		name = buf;
 	}
-#endif							/* !__ELF__ */
 	if ((vp = dlsym(handle, (char *) name)) == NULL)
 		snprintf(error_message, sizeof(error_message),
 				 "dlsym (%s) failed", name);
@@ -100,7 +101,8 @@ BSD44_derived_dlsym(void *handle, const char *name)
 void
 BSD44_derived_dlclose(void *handle)
 {
-#if defined(HAVE_DLOPEN)
+#if defined(__mips__)
+#else
 	dlclose(handle);
 #endif
 }

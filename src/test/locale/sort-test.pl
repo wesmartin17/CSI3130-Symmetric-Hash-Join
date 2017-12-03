@@ -1,13 +1,11 @@
 #! /usr/bin/perl
-
-use strict;
 use locale;
 
-open(my $in_fh, '<', $ARGV[0]) || die;
-chop(my (@words) = <$in_fh>);
-close($in_fh);
+open(INFILE, "<$ARGV[0]");
+chop(my(@words) = <INFILE>);
+close(INFILE);
 
-$" = "\n";
-my (@result) = sort @words;
+$"="\n";
+my(@result) = sort @words;
 
 print "@result\n";

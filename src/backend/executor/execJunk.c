@@ -3,18 +3,20 @@
  * execJunk.c
  *	  Junk attribute support stuff....
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/executor/execJunk.c
+ *	  $PostgreSQL: pgsql/src/backend/executor/execJunk.c,v 1.50.2.1 2005/11/22 18:23:08 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
+#include "access/heapam.h"
 #include "executor/executor.h"
+#include "nodes/makefuncs.h"
 
 /*-------------------------------------------------------------------------
  *		XXX this stuff should be rewritten to take advantage
@@ -26,23 +28,24 @@
  * never make it out of the executor, i.e. they are never printed,
  * returned or stored on disk. Their only purpose in life is to
  * store some information useful only to the executor, mainly the values
- * of system attributes like "ctid", or sort key columns that are not to
- * be output.
+ * of some system attributes like "ctid" or rule locks.
  *
  * The general idea is the following: A target list consists of a list of
  * TargetEntry nodes containing expressions. Each TargetEntry has a field
  * called 'resjunk'. If the value of this field is true then the
  * corresponding attribute is a "junk" attribute.
  *
- * When we initialize a plan we call ExecInitJunkFilter to create a filter.
+ * When we initialize a plan we call 'ExecInitJunkFilter' to create
+ * and store the appropriate information in the 'es_junkFilter' attribute of
+ * EState.
  *
- * We then execute the plan, treating the resjunk attributes like any others.
+ * We then execute the plan ignoring the "resjunk" attributes.
  *
  * Finally, when at the top level we get back a tuple, we can call
- * ExecFindJunkAttribute/ExecGetJunkAttribute to retrieve the values of the
- * junk attributes we are interested in, and ExecFilterJunk to remove all the
- * junk attributes from a tuple.  This new "clean" tuple is then printed,
- * inserted, or updated.
+ * ExecGetJunkAttribute to retrieve the value of the junk attributes we
+ * are interested in, and ExecFilterJunk or ExecRemoveJunk to remove all
+ * the junk attributes from a tuple. This new "clean" tuple is then printed,
+ * replaced, deleted or inserted.
  *
  *-------------------------------------------------------------------------
  */
@@ -52,7 +55,7 @@
  *
  * Initialize the Junk filter.
  *
- * The source targetlist is passed in.  The output tuple descriptor is
+ * The source targetlist is passed in.	The output tuple descriptor is
  * built from the non-junk tlist entries, plus the passed specification
  * of whether to include room for an OID or not.
  * An optional resultSlot can be passed as well.
@@ -76,7 +79,7 @@ ExecInitJunkFilter(List *targetList, bool hasoid, TupleTableSlot *slot)
 	 * Use the given slot, or make a new slot if we weren't given one.
 	 */
 	if (slot)
-		ExecSetSlotDescriptor(slot, cleanTupType);
+		ExecSetSlotDescriptor(slot, cleanTupType, false);
 	else
 		slot = MakeSingleTupleTableSlot(cleanTupType);
 
@@ -147,7 +150,7 @@ ExecInitJunkFilterConversion(List *targetList,
 	 * Use the given slot, or make a new slot if we weren't given one.
 	 */
 	if (slot)
-		ExecSetSlotDescriptor(slot, cleanTupType);
+		ExecSetSlotDescriptor(slot, cleanTupType, false);
 	else
 		slot = MakeSingleTupleTableSlot(cleanTupType);
 
@@ -168,7 +171,7 @@ ExecInitJunkFilterConversion(List *targetList,
 		t = list_head(targetList);
 		for (i = 0; i < cleanLength; i++)
 		{
-			if (TupleDescAttr(cleanTupType, i)->attisdropped)
+			if (cleanTupType->attrs[i]->attisdropped)
 				continue;		/* map entry is already zero */
 			for (;;)
 			{
@@ -200,29 +203,27 @@ ExecInitJunkFilterConversion(List *targetList,
 }
 
 /*
- * ExecFindJunkAttribute
+ * ExecGetJunkAttribute
  *
- * Locate the specified junk attribute in the junk filter's targetlist,
- * and return its resno.  Returns InvalidAttrNumber if not found.
- */
-AttrNumber
-ExecFindJunkAttribute(JunkFilter *junkfilter, const char *attrName)
-{
-	return ExecFindJunkAttributeInTlist(junkfilter->jf_targetList, attrName);
-}
-
-/*
- * ExecFindJunkAttributeInTlist
+ * Given a tuple (slot), the junk filter and a junk attribute's name,
+ * extract & return the value and isNull flag of this attribute.
  *
- * Find a junk attribute given a subplan's targetlist (not necessarily
- * part of a JunkFilter).
+ * It returns false iff no junk attribute with such name was found.
  */
-AttrNumber
-ExecFindJunkAttributeInTlist(List *targetlist, const char *attrName)
+bool
+ExecGetJunkAttribute(JunkFilter *junkfilter,
+					 TupleTableSlot *slot,
+					 char *attrName,
+					 Datum *value,
+					 bool *isNull)
 {
 	ListCell   *t;
 
-	foreach(t, targetlist)
+	/*
+	 * Look in the junkfilter's target list for an attribute with the given
+	 * name
+	 */
+	foreach(t, junkfilter->jf_targetList)
 	{
 		TargetEntry *tle = lfirst(t);
 
@@ -230,27 +231,13 @@ ExecFindJunkAttributeInTlist(List *targetlist, const char *attrName)
 			(strcmp(tle->resname, attrName) == 0))
 		{
 			/* We found it ! */
-			return tle->resno;
+			*value = slot_getattr(slot, tle->resno, isNull);
+			return true;
 		}
 	}
 
-	return InvalidAttrNumber;
-}
-
-/*
- * ExecGetJunkAttribute
- *
- * Given a junk filter's input tuple (slot) and a junk attribute's number
- * previously found by ExecFindJunkAttribute, extract & return the value and
- * isNull flag of the attribute.
- */
-Datum
-ExecGetJunkAttribute(TupleTableSlot *slot, AttrNumber attno,
-					 bool *isNull)
-{
-	Assert(attno > 0);
-
-	return slot_getattr(slot, attno, isNull);
+	/* Ooops! We couldn't find this attribute... */
+	return false;
 }
 
 /*
@@ -316,4 +303,16 @@ ExecFilterJunk(JunkFilter *junkfilter, TupleTableSlot *slot)
 	 * And return the virtual tuple.
 	 */
 	return ExecStoreVirtualTuple(resultSlot);
+}
+
+/*
+ * ExecRemoveJunk
+ *
+ * Convenience routine to generate a physical clean tuple,
+ * rather than just a virtual slot.
+ */
+HeapTuple
+ExecRemoveJunk(JunkFilter *junkfilter, TupleTableSlot *slot)
+{
+	return ExecCopySlotTuple(ExecFilterJunk(junkfilter, slot));
 }

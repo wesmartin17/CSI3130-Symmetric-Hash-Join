@@ -1,52 +1,32 @@
-/*------------------------------------------------------------------------
- *
- * regress.c
- *	 Code for various C-language functions defined as part of the
- *	 regression tests.
- *
- * This code is released under the terms of the PostgreSQL License.
- *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
- * Portions Copyright (c) 1994, Regents of the University of California
- *
- * src/test/regress/regress.c
- *
- *-------------------------------------------------------------------------
+/*
+ * $PostgreSQL: pgsql/src/test/regress/regress.c,v 1.64 2005/10/15 02:49:51 momjian Exp $
  */
 
 #include "postgres.h"
 
-#include <float.h>
-#include <math.h>
-#include <signal.h>
+#include <float.h>				/* faked on sunos */
 
-#include "access/htup_details.h"
-#include "access/transam.h"
-#include "access/tuptoaster.h"
-#include "access/xact.h"
-#include "catalog/pg_type.h"
-#include "commands/sequence.h"
-#include "commands/trigger.h"
-#include "executor/executor.h"
-#include "executor/spi.h"
-#include "miscadmin.h"
-#include "port/atomics.h"
-#include "utils/builtins.h"
-#include "utils/geo_decls.h"
-#include "utils/rel.h"
-#include "utils/typcache.h"
-#include "utils/memutils.h"
-
+#include "utils/geo_decls.h"	/* includes <math.h> */
+#include "executor/executor.h"	/* For GetAttributeByName */
+#include "commands/sequence.h"	/* for nextval() */
 
 #define P_MAXDIG 12
 #define LDELIM			'('
 #define RDELIM			')'
 #define DELIM			','
 
+extern Datum regress_dist_ptpath(PG_FUNCTION_ARGS);
+extern Datum regress_path_dist(PG_FUNCTION_ARGS);
 extern PATH *poly2path(POLYGON *poly);
+extern Datum interpt_pp(PG_FUNCTION_ARGS);
 extern void regress_lseg_construct(LSEG *lseg, Point *pt1, Point *pt2);
-
-PG_MODULE_MAGIC;
+extern Datum overpaid(PG_FUNCTION_ARGS);
+extern Datum boxarea(PG_FUNCTION_ARGS);
+extern char *reverse_name(char *string);
+extern int	oldstyle_length(int n, text *t);
+extern Datum int44in(PG_FUNCTION_ARGS);
+extern Datum int44out(PG_FUNCTION_ARGS);
+extern Datum do_sleep(PG_FUNCTION_ARGS);
 
 
 /*
@@ -83,7 +63,7 @@ regress_dist_ptpath(PG_FUNCTION_ARGS)
 				regress_lseg_construct(&lseg, &path->p[i], &path->p[i + 1]);
 				tmp = DatumGetFloat8(DirectFunctionCall2(dist_ps,
 														 PointPGetDatum(pt),
-														 LsegPGetDatum(&lseg)));
+													  LsegPGetDatum(&lseg)));
 				if (i == 0 || tmp < result)
 					result = tmp;
 			}
@@ -208,6 +188,7 @@ regress_lseg_construct(LSEG *lseg, Point *pt1, Point *pt2)
 	lseg->p[0].y = pt1->y;
 	lseg->p[1].x = pt2->x;
 	lseg->p[1].y = pt2->y;
+	lseg->m = point_sl(pt1, pt2);
 }
 
 PG_FUNCTION_INFO_V1(overpaid);
@@ -234,50 +215,52 @@ typedef struct
 {
 	Point		center;
 	double		radius;
-} WIDGET;
+}	WIDGET;
 
-PG_FUNCTION_INFO_V1(widget_in);
-PG_FUNCTION_INFO_V1(widget_out);
+WIDGET	   *widget_in(char *str);
+char	   *widget_out(WIDGET * widget);
+extern Datum pt_in_widget(PG_FUNCTION_ARGS);
 
 #define NARGS	3
 
-Datum
-widget_in(PG_FUNCTION_ARGS)
+WIDGET *
+widget_in(char *str)
 {
-	char	   *str = PG_GETARG_CSTRING(0);
 	char	   *p,
-			   *coord[NARGS];
+			   *coord[NARGS],
+				buf2[1000];
 	int			i;
 	WIDGET	   *result;
 
+	if (str == NULL)
+		return NULL;
 	for (i = 0, p = str; *p && i < NARGS && *p != RDELIM; p++)
-	{
-		if (*p == DELIM || (*p == LDELIM && i == 0))
+		if (*p == ',' || (*p == LDELIM && !i))
 			coord[i++] = p + 1;
-	}
-
-	if (i < NARGS)
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-				 errmsg("invalid input syntax for type widget: \"%s\"",
-						str)));
-
+	if (i < NARGS - 1)
+		return NULL;
 	result = (WIDGET *) palloc(sizeof(WIDGET));
 	result->center.x = atof(coord[0]);
 	result->center.y = atof(coord[1]);
 	result->radius = atof(coord[2]);
 
-	PG_RETURN_POINTER(result);
+	snprintf(buf2, sizeof(buf2), "widget_in: read (%f, %f, %f)\n",
+			 result->center.x, result->center.y, result->radius);
+	return result;
 }
 
-Datum
-widget_out(PG_FUNCTION_ARGS)
+char *
+widget_out(WIDGET * widget)
 {
-	WIDGET	   *widget = (WIDGET *) PG_GETARG_POINTER(0);
-	char	   *str = psprintf("(%g,%g,%g)",
-							   widget->center.x, widget->center.y, widget->radius);
+	char	   *result;
 
-	PG_RETURN_CSTRING(str);
+	if (widget == NULL)
+		return NULL;
+
+	result = (char *) palloc(60);
+	sprintf(result, "(%g,%g,%g)",
+			widget->center.x, widget->center.y, widget->radius);
+	return result;
 }
 
 PG_FUNCTION_INFO_V1(pt_in_widget);
@@ -305,12 +288,9 @@ boxarea(PG_FUNCTION_ARGS)
 	PG_RETURN_FLOAT8(width * height);
 }
 
-PG_FUNCTION_INFO_V1(reverse_name);
-
-Datum
-reverse_name(PG_FUNCTION_ARGS)
+char *
+reverse_name(char *string)
 {
-	char	   *string = PG_GETARG_CSTRING(0);
 	int			i;
 	int			len;
 	char	   *new_string;
@@ -323,9 +303,26 @@ reverse_name(PG_FUNCTION_ARGS)
 	len = i;
 	for (; i >= 0; --i)
 		new_string[len - i] = string[i];
-	PG_RETURN_CSTRING(new_string);
+	return new_string;
 }
 
+/*
+ * This rather silly function is just to test that oldstyle functions
+ * work correctly on toast-able inputs.
+ */
+int
+oldstyle_length(int n, text *t)
+{
+	int			len = 0;
+
+	if (t)
+		len = VARSIZE(t) - VARHDRSZ;
+
+	return n + len;
+}
+
+#include "executor/spi.h"		/* this is what you need to work with SPI */
+#include "commands/trigger.h"	/* -"- and triggers */
 
 static TransactionId fd17b_xid = InvalidTransactionId;
 static TransactionId fd17a_xid = InvalidTransactionId;
@@ -333,6 +330,7 @@ static int	fd17b_level = 0;
 static int	fd17a_level = 0;
 static bool fd17b_recursion = true;
 static bool fd17a_recursion = true;
+extern Datum funny_dup17(PG_FUNCTION_ARGS);
 
 PG_FUNCTION_INFO_V1(funny_dup17);
 
@@ -350,7 +348,7 @@ funny_dup17(PG_FUNCTION_ARGS)
 			   *fieldval,
 			   *fieldtype;
 	char	   *when;
-	uint64		inserted;
+	int			inserted;
 	int			selected = 0;
 	int			ret;
 
@@ -424,14 +422,14 @@ funny_dup17(PG_FUNCTION_ARGS)
 	if (SPI_processed > 0)
 	{
 		selected = DatumGetInt32(DirectFunctionCall1(int4in,
-													 CStringGetDatum(SPI_getvalue(
-																				  SPI_tuptable->vals[0],
-																				  SPI_tuptable->tupdesc,
-																				  1
-																				  ))));
+												CStringGetDatum(SPI_getvalue(
+													   SPI_tuptable->vals[0],
+													   SPI_tuptable->tupdesc,
+																			 1
+																		))));
 	}
 
-	elog(DEBUG4, "funny_dup17 (fired %s) on level %3d: " UINT64_FORMAT "/%d tuples inserted/selected",
+	elog(DEBUG4, "funny_dup17 (fired %s) on level %3d: %d/%d tuples inserted/selected",
 		 when, *level, inserted, selected);
 
 	SPI_finish();
@@ -444,9 +442,12 @@ funny_dup17(PG_FUNCTION_ARGS)
 	return PointerGetDatum(tuple);
 }
 
+extern Datum ttdummy(PG_FUNCTION_ARGS);
+extern Datum set_ttdummy(PG_FUNCTION_ARGS);
+
 #define TTDUMMY_INFINITY	999999
 
-static SPIPlanPtr splan = NULL;
+static void *splan = NULL;
 static bool ttoff = false;
 
 PG_FUNCTION_INFO_V1(ttdummy);
@@ -477,12 +478,12 @@ ttdummy(PG_FUNCTION_ARGS)
 
 	if (!CALLED_AS_TRIGGER(fcinfo))
 		elog(ERROR, "ttdummy: not fired by trigger manager");
-	if (!TRIGGER_FIRED_FOR_ROW(trigdata->tg_event))
-		elog(ERROR, "ttdummy: must be fired for row");
-	if (!TRIGGER_FIRED_BEFORE(trigdata->tg_event))
+	if (TRIGGER_FIRED_FOR_STATEMENT(trigdata->tg_event))
+		elog(ERROR, "ttdummy: can't process STATEMENT events");
+	if (TRIGGER_FIRED_AFTER(trigdata->tg_event))
 		elog(ERROR, "ttdummy: must be fired before event");
 	if (TRIGGER_FIRED_BY_INSERT(trigdata->tg_event))
-		elog(ERROR, "ttdummy: cannot process INSERT event");
+		elog(ERROR, "ttdummy: can't process INSERT event");
 	if (TRIGGER_FIRED_BY_UPDATE(trigdata->tg_event))
 		newtuple = trigdata->tg_newtuple;
 
@@ -511,12 +512,11 @@ ttdummy(PG_FUNCTION_ARGS)
 	for (i = 0; i < 2; i++)
 	{
 		attnum[i] = SPI_fnumber(tupdesc, args[i]);
-		if (attnum[i] <= 0)
-			elog(ERROR, "ttdummy (%s): there is no attribute %s",
-				 relname, args[i]);
+		if (attnum[i] < 0)
+			elog(ERROR, "ttdummy (%s): there is no attribute %s", relname, args[i]);
 		if (SPI_gettypeid(tupdesc, attnum[i]) != INT4OID)
-			elog(ERROR, "ttdummy (%s): attribute %s must be of integer type",
-				 relname, args[i]);
+			elog(ERROR, "ttdummy (%s): attributes %s and %s must be of abstime type",
+				 relname, args[0], args[1]);
 	}
 
 	oldon = SPI_getbinval(trigtuple, tupdesc, attnum[0], &isnull);
@@ -537,10 +537,8 @@ ttdummy(PG_FUNCTION_ARGS)
 			elog(ERROR, "ttdummy (%s): %s must be NOT NULL", relname, args[1]);
 
 		if (oldon != newon || oldoff != newoff)
-			ereport(ERROR,
-					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-					 errmsg("ttdummy (%s): you cannot change %s and/or %s columns (use set_ttdummy)",
-							relname, args[0], args[1])));
+			elog(ERROR, "ttdummy (%s): you can't change %s and/or %s columns (use set_ttdummy)",
+				 relname, args[0], args[1]);
 
 		if (newoff != TTDUMMY_INFINITY)
 		{
@@ -548,15 +546,22 @@ ttdummy(PG_FUNCTION_ARGS)
 			return PointerGetDatum(NULL);
 		}
 	}
-	else if (oldoff != TTDUMMY_INFINITY)	/* DELETE */
+	else if (oldoff != TTDUMMY_INFINITY)		/* DELETE */
 	{
 		pfree(relname);
 		return PointerGetDatum(NULL);
 	}
 
-	newoff = DirectFunctionCall1(nextval, CStringGetTextDatum("ttdummy_seq"));
-	/* nextval now returns int64; coerce down to int32 */
-	newoff = Int32GetDatum((int32) DatumGetInt64(newoff));
+	{
+		text	   *seqname = DatumGetTextP(DirectFunctionCall1(textin,
+											CStringGetDatum("ttdummy_seq")));
+
+		newoff = DirectFunctionCall1(nextval,
+									 PointerGetDatum(seqname));
+		/* nextval now returns int64; coerce down to int32 */
+		newoff = Int32GetDatum((int32) DatumGetInt64(newoff));
+		pfree(seqname);
+	}
 
 	/* Connect to SPI manager */
 	if ((ret = SPI_connect()) < 0)
@@ -577,7 +582,7 @@ ttdummy(PG_FUNCTION_ARGS)
 	{
 		cvals[attnum[0] - 1] = newoff;	/* start_date eq current date */
 		cnulls[attnum[0] - 1] = ' ';
-		cvals[attnum[1] - 1] = TTDUMMY_INFINITY;	/* stop_date eq INFINITY */
+		cvals[attnum[1] - 1] = TTDUMMY_INFINITY;		/* stop_date eq INFINITY */
 		cnulls[attnum[1] - 1] = ' ';
 	}
 	else
@@ -590,7 +595,7 @@ ttdummy(PG_FUNCTION_ARGS)
 	/* if there is no plan ... */
 	if (splan == NULL)
 	{
-		SPIPlanPtr	pplan;
+		void	   *pplan;
 		Oid		   *ctypes;
 		char	   *query;
 
@@ -612,10 +617,11 @@ ttdummy(PG_FUNCTION_ARGS)
 		/* Prepare plan for query */
 		pplan = SPI_prepare(query, natts, ctypes);
 		if (pplan == NULL)
-			elog(ERROR, "ttdummy (%s): SPI_prepare returned %s", relname, SPI_result_code_string(SPI_result));
+			elog(ERROR, "ttdummy (%s): SPI_prepare returned %d", relname, SPI_result);
 
-		if (SPI_keepplan(pplan))
-			elog(ERROR, "ttdummy (%s): SPI_keepplan failed", relname);
+		pplan = SPI_saveplan(pplan);
+		if (pplan == NULL)
+			elog(ERROR, "ttdummy (%s): SPI_saveplan returned %d", relname, SPI_result);
 
 		splan = pplan;
 	}
@@ -627,8 +633,15 @@ ttdummy(PG_FUNCTION_ARGS)
 
 	/* Tuple to return to upper Executor ... */
 	if (newtuple)				/* UPDATE */
-		rettuple = SPI_modifytuple(rel, trigtuple, 1, &(attnum[1]), &newoff, NULL);
-	else						/* DELETE */
+	{
+		HeapTuple	tmptuple;
+
+		tmptuple = SPI_copytuple(trigtuple);
+		rettuple = SPI_modifytuple(rel, tmptuple, 1, &(attnum[1]), &newoff, NULL);
+		SPI_freetuple(tmptuple);
+	}
+	else
+		/* DELETE */
 		rettuple = trigtuple;
 
 	SPI_finish();				/* don't forget say Bye to SPI mgr */
@@ -706,7 +719,8 @@ Datum
 int44out(PG_FUNCTION_ARGS)
 {
 	int32	   *an_array = (int32 *) PG_GETARG_POINTER(0);
-	char	   *result = (char *) palloc(16 * 4);	/* Allow 14 digits + sign */
+	char	   *result = (char *) palloc(16 * 4);		/* Allow 14 digits +
+														 * sign */
 	int			i;
 	char	   *walk;
 
@@ -722,384 +736,17 @@ int44out(PG_FUNCTION_ARGS)
 	PG_RETURN_CSTRING(result);
 }
 
-PG_FUNCTION_INFO_V1(make_tuple_indirect);
-Datum
-make_tuple_indirect(PG_FUNCTION_ARGS)
-{
-	HeapTupleHeader rec = PG_GETARG_HEAPTUPLEHEADER(0);
-	HeapTupleData tuple;
-	int			ncolumns;
-	Datum	   *values;
-	bool	   *nulls;
-
-	Oid			tupType;
-	int32		tupTypmod;
-	TupleDesc	tupdesc;
-
-	HeapTuple	newtup;
-
-	int			i;
-
-	MemoryContext old_context;
-
-	/* Extract type info from the tuple itself */
-	tupType = HeapTupleHeaderGetTypeId(rec);
-	tupTypmod = HeapTupleHeaderGetTypMod(rec);
-	tupdesc = lookup_rowtype_tupdesc(tupType, tupTypmod);
-	ncolumns = tupdesc->natts;
-
-	/* Build a temporary HeapTuple control structure */
-	tuple.t_len = HeapTupleHeaderGetDatumLength(rec);
-	ItemPointerSetInvalid(&(tuple.t_self));
-	tuple.t_tableOid = InvalidOid;
-	tuple.t_data = rec;
-
-	values = (Datum *) palloc(ncolumns * sizeof(Datum));
-	nulls = (bool *) palloc(ncolumns * sizeof(bool));
-
-	heap_deform_tuple(&tuple, tupdesc, values, nulls);
-
-	old_context = MemoryContextSwitchTo(TopTransactionContext);
-
-	for (i = 0; i < ncolumns; i++)
-	{
-		struct varlena *attr;
-		struct varlena *new_attr;
-		struct varatt_indirect redirect_pointer;
-
-		/* only work on existing, not-null varlenas */
-		if (TupleDescAttr(tupdesc, i)->attisdropped ||
-			nulls[i] ||
-			TupleDescAttr(tupdesc, i)->attlen != -1)
-			continue;
-
-		attr = (struct varlena *) DatumGetPointer(values[i]);
-
-		/* don't recursively indirect */
-		if (VARATT_IS_EXTERNAL_INDIRECT(attr))
-			continue;
-
-		/* copy datum, so it still lives later */
-		if (VARATT_IS_EXTERNAL_ONDISK(attr))
-			attr = heap_tuple_fetch_attr(attr);
-		else
-		{
-			struct varlena *oldattr = attr;
-
-			attr = palloc0(VARSIZE_ANY(oldattr));
-			memcpy(attr, oldattr, VARSIZE_ANY(oldattr));
-		}
-
-		/* build indirection Datum */
-		new_attr = (struct varlena *) palloc0(INDIRECT_POINTER_SIZE);
-		redirect_pointer.pointer = attr;
-		SET_VARTAG_EXTERNAL(new_attr, VARTAG_INDIRECT);
-		memcpy(VARDATA_EXTERNAL(new_attr), &redirect_pointer,
-			   sizeof(redirect_pointer));
-
-		values[i] = PointerGetDatum(new_attr);
-	}
-
-	newtup = heap_form_tuple(tupdesc, values, nulls);
-	pfree(values);
-	pfree(nulls);
-	ReleaseTupleDesc(tupdesc);
-
-	MemoryContextSwitchTo(old_context);
-
-	/*
-	 * We intentionally don't use PG_RETURN_HEAPTUPLEHEADER here, because that
-	 * would cause the indirect toast pointers to be flattened out of the
-	 * tuple immediately, rendering subsequent testing irrelevant.  So just
-	 * return the HeapTupleHeader pointer as-is.  This violates the general
-	 * rule that composite Datums shouldn't contain toast pointers, but so
-	 * long as the regression test scripts don't insert the result of this
-	 * function into a container type (record, array, etc) it should be OK.
-	 */
-	PG_RETURN_POINTER(newtup->t_data);
-}
-
-PG_FUNCTION_INFO_V1(regress_putenv);
+/*
+ * do_sleep - delay for N seconds
+ */
+PG_FUNCTION_INFO_V1(do_sleep);
 
 Datum
-regress_putenv(PG_FUNCTION_ARGS)
+do_sleep(PG_FUNCTION_ARGS)
 {
-	MemoryContext oldcontext;
-	char	   *envbuf;
+	int32		secs = PG_GETARG_INT32(0);
 
-	if (!superuser())
-		elog(ERROR, "must be superuser to change environment variables");
-
-	oldcontext = MemoryContextSwitchTo(TopMemoryContext);
-	envbuf = text_to_cstring((text *) PG_GETARG_POINTER(0));
-	MemoryContextSwitchTo(oldcontext);
-
-	if (putenv(envbuf) != 0)
-		elog(ERROR, "could not set environment variable: %m");
+	pg_usleep(secs * 1000000L);
 
 	PG_RETURN_VOID();
-}
-
-/* Sleep until no process has a given PID. */
-PG_FUNCTION_INFO_V1(wait_pid);
-
-Datum
-wait_pid(PG_FUNCTION_ARGS)
-{
-	int			pid = PG_GETARG_INT32(0);
-
-	if (!superuser())
-		elog(ERROR, "must be superuser to check PID liveness");
-
-	while (kill(pid, 0) == 0)
-	{
-		CHECK_FOR_INTERRUPTS();
-		pg_usleep(50000);
-	}
-
-	if (errno != ESRCH)
-		elog(ERROR, "could not check PID %d liveness: %m", pid);
-
-	PG_RETURN_VOID();
-}
-
-#ifndef PG_HAVE_ATOMIC_FLAG_SIMULATION
-static void
-test_atomic_flag(void)
-{
-	pg_atomic_flag flag;
-
-	pg_atomic_init_flag(&flag);
-
-	if (!pg_atomic_unlocked_test_flag(&flag))
-		elog(ERROR, "flag: unexpectedly set");
-
-	if (!pg_atomic_test_set_flag(&flag))
-		elog(ERROR, "flag: couldn't set");
-
-	if (pg_atomic_unlocked_test_flag(&flag))
-		elog(ERROR, "flag: unexpectedly unset");
-
-	if (pg_atomic_test_set_flag(&flag))
-		elog(ERROR, "flag: set spuriously #2");
-
-	pg_atomic_clear_flag(&flag);
-
-	if (!pg_atomic_unlocked_test_flag(&flag))
-		elog(ERROR, "flag: unexpectedly set #2");
-
-	if (!pg_atomic_test_set_flag(&flag))
-		elog(ERROR, "flag: couldn't set");
-
-	pg_atomic_clear_flag(&flag);
-}
-#endif							/* PG_HAVE_ATOMIC_FLAG_SIMULATION */
-
-static void
-test_atomic_uint32(void)
-{
-	pg_atomic_uint32 var;
-	uint32		expected;
-	int			i;
-
-	pg_atomic_init_u32(&var, 0);
-
-	if (pg_atomic_read_u32(&var) != 0)
-		elog(ERROR, "atomic_read_u32() #1 wrong");
-
-	pg_atomic_write_u32(&var, 3);
-
-	if (pg_atomic_read_u32(&var) != 3)
-		elog(ERROR, "atomic_read_u32() #2 wrong");
-
-	if (pg_atomic_fetch_add_u32(&var, 1) != 3)
-		elog(ERROR, "atomic_fetch_add_u32() #1 wrong");
-
-	if (pg_atomic_fetch_sub_u32(&var, 1) != 4)
-		elog(ERROR, "atomic_fetch_sub_u32() #1 wrong");
-
-	if (pg_atomic_sub_fetch_u32(&var, 3) != 0)
-		elog(ERROR, "atomic_sub_fetch_u32() #1 wrong");
-
-	if (pg_atomic_add_fetch_u32(&var, 10) != 10)
-		elog(ERROR, "atomic_add_fetch_u32() #1 wrong");
-
-	if (pg_atomic_exchange_u32(&var, 5) != 10)
-		elog(ERROR, "pg_atomic_exchange_u32() #1 wrong");
-
-	if (pg_atomic_exchange_u32(&var, 0) != 5)
-		elog(ERROR, "pg_atomic_exchange_u32() #0 wrong");
-
-	/* test around numerical limits */
-	if (pg_atomic_fetch_add_u32(&var, INT_MAX) != 0)
-		elog(ERROR, "pg_atomic_fetch_add_u32() #2 wrong");
-
-	if (pg_atomic_fetch_add_u32(&var, INT_MAX) != INT_MAX)
-		elog(ERROR, "pg_atomic_add_fetch_u32() #3 wrong");
-
-	pg_atomic_fetch_add_u32(&var, 1);	/* top up to UINT_MAX */
-
-	if (pg_atomic_read_u32(&var) != UINT_MAX)
-		elog(ERROR, "atomic_read_u32() #2 wrong");
-
-	if (pg_atomic_fetch_sub_u32(&var, INT_MAX) != UINT_MAX)
-		elog(ERROR, "pg_atomic_fetch_sub_u32() #2 wrong");
-
-	if (pg_atomic_read_u32(&var) != (uint32) INT_MAX + 1)
-		elog(ERROR, "atomic_read_u32() #3 wrong: %u", pg_atomic_read_u32(&var));
-
-	expected = pg_atomic_sub_fetch_u32(&var, INT_MAX);
-	if (expected != 1)
-		elog(ERROR, "pg_atomic_sub_fetch_u32() #3 wrong: %u", expected);
-
-	pg_atomic_sub_fetch_u32(&var, 1);
-
-	/* fail exchange because of old expected */
-	expected = 10;
-	if (pg_atomic_compare_exchange_u32(&var, &expected, 1))
-		elog(ERROR, "atomic_compare_exchange_u32() changed value spuriously");
-
-	/* CAS is allowed to fail due to interrupts, try a couple of times */
-	for (i = 0; i < 1000; i++)
-	{
-		expected = 0;
-		if (!pg_atomic_compare_exchange_u32(&var, &expected, 1))
-			break;
-	}
-	if (i == 1000)
-		elog(ERROR, "atomic_compare_exchange_u32() never succeeded");
-	if (pg_atomic_read_u32(&var) != 1)
-		elog(ERROR, "atomic_compare_exchange_u32() didn't set value properly");
-
-	pg_atomic_write_u32(&var, 0);
-
-	/* try setting flagbits */
-	if (pg_atomic_fetch_or_u32(&var, 1) & 1)
-		elog(ERROR, "pg_atomic_fetch_or_u32() #1 wrong");
-
-	if (!(pg_atomic_fetch_or_u32(&var, 2) & 1))
-		elog(ERROR, "pg_atomic_fetch_or_u32() #2 wrong");
-
-	if (pg_atomic_read_u32(&var) != 3)
-		elog(ERROR, "invalid result after pg_atomic_fetch_or_u32()");
-
-	/* try clearing flagbits */
-	if ((pg_atomic_fetch_and_u32(&var, ~2) & 3) != 3)
-		elog(ERROR, "pg_atomic_fetch_and_u32() #1 wrong");
-
-	if (pg_atomic_fetch_and_u32(&var, ~1) != 1)
-		elog(ERROR, "pg_atomic_fetch_and_u32() #2 wrong: is %u",
-			 pg_atomic_read_u32(&var));
-	/* no bits set anymore */
-	if (pg_atomic_fetch_and_u32(&var, ~0) != 0)
-		elog(ERROR, "pg_atomic_fetch_and_u32() #3 wrong");
-}
-
-static void
-test_atomic_uint64(void)
-{
-	pg_atomic_uint64 var;
-	uint64		expected;
-	int			i;
-
-	pg_atomic_init_u64(&var, 0);
-
-	if (pg_atomic_read_u64(&var) != 0)
-		elog(ERROR, "atomic_read_u64() #1 wrong");
-
-	pg_atomic_write_u64(&var, 3);
-
-	if (pg_atomic_read_u64(&var) != 3)
-		elog(ERROR, "atomic_read_u64() #2 wrong");
-
-	if (pg_atomic_fetch_add_u64(&var, 1) != 3)
-		elog(ERROR, "atomic_fetch_add_u64() #1 wrong");
-
-	if (pg_atomic_fetch_sub_u64(&var, 1) != 4)
-		elog(ERROR, "atomic_fetch_sub_u64() #1 wrong");
-
-	if (pg_atomic_sub_fetch_u64(&var, 3) != 0)
-		elog(ERROR, "atomic_sub_fetch_u64() #1 wrong");
-
-	if (pg_atomic_add_fetch_u64(&var, 10) != 10)
-		elog(ERROR, "atomic_add_fetch_u64() #1 wrong");
-
-	if (pg_atomic_exchange_u64(&var, 5) != 10)
-		elog(ERROR, "pg_atomic_exchange_u64() #1 wrong");
-
-	if (pg_atomic_exchange_u64(&var, 0) != 5)
-		elog(ERROR, "pg_atomic_exchange_u64() #0 wrong");
-
-	/* fail exchange because of old expected */
-	expected = 10;
-	if (pg_atomic_compare_exchange_u64(&var, &expected, 1))
-		elog(ERROR, "atomic_compare_exchange_u64() changed value spuriously");
-
-	/* CAS is allowed to fail due to interrupts, try a couple of times */
-	for (i = 0; i < 100; i++)
-	{
-		expected = 0;
-		if (!pg_atomic_compare_exchange_u64(&var, &expected, 1))
-			break;
-	}
-	if (i == 100)
-		elog(ERROR, "atomic_compare_exchange_u64() never succeeded");
-	if (pg_atomic_read_u64(&var) != 1)
-		elog(ERROR, "atomic_compare_exchange_u64() didn't set value properly");
-
-	pg_atomic_write_u64(&var, 0);
-
-	/* try setting flagbits */
-	if (pg_atomic_fetch_or_u64(&var, 1) & 1)
-		elog(ERROR, "pg_atomic_fetch_or_u64() #1 wrong");
-
-	if (!(pg_atomic_fetch_or_u64(&var, 2) & 1))
-		elog(ERROR, "pg_atomic_fetch_or_u64() #2 wrong");
-
-	if (pg_atomic_read_u64(&var) != 3)
-		elog(ERROR, "invalid result after pg_atomic_fetch_or_u64()");
-
-	/* try clearing flagbits */
-	if ((pg_atomic_fetch_and_u64(&var, ~2) & 3) != 3)
-		elog(ERROR, "pg_atomic_fetch_and_u64() #1 wrong");
-
-	if (pg_atomic_fetch_and_u64(&var, ~1) != 1)
-		elog(ERROR, "pg_atomic_fetch_and_u64() #2 wrong: is " UINT64_FORMAT,
-			 pg_atomic_read_u64(&var));
-	/* no bits set anymore */
-	if (pg_atomic_fetch_and_u64(&var, ~0) != 0)
-		elog(ERROR, "pg_atomic_fetch_and_u64() #3 wrong");
-}
-
-
-PG_FUNCTION_INFO_V1(test_atomic_ops);
-Datum
-test_atomic_ops(PG_FUNCTION_ARGS)
-{
-	/* ---
-	 * Can't run the test under the semaphore emulation, it doesn't handle
-	 * checking two edge cases well:
-	 * - pg_atomic_unlocked_test_flag() always returns true
-	 * - locking a already locked flag blocks
-	 * it seems better to not test the semaphore fallback here, than weaken
-	 * the checks for the other cases. The semaphore code will be the same
-	 * everywhere, whereas the efficient implementations wont.
-	 * ---
-	 */
-#ifndef PG_HAVE_ATOMIC_FLAG_SIMULATION
-	test_atomic_flag();
-#endif
-
-	test_atomic_uint32();
-
-	test_atomic_uint64();
-
-	PG_RETURN_BOOL(true);
-}
-
-PG_FUNCTION_INFO_V1(test_fdw_handler);
-Datum
-test_fdw_handler(PG_FUNCTION_ARGS)
-{
-	PG_RETURN_NULL();
 }

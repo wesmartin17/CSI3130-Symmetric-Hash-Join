@@ -4,10 +4,10 @@
  *	  POSTGRES disk "offset" definitions.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/storage/off.h
+ * $PostgreSQL: pgsql/src/include/storage/off.h,v 1.19 2004/12/31 22:03:42 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -26,7 +26,7 @@ typedef uint16 OffsetNumber;
 #define InvalidOffsetNumber		((OffsetNumber) 0)
 #define FirstOffsetNumber		((OffsetNumber) 1)
 #define MaxOffsetNumber			((OffsetNumber) (BLCKSZ / sizeof(ItemIdData)))
-#define OffsetNumberMask		(0xffff)	/* valid uint16 bits */
+#define OffsetNumberMask		(0xffff)		/* valid uint16 bits */
 
 /* ----------------
  *		support macros
@@ -55,4 +55,4 @@ typedef uint16 OffsetNumber;
 #define OffsetNumberPrev(offsetNumber) \
 	((OffsetNumber) (-1 + (offsetNumber)))
 
-#endif							/* OFF_H */
+#endif   /* OFF_H */

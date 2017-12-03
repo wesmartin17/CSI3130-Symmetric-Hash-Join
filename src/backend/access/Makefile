@@ -1,14 +1,30 @@
 #
 # Makefile for the access methods module
 #
-# src/backend/access/Makefile
+# $PostgreSQL: pgsql/src/backend/access/Makefile,v 1.9 2003/11/29 19:51:39 pgsql Exp $
 #
 
 subdir = src/backend/access
 top_builddir = ../../..
 include $(top_builddir)/src/Makefile.global
 
-SUBDIRS	    = brin common gin gist hash heap index nbtree rmgrdesc spgist \
-			  tablesample transam
+SUBDIRS	    := common gist hash heap index nbtree rtree transam
+SUBDIROBJS  := $(SUBDIRS:%=%/SUBSYS.o)
 
-include $(top_srcdir)/src/backend/common.mk
+all: SUBSYS.o
+
+SUBSYS.o: $(SUBDIROBJS)
+	$(LD) $(LDREL) $(LDOUT) $@ $^
+
+$(SUBDIROBJS): $(SUBDIRS:%=%-recursive) ;
+
+.PHONY: $(SUBDIRS:%=%-recursive)
+$(SUBDIRS:%=%-recursive):
+	$(MAKE) -C $(subst -recursive,,$@) SUBSYS.o
+
+clean:
+	for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@ || exit; done
+	rm -f SUBSYS.o
+
+dep depend:
+	for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@ || exit; done

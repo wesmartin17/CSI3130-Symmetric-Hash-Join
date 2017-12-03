@@ -1,4 +1,4 @@
-/*	contrib/pgcrypto/sha1.h */
+/*	$PostgreSQL: pgsql/contrib/pgcrypto/sha1.h,v 1.9 2003/11/29 22:39:28 pgsql Exp $ */
 /*	   $KAME: sha1.h,v 1.4 2000/02/22 14:01:18 itojun Exp $    */
 
 /*
@@ -20,7 +20,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -31,7 +31,7 @@
  */
 /*
  * FIPS pub 180-1: Secure Hash Algorithm (SHA-1)
- * based on: http://www.itl.nist.gov/fipspubs/fip180-1.htm
+ * based on: http://csrc.nist.gov/fips/fip180-1.txt
  * implemented by Jun-ichiro itojun Itoh <itojun@itojun.org>
  */
 
@@ -63,7 +63,7 @@ extern void sha1_pad(struct sha1_ctxt *);
 extern void sha1_loop(struct sha1_ctxt *, const uint8 *, size_t);
 extern void sha1_result(struct sha1_ctxt *, uint8 *);
 
-/* compatibility with other SHA1 source codes */
+/* compatibilty with other SHA1 source codes */
 typedef struct sha1_ctxt SHA1_CTX;
 
 #define SHA1Init(x)		sha1_init((x))
@@ -72,4 +72,4 @@ typedef struct sha1_ctxt SHA1_CTX;
 
 #define SHA1_RESULTLEN	(160/8)
 
-#endif							/* _NETINET6_SHA1_H_ */
+#endif   /* _NETINET6_SHA1_H_ */

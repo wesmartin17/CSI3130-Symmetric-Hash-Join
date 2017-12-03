@@ -1,49 +1,64 @@
 /*
  * psql - the PostgreSQL interactive terminal
  *
- * Copyright (c) 2000-2017, PostgreSQL Global Development Group
+ * Copyright (c) 2000-2005, PostgreSQL Global Development Group
  *
- * src/bin/psql/common.h
+ * $PostgreSQL: pgsql/src/bin/psql/common.h,v 1.45 2005/10/15 02:49:40 momjian Exp $
  */
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <setjmp.h>
-
+#include "postgres_fe.h"
+#include <signal.h>
+#include "pqsignal.h"
 #include "libpq-fe.h"
-#include "fe_utils/print.h"
-#include "fe_utils/psqlscan.h"
 
-extern bool openQueryOutputFile(const char *fname, FILE **fout, bool *is_pipe);
+#ifdef USE_ASSERT_CHECKING
+#include <assert.h>
+#define psql_assert(p) assert(p)
+#else
+#define psql_assert(p)
+#endif
+
+#define atooid(x)  ((Oid) strtoul((x), NULL, 10))
+
+/*
+ * Safer versions of some standard C library functions. If an
+ * out-of-memory condition occurs, these functions will bail out
+ * safely; therefore, their return value is guaranteed to be non-NULL.
+ */
+extern char *pg_strdup(const char *string);
+extern void *pg_malloc(size_t size);
+extern void *pg_malloc_zero(size_t size);
+extern void *pg_calloc(size_t nmemb, size_t size);
+
 extern bool setQFout(const char *fname);
 
-extern char *psql_get_variable(const char *varname, PsqlScanQuoteType quote,
-				  void *passthrough);
-
-extern void psql_error(const char *fmt,...) pg_attribute_printf(1, 2);
+extern void
+psql_error(const char *fmt,...)
+/* This lets gcc check the format string for consistency. */
+__attribute__((format(printf, 1, 2)));
 
 extern void NoticeProcessor(void *arg, const char *message);
 
-extern volatile bool sigint_interrupt_enabled;
+extern volatile bool cancel_pressed;
 
-extern sigjmp_buf sigint_interrupt_jmp;
-
-extern void setup_cancel_handler(void);
-
-extern void SetCancelConn(void);
 extern void ResetCancelConn(void);
 
-extern PGresult *PSQLexec(const char *query);
-extern int	PSQLexecWatch(const char *query, const printQueryOpt *opt);
+#ifndef WIN32
+extern void handle_sigint(SIGNAL_ARGS);
+#else
+extern void setup_win32_locks(void);
+extern void setup_cancel_handler(void);
+#endif
+
+extern PGresult *PSQLexec(const char *query, bool start_xact);
 
 extern bool SendQuery(const char *query);
 
 extern bool is_superuser(void);
-extern bool standard_strings(void);
 extern const char *session_username(void);
 
-extern void expand_tilde(char **filename);
+extern char *expand_tilde(char **filename);
 
-extern bool recognized_connection_string(const char *connstr);
-
-#endif							/* COMMON_H */
+#endif   /* COMMON_H */

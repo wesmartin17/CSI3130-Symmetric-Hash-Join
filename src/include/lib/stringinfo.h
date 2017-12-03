@@ -7,10 +7,10 @@
  * It can be used to buffer either ordinary C strings (null-terminated text)
  * or arbitrary binary data.  All storage is allocated with palloc().
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/lib/stringinfo.h
+ * $PostgreSQL: pgsql/src/include/lib/stringinfo.h,v 1.31 2004/12/31 22:03:31 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -60,7 +60,7 @@ typedef StringInfoData *StringInfo;
  *
  * NOTE: some routines build up a string using StringInfo, and then
  * release the StringInfoData but return the data string itself to their
- * caller.  At that point the data string looks like a plain palloc'd
+ * caller.	At that point the data string looks like a plain palloc'd
  * string.
  *-------------------------
  */
@@ -79,31 +79,26 @@ extern StringInfo makeStringInfo(void);
 extern void initStringInfo(StringInfo str);
 
 /*------------------------
- * resetStringInfo
- * Clears the current content of the StringInfo, if any. The
- * StringInfo remains valid.
- */
-extern void resetStringInfo(StringInfo str);
-
-/*------------------------
  * appendStringInfo
  * Format text data under the control of fmt (an sprintf-style format string)
  * and append it to whatever is already in str.  More space is allocated
  * to str if necessary.  This is sort of like a combination of sprintf and
  * strcat.
  */
-extern void appendStringInfo(StringInfo str, const char *fmt,...) pg_attribute_printf(2, 3);
+extern void
+appendStringInfo(StringInfo str, const char *fmt,...)
+/* This extension allows gcc to check the format string */
+__attribute__((format(printf, 2, 3)));
 
 /*------------------------
  * appendStringInfoVA
  * Attempt to format text data under the control of fmt (an sprintf-style
- * format string) and append it to whatever is already in str.  If successful
- * return zero; if not (because there's not enough space), return an estimate
- * of the space needed, without modifying str.  Typically the caller should
- * pass the return value to enlargeStringInfo() before trying again; see
- * appendStringInfo for standard usage pattern.
+ * format string) and append it to whatever is already in str.	If successful
+ * return true; if not (because there's not enough space), return false
+ * without modifying str.  Typically the caller would enlarge str and retry
+ * on false return --- see appendStringInfo for standard usage pattern.
  */
-extern int	appendStringInfoVA(StringInfo str, const char *fmt, va_list args) pg_attribute_printf(2, 0);
+extern bool appendStringInfoVA(StringInfo str, const char *fmt, va_list args);
 
 /*------------------------
  * appendStringInfoString
@@ -130,12 +125,6 @@ extern void appendStringInfoChar(StringInfo str, char ch);
 	 (void)((str)->data[(str)->len] = (ch), (str)->data[++(str)->len] = '\0'))
 
 /*------------------------
- * appendStringInfoSpaces
- * Append a given number of spaces to str.
- */
-extern void appendStringInfoSpaces(StringInfo str, int count);
-
-/*------------------------
  * appendBinaryStringInfo
  * Append arbitrary binary data to a StringInfo, allocating more space
  * if necessary.
@@ -144,17 +133,9 @@ extern void appendBinaryStringInfo(StringInfo str,
 					   const char *data, int datalen);
 
 /*------------------------
- * appendBinaryStringInfoNT
- * Append arbitrary binary data to a StringInfo, allocating more space
- * if necessary. Does not ensure a trailing null-byte exists.
- */
-extern void appendBinaryStringInfoNT(StringInfo str,
-					   const char *data, int datalen);
-
-/*------------------------
  * enlargeStringInfo
  * Make sure a StringInfo's buffer can hold at least 'needed' more bytes.
  */
 extern void enlargeStringInfo(StringInfo str, int needed);
 
-#endif							/* STRINGINFO_H */
+#endif   /* STRINGINFO_H */

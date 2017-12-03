@@ -1,9 +1,6 @@
 #!/bin/sh
-
 # This script attempts to find bad ifdef's, i.e. ifdef's that use braces
 # but not the do { ... } while (0) syntax
-#
-# src/tools/find_badmacros
 #
 # This is useful for running before pgindent
 
@@ -20,3 +17,4 @@ do
 				}' "$FILE"
 	grep -on '^#define.*{' "$FILE" | grep -v 'do[ 	]*{'
 done
+

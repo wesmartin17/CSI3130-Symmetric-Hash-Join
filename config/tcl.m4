@@ -1,14 +1,10 @@
-# config/tcl.m4
+# $PostgreSQL: pgsql/config/tcl.m4,v 1.5 2003/11/29 19:51:17 pgsql Exp $
 
 # Autoconf macros to check for Tcl related things
 
 
 AC_DEFUN([PGAC_PATH_TCLSH],
-[PGAC_PATH_PROGS(TCLSH, [tclsh tcl tclsh8.6 tclsh86 tclsh8.5 tclsh85 tclsh8.4 tclsh84])
-if test x"$TCLSH" = x""; then
-  AC_MSG_ERROR([Tcl shell not found])
-fi
-])
+         [AC_PATH_PROGS(TCLSH, [tclsh tcl])])
 
 
 # PGAC_PATH_TCLCONFIGSH([SEARCH-PATH])

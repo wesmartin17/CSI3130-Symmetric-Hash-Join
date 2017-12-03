@@ -1,16 +1,11 @@
 <!--
-doc/src/sgml/ref/drop_language.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/drop_language.sgml,v 1.21 2003/11/29 19:51:38 pgsql Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-droplanguage">
- <indexterm zone="sql-droplanguage">
-  <primary>DROP LANGUAGE</primary>
- </indexterm>
-
+<refentry id="SQL-DROPLANGUAGE">
  <refmeta>
-  <refentrytitle>DROP LANGUAGE</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="SQL-DROPLANGUAGE-TITLE">DROP LANGUAGE</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -19,9 +14,13 @@ PostgreSQL documentation
   <refpurpose>remove a procedural language</refpurpose>
  </refnamediv>
 
+ <indexterm zone="sql-droplanguage">
+  <primary>DROP LANGUAGE</primary>
+ </indexterm>
+
  <refsynopsisdiv>
 <synopsis>
-DROP [ PROCEDURAL ] LANGUAGE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [ CASCADE | RESTRICT ]
+DROP [ PROCEDURAL ] LANGUAGE <replaceable class="PARAMETER">name</replaceable> [ CASCADE | RESTRICT ]
 </synopsis>
  </refsynopsisdiv>
 
@@ -29,42 +28,22 @@ DROP [ PROCEDURAL ] LANGUAGE [ IF EXISTS ] <replaceable class="parameter">name</
   <title>Description</title>
 
   <para>
-   <command>DROP LANGUAGE</command> removes the definition of a
-   previously registered procedural language.  You must be a superuser
-   or the owner of the language to use <command>DROP LANGUAGE</command>.
+   <command>DROP LANGUAGE</command> will remove the definition
+   of the previously registered procedural language called
+   <replaceable class="parameter">name</replaceable>.
   </para>
-
-  <note>
-   <para>
-    As of <productname>PostgreSQL</productname> 9.1, most procedural
-    languages have been made into <quote>extensions</quote>, and should
-    therefore be removed with <xref linkend="sql-dropextension"/>
-    not <command>DROP LANGUAGE</command>.
-   </para>
-  </note>
  </refsect1>
-
+  
  <refsect1>
   <title>Parameters</title>
 
   <variablelist>
-
    <varlistentry>
-    <term><literal>IF EXISTS</literal></term>
-    <listitem>
-     <para>
-      Do not throw an error if the language does not exist. A notice is issued
-      in this case.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">name</replaceable></term>
+    <term><replaceable class="PARAMETER">name</replaceable></term>
     <listitem>
      <para>
       The name of an existing procedural language.  For backward
-      compatibility, the name can be enclosed by single quotes.
+      compatibility, the name may be enclosed by single quotes.
      </para>
     </listitem>
    </varlistentry>
@@ -74,9 +53,7 @@ DROP [ PROCEDURAL ] LANGUAGE [ IF EXISTS ] <replaceable class="parameter">name</
     <listitem>
      <para>
       Automatically drop objects that depend on the language (such as
-      functions in the language),
-      and in turn all objects that depend on those objects
-      (see <xref linkend="ddl-depend"/>).
+      functions in the language).
      </para>
     </listitem>
    </varlistentry>
@@ -92,7 +69,7 @@ DROP [ PROCEDURAL ] LANGUAGE [ IF EXISTS ] <replaceable class="parameter">name</
    </varlistentry>
   </variablelist>
  </refsect1>
-
+  
  <refsect1>
   <title>Examples</title>
 
@@ -102,9 +79,10 @@ DROP [ PROCEDURAL ] LANGUAGE [ IF EXISTS ] <replaceable class="parameter">name</
 
 <programlisting>
 DROP LANGUAGE plsample;
-</programlisting></para>
+</programlisting>
+  </para>
  </refsect1>
-
+ 
  <refsect1>
   <title>Compatibility</title>
 
@@ -118,9 +96,27 @@ DROP LANGUAGE plsample;
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-alterlanguage"/></member>
-   <member><xref linkend="sql-createlanguage"/></member>
+   <member><xref linkend="sql-alterlanguage" endterm="sql-alterlanguage-title"></member>
+   <member><xref linkend="sql-createlanguage" endterm="sql-createlanguage-title"></member>
+   <member><xref linkend="app-droplang"></member>
   </simplelist>
  </refsect1>
 
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

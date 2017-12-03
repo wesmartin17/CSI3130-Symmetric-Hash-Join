@@ -5,7 +5,6 @@
 --  - CHECK clauses
 --  - PRIMARY KEY clauses
 --  - UNIQUE clauses
---  - EXCLUDE clauses
 --
 
 --
@@ -87,7 +86,7 @@ CREATE SEQUENCE INSERT_SEQ;
 CREATE TABLE INSERT_TBL (x INT DEFAULT nextval('insert_seq'),
 	y TEXT DEFAULT '-NULL-',
 	z INT DEFAULT -1 * currval('insert_seq'),
-	CONSTRAINT INSERT_TBL_CON CHECK (x >= 3 AND y <> 'check failed' AND x < 8),
+	CONSTRAINT INSERT_CON CHECK (x >= 3 AND y <> 'check failed' AND x < 8),
 	CHECK (x + z = 0));
 
 INSERT INTO INSERT_TBL(x,z) VALUES (2, -2);
@@ -119,34 +118,12 @@ INSERT INTO INSERT_TBL(y) VALUES ('Y');
 
 SELECT 'eight' AS one, currval('insert_seq');
 
--- According to SQL, it is OK to insert a record that gives rise to NULL
+-- According to SQL92, it is OK to insert a record that gives rise to NULL
 -- constraint-condition results.  Postgres used to reject this, but it
 -- was wrong:
 INSERT INTO INSERT_TBL VALUES (null, null, null);
 
 SELECT '' AS nine, * FROM INSERT_TBL;
-
---
--- Check constraints on system columns
---
-
-CREATE TABLE SYS_COL_CHECK_TBL (city text, state text, is_capital bool,
-                  altitude int,
-                  CHECK (NOT (is_capital AND tableoid::regclass::text = 'sys_col_check_tbl')));
-
-INSERT INTO SYS_COL_CHECK_TBL VALUES ('Seattle', 'Washington', false, 100);
-INSERT INTO SYS_COL_CHECK_TBL VALUES ('Olympia', 'Washington', true, 100);
-
-SELECT *, tableoid::regclass::text FROM SYS_COL_CHECK_TBL;
-
-DROP TABLE SYS_COL_CHECK_TBL;
-
---
--- Check constraints on system columns other then TableOid should return error
---
-CREATE TABLE SYS_COL_CHECK_TBL (city text, state text, is_capital bool,
-                  altitude int,
-				  CHECK (NOT (is_capital AND ctid::text = 'sys_col_check_tbl')));
 
 --
 -- Check inheritance of defaults and constraints
@@ -164,34 +141,6 @@ INSERT INTO INSERT_CHILD(x,y,z,cy) VALUES (6,'check failed',-6,7);
 SELECT * FROM INSERT_CHILD;
 
 DROP TABLE INSERT_CHILD;
-
---
--- Check NO INHERIT type of constraints and inheritance
---
-
-CREATE TABLE ATACC1 (TEST INT
-	CHECK (TEST > 0) NO INHERIT);
-
-CREATE TABLE ATACC2 (TEST2 INT) INHERITS (ATACC1);
--- check constraint is not there on child
-INSERT INTO ATACC2 (TEST) VALUES (-3);
--- check constraint is there on parent
-INSERT INTO ATACC1 (TEST) VALUES (-3);
-DROP TABLE ATACC1 CASCADE;
-
-CREATE TABLE ATACC1 (TEST INT, TEST2 INT
-	CHECK (TEST > 0), CHECK (TEST2 > 10) NO INHERIT);
-
-CREATE TABLE ATACC2 () INHERITS (ATACC1);
--- check constraint is there on child
-INSERT INTO ATACC2 (TEST) VALUES (-3);
--- check constraint is there on parent
-INSERT INTO ATACC1 (TEST) VALUES (-3);
--- check constraint is not there on child
-INSERT INTO ATACC2 (TEST2) VALUES (3);
--- check constraint is there on parent
-INSERT INTO ATACC1 (TEST2) VALUES (3);
-DROP TABLE ATACC1 CASCADE;
 
 --
 -- Check constraints on INSERT INTO
@@ -292,11 +241,6 @@ INSERT INTO UNIQUE_TBL VALUES (5, 'one');
 INSERT INTO UNIQUE_TBL (t) VALUES ('six');
 INSERT INTO UNIQUE_TBL (t) VALUES ('seven');
 
-INSERT INTO UNIQUE_TBL VALUES (5, 'five-upsert-insert') ON CONFLICT (i) DO UPDATE SET t = 'five-upsert-update';
-INSERT INTO UNIQUE_TBL VALUES (6, 'six-upsert-insert') ON CONFLICT (i) DO UPDATE SET t = 'six-upsert-update';
--- should fail
-INSERT INTO UNIQUE_TBL VALUES (1, 'a'), (2, 'b'), (2, 'b') ON CONFLICT (i) DO UPDATE SET t = 'fails';
-
 SELECT '' AS five, * FROM UNIQUE_TBL;
 
 DROP TABLE UNIQUE_TBL;
@@ -315,209 +259,3 @@ SELECT '' AS five, * FROM UNIQUE_TBL;
 
 DROP TABLE UNIQUE_TBL;
 
---
--- Deferrable unique constraints
---
-
-CREATE TABLE unique_tbl (i int UNIQUE DEFERRABLE, t text);
-
-INSERT INTO unique_tbl VALUES (0, 'one');
-INSERT INTO unique_tbl VALUES (1, 'two');
-INSERT INTO unique_tbl VALUES (2, 'tree');
-INSERT INTO unique_tbl VALUES (3, 'four');
-INSERT INTO unique_tbl VALUES (4, 'five');
-
-BEGIN;
-
--- default is immediate so this should fail right away
-UPDATE unique_tbl SET i = 1 WHERE i = 0;
-
-ROLLBACK;
-
--- check is done at end of statement, so this should succeed
-UPDATE unique_tbl SET i = i+1;
-
-SELECT * FROM unique_tbl;
-
--- explicitly defer the constraint
-BEGIN;
-
-SET CONSTRAINTS unique_tbl_i_key DEFERRED;
-
-INSERT INTO unique_tbl VALUES (3, 'three');
-DELETE FROM unique_tbl WHERE t = 'tree'; -- makes constraint valid again
-
-COMMIT; -- should succeed
-
-SELECT * FROM unique_tbl;
-
--- try adding an initially deferred constraint
-ALTER TABLE unique_tbl DROP CONSTRAINT unique_tbl_i_key;
-ALTER TABLE unique_tbl ADD CONSTRAINT unique_tbl_i_key
-	UNIQUE (i) DEFERRABLE INITIALLY DEFERRED;
-
-BEGIN;
-
-INSERT INTO unique_tbl VALUES (1, 'five');
-INSERT INTO unique_tbl VALUES (5, 'one');
-UPDATE unique_tbl SET i = 4 WHERE i = 2;
-UPDATE unique_tbl SET i = 2 WHERE i = 4 AND t = 'four';
-DELETE FROM unique_tbl WHERE i = 1 AND t = 'one';
-DELETE FROM unique_tbl WHERE i = 5 AND t = 'five';
-
-COMMIT;
-
-SELECT * FROM unique_tbl;
-
--- should fail at commit-time
-BEGIN;
-INSERT INTO unique_tbl VALUES (3, 'Three'); -- should succeed for now
-COMMIT; -- should fail
-
--- make constraint check immediate
-BEGIN;
-
-SET CONSTRAINTS ALL IMMEDIATE;
-
-INSERT INTO unique_tbl VALUES (3, 'Three'); -- should fail
-
-COMMIT;
-
--- forced check when SET CONSTRAINTS is called
-BEGIN;
-
-SET CONSTRAINTS ALL DEFERRED;
-
-INSERT INTO unique_tbl VALUES (3, 'Three'); -- should succeed for now
-
-SET CONSTRAINTS ALL IMMEDIATE; -- should fail
-
-COMMIT;
-
--- test a HOT update that invalidates the conflicting tuple.
--- the trigger should still fire and catch the violation
-
-BEGIN;
-
-INSERT INTO unique_tbl VALUES (3, 'Three'); -- should succeed for now
-UPDATE unique_tbl SET t = 'THREE' WHERE i = 3 AND t = 'Three';
-
-COMMIT; -- should fail
-
-SELECT * FROM unique_tbl;
-
--- test a HOT update that modifies the newly inserted tuple,
--- but should succeed because we then remove the other conflicting tuple.
-
-BEGIN;
-
-INSERT INTO unique_tbl VALUES(3, 'tree'); -- should succeed for now
-UPDATE unique_tbl SET t = 'threex' WHERE t = 'tree';
-DELETE FROM unique_tbl WHERE t = 'three';
-
-SELECT * FROM unique_tbl;
-
-COMMIT;
-
-SELECT * FROM unique_tbl;
-
-DROP TABLE unique_tbl;
-
---
--- EXCLUDE constraints
---
-
-CREATE TABLE circles (
-  c1 CIRCLE,
-  c2 TEXT,
-  EXCLUDE USING gist
-    (c1 WITH &&, (c2::circle) WITH &&)
-    WHERE (circle_center(c1) <> '(0,0)')
-);
-
--- these should succeed because they don't match the index predicate
-INSERT INTO circles VALUES('<(0,0), 5>', '<(0,0), 5>');
-INSERT INTO circles VALUES('<(0,0), 5>', '<(0,0), 4>');
-
--- succeed
-INSERT INTO circles VALUES('<(10,10), 10>', '<(0,0), 5>');
--- fail, overlaps
-INSERT INTO circles VALUES('<(20,20), 10>', '<(0,0), 4>');
--- succeed, because violation is ignored
-INSERT INTO circles VALUES('<(20,20), 10>', '<(0,0), 4>')
-  ON CONFLICT ON CONSTRAINT circles_c1_c2_excl DO NOTHING;
--- fail, because DO UPDATE variant requires unique index
-INSERT INTO circles VALUES('<(20,20), 10>', '<(0,0), 4>')
-  ON CONFLICT ON CONSTRAINT circles_c1_c2_excl DO UPDATE SET c2 = EXCLUDED.c2;
--- succeed because c1 doesn't overlap
-INSERT INTO circles VALUES('<(20,20), 1>', '<(0,0), 5>');
--- succeed because c2 doesn't overlap
-INSERT INTO circles VALUES('<(20,20), 10>', '<(10,10), 5>');
-
--- should fail on existing data without the WHERE clause
-ALTER TABLE circles ADD EXCLUDE USING gist
-  (c1 WITH &&, (c2::circle) WITH &&);
-
--- try reindexing an existing constraint
-REINDEX INDEX circles_c1_c2_excl;
-
-DROP TABLE circles;
-
--- Check deferred exclusion constraint
-
-CREATE TABLE deferred_excl (
-  f1 int,
-  f2 int,
-  CONSTRAINT deferred_excl_con EXCLUDE (f1 WITH =) INITIALLY DEFERRED
-);
-
-INSERT INTO deferred_excl VALUES(1);
-INSERT INTO deferred_excl VALUES(2);
-INSERT INTO deferred_excl VALUES(1); -- fail
-INSERT INTO deferred_excl VALUES(1) ON CONFLICT ON CONSTRAINT deferred_excl_con DO NOTHING; -- fail
-BEGIN;
-INSERT INTO deferred_excl VALUES(2); -- no fail here
-COMMIT; -- should fail here
-BEGIN;
-INSERT INTO deferred_excl VALUES(3);
-INSERT INTO deferred_excl VALUES(3); -- no fail here
-COMMIT; -- should fail here
-
--- bug #13148: deferred constraint versus HOT update
-BEGIN;
-INSERT INTO deferred_excl VALUES(2, 1); -- no fail here
-DELETE FROM deferred_excl WHERE f1 = 2 AND f2 IS NULL; -- remove old row
-UPDATE deferred_excl SET f2 = 2 WHERE f1 = 2;
-COMMIT; -- should not fail
-
-SELECT * FROM deferred_excl;
-
-ALTER TABLE deferred_excl DROP CONSTRAINT deferred_excl_con;
-
--- This should fail, but worth testing because of HOT updates
-UPDATE deferred_excl SET f1 = 3;
-
-ALTER TABLE deferred_excl ADD EXCLUDE (f1 WITH =);
-
-DROP TABLE deferred_excl;
-
--- Comments
-CREATE TABLE constraint_comments_tbl (a int CONSTRAINT the_constraint CHECK (a > 0));
-CREATE DOMAIN constraint_comments_dom AS int CONSTRAINT the_constraint CHECK (value > 0);
-
-COMMENT ON CONSTRAINT the_constraint ON constraint_comments_tbl IS 'yes, the comment';
-COMMENT ON CONSTRAINT the_constraint ON DOMAIN constraint_comments_dom IS 'yes, another comment';
-
--- no such constraint
-COMMENT ON CONSTRAINT no_constraint ON constraint_comments_tbl IS 'yes, the comment';
-COMMENT ON CONSTRAINT no_constraint ON DOMAIN constraint_comments_dom IS 'yes, another comment';
-
--- no such table/domain
-COMMENT ON CONSTRAINT the_constraint ON no_comments_tbl IS 'bad comment';
-COMMENT ON CONSTRAINT the_constraint ON DOMAIN no_comments_dom IS 'another bad comment';
-
-COMMENT ON CONSTRAINT the_constraint ON constraint_comments_tbl IS NULL;
-COMMENT ON CONSTRAINT the_constraint ON DOMAIN constraint_comments_dom IS NULL;
-
-DROP TABLE constraint_comments_tbl;
-DROP DOMAIN constraint_comments_dom;

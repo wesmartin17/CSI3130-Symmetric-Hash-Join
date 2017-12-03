@@ -1,8 +1,6 @@
 --
 -- 3DES cipher
 --
--- ensure consistent test output regardless of the default bytea format
-SET bytea_output TO escape;
 
 -- test vector from somewhere
 SELECT encode(encrypt(
@@ -29,3 +27,4 @@ select decrypt_iv(decode('50735067b073bb93', 'hex'), '0123456', 'abcd', '3des');
 -- long message
 select encode(encrypt('Lets try a longer message.', '0123456789012345678901', '3des'), 'hex');
 select decrypt(encrypt('Lets try a longer message.', '0123456789012345678901', '3des'), '0123456789012345678901', '3des');
+

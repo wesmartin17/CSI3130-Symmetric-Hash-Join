@@ -1,12 +1,10 @@
 /*
- * contrib/pgcrypto/crypt-blowfish.c
- *
  * This code comes from John the Ripper password cracker, with reentrant
  * and crypt(3) interfaces added, but optimizations specific to password
  * cracking removed.
  *
- * Written by Solar Designer <solar at openwall.com> in 1998-2002 and
- * placed in the public domain.
+ * Written by Solar Designer <solar@openwall.com> in 1998-2001, and placed
+ * in the public domain.
  *
  * There's absolutely no warranty.
  *
@@ -19,9 +17,9 @@
  * of your choice.
  *
  * This implementation is compatible with OpenBSD bcrypt.c (version 2a)
- * by Niels Provos <provos at citi.umich.edu>, and uses some of his
- * ideas.  The password hashing algorithm was designed by David Mazieres
- * <dm at lcs.mit.edu>.
+ * by Niels Provos <provos@physnet.uni-hamburg.de>, and uses some of his
+ * ideas. The password hashing algorithm was designed by David Mazieres
+ * <dm@lcs.mit.edu>.
  *
  * There's a paper on the algorithm that explains its design decisions:
  *
@@ -33,15 +31,14 @@
  */
 
 #include "postgres.h"
-#include "miscadmin.h"
 
-#include "px-crypt.h"
 #include "px.h"
+#include "px-crypt.h"
 
 #ifdef __i386__
 #define BF_ASM				0	/* 1 */
 #define BF_SCALE			1
-#elif defined(__x86_64__) || defined(__alpha__) || defined(__hppa__)
+#elif defined(__alpha__)
 #define BF_ASM				0
 #define BF_SCALE			1
 #else
@@ -50,7 +47,6 @@
 #endif
 
 typedef unsigned int BF_word;
-typedef signed int BF_word_signed;
 
 /* Number of Blowfish rounds, this is also hardcoded into a few places */
 #define BF_N				16
@@ -61,7 +57,7 @@ typedef struct
 {
 	BF_word		S[4][0x100];
 	BF_key		P;
-} BF_ctx;
+}	BF_ctx;
 
 /*
  * Magic IV for 64 Blowfish encryptions that we do at the end.
@@ -369,11 +365,11 @@ do { \
 } while (0)
 
 static int
-BF_decode(BF_word *dst, const char *src, int size)
+BF_decode(BF_word * dst, const char *src, int size)
 {
 	unsigned char *dptr = (unsigned char *) dst;
 	unsigned char *end = dptr + size;
-	const unsigned char *sptr = (const unsigned char *) src;
+	unsigned char *sptr = (unsigned char *) src;
 	unsigned int tmp,
 				c1,
 				c2,
@@ -401,10 +397,10 @@ BF_decode(BF_word *dst, const char *src, int size)
 }
 
 static void
-BF_encode(char *dst, const BF_word *src, int size)
+BF_encode(char *dst, const BF_word * src, int size)
 {
-	const unsigned char *sptr = (const unsigned char *) src;
-	const unsigned char *end = sptr + size;
+	unsigned char *sptr = (unsigned char *) src;
+	unsigned char *end = sptr + size;
 	unsigned char *dptr = (unsigned char *) dst;
 	unsigned int c1,
 				c2;
@@ -438,19 +434,19 @@ BF_encode(char *dst, const BF_word *src, int size)
 }
 
 static void
-BF_swap(BF_word *x, int count)
+BF_swap(BF_word * x, int count)
 {
-	/* Swap on little-endian hardware, else do nothing */
-#ifndef WORDS_BIGENDIAN
+	static int	endianness_check = 1;
+	char	   *is_little_endian = (char *) &endianness_check;
 	BF_word		tmp;
 
-	do
-	{
-		tmp = *x;
-		tmp = (tmp << 16) | (tmp >> 16);
-		*x++ = ((tmp & 0x00FF00FF) << 8) | ((tmp >> 8) & 0x00FF00FF);
-	} while (--count);
-#endif
+	if (*is_little_endian)
+		do
+		{
+			tmp = *x;
+			tmp = (tmp << 16) | (tmp >> 16);
+			*x++ = ((tmp & 0x00FF00FF) << 8) | ((tmp >> 8) & 0x00FF00FF);
+		} while (--count);
 }
 
 #if BF_SCALE
@@ -520,7 +516,7 @@ BF_swap(BF_word *x, int count)
 
 #if BF_ASM
 
-extern void _BF_body_r(BF_ctx *ctx);
+extern void _BF_body_r(BF_ctx * ctx);
 
 #define BF_body() \
 	_BF_body_r(&data.ctx);
@@ -546,8 +542,7 @@ extern void _BF_body_r(BF_ctx *ctx);
 #endif
 
 static void
-BF_set_key(const char *key, BF_key expanded, BF_key initial,
-		   int sign_extension_bug)
+BF_set_key(const char *key, BF_key expanded, BF_key initial)
 {
 	const char *ptr = key;
 	int			i,
@@ -560,10 +555,7 @@ BF_set_key(const char *key, BF_key expanded, BF_key initial,
 		for (j = 0; j < 4; j++)
 		{
 			tmp <<= 8;
-			if (sign_extension_bug)
-				tmp |= (BF_word_signed) (signed char) *ptr;
-			else
-				tmp |= (unsigned char) *ptr;
+			tmp |= *ptr;
 
 			if (!*ptr)
 				ptr = key;
@@ -603,42 +595,26 @@ _crypt_blowfish_rn(const char *key, const char *setting,
 	if (size < 7 + 22 + 31 + 1)
 		return NULL;
 
-	/*
-	 * Blowfish salt value must be formatted as follows: "$2a$" or "$2x$", a
-	 * two digit cost parameter, "$", and 22 digits from the alphabet
-	 * "./0-9A-Za-z". -- from the PHP crypt docs. Apparently we enforce a few
-	 * more restrictions on the count in the salt as well.
-	 */
-	if (strlen(setting) < 29)
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("invalid salt")));
-
 	if (setting[0] != '$' ||
 		setting[1] != '2' ||
-		(setting[2] != 'a' && setting[2] != 'x') ||
+		setting[2] != 'a' ||
 		setting[3] != '$' ||
 		setting[4] < '0' || setting[4] > '3' ||
 		setting[5] < '0' || setting[5] > '9' ||
-		(setting[4] == '3' && setting[5] > '1') ||
 		setting[6] != '$')
 	{
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("invalid salt")));
+		return NULL;
 	}
 
 	count = (BF_word) 1 << ((setting[4] - '0') * 10 + (setting[5] - '0'));
 	if (count < 16 || BF_decode(data.binary.salt, &setting[7], 16))
 	{
-		px_memset(data.binary.salt, 0, sizeof(data.binary.salt));
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("invalid salt")));
+		memset(data.binary.salt, 0, sizeof(data.binary.salt));
+		return NULL;
 	}
 	BF_swap(data.binary.salt, 4);
 
-	BF_set_key(key, data.expanded_key, data.ctx.P, setting[2] == 'x');
+	BF_set_key(key, data.expanded_key, data.ctx.P);
 
 	memcpy(data.ctx.S, BF_init_state.S, sizeof(data.ctx.S));
 
@@ -671,8 +647,6 @@ _crypt_blowfish_rn(const char *key, const char *setting,
 
 	do
 	{
-		CHECK_FOR_INTERRUPTS();
-
 		data.ctx.P[0] ^= data.expanded_key[0];
 		data.ctx.P[1] ^= data.expanded_key[1];
 		data.ctx.P[2] ^= data.expanded_key[2];
@@ -737,7 +711,7 @@ _crypt_blowfish_rn(const char *key, const char *setting,
 
 	memcpy(output, setting, 7 + 22 - 1);
 	output[7 + 22 - 1] = BF_itoa64[(int)
-								   BF_atoi64[(int) setting[7 + 22 - 1] - 0x20] & 0x30];
+						 BF_atoi64[(int) setting[7 + 22 - 1] - 0x20] & 0x30];
 
 /* This has to be bug-compatible with the original implementation, so
  * only encode 23 of the 24 bytes. :-) */
@@ -748,7 +722,7 @@ _crypt_blowfish_rn(const char *key, const char *setting,
 /* Overwrite the most obvious sensitive data we have on the stack. Note
  * that this does not guarantee there's no sensitive data left on the
  * stack and/or in registers; I'm not aware of portable code that does. */
-	px_memset(&data, 0, sizeof(data));
+	memset(&data, 0, sizeof(data));
 
 	return output;
 }

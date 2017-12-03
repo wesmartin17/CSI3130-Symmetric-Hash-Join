@@ -1,1764 +1,324 @@
-# Czech message translation file for pg_dump
-# Copyright (C) 2012 PostgreSQL Global Development Group
-# This file is distributed under the same license as the PostgreSQL package.
+# translation of pg_dump-cs.po to 
+# translation of pg_dump-cs.po to Czech
+# Czech translation of pg_dump messages
 #
-# Tomas Vondra <tv@fuzzy.cz>, 2012, 2013.
+# $PostgreSQL: pgsql/src/bin/pg_dump/po/cs.po,v 1.4 2004/10/28 08:54:07 petere Exp $
+# Karel Zak <zakkr@zf.jcu.cz>, 2001-2003, 2004.
+#
 msgid ""
 msgstr ""
-"Project-Id-Version: pg_dump-cs (PostgreSQL 9.3)\n"
-"Report-Msgid-Bugs-To: pgsql-bugs@postgresql.org\n"
-"POT-Creation-Date: 2013-09-23 20:19+0000\n"
-"PO-Revision-Date: 2013-09-24 20:53+0200\n"
-"Last-Translator: Tomas Vondra <tv@fuzzy.cz>\n"
-"Language-Team: Czech <info@cspug.cx>\n"
-"Language: cs\n"
+"Project-Id-Version: pg_dump-cs\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2004-10-27 14:17+0200\n"
+"PO-Revision-Date: 2004-10-27 14:34+0200\n"
+"Last-Translator: \n"
+"Language-Team:  <cs@li.org>\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=ISO-8859-2\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
-"X-Generator: Lokalize 1.5\n"
+"X-Generator: KBabel 1.3.1\n"
 
-#: ../../common/fe_memutils.c:33 ../../common/fe_memutils.c:60
-#: ../../common/fe_memutils.c:83 pg_backup_db.c:134 pg_backup_db.c:189
-#: pg_backup_db.c:233 pg_backup_db.c:279
-#, c-format
-msgid "out of memory\n"
-msgstr "nedostatek pamÄ›ti\n"
-
-#: ../../common/fe_memutils.c:77
-#, c-format
-msgid "cannot duplicate null pointer (internal error)\n"
-msgstr "nelze duplikovat null pointer (internÃ­ chyba)\n"
-
-#: ../../port/exec.c:127 ../../port/exec.c:241 ../../port/exec.c:284
-#, c-format
-msgid "could not identify current directory: %s"
-msgstr "nelze zÃ­skat aktuÃ¡lnÃ­ adresÃ¡Å™: %s"
-
-#: ../../port/exec.c:146
-#, c-format
-msgid "invalid binary \"%s\""
-msgstr "neplatnÃ½ binÃ¡rnÃ­ soubor\"%s\""
-
-#: ../../port/exec.c:195
-#, c-format
-msgid "could not read binary \"%s\""
-msgstr "nelze ÄÃ­st binÃ¡rnÃ­ soubor \"%s\""
-
-#: ../../port/exec.c:202
-#, c-format
-msgid "could not find a \"%s\" to execute"
-msgstr "nelze najÃ­t spustitelnÃ½ soubor \"%s\""
-
-#: ../../port/exec.c:257 ../../port/exec.c:293
-#, c-format
-msgid "could not change directory to \"%s\": %s"
-msgstr "nelze zmÄ›nit adresÃ¡Å™ na \"%s\" : %s"
-
-#: ../../port/exec.c:272
-#, c-format
-msgid "could not read symbolic link \"%s\""
-msgstr "nelze ÄÃ­st symbolickÃ½ link \"%s\""
-
-#: ../../port/exec.c:523
-#, c-format
-msgid "pclose failed: %s"
-msgstr "volÃ¡nÃ­ pclose selhalo: %s"
-
-#: common.c:105
-#, c-format
-msgid "reading schemas\n"
-msgstr "Ätu schÃ©mata\n"
-
-#: common.c:116
-#, c-format
-msgid "reading user-defined tables\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© tabulky\n"
-
-#: common.c:124
-#, c-format
-msgid "reading extensions\n"
-msgstr "Ätu rozÅ¡Ã­Å™enÃ­\n"
-
-#: common.c:128
-#, c-format
-msgid "reading user-defined functions\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© funkce\n"
-
-#: common.c:134
-#, c-format
-msgid "reading user-defined types\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© typy\n"
-
-#: common.c:140
-#, c-format
-msgid "reading procedural languages\n"
-msgstr "Ätu procedurÃ¡lnÃ­ jazyky\n"
-
-#: common.c:144
-#, c-format
-msgid "reading user-defined aggregate functions\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© agregÃ¡tnÃ­ funkce\n"
-
-#: common.c:148
-#, c-format
-msgid "reading user-defined operators\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© operÃ¡tory\n"
-
-#: common.c:153
-#, c-format
-msgid "reading user-defined operator classes\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© tÅ™Ã­dy operÃ¡torÅ¯\n"
-
-#: common.c:157
-#, c-format
-msgid "reading user-defined operator families\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© rodiny operÃ¡torÅ¯\n"
-
-#: common.c:161
-#, c-format
-msgid "reading user-defined text search parsers\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© fulltextovÃ© parsery\n"
-
-#: common.c:165
-#, c-format
-msgid "reading user-defined text search templates\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© fulltextovÃ© Å¡ablony\n"
-
-#: common.c:169
-#, c-format
-msgid "reading user-defined text search dictionaries\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© fulltextovÃ© slovnÃ­ky\n"
-
-#: common.c:173
-#, c-format
-msgid "reading user-defined text search configurations\n"
-msgstr "Ätu uÅ¾ivatelskÃ© fulltextovÃ©ho konfigurace\n"
-
-#: common.c:177
-#, c-format
-msgid "reading user-defined foreign-data wrappers\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© foreign-data wrappery\n"
-
-#: common.c:181
-#, c-format
-msgid "reading user-defined foreign servers\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© foreign servery\n"
-
-#: common.c:185
-#, c-format
-msgid "reading default privileges\n"
-msgstr "Ätu implicitnÃ­ pÅ™Ã­stupovÃ¡ prÃ¡va\n"
-
-#: common.c:189
-#, c-format
-msgid "reading user-defined collations\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© collations\n"
-
-#: common.c:194
-#, c-format
-msgid "reading user-defined conversions\n"
-msgstr "Ätu uÅ¾ivatelem definovanÃ© konverze\n"
-
-#: common.c:198
-#, c-format
-msgid "reading type casts\n"
-msgstr "Ätu pÅ™etypovÃ¡nÃ­\n"
-
-#: common.c:202
-#, c-format
-msgid "reading table inheritance information\n"
-msgstr "Ätu informace dÄ›diÄnosti tabulky\n"
-
-#: common.c:206
-#, c-format
-msgid "reading event triggers\n"
-msgstr "Ätu event triggery\n"
-
-#: common.c:215
-#, c-format
-msgid "finding extension members\n"
-msgstr "hledÃ¡m sloÅ¾ky rozÅ¡Ã­Å™enÃ­\n"
-
-#: common.c:220
-#, c-format
-msgid "finding inheritance relationships\n"
-msgstr "hledÃ¡m informace o dÄ›diÄnosti\n"
-
-#: common.c:224
-#, c-format
-msgid "reading column info for interesting tables\n"
-msgstr "Ätu informace o sloupci pro tabulky\n"
-
-#: common.c:228
-#, c-format
-msgid "flagging inherited columns in subtables\n"
-msgstr "oznaÄuji zdÄ›dÄ›nÃ© sloupce v pod-tabulkÃ¡ch\n"
-
-#: common.c:232
-#, c-format
-msgid "reading indexes\n"
-msgstr "Ätu indexy\n"
-
-#: common.c:236
-#, c-format
-msgid "reading constraints\n"
-msgstr "Ätu omezenÃ­\n"
-
-#: common.c:240
-#, c-format
-msgid "reading triggers\n"
-msgstr "Ätu triggery\n"
-
-#: common.c:244
-#, c-format
-msgid "reading rewrite rules\n"
-msgstr "Ätu pÅ™episovacÃ­ pravidla\n"
-
-#: common.c:792
-#, c-format
-msgid "failed sanity check, parent OID %u of table \"%s\" (OID %u) not found\n"
-msgstr ""
-"selhala kontrola, rodiÄovskÃ© OID %u tabulky \"%s\" (OID %u) nelze najÃ­t\n"
-
-#: common.c:834
-#, c-format
-msgid "could not parse numeric array \"%s\": too many numbers\n"
-msgstr "nemohu zpracovat numerickÃ© pole \"%s\": pÅ™Ã­liÅ¡ mnoho ÄÃ­sel\n"
-
-#: common.c:849
-#, c-format
-msgid "could not parse numeric array \"%s\": invalid character in number\n"
-msgstr "nemohu zpracovat numerickÃ© pole \"%s\": neplatnÃ½ znak v ÄÃ­sle\n"
-
-#. translator: this is a module name
-#: compress_io.c:78
-msgid "compress_io"
-msgstr "compress_io"
-
-#: compress_io.c:114
-#, c-format
-msgid "invalid compression code: %d\n"
-msgstr "neplatnÃ½ kompresnÃ­ kÃ³d: %d\n"
-
-#: compress_io.c:138 compress_io.c:174 compress_io.c:195 compress_io.c:528
-#: compress_io.c:555
-#, c-format
-msgid "not built with zlib support\n"
-msgstr "nezkompilovÃ¡no s podporou zlib\n"
-
-#: compress_io.c:243 compress_io.c:352
-#, c-format
-msgid "could not initialize compression library: %s\n"
-msgstr "nelze inicializovat kompresnÃ­ knihovnu: %s\n"
-
-#: compress_io.c:264
-#, c-format
-msgid "could not close compression stream: %s\n"
-msgstr "nelze uzavÅ™Ã­t kompresnÃ­ stream: %s\n"
-
-#: compress_io.c:282
-#, c-format
-msgid "could not compress data: %s\n"
-msgstr "nelze komprimovat data: %s\n"
-
-#: compress_io.c:303 compress_io.c:440 pg_backup_archiver.c:1437
-#: pg_backup_archiver.c:1460 pg_backup_custom.c:661 pg_backup_directory.c:529
-#: pg_backup_tar.c:598 pg_backup_tar.c:1087 pg_backup_tar.c:1308
-#, c-format
-msgid "could not write to output file: %s\n"
-msgstr "nelze zapsat do vÃ½stupnÃ­ho souboru: %s\n"
-
-#: compress_io.c:372 compress_io.c:388
-#, c-format
-msgid "could not uncompress data: %s\n"
-msgstr "nelze dekomprimovat data: %s\n"
-
-#: compress_io.c:396
-#, c-format
-msgid "could not close compression library: %s\n"
-msgstr "nelze uzavÅ™Ã­t kompresnÃ­ knihovnu: %s\n"
-
-#: parallel.c:77
-#| msgid "tar archiver"
-msgid "parallel archiver"
-msgstr "paralelnÃ­ archivÃ¡Å™"
-
-#: parallel.c:143
-#, c-format
-#| msgid "%s: query failed: %s"
-msgid "%s: WSAStartup failed: %d\n"
-msgstr "%s: WSAStartup selhal: %d\n"
-
-#: parallel.c:343
-#, c-format
-msgid "worker is terminating\n"
-msgstr "worker konÄÃ­\n"
-
-#: parallel.c:535
-#, c-format
-#| msgid "could not create directory \"%s\": %s\n"
-msgid "could not create communication channels: %s\n"
-msgstr "nelze vytvoÅ™it komunikaÄnÃ­ kanÃ¡ly: %s\n"
-
-#: parallel.c:605
-#, c-format
-msgid "could not create worker process: %s\n"
-msgstr "nelze vytvoÅ™it worker proces: %s\n"
-
-#: parallel.c:822
-#, c-format
-#| msgid "could not set session user to \"%s\": %s"
-msgid "could not get relation name for OID %u: %s\n"
-msgstr "nelze zÃ­skat jmÃ©no relace pro OID %u: %s\n"
-
-#: parallel.c:839
-#, c-format
-msgid ""
-"could not obtain lock on relation \"%s\"\n"
-"This usually means that someone requested an ACCESS EXCLUSIVE lock on the "
-"table after the pg_dump parent process had gotten the initial ACCESS SHARE "
-"lock on the table.\n"
-msgstr ""
-"nelze zÃ­skat zÃ¡mek na relaci \"%s\"\n"
-"Toto obvykle znamenÃ¡ Å¾e nÄ›kdo si vyÅ¾Ã¡dal ACCESS EXCLUSIVE zÃ¡mek na tabulce "
-"potÃ© co rodiÄovskÃ½ pg_dump proces zÃ­skal vÃ½chozÃ­ ACCESS SHARE zÃ¡mek na danÃ© "
-"tabulce.\n"
-
-#: parallel.c:923
-#, c-format
-#| msgid "%s: unrecognized section name: \"%s\"\n"
-msgid "unrecognized command on communication channel: %s\n"
-msgstr "nerozpoznanÃ½ pÅ™Ã­kaz na komunikaÄnÃ­m kanÃ¡lu: %s\n"
-
-#: parallel.c:956
-#, c-format
-#| msgid "worker process failed: exit code %d\n"
-msgid "a worker process died unexpectedly\n"
-msgstr "pracovnÃ­ proces neoÄekÃ¡vanÄ› selhal\n"
-
-#: parallel.c:983 parallel.c:992
-#, c-format
-#| msgid "Error message from server: %s"
-msgid "invalid message received from worker: %s\n"
-msgstr "z pracovnÃ­ho procesu dorazila neplatnÃ¡ zprÃ¡va: %s\n"
-
-#: parallel.c:989 pg_backup_db.c:336
-#, c-format
-msgid "%s"
-msgstr "%s"
-
-#: parallel.c:1041 parallel.c:1085
-#, c-format
-msgid "error processing a parallel work item\n"
-msgstr "chyba pÅ™i paralelnÃ­m zpracovÃ¡vÃ¡nÃ­ poloÅ¾ky\n"
-
-#: parallel.c:1113 parallel.c:1251
-#, c-format
-#| msgid "could not write to output file: %s\n"
-msgid "could not write to the communication channel: %s\n"
-msgstr "nelze zapsat do komunikaÄnÃ­ho kanÃ¡lu: %s\n"
-
-#: parallel.c:1162
-#, c-format
-msgid "terminated by user\n"
-msgstr "ukonÄeno uÅ¾ivatelem\n"
-
-#: parallel.c:1214
-#, c-format
-#| msgid "error during file seek: %s\n"
-msgid "error in ListenToWorkers(): %s\n"
-msgstr "chyba v ListenToWorkers(): %s\n"
-
-#: parallel.c:1325
-#, c-format
-#| msgid "could not create worker process: %s\n"
-msgid "pgpipe: could not create socket: error code %d\n"
-msgstr "pgpipe: nelze vytvoÅ™it soket: chybovÃ½ kÃ³d %d\n"
-
-#: parallel.c:1336
-#, c-format
-#| msgid "could not find entry for ID %d\n"
-msgid "pgpipe: could not bind: error code %d\n"
-msgstr "pgpipe: nelze provÃ©st bind: chybovÃ½ kÃ³d %d\n"
-
-#: parallel.c:1343
-#, c-format
-#| msgid "could not find entry for ID %d\n"
-msgid "pgpipe: could not listen: error code %d\n"
-msgstr "pgpipe: nelze poslouchat: chybovÃ½ kÃ³d %d\n"
-
-#: parallel.c:1350
-#, c-format
-#| msgid "worker process failed: exit code %d\n"
-msgid "pgpipe: getsockname() failed: error code %d\n"
-msgstr "pgpipe: getsockname() selhal: chybovÃ½ kÃ³d %d\n"
-
-#: parallel.c:1357
-#, c-format
-#| msgid "could not create worker process: %s\n"
-msgid "pgpipe: could not create second socket: error code %d\n"
-msgstr "pgpipe: nelze vytvoÅ™it druhÃ½ soket: chybovÃ½ kÃ³d %d\n"
-
-#: parallel.c:1365
-#, c-format
-#| msgid "%s: could not connect to database \"%s\"\n"
-msgid "pgpipe: could not connect socket: error code %d\n"
-msgstr "pgpipe: nelze se pÅ™ipojit k soketu: chybovÃ½ kÃ³d %d\n"
-
-#: parallel.c:1372
-#, c-format
-#| msgid "%s: could not connect to database \"%s\"\n"
-msgid "pgpipe: could not accept connection: error code %d\n"
-msgstr "pgpipe: nelze pÅ™ijmout spojenÃ­: chybovÃ½ kÃ³d %d\n"
-
-#. translator: this is a module name
-#: pg_backup_archiver.c:51
-msgid "archiver"
-msgstr "archivÃ¡Å™"
-
-#: pg_backup_archiver.c:169 pg_backup_archiver.c:1300
-#, c-format
-msgid "could not close output file: %s\n"
-msgstr "nelze zavÅ™Ã­t vÃ½stupnÃ­ soubor: %s\n"
-
-#: pg_backup_archiver.c:204 pg_backup_archiver.c:209
-#, c-format
-msgid "WARNING: archive items not in correct section order\n"
-msgstr "WARNING: archivovanÃ© poloÅ¾ky v nesprÃ¡vnÃ©m poÅ™adÃ­ sekcÃ­\n"
-
-#: pg_backup_archiver.c:215
-#, c-format
-msgid "unexpected section code %d\n"
-msgstr "neoÄekÃ¡vanÃ½ kÃ³d sekce %d\n"
-
-#: pg_backup_archiver.c:247
-#, c-format
-msgid "-C and -1 are incompatible options\n"
-msgstr "-C a -1 jsou nekompatibilnÃ­ pÅ™epÃ­naÄe\n"
-
-#: pg_backup_archiver.c:257
-#, c-format
-msgid "parallel restore is not supported with this archive file format\n"
-msgstr "paralelnÃ­ obnova nenÃ­ pro tento formÃ¡t archivu podporovÃ¡na\n"
-
-#: pg_backup_archiver.c:261
-#, c-format
-msgid ""
-"parallel restore is not supported with archives made by pre-8.0 pg_dump\n"
-msgstr "paralelnÃ­ obnova nenÃ­ podporovÃ¡na s archivy z pre-8.0 verzÃ­ pg_dump\n"
-
-#: pg_backup_archiver.c:279
-#, c-format
-msgid ""
-"cannot restore from compressed archive (compression not supported in this "
-"installation)\n"
-msgstr ""
-"nelze obnovit z komprimovanÃ©ho archivu (nenÃ­ nastavena podpora komprese)\n"
-
-#: pg_backup_archiver.c:296
-#, c-format
-msgid "connecting to database for restore\n"
-msgstr "navazovÃ¡no spojenÃ­ s databÃ¡zÃ­ pro obnovu\n"
-
-#: pg_backup_archiver.c:298
-#, c-format
-msgid "direct database connections are not supported in pre-1.3 archives\n"
-msgstr ""
-"pÅ™Ã­mÃ© spojenÃ­ s databÃ¡zÃ­ nejsou podporovÃ¡ny v archivech pÅ™ed verzÃ­ 1.3\n"
-
-#: pg_backup_archiver.c:339
-#, c-format
-msgid "implied data-only restore\n"
-msgstr "pÅ™edpoklÃ¡dÃ¡na pouze obnova dat\n"
-
-#: pg_backup_archiver.c:408
-#, c-format
-msgid "dropping %s %s\n"
-msgstr "odstraÅˆuji %s %s\n"
-
-#: pg_backup_archiver.c:475
-#, c-format
-msgid "setting owner and privileges for %s %s\n"
-msgstr "nastavuji vlastnÃ­ka a pÅ™Ã­stupovÃ¡ prÃ¡va pro %s %s\n"
-
-#: pg_backup_archiver.c:541 pg_backup_archiver.c:543
-#, c-format
-msgid "warning from original dump file: %s\n"
-msgstr "varovÃ¡nÃ­ z originÃ¡lnÃ­ho dump souboru: %s\n"
-
-#: pg_backup_archiver.c:550
-#, c-format
-msgid "creating %s %s\n"
-msgstr "vytvÃ¡Å™Ã­m %s %s\n"
-
-#: pg_backup_archiver.c:594
-#, c-format
-msgid "connecting to new database \"%s\"\n"
-msgstr "pÅ™ipojuji se k novÃ© databÃ¡zi \"%s\"\n"
-
-#: pg_backup_archiver.c:622
-#, c-format
-msgid "processing %s\n"
-msgstr "zpracovÃ¡vÃ¡m %s\n"
-
-#: pg_backup_archiver.c:636
-#, c-format
-msgid "processing data for table \"%s\"\n"
-msgstr "zpracovÃ¡vÃ¡m data pro tabulku \"%s\"\n"
-
-#: pg_backup_archiver.c:698
-#, c-format
-msgid "executing %s %s\n"
-msgstr "vykonÃ¡vÃ¡m %s %s\n"
-
-#: pg_backup_archiver.c:735
-#, c-format
-msgid "disabling triggers for %s\n"
-msgstr "vypÃ­nÃ¡m triggery pro %s\n"
-
-#: pg_backup_archiver.c:761
-#, c-format
-msgid "enabling triggers for %s\n"
-msgstr "zapÃ­nÃ¡m triggery pro %s\n"
-
-#: pg_backup_archiver.c:791
-#, c-format
-msgid ""
-"internal error -- WriteData cannot be called outside the context of a "
-"DataDumper routine\n"
-msgstr ""
-"internÃ­ chyba -- WriteData nenÃ­ moÅ¾no volat mimo kontext rutiny DataDumper\n"
-
-#: pg_backup_archiver.c:948
-#, c-format
-msgid "large-object output not supported in chosen format\n"
-msgstr "\"large object\" vÃ½stup nenÃ­ podporovÃ¡n ve vybranÃ©m formÃ¡tu\n"
-
-#: pg_backup_archiver.c:1002
-#, c-format
-msgid "restored %d large object\n"
-msgid_plural "restored %d large objects\n"
-msgstr[0] "obnoven %d large objekt\n"
-msgstr[1] "obnoveny %d large objekty\n"
-msgstr[2] "obnoveny %d large objektÅ¯\n"
-
-#: pg_backup_archiver.c:1023 pg_backup_tar.c:731
-#, c-format
-msgid "restoring large object with OID %u\n"
-msgstr "obnovovÃ¡n \"large object\" s OID %u\n"
-
-#: pg_backup_archiver.c:1035
-#, c-format
-msgid "could not create large object %u: %s"
-msgstr "nelze vytvoÅ™it \"large object\" %u: %s"
-
-#: pg_backup_archiver.c:1040 pg_dump.c:2662
-#, c-format
-msgid "could not open large object %u: %s"
-msgstr "nelze otevÅ™Ã­t \"large object\" %u:%s"
-
-#: pg_backup_archiver.c:1097
-#, c-format
-msgid "could not open TOC file \"%s\": %s\n"
-msgstr "nelze otevÅ™Ã­t TOC soubor \"%s\": %s\n"
-
-#: pg_backup_archiver.c:1138
-#, c-format
-msgid "WARNING: line ignored: %s\n"
-msgstr "VAROVÃNÃ: Å™Ã¡dka ignorovÃ¡na: %s\n"
-
-#: pg_backup_archiver.c:1145
-#, c-format
-msgid "could not find entry for ID %d\n"
-msgstr "nelze najÃ­t zÃ¡znam ID %d\n"
-
-#: pg_backup_archiver.c:1166 pg_backup_directory.c:222
-#: pg_backup_directory.c:595
-#, c-format
-msgid "could not close TOC file: %s\n"
-msgstr "nelze zavÅ™Ã­t TOC soubor: %s\n"
-
-#: pg_backup_archiver.c:1270 pg_backup_custom.c:161 pg_backup_directory.c:333
-#: pg_backup_directory.c:581 pg_backup_directory.c:639
-#: pg_backup_directory.c:659
-#, c-format
-msgid "could not open output file \"%s\": %s\n"
-msgstr "nelze otevÅ™Ã­t vÃ½stupnÃ­ soubor \"%s\": %s\n"
-
-#: pg_backup_archiver.c:1273 pg_backup_custom.c:168
-#, c-format
-msgid "could not open output file: %s\n"
-msgstr "nelze otevÅ™Ã­t vÃ½stupnÃ­ soubor: %s\n"
-
-#: pg_backup_archiver.c:1373
-#, c-format
-msgid "wrote %lu byte of large object data (result = %lu)\n"
-msgid_plural "wrote %lu bytes of large object data (result = %lu)\n"
-msgstr[0] "zapsÃ¡n %lu byte dat large objektÅ¯ (result = %lu)\n"
-msgstr[1] "zapsÃ¡n %lu byty dat large objektÅ¯ (result = %lu)\n"
-msgstr[2] "zapsÃ¡n %lu bytÅ¯ dat large objektÅ¯ (result = %lu)\n"
-
-#: pg_backup_archiver.c:1379
-#, c-format
-msgid "could not write to large object (result: %lu, expected: %lu)\n"
-msgstr "nelze zapsat \"large object\" (vÃ½sledek = %lu, oÄekÃ¡vÃ¡no: %lu)\n"
-
-#: pg_backup_archiver.c:1445
-#, c-format
-msgid "could not write to custom output routine\n"
-msgstr "nelze zapsat do vlastnÃ­ vÃ½stupnÃ­ rutiny\n"
-
-#: pg_backup_archiver.c:1483
-#, c-format
-msgid "Error while INITIALIZING:\n"
-msgstr "Chyba bÄ›hem INICIALIZACE:\n"
-
-#: pg_backup_archiver.c:1488
-#, c-format
-msgid "Error while PROCESSING TOC:\n"
-msgstr "Chyba bÄ›hem ZPRACOVÃNÃ TOC:\n"
-
-#: pg_backup_archiver.c:1493
-#, c-format
-msgid "Error while FINALIZING:\n"
-msgstr "Chyba bÄ›hem FINALIZACE:\n"
-
-#: pg_backup_archiver.c:1498
-#, c-format
-msgid "Error from TOC entry %d; %u %u %s %s %s\n"
-msgstr "Chyba v TOC zÃ¡znamu %d; %u %u %s %s %s\n"
-
-#: pg_backup_archiver.c:1571
-#, c-format
-msgid "bad dumpId\n"
-msgstr "neplatnÃ© dumpId\n"
-
-#: pg_backup_archiver.c:1592
-#, c-format
-msgid "bad table dumpId for TABLE DATA item\n"
-msgstr "Å¡patnÃ© dumpId tabulky pro TABLE DATA poloÅ¾ku\n"
-
-#: pg_backup_archiver.c:1684
-#, c-format
-msgid "unexpected data offset flag %d\n"
-msgstr "NeoÄekÃ¡vanÃ½ pÅ™Ã­znak datovÃ©ho offsetu %d\n"
-
-#: pg_backup_archiver.c:1697
-#, c-format
-msgid "file offset in dump file is too large\n"
-msgstr "offset souboru v dumpu je pÅ™Ã­liÅ¡ velkÃ½\n"
-
-#: pg_backup_archiver.c:1791 pg_backup_archiver.c:3247 pg_backup_custom.c:639
-#: pg_backup_directory.c:509 pg_backup_tar.c:787
-#, c-format
-msgid "unexpected end of file\n"
-msgstr "neoÄekÃ¡vanÃ½ konec souboru\n"
-
-#: pg_backup_archiver.c:1808
-#, c-format
-msgid "attempting to ascertain archive format\n"
-msgstr "pokouÅ¡Ã­m se zjistit formÃ¡t archivu\n"
-
-#: pg_backup_archiver.c:1834 pg_backup_archiver.c:1844
-#, c-format
-msgid "directory name too long: \"%s\"\n"
-msgstr "jmÃ©no adresÃ¡Å™e je pÅ™Ã­liÅ¡ dlouhÃ©: \"%s\"\n"
-
-#: pg_backup_archiver.c:1852
-#, c-format
-msgid ""
-"directory \"%s\" does not appear to be a valid archive (\"toc.dat\" does not "
-"exist)\n"
-msgstr "adresÃ¡Å™ \"%s\" zÅ™ejmÄ› nenÃ­ platnÃ½m archivem (\"toc.dat\" neexistuje)\n"
-
-#: pg_backup_archiver.c:1860 pg_backup_custom.c:180 pg_backup_custom.c:771
-#: pg_backup_directory.c:206 pg_backup_directory.c:394
-#, c-format
-msgid "could not open input file \"%s\": %s\n"
-msgstr "nelze otevÅ™Ã­t vstupnÃ­ soubor \"%s\": %s\n"
-
-#: pg_backup_archiver.c:1868 pg_backup_custom.c:187
-#, c-format
-msgid "could not open input file: %s\n"
-msgstr "nelze otevÅ™Ã­t vstupnÃ­ soubor: %s\n"
-
-#: pg_backup_archiver.c:1877
-#, c-format
-msgid "could not read input file: %s\n"
-msgstr "nelze ÄÃ­st vstupnÃ­ soubor: %s\n"
-
-#: pg_backup_archiver.c:1879
-#, c-format
-msgid "input file is too short (read %lu, expected 5)\n"
-msgstr "vstupnÃ­ soubor je pÅ™Ã­liÅ¡ krÃ¡tkÃ½ (Äteno %lu, oÄekÃ¡vÃ¡no 5)\n"
-
-#: pg_backup_archiver.c:1944
-#, c-format
-msgid "input file appears to be a text format dump. Please use psql.\n"
-msgstr ""
-"vstupnÃ­ soubor se zdÃ¡ bÃ½t dump v textovÃ©m formÃ¡tu. PouÅ¾ijte prosÃ­m psql.\n"
-
-#: pg_backup_archiver.c:1948
-#, c-format
-msgid "input file does not appear to be a valid archive (too short?)\n"
-msgstr "vstupnÃ­ soubor se nezdÃ¡ bÃ½t korektnÃ­m archivem (pÅ™Ã­liÅ¡ krÃ¡tkÃ½?)\n"
-
-#: pg_backup_archiver.c:1951
-#, c-format
-msgid "input file does not appear to be a valid archive\n"
-msgstr "vstupnÃ­ soubor se nezdÃ¡ bÃ½t korektnÃ­m archivem\n"
-
-#: pg_backup_archiver.c:1971
-#, c-format
-msgid "could not close input file: %s\n"
-msgstr "nelze zavÅ™Ã­t vÃ½stupnÃ­ soubor: %s\n"
-
-#: pg_backup_archiver.c:1988
-#, c-format
-msgid "allocating AH for %s, format %d\n"
-msgstr "alokovÃ¡n AH pro %s, formÃ¡t %d\n"
-
-#: pg_backup_archiver.c:2093
-#, c-format
-msgid "unrecognized file format \"%d\"\n"
-msgstr "neznÃ¡mÃ½ formÃ¡t souboru \"%d\"\n"
-
-#: pg_backup_archiver.c:2243
-#, c-format
-msgid "entry ID %d out of range -- perhaps a corrupt TOC\n"
-msgstr "ID zÃ¡znamu %d je mimo rozsah -- moÅ¾nÃ¡ je poÅ¡kozena TOC\n"
-
-#: pg_backup_archiver.c:2359
-#, c-format
-msgid "read TOC entry %d (ID %d) for %s %s\n"
-msgstr "pÅ™eÄetl jsem TOC zÃ¡znam %d (ID %d) pro %s %s\n"
-
-#: pg_backup_archiver.c:2393
-#, c-format
-msgid "unrecognized encoding \"%s\"\n"
-msgstr "neplatnÃ© kÃ³dovÃ¡nÃ­ \"%s\"\n"
-
-#: pg_backup_archiver.c:2398
-#, c-format
-msgid "invalid ENCODING item: %s\n"
-msgstr "chybnÃ¡ poloÅ¾ka ENCODING: %s\n"
-
-#: pg_backup_archiver.c:2416
-#, c-format
-msgid "invalid STDSTRINGS item: %s\n"
-msgstr "chybnÃ¡ poloÅ¾ka STDSTRINGS: %s\n"
-
-#: pg_backup_archiver.c:2633
-#, c-format
-msgid "could not set session user to \"%s\": %s"
-msgstr "nelze nastavit uÅ¾ivatele session na \"%s\": %s"
-
-#: pg_backup_archiver.c:2665
-#, c-format
-msgid "could not set default_with_oids: %s"
-msgstr "nelze nastavit default_with_oids: %s"
-
-#: pg_backup_archiver.c:2803
-#, c-format
-msgid "could not set search_path to \"%s\": %s"
-msgstr "nelze nastavit search_path na \"%s\": %s"
-
-#: pg_backup_archiver.c:2864
-#, c-format
-msgid "could not set default_tablespace to %s: %s"
-msgstr "nelze nastavit default_tablespace na %s: %s"
-
-#: pg_backup_archiver.c:2974 pg_backup_archiver.c:3157
-#, c-format
-msgid "WARNING: don't know how to set owner for object type %s\n"
-msgstr "VAROVÃNÃ: nevÃ­m jak nastavit vlastnÃ­ka pro typ %s\n"
-
-#: pg_backup_archiver.c:3210
-#, c-format
-msgid ""
-"WARNING: requested compression not available in this installation -- archive "
-"will be uncompressed\n"
-msgstr ""
-"VAROVÃNÃ: poÅ¾adovanÃ¡ komprese nenÃ­ v tÃ©to instalaci dostupnÃ¡ -- archiv bude "
-"nekomprimovanÃ½\n"
-
-#: pg_backup_archiver.c:3250
-#, c-format
-msgid "did not find magic string in file header\n"
-msgstr "nelze najÃ­t identifikaÄnÃ­ Å™etÄ›zec v hlaviÄce souboru\n"
-
-#: pg_backup_archiver.c:3263
-#, c-format
-msgid "unsupported version (%d.%d) in file header\n"
-msgstr "nepodporovanÃ¡ verze (%d.%d) v hlaviÄce souboru\n"
-
-#: pg_backup_archiver.c:3268
-#, c-format
-msgid "sanity check on integer size (%lu) failed\n"
-msgstr "selhala kontrola velikosti integeru (%lu)\n"
-
-#: pg_backup_archiver.c:3272
-#, c-format
-msgid ""
-"WARNING: archive was made on a machine with larger integers, some operations "
-"might fail\n"
-msgstr ""
-"VAROVÃNÃ: archiv byl vytvoÅ™en na stroji s vÄ›tÅ¡Ã­mi celÃ½mi ÄÃ­sly (integer), "
-"nÄ›kterÃ© operace mohou selhat\n"
-
-#: pg_backup_archiver.c:3282
-#, c-format
-msgid "expected format (%d) differs from format found in file (%d)\n"
-msgstr ""
-"oÄekÃ¡vanÃ½ formÃ¡t (%d) se liÅ¡Ã­ se od formÃ¡tu nalezenÃ©ho v souboru (%d)\n"
-
-#: pg_backup_archiver.c:3298
-#, c-format
-msgid ""
-"WARNING: archive is compressed, but this installation does not support "
-"compression -- no data will be available\n"
-msgstr ""
-"VAROVÃNÃ: archiv je komprimovÃ¡n, ale tato instalace nepodporuje kompresi -- "
-"data nebudou dostupnÃ¡\n"
-
-#: pg_backup_archiver.c:3316
-#, c-format
-msgid "WARNING: invalid creation date in header\n"
-msgstr "VAROVÃNÃ: v hlaviÄce je neplatnÃ© datum vytvoÅ™enÃ­\n"
-
-#: pg_backup_archiver.c:3405
-#, c-format
-#| msgid "entering restore_toc_entries_parallel\n"
-msgid "entering restore_toc_entries_prefork\n"
-msgstr "vstupuji do restore_toc_entries_prefork\n"
-
-#: pg_backup_archiver.c:3449
-#, c-format
-msgid "processing item %d %s %s\n"
-msgstr "zpracovÃ¡vÃ¡m poloÅ¾ku %d %s %s\n"
-
-#: pg_backup_archiver.c:3501
-#, c-format
-msgid "entering restore_toc_entries_parallel\n"
-msgstr "vstupuji do restore_toc_entries_parallel\n"
-
-#: pg_backup_archiver.c:3549
-#, c-format
-msgid "entering main parallel loop\n"
-msgstr "vstupuji do hlavnÃ­ paralelnÃ­ smyÄky\n"
-
-#: pg_backup_archiver.c:3560
-#, c-format
-msgid "skipping item %d %s %s\n"
-msgstr "pÅ™eskakuji poloÅ¾ku %d %s %s\n"
-
-#: pg_backup_archiver.c:3570
-#, c-format
-msgid "launching item %d %s %s\n"
-msgstr "spouÅ¡tÃ­m poloÅ¾ku %d %s %s\n"
-
-#: pg_backup_archiver.c:3628
-#, c-format
-msgid "finished main parallel loop\n"
-msgstr "ukonÄuji hlavnÃ­ paralelnÃ­ smyÄku\n"
-
-#: pg_backup_archiver.c:3637
-#, c-format
-#| msgid "entering restore_toc_entries_parallel\n"
-msgid "entering restore_toc_entries_postfork\n"
-msgstr "vstupuji do restore_toc_entries_postfork\n"
-
-#: pg_backup_archiver.c:3655
-#, c-format
-msgid "processing missed item %d %s %s\n"
-msgstr "zpracovÃ¡nÃ­ vynechalo poloÅ¾ku %d %s %s\n"
-
-#: pg_backup_archiver.c:3804
-#, c-format
-msgid "no item ready\n"
-msgstr "Å¾Ã¡dnÃ¡ poloÅ¾ka nenÃ­ pÅ™ipravena\n"
-
-#: pg_backup_archiver.c:3854
-#, c-format
-msgid "could not find slot of finished worker\n"
-msgstr "nelze najÃ­t slot ukonÄenÃ©ho workera\n"
-
-#: pg_backup_archiver.c:3856
-#, c-format
-msgid "finished item %d %s %s\n"
-msgstr "dokonÄena poloÅ¾ka %d %s %s\n"
-
-#: pg_backup_archiver.c:3869
-#, c-format
-msgid "worker process failed: exit code %d\n"
-msgstr "worker proces selhal: exit kÃ³d %d\n"
-
-#: pg_backup_archiver.c:4031
-#, c-format
-msgid "transferring dependency %d -> %d to %d\n"
-msgstr "pÅ™enÃ¡Å¡Ã­m zÃ¡vislost %d -> %d to %d\n"
-
-#: pg_backup_archiver.c:4100
-#, c-format
-msgid "reducing dependencies for %d\n"
-msgstr "redukuji zÃ¡vislosti pro %d\n"
-
-#: pg_backup_archiver.c:4139
-#, c-format
-msgid "table \"%s\" could not be created, will not restore its data\n"
-msgstr "tabulku \"%s\" nelze vytvoÅ™it, jejÃ­ data nebudou obnovena\n"
-
-#. translator: this is a module name
-#: pg_backup_custom.c:93
-msgid "custom archiver"
-msgstr "vlastnÃ­ archivÃ¡Å™"
-
-#: pg_backup_custom.c:382 pg_backup_null.c:152
-#, c-format
-msgid "invalid OID for large object\n"
-msgstr "neplatnÃ© OID pro \"large object\"\n"
-
-#: pg_backup_custom.c:453
-#, c-format
-msgid "unrecognized data block type (%d) while searching archive\n"
-msgstr "nepÅ™Ã­pustnÃ½ typ datovÃ©ho bloku (%d) bÄ›hem prohledÃ¡vÃ¡nÃ­ archivu\n"
-
-#: pg_backup_custom.c:464
-#, c-format
-msgid "error during file seek: %s\n"
-msgstr "chyba bÄ›hem posunu v souboru: %s\n"
-
-#: pg_backup_custom.c:474
-#, c-format
-msgid ""
-"could not find block ID %d in archive -- possibly due to out-of-order "
-"restore request, which cannot be handled due to lack of data offsets in "
-"archive\n"
-msgstr ""
-"v archivu nelze najÃ­t blok ID %d -- moÅ¾nÃ¡ kvÅ¯li out-of-order restore "
-"poÅ¾adavku, kterÃ½ nemohl bÃ½t vyÅ™Ã­zen kvÅ¯li chybÄ›jÃ­cÃ­m datovÃ½m offsetÅ¯m v "
-"archivu\n"
-
-#: pg_backup_custom.c:479
-#, c-format
-msgid ""
-"could not find block ID %d in archive -- possibly due to out-of-order "
-"restore request, which cannot be handled due to non-seekable input file\n"
-msgstr ""
-"v archivu nelze najÃ­t blok ID %d -- moÅ¾nÃ¡ kvÅ¯li out-of-order restore "
-"poÅ¾adavku, kterÃ½ nemohl bÃ½t vyÅ™Ã­zen kvÅ¯li non-seekable vstupnÃ­mu souboru\n"
-
-#: pg_backup_custom.c:484
-#, c-format
-msgid "could not find block ID %d in archive -- possibly corrupt archive\n"
-msgstr "v archivu nelze najÃ­t blok %d -- archiv mÅ¯Å¾e bÃ½t poÅ¡kozen\n"
-
-#: pg_backup_custom.c:491
-#, c-format
-msgid "found unexpected block ID (%d) when reading data -- expected %d\n"
-msgstr "nalezeno neoÄekÃ¡vanÃ© ID bloku (%d) pÅ™i ÄtenÃ­ dat - oÄekÃ¡vÃ¡no %d\n"
-
-#: pg_backup_custom.c:505
-#, c-format
-msgid "unrecognized data block type %d while restoring archive\n"
-msgstr "nepÅ™Ã­pustnÃ½ typ datovÃ©ho bloku %d bÄ›hem obnovenÃ­ archivu\n"
-
-#: pg_backup_custom.c:587 pg_backup_custom.c:995
-#, c-format
-msgid "could not read from input file: end of file\n"
-msgstr "nelze ÄÃ­st vstupnÃ­ soubor: end of file\n"
-
-#: pg_backup_custom.c:590 pg_backup_custom.c:998
-#, c-format
-msgid "could not read from input file: %s\n"
-msgstr "nelze ÄÃ­st vstupnÃ­ soubor: %s\n"
-
-#: pg_backup_custom.c:619
-#, c-format
-msgid "could not write byte: %s\n"
-msgstr "nelze zapsat byte: %s\n"
-
-#: pg_backup_custom.c:727 pg_backup_custom.c:765
-#, c-format
-msgid "could not close archive file: %s\n"
-msgstr "nelze uzavÅ™Ã­t archivnÃ­ soubor: %s\n"
-
-#: pg_backup_custom.c:746
-#, c-format
-msgid "can only reopen input archives\n"
-msgstr "vstupnÃ­ archivy lze pouze znovu otevÅ™Ã­t\n"
-
-#: pg_backup_custom.c:753
-#, c-format
-msgid "parallel restore from standard input is not supported\n"
-msgstr "paralelnÃ­ obnova ze standardnÃ­ho vstupnu nenÃ­ podporovÃ¡na\n"
-
-#: pg_backup_custom.c:755
-#, c-format
-msgid "parallel restore from non-seekable file is not supported\n"
-msgstr "paralelnÃ­ obnova z neseekovatelnÃ©ho souboru nenÃ­ podporovÃ¡na\n"
-
-#: pg_backup_custom.c:760
-#, c-format
-msgid "could not determine seek position in archive file: %s\n"
-msgstr "nelze urÄit seek pozici v archivnÃ­m souboru: %s\n"
-
-#: pg_backup_custom.c:775
-#, c-format
-msgid "could not set seek position in archive file: %s\n"
-msgstr "nelze nastavit seek pozici v archivnÃ­m souboru: %s\n"
-
-#: pg_backup_custom.c:793
-#, c-format
-msgid "compressor active\n"
-msgstr "compressor aktivnÃ­\n"
-
-#: pg_backup_custom.c:903
-#, c-format
-msgid "WARNING: ftell mismatch with expected position -- ftell used\n"
-msgstr "VAROVÃNÃ: ftell neodpovÃ­dÃ¡ oÄekÃ¡vanÃ© pozici -- pouÅ¾it ftell\n"
-
-#. translator: this is a module name
-#: pg_backup_db.c:28
-msgid "archiver (db)"
-msgstr "archivÃ¡Å™ (db)"
-
-#: pg_backup_db.c:43
-#, c-format
-msgid "could not get server_version from libpq\n"
-msgstr "nelze zÃ­skat server_version z libpq\n"
-
-#: pg_backup_db.c:54 pg_dumpall.c:1896
-#, c-format
-msgid "server version: %s; %s version: %s\n"
-msgstr "verze serveru: %s; %s verze: %s\n"
-
-#: pg_backup_db.c:56 pg_dumpall.c:1898
-#, c-format
-msgid "aborting because of server version mismatch\n"
-msgstr "konÄÃ­m kvÅ¯li rozdÃ­lnosti verzÃ­ serverÅ¯\n"
-
-#: pg_backup_db.c:127
-#, c-format
-msgid "connecting to database \"%s\" as user \"%s\"\n"
-msgstr "pÅ™ipojuji se k databÃ¡zi \"%s\" jako uÅ¾ivatel \"%s\"\n"
-
-#: pg_backup_db.c:132 pg_backup_db.c:184 pg_backup_db.c:231 pg_backup_db.c:277
-#: pg_dumpall.c:1726 pg_dumpall.c:1834
-msgid "Password: "
-msgstr "Heslo: "
-
-#: pg_backup_db.c:165
-#, c-format
-msgid "failed to reconnect to database\n"
-msgstr "selhalo znovunavÃ¡zÃ¡nÃ­ spojenÃ­ s databÃ¡zÃ­\n"
-
-#: pg_backup_db.c:170
-#, c-format
-msgid "could not reconnect to database: %s"
-msgstr "nelze znovu navÃ¡zat spojenÃ­ s databÃ¡zÃ­: %s"
-
-#: pg_backup_db.c:186
-#, c-format
-msgid "connection needs password\n"
-msgstr "spojenÃ­ vyÅ¾aduje heslo\n"
-
-#: pg_backup_db.c:227
-#, c-format
-msgid "already connected to a database\n"
-msgstr "spojenÃ­ s databÃ¡zÃ­ jiÅ¾ existuje\n"
-
-#: pg_backup_db.c:269
-#, c-format
-msgid "failed to connect to database\n"
-msgstr "selhalo spojenÃ­ s databÃ¡zÃ­\n"
-
-#: pg_backup_db.c:288
-#, c-format
-msgid "connection to database \"%s\" failed: %s"
-msgstr "spojenÃ­ s databÃ¡zÃ­ \"%s\" selhalo: %s"
-
-#: pg_backup_db.c:343
-#, c-format
-msgid "query failed: %s"
-msgstr "dotaz selhal: %s"
-
-#: pg_backup_db.c:345
-#, c-format
-msgid "query was: %s\n"
-msgstr "dotaz byl: %s\n"
-
-#: pg_backup_db.c:409
-#, c-format
-msgid "%s: %s    Command was: %s\n"
-msgstr "%s: %s    PÅ™Ã­kaz byl: %s\n"
-
-#: pg_backup_db.c:460 pg_backup_db.c:531 pg_backup_db.c:538
-msgid "could not execute query"
-msgstr "nelze provÃ©st dotaz"
-
-#: pg_backup_db.c:511
-#, c-format
-msgid "error returned by PQputCopyData: %s"
-msgstr "PQputCopyData vrÃ¡tilo chybu: %s"
-
-#: pg_backup_db.c:557
-#, c-format
-msgid "error returned by PQputCopyEnd: %s"
-msgstr "PQputCopyEnd vrÃ¡tilo chybu: %s"
-
-#: pg_backup_db.c:563
-#, c-format
-msgid "COPY failed for table \"%s\": %s"
-msgstr "COPY selhal pro tabulku \"%s\": %s"
-
-#: pg_backup_db.c:574
-msgid "could not start database transaction"
-msgstr "nelze spustit databÃ¡zovou transakci"
-
-#: pg_backup_db.c:580
-msgid "could not commit database transaction"
-msgstr "nelze provÃ©st commit transakce"
-
-#. translator: this is a module name
-#: pg_backup_directory.c:63
-msgid "directory archiver"
-msgstr "directory archiver"
-
-#: pg_backup_directory.c:161
-#, c-format
-msgid "no output directory specified\n"
-msgstr "nezadÃ¡n Å¾Ã¡dnÃ½ vÃ½stupnÃ­ adresÃ¡Å™\n"
-
-#: pg_backup_directory.c:193
-#, c-format
-msgid "could not create directory \"%s\": %s\n"
-msgstr "nelze vytvoÅ™it adresÃ¡Å™ \"%s\": %s\n"
-
-#: pg_backup_directory.c:405
-#, c-format
-msgid "could not close data file: %s\n"
-msgstr "nelze uzavÅ™Ã­t datovÃ½ soubor: %s\n"
-
-#: pg_backup_directory.c:446
-#, c-format
-msgid "could not open large object TOC file \"%s\" for input: %s\n"
-msgstr "nelze otevÅ™Ã­t TOC soubor pro large objekty \"%s\" pro vstup: %s\n"
-
-#: pg_backup_directory.c:456
-#, c-format
-msgid "invalid line in large object TOC file \"%s\": \"%s\"\n"
-msgstr "neplatnÃ½ Å™Ã¡dek v TOC souboru pro large objekty \"%s\" : \"%s\"\n"
-
-#: pg_backup_directory.c:465
-#, c-format
-msgid "error reading large object TOC file \"%s\"\n"
-msgstr "chyba pÅ™i ÄtenÃ­ TOC souboru pro large objekty \"%s\"\n"
-
-#: pg_backup_directory.c:469
-#, c-format
-msgid "could not close large object TOC file \"%s\": %s\n"
-msgstr "nelze uzavÅ™Ã­t TOC soubor pro large objekty \"%s\": %s\n"
-
-#: pg_backup_directory.c:490
-#, c-format
-msgid "could not write byte\n"
-msgstr "nelze zapsat byte\n"
-
-#: pg_backup_directory.c:682
-#, c-format
-msgid "could not write to blobs TOC file\n"
-msgstr "nelze zapsat do TOC souboru pro bloby\n"
-
-#: pg_backup_directory.c:714
-#, c-format
-msgid "file name too long: \"%s\"\n"
-msgstr "jmÃ©no souboru je pÅ™Ã­liÅ¡ dlouhÃ©: \"%s\"\n"
-
-#: pg_backup_directory.c:800
-#, c-format
-#| msgid "error during file seek: %s\n"
-msgid "error during backup\n"
-msgstr "chyba bÄ›hem zÃ¡lohovÃ¡nÃ­\n"
-
-#: pg_backup_null.c:77
-#, c-format
-msgid "this format cannot be read\n"
-msgstr "tento formÃ¡t nelze ÄÃ­st\n"
-
-#. translator: this is a module name
-#: pg_backup_tar.c:109
-msgid "tar archiver"
-msgstr "tar archivÃ¡Å™"
-
-#: pg_backup_tar.c:190
-#, c-format
-msgid "could not open TOC file \"%s\" for output: %s\n"
-msgstr "nelze otevÅ™Ã­t TOC soubor \"%s\" pro vÃ½stup: %s\n"
-
-#: pg_backup_tar.c:198
-#, c-format
-msgid "could not open TOC file for output: %s\n"
-msgstr "nelze otevÅ™Ã­t TOC soubor pro vÃ½stup: %s\n"
-
-#: pg_backup_tar.c:226 pg_backup_tar.c:382
-#, c-format
-msgid "compression is not supported by tar archive format\n"
-msgstr "komprese nenÃ­ podporovÃ¡na v \"tar\" vÃ½stupnÃ­m formÃ¡tu\n"
-
-#: pg_backup_tar.c:234
-#, c-format
-msgid "could not open TOC file \"%s\" for input: %s\n"
-msgstr "nelze otevÅ™Ã­t TOC soubor \"%s\" pro vstup: %s\n"
-
-#: pg_backup_tar.c:241
-#, c-format
-msgid "could not open TOC file for input: %s\n"
-msgstr "nelze otevÅ™Ã­t TOC soubor pro vstup: %s\n"
-
-#: pg_backup_tar.c:368
-#, c-format
-msgid "could not find file \"%s\" in archive\n"
-msgstr "v archivu nelze najÃ­t soubor \"%s\"\n"
-
-#: pg_backup_tar.c:424
-#, c-format
-msgid "could not generate temporary file name: %s\n"
-msgstr "nelze vygenerovat jmÃ©no doÄasnÃ©ho souboru: %s\n"
-
-#: pg_backup_tar.c:433
-#, c-format
-msgid "could not open temporary file\n"
-msgstr "nelze otevÅ™Ã­t doÄasnÃ½ soubor\n"
-
-#: pg_backup_tar.c:460
-#, c-format
-msgid "could not close tar member\n"
-msgstr "nelze zavÅ™Ã­t tar poloÅ¾ku\n"
-
-#: pg_backup_tar.c:560
-#, c-format
-msgid "internal error -- neither th nor fh specified in tarReadRaw()\n"
-msgstr "internÃ­ chyba -- ani th ani fh nespecifikovÃ¡n v tarReadRaw()\n"
-
-#: pg_backup_tar.c:686
-#, c-format
-msgid "unexpected COPY statement syntax: \"%s\"\n"
-msgstr "neoÄekÃ¡vanÃ¡ syntaxe pÅ™Ã­kazu COPY: \"%s\"\n"
-
-#: pg_backup_tar.c:889
-#, c-format
-msgid "could not write null block at end of tar archive\n"
-msgstr "nelze zapsat null blok na konec tar archivu\n"
-
-#: pg_backup_tar.c:944
-#, c-format
-msgid "invalid OID for large object (%u)\n"
-msgstr "neplatnÃ© OID pro \"large object\" (%u)\n"
-
-#: pg_backup_tar.c:1078
-#, c-format
-msgid "archive member too large for tar format\n"
-msgstr "poloÅ¾ka archivu je pÅ™Ã­liÅ¡ velkÃ¡ pro formÃ¡t tar\n"
-
-#: pg_backup_tar.c:1093
-#, c-format
-msgid "could not close temporary file: %s\n"
-msgstr "nelze otevÅ™Ã­t doÄasnÃ½ soubor: %s\n"
-
-#: pg_backup_tar.c:1103
-#, c-format
-msgid "actual file length (%s) does not match expected (%s)\n"
-msgstr "skuteÄnÃ¡ dÃ©lka souboru (%s) nenÃ­ stejnÃ¡ jako oÄekÃ¡vanÃ¡ (%s)\n"
-
-#: pg_backup_tar.c:1111
-#, c-format
-msgid "could not output padding at end of tar member\n"
-msgstr "nelze zapsat vycpÃ¡vku (padding) na konec poloÅ¾ky taru\n"
-
-#: pg_backup_tar.c:1140
-#, c-format
-msgid "moving from position %s to next member at file position %s\n"
-msgstr "pÅ™echÃ¡zÃ­m z pozice %s na nÃ¡sledujÃ­cÃ­ho poloÅ¾ky na pozici souboru %s\n"
-
-#: pg_backup_tar.c:1151
-#, c-format
-msgid "now at file position %s\n"
-msgstr "nynÃ­ na pozici souboru %s\n"
-
-#: pg_backup_tar.c:1160 pg_backup_tar.c:1190
-#, c-format
-msgid "could not find header for file \"%s\" in tar archive\n"
-msgstr "nelze najÃ­t hlaviÄku pro soubor %s v tar archivu\n"
-
-#: pg_backup_tar.c:1174
-#, c-format
-msgid "skipping tar member %s\n"
-msgstr "pÅ™eskakovÃ¡n tar Älen %s\n"
-
-#: pg_backup_tar.c:1178
-#, c-format
-msgid ""
-"restoring data out of order is not supported in this archive format: \"%s\" "
-"is required, but comes before \"%s\" in the archive file.\n"
-msgstr ""
-"dump dat mimo poÅ™adÃ­ nenÃ­ podporovÃ¡no v tomto formÃ¡tu archivu: %s je "
-"vyÅ¾adovÃ¡n, ale pÅ™edchÃ¡zÃ­ %s.\n"
-
-#: pg_backup_tar.c:1224
-#, c-format
-msgid "mismatch in actual vs. predicted file position (%s vs. %s)\n"
-msgstr "aktuÃ¡lnÃ­ a pÅ™edpoklÃ¡danÃ¡ pozice souboru se neshodujÃ­ (%s vs. %s)\n"
-
-#: pg_backup_tar.c:1239
-#, c-format
-msgid "incomplete tar header found (%lu byte)\n"
-msgid_plural "incomplete tar header found (%lu bytes)\n"
-msgstr[0] "nalezena nekompletnÃ­ tar hlaviÄka (%lu byte)\n"
-msgstr[1] "nalezena nekompletnÃ­ tar hlaviÄka (%lu byty)\n"
-msgstr[2] "nalezena nekompletnÃ­ tar hlaviÄka (%lu bytÅ¯)\n"
-
-#: pg_backup_tar.c:1277
-#, c-format
-msgid "TOC Entry %s at %s (length %lu, checksum %d)\n"
-msgstr "TOC zÃ¡znam %s na %s (dÃ©lka %lu, kontrolnÃ­ souÄet %d)\n"
-
-#: pg_backup_tar.c:1287
-#, c-format
-msgid ""
-"corrupt tar header found in %s (expected %d, computed %d) file position %s\n"
-msgstr ""
-"nalezena poÅ¡kozenÃ¡ tar hlaviÄka v %s (pÅ™edpoklÃ¡dÃ¡no %d, vypoÄteno %d) pozice "
-"souboru %s\n"
+#: pg_dump.c:366 pg_restore.c:229
+msgid "User name: "
+msgstr "U¾ivatelské jméno: "
 
-#: pg_backup_utils.c:54
+#: pg_dump.c:402 pg_restore.c:256 pg_dumpall.c:264
 #, c-format
-msgid "%s: unrecognized section name: \"%s\"\n"
-msgstr "%s: neznÃ¡mÃ½ nÃ¡zev sekce \"%s\"\n"
+msgid "%s: invalid -X option -- %s\n"
+msgstr "%s: neplatnı pøepínaè -X -- %s\n"
 
-#: pg_backup_utils.c:56 pg_dump.c:540 pg_dump.c:557 pg_dumpall.c:303
-#: pg_dumpall.c:313 pg_dumpall.c:323 pg_dumpall.c:332 pg_dumpall.c:341
-#: pg_dumpall.c:399 pg_restore.c:282 pg_restore.c:298 pg_restore.c:310
+#: pg_dump.c:404 pg_dump.c:418 pg_dump.c:427 pg_restore.c:258 pg_restore.c:268
+#: pg_restore.c:285 pg_dumpall.c:266 pg_dumpall.c:275 pg_dumpall.c:292
 #, c-format
 msgid "Try \"%s --help\" for more information.\n"
-msgstr "Zkuste \"%s --help\" pro vÃ­ce informacÃ­.\n"
+msgstr "Zkuste \"%s --help\" pro více informací.\n"
 
-#: pg_backup_utils.c:101
-#, c-format
-msgid "out of on_exit_nicely slots\n"
-msgstr "vyÄerpÃ¡no on_exit_nicely slotÅ¯\n"
-
-#: pg_dump.c:555 pg_dumpall.c:311 pg_restore.c:296
+#: pg_dump.c:425 pg_dumpall.c:290
 #, c-format
 msgid "%s: too many command-line arguments (first is \"%s\")\n"
-msgstr "%s: pÅ™Ã­liÅ¡ mnoho argumentÅ¯ v pÅ™Ã­kazovÃ© Å™Ã¡dce (prvnÃ­ je \"%s\")\n"
+msgstr "%s: pøíli¹ mnoho argumentù v pøíkazové øádce (první je \"%s\")\n"
 
-#: pg_dump.c:567
-#, c-format
-msgid "options -s/--schema-only and -a/--data-only cannot be used together\n"
-msgstr "volby -s/--schema-only a -a/--data-only nelze pouÅ¾Ã­vat spoleÄnÄ›\n"
+#: pg_dump.c:438
+msgid "options \"schema only\" (-s) and \"data only\" (-a) cannot be used together\n"
+msgstr "pøepínaèe \"pouze schéma\" (-s) a \"pouze data\" (-a) nelze pou¾ít najednou\n"
 
-#: pg_dump.c:570
-#, c-format
-msgid "options -c/--clean and -a/--data-only cannot be used together\n"
-msgstr "volby -c/--clean a -a/--data-only nelze pouÅ¾Ã­vat spoleÄnÄ›\n"
+#: pg_dump.c:444
+msgid "options \"clean\" (-c) and \"data only\" (-a) cannot be used together\n"
+msgstr "pøepínaèe \"vyèistit\" (-c) a \"pouze data\" (-a) nelze pou¾ít najednou\n"
 
-#: pg_dump.c:574
-#, c-format
-msgid ""
-"options --inserts/--column-inserts and -o/--oids cannot be used together\n"
-msgstr "volby --inserts/--column-inserts a -o/--oids nelze pouÅ¾Ã­vat spoleÄnÄ›\n"
+#: pg_dump.c:450
+msgid "large-object output not supported for a single table\n"
+msgstr "vıstup \"large object\" není podporován pro samotnou tabulku\n"
 
-#: pg_dump.c:575
-#, c-format
+#: pg_dump.c:451 pg_dump.c:458
+msgid "use a full dump instead\n"
+msgstr "pou¾ijte úplnı dump\n"
+
+#: pg_dump.c:457
+msgid "large-object output not supported for a single schema\n"
+msgstr "vıstup z \"large object\" není podporován pro jedno samotné schéma\n"
+
+#: pg_dump.c:464
+msgid "INSERT (-d, -D) and OID (-o) options cannot be used together\n"
+msgstr "pøepínaèe INSERT (-d, -D) a OID (-o) nelze pou¾ít dohromady\n"
+
+#: pg_dump.c:465
 msgid "(The INSERT command cannot set OIDs.)\n"
-msgstr "(PÅ™Ã­kaz INSERT nemÅ¯Å¾e nastavovat OID.)\n"
+msgstr "(Pøíkaz INSERT nemù¾e nastavovat OID.)\n"
 
-#: pg_dump.c:605
+#: pg_dump.c:471
+msgid "large-object output is not supported for plain-text dump files\n"
+msgstr "vıstup s \"large object\" není podporován pro textovı formát dumpu\n"
+
+#: pg_dump.c:472
+msgid "(Use a different output format.)\n"
+msgstr "(Pou¾ijte jinı formát dumpu.)\n"
+
+#: pg_dump.c:501
 #, c-format
-#| msgid "invalid column number %d for table \"%s\"\n"
-msgid "%s: invalid number of parallel jobs\n"
-msgstr "%s: neplatnÃ½ poÄet paralelnÃ­ch jobÅ¯\n"
+msgid "invalid output format \"%s\" specified\n"
+msgstr "specifikován neplatnı formát \"%s\" vıstupu\n"
 
-#: pg_dump.c:609
-#, c-format
-#| msgid "parallel restore is not supported with this archive file format\n"
-msgid "parallel backup only supported by the directory format\n"
-msgstr "paralelnÃ­ zÃ¡loha je podporovÃ¡na pouze directory formÃ¡tem\n"
-
-#: pg_dump.c:619
+#: pg_dump.c:507
 #, c-format
 msgid "could not open output file \"%s\" for writing\n"
-msgstr "nelze otevÅ™Ã­t vÃ½stupnÃ­ soubor \"%s\" pro zÃ¡pis\n"
+msgstr "nelze otevøít vıstupní soubor \"%s\" pro zápis\n"
 
-#: pg_dump.c:678
+#: pg_dump.c:518 pg_backup_db.c:52
 #, c-format
-msgid ""
-"Synchronized snapshots are not supported by this server version.\n"
-"Run with --no-synchronized-snapshots instead if you do not need\n"
-"synchronized snapshots.\n"
-msgstr ""
-"SynchronizovanÃ© snapshoty nejsou na tÃ©to verzi serveru podporovÃ¡ny.\n"
-"Pokud nepotÅ™ebujete synchronizovanÃ© snapshoty, pouÅ¾ijte pÅ™epÃ­naÄ\n"
-"--no-synchronized-snapshots.\n"
+msgid "could not parse version string \"%s\"\n"
+msgstr "nelze zapracovat øetìzec s verzí \"%s\"\n"
 
-#: pg_dump.c:691
+#: pg_dump.c:554
 #, c-format
 msgid "last built-in OID is %u\n"
-msgstr "poslednÃ­ vestavÄ›nÃ© OID je %u\n"
+msgstr "poslední vestavìné OID je %u\n"
 
-#: pg_dump.c:700
-#, c-format
-msgid "No matching schemas were found\n"
-msgstr "Nebyla nalezena Å¾Ã¡dnÃ¡ odovÃ­dajÃ­cÃ­ schÃ©mata.\n"
-
-#: pg_dump.c:712
-#, c-format
-msgid "No matching tables were found\n"
-msgstr "Nebyla nalezena Å¾Ã¡dnÃ¡ odpovÃ­dajÃ­cÃ­ tabulka.\n"
-
-#: pg_dump.c:856
+#: pg_dump.c:665
 #, c-format
 msgid ""
 "%s dumps a database as a text file or to other formats.\n"
 "\n"
 msgstr ""
-"%s vytvoÅ™Ã­ dump databÃ¡ze jako textovÃ½ soubor nebo v jinÃ©m formÃ¡tu.\n"
+"%s vytvoøí dump databáze jako textovı soubor nebo v jiném formátu.\n"
 "\n"
 
-#: pg_dump.c:857 pg_dumpall.c:541 pg_restore.c:414
+#: pg_dump.c:666 pg_restore.c:359 pg_dumpall.c:337
 #, c-format
 msgid "Usage:\n"
-msgstr "PouÅ¾itÃ­:\n"
+msgstr "Pou¾ití:\n"
 
-#: pg_dump.c:858
+#: pg_dump.c:667
 #, c-format
 msgid "  %s [OPTION]... [DBNAME]\n"
-msgstr "  %s [PÅ˜EPÃNAÄŒ]... [DATABÃZE]\n"
+msgstr "  %s [PØEPÍNAÈ]... [DATABÁZE]\n"
 
-#: pg_dump.c:860 pg_dumpall.c:544 pg_restore.c:417
+#: pg_dump.c:669 pg_restore.c:362 pg_dumpall.c:340
 #, c-format
 msgid ""
 "\n"
 "General options:\n"
 msgstr ""
 "\n"
-"ObecnÃ© volby:\n"
+"Základní pøepínaèe:\n"
 
-#: pg_dump.c:861
+#: pg_dump.c:670 pg_restore.c:364
 #, c-format
-msgid "  -f, --file=FILENAME          output file or directory name\n"
-msgstr "  -f, --file=SOUBOR        vÃ½stupnÃ­ soubor nebo adresÃ¡Å™\n"
+msgid "  -f, --file=FILENAME      output file name\n"
+msgstr "  -f, --file=SOUBOR        vıstupní soubor\n"
 
-#: pg_dump.c:862
+#: pg_dump.c:671
+#, c-format
+msgid "  -F, --format=c|t|p       output file format (custom, tar, plain text)\n"
+msgstr ""
+"  -F, --format=c|t|p       formát vıstupního souboru (custom, tar, plain "
+"text)\n"
+
+#: pg_dump.c:672
 #, c-format
 msgid ""
-"  -F, --format=c|d|t|p         output file format (custom, directory, tar,\n"
-"                               plain text (default))\n"
+"  -i, --ignore-version     proceed even when server version mismatches\n"
+"                           pg_dump version\n"
 msgstr ""
-"  -F, --format=c|d|t|p        formÃ¡t vÃ½stupnÃ­ho soubor (custom, directory, "
-"tar,\n"
-"                              plain text (vÃ½chozÃ­))\n"
+"  -i, --ignore-version     ignorovat rozdíl mezi verzí serveru a\n"
+"                           verzí programu pg_dump\n"
 
-#: pg_dump.c:864
+#: pg_dump.c:674 pg_restore.c:368
 #, c-format
-#| msgid ""
-#| "  -j, --jobs=NUM               use this many parallel jobs to restore\n"
-msgid "  -j, --jobs=NUM               use this many parallel jobs to dump\n"
+msgid "  -v, --verbose            verbose mode\n"
+msgstr "  -v, --verbose            vypisovat více informací\n"
+
+#: pg_dump.c:675
+#, c-format
+msgid "  -Z, --compress=0-9       compression level for compressed formats\n"
 msgstr ""
-"  -j, --jobs=NUM               pouÅ¾ij tento poÄet paralelnÃ­ch jobÅ¯ pro "
-"zÃ¡lohu\n"
+"  -Z, --compress=0-9       úroveò komprese pøi pou¾ití komprimovaného "
+"formátu\n"
 
-#: pg_dump.c:865
+#: pg_dump.c:676 pg_restore.c:369 pg_dumpall.c:343
 #, c-format
-msgid "  -v, --verbose                verbose mode\n"
-msgstr "  -v, --verbose            vypisovat vÃ­ce informacÃ­\n"
+msgid "  --help                   show this help, then exit\n"
+msgstr "  --help                   uká¾e tuto nápovìdu a skonèí\n"
 
-#: pg_dump.c:866 pg_dumpall.c:546
+#: pg_dump.c:677 pg_restore.c:370 pg_dumpall.c:344
 #, c-format
-msgid "  -V, --version                output version information, then exit\n"
-msgstr "  -V, --version                zobraz informaci o verzi, potÃ© skonÄi\n"
+msgid "  --version                output version information, then exit\n"
+msgstr "  --version                uká¾e informace o verzi a skonèí\n"
 
-#: pg_dump.c:867
-#, c-format
-msgid ""
-"  -Z, --compress=0-9           compression level for compressed formats\n"
-msgstr ""
-"  -Z, --compress=0-9       ÃºroveÅˆ komprese pÅ™i pouÅ¾itÃ­ komprimovanÃ©ho "
-"formÃ¡tu\n"
-
-#: pg_dump.c:868 pg_dumpall.c:547
-#, c-format
-msgid ""
-"  --lock-wait-timeout=TIMEOUT  fail after waiting TIMEOUT for a table lock\n"
-msgstr ""
-"  --lock-wait-timeout=TIMEOUT selÅ¾e po uplynutÃ­ TIMEOUT ÄekÃ¡nÃ­m na zÃ¡mek "
-"tabulky\n"
-
-#: pg_dump.c:869 pg_dumpall.c:548
-#, c-format
-msgid "  -?, --help                   show this help, then exit\n"
-msgstr "  -?, --help                   zobraz tuto nÃ¡povÄ›du, potÃ© skonÄi\n"
-
-#: pg_dump.c:871 pg_dumpall.c:549
+#: pg_dump.c:679 pg_dumpall.c:345
 #, c-format
 msgid ""
 "\n"
 "Options controlling the output content:\n"
 msgstr ""
 "\n"
-"PÅ™epÃ­naÄe ovlivÅˆujÃ­cÃ­ vÃ½stup:\n"
+"Pøepínaèe ovlivòující vıstup:\n"
 
-#: pg_dump.c:872 pg_dumpall.c:550
+#: pg_dump.c:680 pg_dumpall.c:346
 #, c-format
-msgid "  -a, --data-only              dump only the data, not the schema\n"
-msgstr ""
-"  -a, --data-only          dump pouze dat bez definic databÃ¡zovÃ½ch objektÅ¯\n"
+msgid "  -a, --data-only          dump only the data, not the schema\n"
+msgstr "  -a, --data-only          dump pouze dat bez definic databázovıch objektù\n"
 
-#: pg_dump.c:873
+#: pg_dump.c:681
 #, c-format
-msgid "  -b, --blobs                  include large objects in dump\n"
+msgid "  -b, --blobs              include large objects in dump\n"
 msgstr "  -b, --blobs              zahrnout \"large objects\" do dumpu\n"
 
-#: pg_dump.c:874 pg_restore.c:428
+#: pg_dump.c:682 pg_restore.c:374
 #, c-format
-msgid ""
-"  -c, --clean                  clean (drop) database objects before "
-"recreating\n"
+msgid "  -c, --clean              clean (drop) schema prior to create\n"
 msgstr ""
-"  -c, --clean              odstranit (drop) databÃ¡zi pÅ™ed jejÃ­m vytvoÅ™enÃ­m\n"
+"  -c, --clean              odstranit (drop) definice databázovıch objektù\n"
+"                           pøed vytvoøením\n"
 
-#: pg_dump.c:875
+#: pg_dump.c:683
 #, c-format
-msgid ""
-"  -C, --create                 include commands to create database in dump\n"
+msgid "  -C, --create             include commands to create database in dump\n"
+msgstr "  -C, --create             zahrnout pøíkazy pro vytvoøení databáze do dumpu\n"
+
+#: pg_dump.c:684 pg_dumpall.c:348
+#, c-format
+msgid "  -d, --inserts            dump data as INSERT, rather than COPY, commands\n"
+msgstr "  -d, --inserts            pou¾ít pro dump dat pøíkazy INSERT místo COPY\n"
+
+#: pg_dump.c:685 pg_dumpall.c:349
+#, c-format
+msgid "  -D, --column-inserts     dump data as INSERT commands with column names\n"
 msgstr ""
-"  -C, --create             zahrnout pÅ™Ã­kazy pro vytvoÅ™enÃ­ databÃ¡ze do dumpu\n"
+"  -D, --column-inserts     pou¾ije pro dump dat pøíkaz INSERT se jmény "
+"sloupcù\n"
 
-#: pg_dump.c:876
+#: pg_dump.c:686
 #, c-format
-msgid "  -E, --encoding=ENCODING      dump the data in encoding ENCODING\n"
-msgstr "  -E, --encoding=KÃ“DOVÃNÃ      kÃ³dovÃ¡nÃ­ znakÅ¯ databÃ¡ze\n"
+msgid "  -n, --schema=SCHEMA      dump the named schema only\n"
+msgstr "  -n, --schema=SCHEMA      vytvoøit dump pouze specifikovaného schématu\n"
 
-#: pg_dump.c:877
+#: pg_dump.c:687 pg_dumpall.c:351
 #, c-format
-msgid "  -n, --schema=SCHEMA          dump the named schema(s) only\n"
-msgstr ""
-"  -n, --schema=SCHEMA      vytvoÅ™it dump pouze specifikovanÃ©ho schÃ©matu\n"
-
-#: pg_dump.c:878
-#, c-format
-msgid "  -N, --exclude-schema=SCHEMA  do NOT dump the named schema(s)\n"
-msgstr "  -N, --exclude-schema=SCHEMA nedumpuj uvedenÃ© schÃ©ma(ta)\n"
-
-#: pg_dump.c:879 pg_dumpall.c:553
-#, c-format
-msgid "  -o, --oids                   include OIDs in dump\n"
+msgid "  -o, --oids               include OIDs in dump\n"
 msgstr "  -o, --oids               zahrnout OID do dumpu\n"
 
-#: pg_dump.c:880
+#: pg_dump.c:688
 #, c-format
 msgid ""
-"  -O, --no-owner               skip restoration of object ownership in\n"
-"                               plain-text format\n"
+"  -O, --no-owner           do not output commands to set object ownership\n"
+"                           in plain text format\n"
 msgstr ""
-"  -O, --no-owner           nevypisovat pÅ™Ã­kazy pro nastavenÃ­ vlastnÃ­ka "
+"  -O, --no-owner           nevypisovat pøíkazy pro nastavení vlastníka "
 "objektu\n"
-"                           v ÄistÄ› textovÃ©m formÃ¡tu\n"
+"                           v èistì textovém formátu\n"
 
-#: pg_dump.c:882 pg_dumpall.c:556
+#: pg_dump.c:690 pg_dumpall.c:353
 #, c-format
-msgid "  -s, --schema-only            dump only the schema, no data\n"
+msgid "  -s, --schema-only        dump only the schema, no data\n"
 msgstr ""
-"  -s, --schema-only        dump pouze definic databÃ¡zovÃ½ch objektÅ¯\n"
+"  -s, --schema-only        dump pouze definic databázovıch objektù\n"
 "                           (tabulek apod.) bez dat\n"
 
-#: pg_dump.c:883
+#: pg_dump.c:691
 #, c-format
 msgid ""
-"  -S, --superuser=NAME         superuser user name to use in plain-text "
-"format\n"
+"  -S, --superuser=NAME     specify the superuser user name to use in\n"
+"                           plain text format\n"
 msgstr ""
-"  -S, --superuser=JMÃ‰NO    uÅ¾ivatelskÃ© jmÃ©no superuÅ¾ivatele pouÅ¾itÃ© pÅ™i "
-"dumpu\n"
+"  -S, --superuser=JMÉNO    jméno super-u¾ivatele pou¾ité v\n"
+"                           èistì textovém formátu\n"
 
-#: pg_dump.c:884
+#: pg_dump.c:693
 #, c-format
-msgid "  -t, --table=TABLE            dump the named table(s) only\n"
-msgstr "  -t, --table=TABULKA      provÃ©st dump pouze uvedenÃ© tabulky\n"
+msgid "  -t, --table=TABLE        dump the named table only\n"
+msgstr "  -t, --table=TABULKA      provést dump pouze uvedené tabulky\n"
 
-#: pg_dump.c:885
+#: pg_dump.c:694 pg_dumpall.c:355
 #, c-format
-msgid "  -T, --exclude-table=TABLE    do NOT dump the named table(s)\n"
-msgstr "  -T, --exclude-table=TABLE   neprovÃ¡dÄ›j dump uvedenÃ½ch tabulek\n"
+msgid "  -x, --no-privileges      do not dump privileges (grant/revoke)\n"
+msgstr "  -x, --no-privileges      neprovádìt dump pøístupovıch práv (grant/revoke)\n"
 
-#: pg_dump.c:886 pg_dumpall.c:559
-#, c-format
-msgid "  -x, --no-privileges          do not dump privileges (grant/revoke)\n"
-msgstr ""
-"  -x, --no-privileges      neprovÃ¡dÄ›t dump pÅ™Ã­stupovÃ½ch prÃ¡v (grant/revoke)\n"
-
-#: pg_dump.c:887 pg_dumpall.c:560
-#, c-format
-msgid "  --binary-upgrade             for use by upgrade utilities only\n"
-msgstr ""
-"  --binary-upgrade            pouze pro pouÅ¾itÃ­ upgradovacÃ­mi nÃ¡stroji\n"
-
-#: pg_dump.c:888 pg_dumpall.c:561
+#: pg_dump.c:695 pg_dumpall.c:356
 #, c-format
 msgid ""
-"  --column-inserts             dump data as INSERT commands with column "
-"names\n"
+"  -X disable-dollar-quoting, --disable-dollar-quoting\n"
+"                           disable dollar quoting, use SQL standard quoting\n"
 msgstr ""
-"  --column-inserts            pouÅ¾ije pro dump dat pÅ™Ã­kaz INSERT se jmÃ©ny "
-"sloupcÅ¯\n"
+"  -X disable-dollar-quoting, --disable-dollar-quoting\n"
+"                           nepou¾ívat znak dolaru místo uvozovek, pou¾ívat\n"
+"                           standardní SQL uvozování\n"
 
-#: pg_dump.c:889 pg_dumpall.c:562
+#: pg_dump.c:697 pg_restore.c:388 pg_dumpall.c:358
 #, c-format
 msgid ""
-"  --disable-dollar-quoting     disable dollar quoting, use SQL standard "
-"quoting\n"
+"  -X disable-triggers, --disable-triggers\n"
+"                           disable triggers during data-only restore\n"
 msgstr ""
-"  --disable-dollar-quoting    nepouÅ¾Ã­vat znak dolaru mÃ­sto uvozovek, "
-"pouÅ¾Ã­vat\n"
-"                           standardnÃ­ SQL uvozovÃ¡nÃ­\n"
+"  -X disable-triggers, --disable-triggers\n"
+"                           zakázat volání triggerù bìhem obnovy dat\n"
 
-#: pg_dump.c:890 pg_dumpall.c:563 pg_restore.c:444
+#: pg_dump.c:699 pg_restore.c:390 pg_dumpall.c:360
 #, c-format
 msgid ""
-"  --disable-triggers           disable triggers during data-only restore\n"
+"  -X use-set-session-authorization, --use-set-session-authorization\n"
+"                           use SESSION AUTHORIZATION commands instead of\n"
+"                           OWNER TO commands\n"
 msgstr ""
-"  --disable-triggers          zakÃ¡zat volÃ¡nÃ­ triggerÅ¯ bÄ›hem obnovy dat\n"
+"  -X use-set-session-authorization, --use-set-session-authorization\n"
+"                           pou¾ívat pøíkaz SET SESSION AUTHORIZATION "
+"namísto\n"
+"                           pøíkazu SET OWNER TO\n"
 
-#: pg_dump.c:891
-#, c-format
-msgid ""
-"  --exclude-table-data=TABLE   do NOT dump data for the named table(s)\n"
-msgstr "  --exclude-table-data=TABLE  NEdumpuj data pro vyjmenovanÃ© tabulky\n"
-
-#: pg_dump.c:892 pg_dumpall.c:564
-#, c-format
-msgid ""
-"  --inserts                    dump data as INSERT commands, rather than "
-"COPY\n"
-msgstr ""
-"  --inserts                   pouÅ¾Ã­t pro dump dat pÅ™Ã­kazy INSERT mÃ­sto COPY\n"
-
-#: pg_dump.c:893 pg_dumpall.c:565
-#, c-format
-msgid "  --no-security-labels         do not dump security label assignments\n"
-msgstr "  --no-security-labels        neprovÃ¡dÄ›t dump bezpeÄnostnÃ­ch Å¡tÃ­tkÅ¯\n"
-
-#: pg_dump.c:894
-#, c-format
-msgid ""
-"  --no-synchronized-snapshots  do not use synchronized snapshots in parallel "
-"jobs\n"
-msgstr ""
-"  --no-synchronized-snapshots  nepouÅ¾Ã­vat synchronizovanÃ© snapshoty v "
-"paralelnÃ­ch "
-"jobech\n"
-
-#: pg_dump.c:895 pg_dumpall.c:566
-#, c-format
-msgid "  --no-tablespaces             do not dump tablespace assignments\n"
-msgstr "  --no-tablespaces            neprovÃ¡dÄ›t dump pÅ™iÅ™azenÃ­ tablespaces\n"
-
-#: pg_dump.c:896 pg_dumpall.c:567
-#, c-format
-msgid "  --no-unlogged-table-data     do not dump unlogged table data\n"
-msgstr "  --no-unlogged-table-data    nedumpuj data unlogged tabulek\n"
-
-#: pg_dump.c:897 pg_dumpall.c:568
-#, c-format
-msgid ""
-"  --quote-all-identifiers      quote all identifiers, even if not key words\n"
-msgstr ""
-"  --quote-all-identifiers     vÅ¡echny identifikÃ¡tory uveÄ v uvozovkÃ¡ch, i "
-"kdyÅ¾ se nejednÃ¡ o klÃ­ÄovÃ¡ slova\n"
-
-#: pg_dump.c:898
-#, c-format
-msgid ""
-"  --section=SECTION            dump named section (pre-data, data, or post-"
-"data)\n"
-msgstr ""
-"  --section=SECTION           dump pojmenovanÃ© sekce (pre-data, data, nebo "
-"post-data)\n"
-
-#: pg_dump.c:899
-#, c-format
-msgid ""
-"  --serializable-deferrable    wait until the dump can run without "
-"anomalies\n"
-msgstr ""
-"  --serializable-deferrable   poÄkej neÅ¾ bude moÅ¾nÃ© provÃ©st dump bez "
-"anomÃ¡liÃ­\n"
-
-#: pg_dump.c:900 pg_dumpall.c:569 pg_restore.c:450
-#, c-format
-msgid ""
-"  --use-set-session-authorization\n"
-"                               use SET SESSION AUTHORIZATION commands "
-"instead of\n"
-"                               ALTER OWNER commands to set ownership\n"
-msgstr ""
-"  --use-set-session-authorization\n"
-"                           pouÅ¾Ã­vat pÅ™Ã­kaz SET SESSION AUTHORIZATION "
-"namÃ­sto\n"
-"                           pÅ™Ã­kazu ALTER OWNER pro nastavenÃ­ vlastnÃ­ka\n"
-
-#: pg_dump.c:904 pg_dumpall.c:573 pg_restore.c:454
+#: pg_dump.c:703 pg_restore.c:394 pg_dumpall.c:364
 #, c-format
 msgid ""
 "\n"
 "Connection options:\n"
 msgstr ""
 "\n"
-"Volby spojenÃ­:\n"
+"Pøepínaèe spojení:\n"
 
-#: pg_dump.c:905
-#, c-format
-msgid "  -d, --dbname=DBNAME      database to dump\n"
-msgstr "  -d, --dbname=JMÃ‰NO        jmÃ©no zdrojovÃ© databÃ¡ze\n"
-
-#: pg_dump.c:906 pg_dumpall.c:575 pg_restore.c:455
+#: pg_dump.c:704 pg_restore.c:395 pg_dumpall.c:365
 #, c-format
 msgid "  -h, --host=HOSTNAME      database server host or socket directory\n"
-msgstr ""
-"  -h, --host=HOSTNAME      host databÃ¡zovÃ©ho serveru nebo adresÃ¡Å™ se "
-"sockety\n"
+msgstr "  -h, --host=HOSTNAME      jméno databázového serveru nebo soket adresáøe\n"
 
-#: pg_dump.c:907 pg_dumpall.c:577 pg_restore.c:456
+#: pg_dump.c:705 pg_restore.c:396 pg_dumpall.c:366
 #, c-format
 msgid "  -p, --port=PORT          database server port number\n"
-msgstr "  -p, --port=PORT          port databÃ¡zovÃ©ho serveru\n"
+msgstr "  -p, --port=PORT          èíslo portu databázového serveru\n"
 
-#: pg_dump.c:908 pg_dumpall.c:578 pg_restore.c:457
+#: pg_dump.c:706 pg_restore.c:397 pg_dumpall.c:367
 #, c-format
 msgid "  -U, --username=NAME      connect as specified database user\n"
-msgstr "  -U, --username=JMÃ‰NO      pÅ™ipoj se jako uvedenÃ½ uÅ¾ivatel\n"
+msgstr "  -U, --username=JMÉNO     navázat spojení jako specifikovanı u¾ivatel\n"
 
-#: pg_dump.c:909 pg_dumpall.c:579 pg_restore.c:458
-#, c-format
-msgid "  -w, --no-password        never prompt for password\n"
-msgstr "  -w, --no-password        nikdy se neptej na heslo\n"
-
-#: pg_dump.c:910 pg_dumpall.c:580 pg_restore.c:459
+#: pg_dump.c:707 pg_restore.c:398 pg_dumpall.c:368
 #, c-format
 msgid ""
 "  -W, --password           force password prompt (should happen "
 "automatically)\n"
 msgstr ""
-"  -W, --password           zeptej se na heslo (mÄ›lo by se dÃ­t automaticky)\n"
+"  -W, --password           vynucenı dotaz na heslo (mìl by bıt proveden "
+"automaticky)\n"
 
-#: pg_dump.c:911 pg_dumpall.c:581
-#, c-format
-msgid "  --role=ROLENAME          do SET ROLE before dump\n"
-msgstr "  --role=ROLENAME             pÅ™ed dumpem proveÄ SET ROLE\n"
-
-#: pg_dump.c:913
+#: pg_dump.c:709
 #, c-format
 msgid ""
 "\n"
@@ -1767,836 +327,1337 @@ msgid ""
 "\n"
 msgstr ""
 "\n"
-"NenÃ­-li specifikovÃ¡no jmÃ©no databÃ¡ze, pouÅ¾ije se promÄ›nnÃ¡ prostÅ™edÃ­\n"
+"Není-li specifikováno jméno databáze, pou¾ije se promìnná prostøedí\n"
 "PGDATABASE.\n"
 "\n"
 
-#: pg_dump.c:915 pg_dumpall.c:585 pg_restore.c:463
+#: pg_dump.c:711 pg_restore.c:402 pg_dumpall.c:371
 #, c-format
 msgid "Report bugs to <pgsql-bugs@postgresql.org>.\n"
-msgstr "OznÃ¡menÃ­ o chybÃ¡ch zasÃ­lejte na <pgsql-bugs@postgresql.org>.\n"
+msgstr "Chyby hlaste na adresu <pgsql-bugs@postgresql.org>.\n"
 
-#: pg_dump.c:933
-#, c-format
-msgid "invalid client encoding \"%s\" specified\n"
-msgstr "specifikovÃ¡no neplatnÃ© klientskÃ© kÃ³dovÃ¡nÃ­ \"%s\"\n"
+#: pg_dump.c:719 pg_backup_archiver.c:1209
+msgid "*** aborted because of error\n"
+msgstr "*** pøeru¹eno z dùvodu chyby\n"
 
-#: pg_dump.c:1095
-#, c-format
-msgid "invalid output format \"%s\" specified\n"
-msgstr "specifikovÃ¡n neplatnÃ½ formÃ¡t \"%s\" vÃ½stupu\n"
-
-#: pg_dump.c:1117
-#, c-format
-msgid "server version must be at least 7.3 to use schema selection switches\n"
-msgstr ""
-"verze serveru musÃ­ bÃ½t alespoÅˆ 7.3 pro pouÅ¾itÃ­ pÅ™epÃ­naÄÅ¯ prÅ¯ vÃ½bÄ›r schÃ©matu\n"
-
-#: pg_dump.c:1393
+#: pg_dump.c:801
 #, c-format
 msgid "dumping contents of table %s\n"
-msgstr "dumpuji obsah tabulky %s\n"
+msgstr "dumpován obsah tabulky %s\n"
 
-#: pg_dump.c:1516
-#, c-format
-msgid "Dumping the contents of table \"%s\" failed: PQgetCopyData() failed.\n"
-msgstr "DumpovÃ¡nÃ­ obsahu tabulky \"%s\" selhalo: PQgetCopyData() selhal.\n"
-
-#: pg_dump.c:1517 pg_dump.c:1527
-#, c-format
-msgid "Error message from server: %s"
-msgstr "ChybovÃ¡ zprÃ¡va ze serveru: %s"
-
-#: pg_dump.c:1518 pg_dump.c:1528
-#, c-format
-msgid "The command was: %s\n"
-msgstr "PÅ™Ã­kaz byl: %s\n"
-
-#: pg_dump.c:1526
-#, c-format
-msgid "Dumping the contents of table \"%s\" failed: PQgetResult() failed.\n"
-msgstr "Dumpuji obsahu tabulky \"%s\" selhal: PQgetResult() selhal.\n"
-
-#: pg_dump.c:2136
-#, c-format
-msgid "saving database definition\n"
-msgstr "uklÃ¡dÃ¡m definice databÃ¡ze\n"
-
-#: pg_dump.c:2433
-#, c-format
-msgid "saving encoding = %s\n"
-msgstr "uklÃ¡dÃ¡m kÃ³dovÃ¡nÃ­ znakÅ¯ = %s\n"
-
-#: pg_dump.c:2460
-#, c-format
-msgid "saving standard_conforming_strings = %s\n"
-msgstr "uklÃ¡dÃ¡m standard_conforming_strings = %s\n"
-
-#: pg_dump.c:2493
-#, c-format
-msgid "reading large objects\n"
-msgstr "Ätu \"large objects\"\n"
-
-#: pg_dump.c:2625
-#, c-format
-msgid "saving large objects\n"
-msgstr "uklÃ¡dÃ¡m \"large objects\"\n"
-
-#: pg_dump.c:2672
-#, c-format
-msgid "error reading large object %u: %s"
-msgstr "chyba pÅ™i ÄtenÃ­ large objektu %u: %s"
-
-#: pg_dump.c:2865
-#, c-format
-msgid "could not find parent extension for %s\n"
-msgstr "nelze najÃ­t nadÅ™Ã­zenÃ© rozÅ¡Ã­Å™enÃ­ pro %s\n"
-
-#: pg_dump.c:2968
-#, c-format
-msgid "WARNING: owner of schema \"%s\" appears to be invalid\n"
-msgstr "VAROVÃNÃ: vlastnÃ­k schÃ©matu \"%s\" se zdÃ¡ bÃ½t neplatnÃ½\n"
-
-#: pg_dump.c:3011
-#, c-format
-msgid "schema with OID %u does not exist\n"
-msgstr "schÃ©ma s OID %u neexistuje\n"
-
-#: pg_dump.c:3361
-#, c-format
-msgid "WARNING: owner of data type \"%s\" appears to be invalid\n"
-msgstr "VAROVÃNÃ: vlastnÃ­k datovÃ©ho typu \"%s\" se zdÃ¡ bÃ½t neplatnÃ½\n"
-
-#: pg_dump.c:3472
-#, c-format
-msgid "WARNING: owner of operator \"%s\" appears to be invalid\n"
-msgstr "VAROVÃNÃ: vlastnÃ­k operÃ¡toru \"%s\" se zdÃ¡ bÃ½t neplatnÃ½\n"
-
-#: pg_dump.c:3729
-#, c-format
-msgid "WARNING: owner of operator class \"%s\" appears to be invalid\n"
-msgstr "VAROVÃNÃ: vlastnÃ­k tÅ™Ã­dy operÃ¡torÅ¯ \"%s\" se zdÃ¡ bÃ½t neplatnÃ½\n"
-
-#: pg_dump.c:3817
-#, c-format
-msgid "WARNING: owner of operator family \"%s\" appears to be invalid\n"
-msgstr "VAROVÃNÃ: vlastnÃ­k rodiny operÃ¡torÅ¯ \"%s\" se zdÃ¡ bÃ½t neplatnÃ½\n"
-
-#: pg_dump.c:3976
-#, c-format
-msgid "WARNING: owner of aggregate function \"%s\" appears to be invalid\n"
-msgstr "VAROVÃNÃ: vlastnÃ­k agregaÄnÃ­ funkce \"%s\" se zdÃ¡ bÃ½t neplatnÃ½\n"
-
-#: pg_dump.c:4180
-#, c-format
-msgid "WARNING: owner of function \"%s\" appears to be invalid\n"
-msgstr "VAROVÃNÃ: vlastnÃ­k funkce \"%s\" se zdÃ¡ bÃ½t neplatnÃ½\n"
-
-#: pg_dump.c:4734
-#, c-format
-msgid "WARNING: owner of table \"%s\" appears to be invalid\n"
-msgstr "VAROVÃNÃ: vlastnÃ­k tabulky \"%s\" se zdÃ¡ bÃ½t neplatnÃ½\n"
-
-#: pg_dump.c:4885
-#, c-format
-msgid "reading indexes for table \"%s\"\n"
-msgstr "Ätu indexy pro tabulku \"%s\"\n"
-
-#: pg_dump.c:5218
-#, c-format
-msgid "reading foreign key constraints for table \"%s\"\n"
-msgstr "Ätu cizÃ­ klÃ­Äe pro tabulku \"%s\"\n"
-
-#: pg_dump.c:5463
+#: pg_dump.c:913
 #, c-format
 msgid ""
-"failed sanity check, parent table OID %u of pg_rewrite entry OID %u not "
-"found\n"
-msgstr ""
-"selhala kontrola, OID %u rodiÄovskÃ© tabulky u pg_rewrite poloÅ¾ky OID %u "
-"nelze najÃ­t\n"
+"SQL command to dump the contents of table \"%s\" failed: PQendcopy() "
+"failed.\n"
+msgstr "SQL pøíkaz k dumpu obsahu tabulky \"%s\" selhal: PQendcopy() selhal.\n"
 
-#: pg_dump.c:5556
+#: pg_dump.c:914 pg_dump.c:8071
+#, c-format
+msgid "Error message from server: %s"
+msgstr "Chybová zpráva ze serveru: %s"
+
+#: pg_dump.c:915 pg_dump.c:8072
+#, c-format
+msgid "The command was: %s\n"
+msgstr "Pøíkaz byl: %s\n"
+
+#: pg_dump.c:1185
+msgid "saving database definition\n"
+msgstr "ukládám definice databáze\n"
+
+#: pg_dump.c:1231
+#, c-format
+msgid "missing pg_database entry for database \"%s\"\n"
+msgstr "chybí záznam v systémové tabulce pg_database pro databázi \"%s\"\n"
+
+#: pg_dump.c:1238
+#, c-format
+msgid "query returned more than one (%d) pg_database entry for database \"%s\"\n"
+msgstr "dotaz vrátil více jak jeden (%d) záznam v pg_database pro databázi \"%s\"\n"
+
+#: pg_dump.c:1348
+msgid "saving encoding\n"
+msgstr "ukládám kódování znakù\n"
+
+#: pg_dump.c:1398
+msgid "saving large objects\n"
+msgstr "ukládám \"large objects\"\n"
+
+#: pg_dump.c:1431
+#, c-format
+msgid "dumpBlobs(): could not open large object: %s"
+msgstr "dumpBlobs(): nelze otevøít \"large object\": %s"
+
+#: pg_dump.c:1444
+#, c-format
+msgid "dumpBlobs(): error reading large object: %s"
+msgstr "dumpBlobs(): chyba ètení \"large object\": %s"
+
+#: pg_dump.c:1578
+#, c-format
+msgid "WARNING: owner of schema \"%s\" appears to be invalid\n"
+msgstr "VAROVÁNÍ: vlastník schématu \"%s\" se zdá bıt neplatnı\n"
+
+#: pg_dump.c:1595
+#, c-format
+msgid "specified schema \"%s\" does not exist\n"
+msgstr "zadané schéma \"%s\" neexistuje\n"
+
+#: pg_dump.c:1632
+#, c-format
+msgid "schema with OID %u does not exist\n"
+msgstr "schéma s OID %u neexistuje\n"
+
+#: pg_dump.c:1817
+#, c-format
+msgid "WARNING: owner of data type \"%s\" appears to be invalid\n"
+msgstr "VAROVÁNÍ: vlastník datového typu \"%s\" se zdá bıt neplatnı\n"
+
+#: pg_dump.c:1915
+#, c-format
+msgid "WARNING: owner of operator \"%s\" appears to be invalid\n"
+msgstr "VAROVÁNÍ: vlastník operátoru \"%s\" se zdá bıt neplatnı\n"
+
+#: pg_dump.c:2081
+#, c-format
+msgid "WARNING: owner of operator class \"%s\" appears to be invalid\n"
+msgstr "VAROVÁNÍ: vlastník tøídy operátoru \"%s\" se zdá bıt neplatnı\n"
+
+#: pg_dump.c:2185
+#, c-format
+msgid "WARNING: owner of aggregate function \"%s\" appears to be invalid\n"
+msgstr "VAROVÁNÍ: vlastník agregátní funkce \"%s\" se zdá bıt neplatnı\n"
+
+#: pg_dump.c:2319
+#, c-format
+msgid "WARNING: owner of function \"%s\" appears to be invalid\n"
+msgstr "VAROVÁNÍ: vlastník funkce \"%s\" se zdá bıt neplatnı\n"
+
+#: pg_dump.c:2597
+#, c-format
+msgid "WARNING: owner of table \"%s\" appears to be invalid\n"
+msgstr "VAROVÁNÍ: vlastník tabulky \"%s\" se zdá bıt neplatnı\n"
+
+#: pg_dump.c:2616
+#, c-format
+msgid "specified table \"%s\" does not exist\n"
+msgstr "zadaná tabulka \"%s\" neexistuje\n"
+
+#: pg_dump.c:2723
+#, c-format
+msgid "reading indexes for table \"%s\"\n"
+msgstr "ètu indexy pro tabulku \"%s\"\n"
+
+#: pg_dump.c:2960
+#, c-format
+msgid "reading foreign key constraints for table \"%s\"\n"
+msgstr "ètu cizí klíèe pro tabulku \"%s\"\n"
+
+#: pg_dump.c:3236
 #, c-format
 msgid "reading triggers for table \"%s\"\n"
-msgstr "Ätu triggery pro tabulku \"%s\"\n"
+msgstr "ètu triggery pro tabulku \"%s\"\n"
 
-#: pg_dump.c:5717
+#: pg_dump.c:3308
+#, c-format
+msgid "expected %d triggers on table \"%s\" but found %d\n"
+msgstr "oèekáváno %d triggerù pro tabulku \"%s\", ale nalezeno %d\n"
+
+#: pg_dump.c:3353
 #, c-format
 msgid ""
 "query produced null referenced table name for foreign key trigger \"%s\" on "
 "table \"%s\" (OID of table: %u)\n"
 msgstr ""
-"dotaz vrÃ¡til prÃ¡zdnÃ© jmÃ©no referencovanÃ© tabulky pro trigger \"%s\" cizÃ­ho "
-"klÃ­Äe pro tabulku \"%s\" (OID tabulky: %u)\n"
+"dotaz vyprodukoval NULL jméno referencované tabulky pro trigger \"%s\" "
+"cizího klíèe pro tabulku \"%s\" (OID tabulky: %u)\n"
 
-#: pg_dump.c:6169
+#: pg_dump.c:3654
 #, c-format
 msgid "finding the columns and types of table \"%s\"\n"
-msgstr "hledÃ¡m sloupce a typy pro tabulku \"%s\"\n"
+msgstr "hledám sloupce a typy pro tabulku \"%s\"\n"
 
-#: pg_dump.c:6347
+#: pg_dump.c:3740
 #, c-format
 msgid "invalid column numbering in table \"%s\"\n"
-msgstr "neplatnÃ© ÄÃ­slovÃ¡nÃ­ sloupcÅ¯ v tabulce \"%s\"\n"
+msgstr "neplatné èíslování sloupcù v tabulce \"%s\"\n"
 
-#: pg_dump.c:6381
+#: pg_dump.c:3774
 #, c-format
 msgid "finding default expressions of table \"%s\"\n"
-msgstr "hledÃ¡m DEFAULT vÃ½razy pro tabulku \"%s\"\n"
+msgstr "hledám DEFAULT vırazy pro tabulku \"%s\"\n"
 
-#: pg_dump.c:6433
+#: pg_dump.c:3857
 #, c-format
 msgid "invalid adnum value %d for table \"%s\"\n"
-msgstr "neplatnÃ¡ \"adnum\" hodnota %d pro tabulku \"%s\"\n"
+msgstr "neplatná \"adnum\" hodnota %d pro tabulku \"%s\"\n"
 
-#: pg_dump.c:6505
+#: pg_dump.c:3875
 #, c-format
 msgid "finding check constraints for table \"%s\"\n"
-msgstr "hledÃ¡m CHECK omezenÃ­ pro tabulku \"%s\"\n"
+msgstr "hledám CHECK omezení pro tabulku \"%s\"\n"
 
-#: pg_dump.c:6600
+#: pg_dump.c:3939
 #, c-format
-msgid "expected %d check constraint on table \"%s\" but found %d\n"
-msgid_plural "expected %d check constraints on table \"%s\" but found %d\n"
-msgstr[0] "oÄekÃ¡vÃ¡n %d check constraint na tabulce \"%s\" nalezeno %d\n"
-msgstr[1] "oÄekÃ¡vÃ¡ny %d check constrainty na tabulce \"%s\" nalezeno %d\n"
-msgstr[2] "oÄekÃ¡vÃ¡no %d check constraintÅ¯ na tabulce \"%s\" nalezeno %d\n"
+msgid "expected %d check constraints on table \"%s\" but found %d\n"
+msgstr "oèekáváno %d CHECK omezení pro tabulku \"%s\", ale nalezeno %d\n"
 
-#: pg_dump.c:6604
-#, c-format
+#: pg_dump.c:3941
 msgid "(The system catalogs might be corrupted.)\n"
-msgstr "(SystÃ©movÃ© katalogy mohou bÃ½t poÅ¡kozeny.)\n"
+msgstr "(Systémovı katalog mù¾e bıt po¹kozen.)\n"
 
-#: pg_dump.c:7970
+#: pg_dump.c:4628 pg_dump.c:4793 pg_dump.c:5192 pg_dump.c:5577 pg_dump.c:5874
+#: pg_dump.c:6074 pg_dump.c:6257
 #, c-format
-msgid "WARNING: typtype of data type \"%s\" appears to be invalid\n"
-msgstr "WARNING: typtype datovÃ©ho typu \"%s\" se zdÃ¡ bÃ½t neplatnÃ½\n"
+msgid "Got %d rows instead of one from: %s"
+msgstr "Obdr¾eno %d øádek na místo jedné z: %s"
 
-#: pg_dump.c:9419
+#: pg_dump.c:4901
 #, c-format
-msgid "WARNING: bogus value in proargmodes array\n"
-msgstr "VAROVÃNÃ: nesmyslnÃ¡ hodnota v \"proargmodes\" poli\n"
+msgid "query yielded no rows: %s\n"
+msgstr "dotaz nevrátil ¾ádné øádky: %s\n"
 
-#: pg_dump.c:9747
-#, c-format
-msgid "WARNING: could not parse proallargtypes array\n"
-msgstr "VAROVÃNÃ: nelze naparsovat pole \"proallargtypes\"\n"
-
-#: pg_dump.c:9763
-#, c-format
-msgid "WARNING: could not parse proargmodes array\n"
-msgstr "VAROVÃNÃ: nelze naparsovat pole \"proargmodes\"\n"
-
-#: pg_dump.c:9777
-#, c-format
+#: pg_dump.c:5248
 msgid "WARNING: could not parse proargnames array\n"
-msgstr "VAROVÃNÃ: nelze naparsovat pole \"proargnames\"\n"
+msgstr "VAROVÁNÍ: nemohu zpracovat pole \"proargnames\"\n"
 
-#: pg_dump.c:9788
-#, c-format
-msgid "WARNING: could not parse proconfig array\n"
-msgstr "VAROVÃNÃ: nelze naparsovat pole \"proconfig\"\n"
-
-#: pg_dump.c:9845
+#: pg_dump.c:5285
 #, c-format
 msgid "unrecognized provolatile value for function \"%s\"\n"
-msgstr "nerozpoznanÃ¡ \"provolatile\" hodnota pro funkci \"%s\"\n"
+msgstr "nerozpoznaná \"provolatile\" hodnota pro funkci \"%s\"\n"
 
-#: pg_dump.c:10065
-#, c-format
-msgid "WARNING: bogus value in pg_cast.castfunc or pg_cast.castmethod field\n"
-msgstr ""
-"WARNING: chybnÃ¡ hodnota v poloÅ¾ce pg_cast.castfunc nebo pg_cast.castmethod\n"
-
-#: pg_dump.c:10068
-#, c-format
-msgid "WARNING: bogus value in pg_cast.castmethod field\n"
-msgstr "VAROVÃNÃ: nesmyslnÃ¡ hodnota v poloÅ¾ce \"pg_cast.castmethod\"\n"
-
-#: pg_dump.c:10437
+#: pg_dump.c:5799
 #, c-format
 msgid "WARNING: could not find operator with OID %s\n"
-msgstr "VAROVÃNÃ: nelze najÃ­t operÃ¡tor s OID %s\n"
+msgstr "VAROVÁNÍ: nelze najít operátor s OID %s\n"
 
-#: pg_dump.c:11499
+#: pg_dump.c:6285
 #, c-format
 msgid ""
 "WARNING: aggregate function %s could not be dumped correctly for this "
 "database version; ignored\n"
 msgstr ""
-"VAROVÃNÃ: agregaÄnÃ­ funkce %s nelze dumpovat korektnÄ› pro tuto verzi "
-"databÃ¡ze; ignorovÃ¡no\n"
+"VAROVÁNÍ: agregátní funkce %s nelze dumpovat korektnì pro tuto verzi "
+"databáze; ignorováno\n"
 
-#: pg_dump.c:12275
-#, c-format
-msgid "unrecognized object type in default privileges: %d\n"
-msgstr "neznÃ¡mÃ½ typ objektu (%d) ve vÃ½chozÃ­ch privilegiÃ­ch\n"
-
-#: pg_dump.c:12290
-#, c-format
-msgid "could not parse default ACL list (%s)\n"
-msgstr "nelze zpracovat seznam oprÃ¡vnÄ›nÃ­ ACL (%s)\n"
-
-#: pg_dump.c:12345
+#: pg_dump.c:6417
 #, c-format
 msgid "could not parse ACL list (%s) for object \"%s\" (%s)\n"
-msgstr "nelze zpracovat seznam oprÃ¡vnÄ›nÃ­ ACL (%s) pro objekt \"%s\" (%s)\n"
+msgstr "nelze zpracovat seznam oprávnìní ACL (%s) pro objekt \"%s\" (%s)\n"
 
-#: pg_dump.c:12764
+#: pg_dump.c:6510
 #, c-format
 msgid "query to obtain definition of view \"%s\" returned no data\n"
-msgstr "dotaz na zÃ­skÃ¡nÃ­ definice view \"%s\" nevrÃ¡til Å¾Ã¡dnÃ¡ data\n"
+msgstr "dotaz na získání definice view \"%s\" nevrátil data\n"
 
-#: pg_dump.c:12767
+#: pg_dump.c:6513
 #, c-format
-msgid ""
-"query to obtain definition of view \"%s\" returned more than one definition\n"
-msgstr "dotaz na zÃ­skÃ¡nÃ­ definice view \"%s\" vrÃ¡til vÃ­ce jak jednu definici\n"
+msgid "query to obtain definition of view \"%s\" returned more than one definition\n"
+msgstr "dotaz na získání definice view \"%s\" vrátil více jak jednu definici\n"
 
-#: pg_dump.c:12774
+#: pg_dump.c:6522
 #, c-format
 msgid "definition of view \"%s\" appears to be empty (length zero)\n"
-msgstr "definice view \"%s\" se zdÃ¡ bÃ½t prÃ¡zdnÃ¡ (nulovÃ¡ dÃ©lka)\n"
+msgstr "definice view \"%s\" se zdá bıt prázdná (nulová délka)\n"
 
-#: pg_dump.c:13482
+#: pg_dump.c:6832
 #, c-format
 msgid "invalid column number %d for table \"%s\"\n"
-msgstr "neplatnÃ© ÄÃ­slo sloupce %d pro tabulku \"%s\"\n"
+msgstr "neplatné èíslo sloupce %d pro tabulku \"%s\"\n"
 
-#: pg_dump.c:13597
+#: pg_dump.c:6933
 #, c-format
 msgid "missing index for constraint \"%s\"\n"
-msgstr "chybÃ­ index pro omezenÃ­ \"%s\"\n"
+msgstr "chybí index pro omezení \"%s\"\n"
 
-#: pg_dump.c:13784
+#: pg_dump.c:7103
 #, c-format
 msgid "unrecognized constraint type: %c\n"
-msgstr "neoÄekÃ¡vanÃ½ typ omezenÃ­: %c\n"
+msgstr "neoèekávanı typ omezení: %c\n"
 
-#: pg_dump.c:13933 pg_dump.c:14097
+#: pg_dump.c:7145
+msgid "inserted invalid OID\n"
+msgstr "vlo¾eno neplatné OID\n"
+
+#: pg_dump.c:7151
 #, c-format
-msgid "query to get data of sequence \"%s\" returned %d row (expected 1)\n"
-msgid_plural ""
-"query to get data of sequence \"%s\" returned %d rows (expected 1)\n"
-msgstr[0] ""
-"dotaz pro naÄtenÃ­ dat sekvence \"%s\" vrÃ¡til %d Å™Ã¡dek (expected 1)\n"
-msgstr[1] ""
-"dotaz pro naÄtenÃ­ dat sekvence \"%s\" vrÃ¡til %d Å™Ã¡dky (expected 1)\n"
-msgstr[2] ""
-"dotaz pro naÄtenÃ­ dat sekvence \"%s\" vrÃ¡til %d Å™Ã¡dek (expected 1)\n"
+msgid "maximum system OID is %u\n"
+msgstr "nejvy¹¹í systémové OID je %u\n"
 
-#: pg_dump.c:13944
+#: pg_dump.c:7192
+msgid "missing pg_database entry for this database\n"
+msgstr "chybìjící záznam v pg_database pro tuto databázi\n"
+
+#: pg_dump.c:7197
+msgid "found more than one pg_database entry for this database\n"
+msgstr "nalezen více jak jeden záznam v pg_database pro tuto databázi\n"
+
+#: pg_dump.c:7229
+msgid "could not find entry for pg_indexes in pg_class\n"
+msgstr "nemohu najít záznam pg_indexes v pg_class\n"
+
+#: pg_dump.c:7234
+msgid "found more than one entry for pg_indexes in pg_class\n"
+msgstr "nalezen více jak jeden záznam pg_indexes v systémové tabulce pg_class\n"
+
+#: pg_dump.c:7283
+#, c-format
+msgid "query to get data of sequence \"%s\" returned %d rows (expected 1)\n"
+msgstr "dotaz na získání dat sekvence \"%s\" vrátil %d øádek (oèekávána 1)\n"
+
+#: pg_dump.c:7292
 #, c-format
 msgid "query to get data of sequence \"%s\" returned name \"%s\"\n"
-msgstr "dotaz na zÃ­skÃ¡nÃ­ dat sekvence \"%s\" vrÃ¡til jmÃ©no \"%s\"\n"
+msgstr "dotaz na získání dat sekvence \"%s\" vrátil jméno \"%s\"\n"
 
-#: pg_dump.c:14184
-#, c-format
-msgid "unexpected tgtype value: %d\n"
-msgstr "neoÄekÃ¡vanÃ¡ hodnota tgtype: %d\n"
-
-#: pg_dump.c:14266
+#: pg_dump.c:7529
 #, c-format
 msgid "invalid argument string (%s) for trigger \"%s\" on table \"%s\"\n"
-msgstr "neplatnÃ½ Å™etÄ›zec argumentÅ¯ (%s) pro trigger \"%s\" tabulky \"%s\"\n"
+msgstr "neplatnı øetìzec argumentù (%s) pro trigger \"%s\" tabulky \"%s\"\n"
 
-#: pg_dump.c:14446
+#: pg_dump.c:7635
 #, c-format
 msgid ""
 "query to get rule \"%s\" for table \"%s\" failed: wrong number of rows "
-"returned\n"
+"returned"
 msgstr ""
-"dotaz k zÃ­skÃ¡nÃ­ pravidla (RULE) \"%s\" pro tabulku \"%s\" selhal: vrÃ¡cen "
-"chybnÃ½ poÄet Å™Ã¡dkÅ¯\n"
+"dotaz k získání pravidla (RULE) \"%s\" pro tabulku \"%s\" selhal: vrácen "
+"chybnı poèet øádkù"
 
-#: pg_dump.c:14747
-#, c-format
+#: pg_dump.c:7702
 msgid "reading dependency data\n"
-msgstr "Ätu data o zÃ¡vislostech\n"
+msgstr "ètu data o závislostech\n"
 
-#: pg_dump.c:15292
+#: pg_dump.c:7879
 #, c-format
-msgid "query returned %d row instead of one: %s\n"
-msgid_plural "query returned %d rows instead of one: %s\n"
-msgstr[0] "dotaz vrÃ¡til %d Å™Ã¡dku namÃ­sto jednÃ©: %s\n"
-msgstr[1] "dotaz vrÃ¡til %d Å™Ã¡dky namÃ­sto jednÃ©: %s\n"
-msgstr[2] "dotaz vrÃ¡til %d Å™Ã¡dek namÃ­sto jednÃ©: %s\n"
+msgid "query yielded %d rows instead of one: %s\n"
+msgstr "dotaz vrátil %d øádkù místo jednoho: %s\n"
 
-#. translator: this is a module name
-#: pg_dump_sort.c:21
-msgid "sorter"
-msgstr "sorter"
+#: pg_dump.c:8066
+msgid "SQL command failed\n"
+msgstr "SQL pøíkaz selhal\n"
 
-#: pg_dump_sort.c:465
+#: common.c:99
+msgid "reading schemas\n"
+msgstr "ètu schémata\n"
+
+#: common.c:103
+msgid "reading user-defined functions\n"
+msgstr "ètu u¾ivatelem definované funkce\n"
+
+#: common.c:108
+msgid "reading user-defined types\n"
+msgstr "ètu u¾ivatelem definované typy\n"
+
+#: common.c:113
+msgid "reading procedural languages\n"
+msgstr "ètu procedurální jazyky\n"
+
+#: common.c:117
+msgid "reading user-defined aggregate functions\n"
+msgstr "ètu u¾ivatelem definované agregátní funkce\n"
+
+#: common.c:121
+msgid "reading user-defined operators\n"
+msgstr "ètu u¾ivatelem definované operátory\n"
+
+#: common.c:125
+msgid "reading user-defined operator classes\n"
+msgstr "ètu u¾ivatelem definované tøídy operátorù\n"
+
+#: common.c:129
+msgid "reading user-defined conversions\n"
+msgstr "ètu u¾ivatelem definované konverze\n"
+
+#: common.c:133
+msgid "reading user-defined tables\n"
+msgstr "ètu u¾ivatelem definované tabulky\n"
+
+#: common.c:137
+msgid "reading table inheritance information\n"
+msgstr "ètu informace dìdiènosti tabulky\n"
+
+#: common.c:141
+msgid "reading rewrite rules\n"
+msgstr "ètu pøepisovací pravidla\n"
+
+#: common.c:145
+msgid "reading type casts\n"
+msgstr "ètu pøetypování\n"
+
+#: common.c:150
+msgid "finding inheritance relationships\n"
+msgstr "hledám informace o dìdiènosti\n"
+
+#: common.c:154
+msgid "reading column info for interesting tables\n"
+msgstr "ètu informace o sloupci pro tabulky\n"
+
+#: common.c:158
+msgid "flagging inherited columns in subtables\n"
+msgstr "oznaèuji zdìdìné sloupce v pod-tabulkách\n"
+
+#: common.c:162
+msgid "reading indexes\n"
+msgstr "ètu indexy\n"
+
+#: common.c:166
+msgid "reading constraints\n"
+msgstr "ètu omezení\n"
+
+#: common.c:170
+msgid "reading triggers\n"
+msgstr "ètu triggery\n"
+
+#: common.c:421 common.c:553 common.c:587 pg_backup_archiver.c:616
+#: pg_backup_archiver.c:960 pg_backup_archiver.c:1074
+#: pg_backup_archiver.c:1512 pg_backup_archiver.c:1662
+#: pg_backup_archiver.c:1695 pg_backup_custom.c:141 pg_backup_custom.c:146
+#: pg_backup_custom.c:152 pg_backup_custom.c:167 pg_backup_custom.c:544
+#: pg_backup_db.c:156 pg_backup_db.c:232 pg_backup_files.c:112
+#: pg_backup_tar.c:168 pg_backup_tar.c:960
+msgid "out of memory\n"
+msgstr "do¹la pamì»\n"
+
+#: common.c:728
 #, c-format
-msgid "invalid dumpId %d\n"
-msgstr "neplatnÃ© dumpId %d\n"
+msgid "failed sanity check, parent OID %u of table \"%s\" (OID %u) not found\n"
+msgstr "selhala kontrola, rodièovské OID %u tabulky \"%s\" (OID %u) nelze najít\n"
 
-#: pg_dump_sort.c:471
+#: common.c:770
+msgid "could not parse numeric array: too many numbers\n"
+msgstr "nemohu zpracovat numerické pole: pøíli¹ mnoho èísel\n"
+
+#: common.c:785
+msgid "could not parse numeric array: invalid character in number\n"
+msgstr "nemohu zpracovat numerické pole: neplatnı znak v èísle\n"
+
+#: pg_backup_archiver.c:45
+msgid "archiver"
+msgstr "archiváø"
+
+#: pg_backup_archiver.c:125
+msgid "could not close output archive file\n"
+msgstr "nelze uzavøít vıstupní archivní soubor\n"
+
+#: pg_backup_archiver.c:152
+msgid "-C and -c are incompatible options\n"
+msgstr "-C a -c jsou nekompatibilní pøepínaèe\n"
+
+#: pg_backup_archiver.c:159
+msgid "connecting to database for restore\n"
+msgstr "navazováno spojení s databází pro obnovu\n"
+
+#: pg_backup_archiver.c:161
+msgid "direct database connections are not supported in pre-1.3 archives\n"
+msgstr "pøímé spojení s databází nejsou podporovány v archivech pøed verzí 1.3\n"
+
+#: pg_backup_archiver.c:204
+msgid "implied data-only restore\n"
+msgstr "pøedpokládána pouze obnova dat\n"
+
+#: pg_backup_archiver.c:237
 #, c-format
-msgid "invalid dependency %d\n"
-msgstr "neplatnÃ¡ zÃ¡vislost %d\n"
+msgid "dropping %s %s\n"
+msgstr "odstraòuji %s %s\n"
 
-#: pg_dump_sort.c:685
+#: pg_backup_archiver.c:263 pg_backup_archiver.c:265
 #, c-format
-msgid "could not identify dependency loop\n"
-msgstr "nelze identifikovat smyÄku zÃ¡vislostÃ­\n"
+msgid "warning from original dump file: %s\n"
+msgstr "varování z originálního dump souboru: %s\n"
 
-#: pg_dump_sort.c:1135
+#: pg_backup_archiver.c:272
+#, c-format
+msgid "creating %s %s\n"
+msgstr "vytváøím %s %s\n"
+
+#: pg_backup_archiver.c:280
+#, c-format
+msgid "connecting to new database \"%s\"\n"
+msgstr "pøipojuji se k nové databázi \"%s\"\n"
+
+#: pg_backup_archiver.c:305
+msgid ""
+"cannot restore from compressed archive (not configured for compression "
+"support)\n"
+msgstr ""
+"nelze obnovit databázi z komprimovaného archivu (není nastavena podpora "
+"komprese)\n"
+
+#: pg_backup_archiver.c:325
+msgid "WARNING: skipping large-object restoration\n"
+msgstr "VAROVÁNÍ: pøeskakuji obnovu \"large object\"\n"
+
+#: pg_backup_archiver.c:335
+#, c-format
+msgid "restoring data for table \"%s\"\n"
+msgstr "obnovuji data pro tabulku \"%s\"\n"
+
+#: pg_backup_archiver.c:367 pg_backup_archiver.c:453
+#, c-format
+msgid "fixing up large-object cross-reference for \"%s\"\n"
+msgstr "opravuji \"large object\" odkaz pro \"%s\"\n"
+
+#: pg_backup_archiver.c:378
+#, c-format
+msgid "executing %s %s\n"
+msgstr "vykonávám %s %s\n"
+
+#: pg_backup_archiver.c:398
+#, c-format
+msgid "setting owner and privileges for %s %s\n"
+msgstr "nastavuji vlastníka a pøístupová práva pro %s %s\n"
+
+#: pg_backup_archiver.c:516
+msgid "disabling triggers\n"
+msgstr "zakazuji triggery\n"
+
+#: pg_backup_archiver.c:555
+msgid "enabling triggers\n"
+msgstr "povoluji triggery\n"
+
+#: pg_backup_archiver.c:590
+msgid ""
+"internal error -- WriteData cannot be called outside the context of a "
+"DataDumper routine\n"
+msgstr "interní chyba -- WriteData není mo¾no volat mimo kontext rutiny DataDumper\n"
+
+#: pg_backup_archiver.c:724
+msgid "large-object output not supported in chosen format\n"
+msgstr "\"large object\" vıstup není podporován ve vybraném formátu\n"
+
+#: pg_backup_archiver.c:764 pg_backup_archiver.c:852
+msgid "committing large-object transactions\n"
+msgstr "provádím COMMIT \"large object\" transakcí\n"
+
+#: pg_backup_archiver.c:774
+#, c-format
+msgid "restored %d large objects\n"
+msgstr "obnoveno %d \"large object\"\n"
+
+#: pg_backup_archiver.c:791
+msgid "cannot restore large objects without a database connection\n"
+msgstr "nelze obnovit \"large object\" bez spojení s databází\n"
+
+#: pg_backup_archiver.c:805
+msgid "starting large-object transactions\n"
+msgstr "zahajuji \"large object\" transakce\n"
+
+#: pg_backup_archiver.c:813
+msgid "could not create large object\n"
+msgstr "nelze vytvoøit \"large object\"\n"
+
+#: pg_backup_archiver.c:815
+#, c-format
+msgid "restoring large object with OID %u as %u\n"
+msgstr "obnovuji \"large object\" s OID %u jako %u\n"
+
+#: pg_backup_archiver.c:821
+msgid "could not open large object\n"
+msgstr "nelze otevøít \"large object\"\n"
+
+#: pg_backup_archiver.c:836
+#, c-format
+msgid "wrote remaining %lu bytes of large-object data (result = %lu)\n"
+msgstr "zapsáno zbıvajících %lu bytù z \"large object\" dat (vısledek = %lu)\n"
+
+#: pg_backup_archiver.c:839 pg_backup_archiver.c:1131
+#, c-format
+msgid "could not write to large object (result: %lu, expected: %lu)\n"
+msgstr "nelze zapsat \"large object\" (vısledek = %lu, oèekáváno: %lu)\n"
+
+#: pg_backup_archiver.c:885
+msgid "could not open TOC file\n"
+msgstr "nelze otevøít TOC soubor\n"
+
+#: pg_backup_archiver.c:906
+#, c-format
+msgid "WARNING: line ignored: %s\n"
+msgstr "VAROVÁNÍ: øádka ignorována: %s\n"
+
+#: pg_backup_archiver.c:913
+#, c-format
+msgid "could not find entry for ID %d\n"
+msgstr "nelze najít záznam ID %d\n"
+
+#: pg_backup_archiver.c:923 pg_backup_files.c:156 pg_backup_files.c:439
+#, c-format
+msgid "could not close TOC file: %s\n"
+msgstr "nelze zavøít TOC soubor: %s\n"
+
+#: pg_backup_archiver.c:1022 pg_backup_files.c:130
+#, c-format
+msgid "could not open output file: %s\n"
+msgstr "nelze otevøít vıstupní soubor: %s\n"
+
+#: pg_backup_archiver.c:1038
+#, c-format
+msgid "could not close output file: %s\n"
+msgstr "nelze zavøít vıstupní soubor: %s\n"
+
+#: pg_backup_archiver.c:1127
+#, c-format
+msgid "wrote %lu bytes of large object data (result = %lu)\n"
+msgstr "zapsáno %lu bytù z dat \"large objektu\" (vısledek = %lu)\n"
+
+#: pg_backup_archiver.c:1149
+msgid "could not write to compressed archive\n"
+msgstr "nelze zapsat do komprimovaného archivu\n"
+
+#: pg_backup_archiver.c:1157
+msgid "could not write to custom output routine\n"
+msgstr "nelze zapsat do vlastní vıstupní rutiny\n"
+
+#: pg_backup_archiver.c:1172
+#, c-format
+msgid "could not write to output file (%lu != %lu)\n"
+msgstr "nelze zapsat do vıstupního souboru (%lu != %lu)\n"
+
+#: pg_backup_archiver.c:1257
+msgid "Error while INITIALIZING:\n"
+msgstr "Chyba bìhem INICIALIZACE:\n"
+
+#: pg_backup_archiver.c:1262
+msgid "Error while PROCESSING TOC:\n"
+msgstr "Chyba bìhem ZPRACOVÁNÍ TOC:\n"
+
+#: pg_backup_archiver.c:1267
+msgid "Error while FINALIZING:\n"
+msgstr "Chyba bìhem FINALIZACE:\n"
+
+#: pg_backup_archiver.c:1272
+#, c-format
+msgid "Error from TOC entry %d; %u %u %s %s %s\n"
+msgstr "Chyba v TOC záznamu %d; %u %u %s %s %s\n"
+
+#: pg_backup_archiver.c:1405
+#, c-format
+msgid "Unexpected data offset flag %d\n"
+msgstr "Neoèekávanı pøíznak datového offsetu %d\n"
+
+#: pg_backup_archiver.c:1418
+msgid "file offset in dump file is too large\n"
+msgstr "offset souboru v souboru dumpu je pøíli¹ velkı\n"
+
+#: pg_backup_archiver.c:1530
+msgid "attempting to ascertain archive format\n"
+msgstr "pokou¹ím se zjistit formát archivu\n"
+
+#: pg_backup_archiver.c:1550 pg_backup_files.c:148
+#, c-format
+msgid "could not open input file: %s\n"
+msgstr "nelze otevøít vstupní soubor: %s\n"
+
+#: pg_backup_archiver.c:1557
+#, c-format
+msgid "could not read input file: %s\n"
+msgstr "nelze èíst vstupní soubor: %s\n"
+
+#: pg_backup_archiver.c:1559
+#, c-format
+msgid "input file is too short (read %lu, expected 5)\n"
+msgstr "vstupní soubor je pøíli¹ krátkı (èteno %lu, oèekáváno 5)\n"
+
+#: pg_backup_archiver.c:1612
+msgid "input file does not appear to be a valid archive (too short?)\n"
+msgstr "vstupní soubor se nezdá bıt korektním archivem (pøíli¹ krátkı?)\n"
+
+#: pg_backup_archiver.c:1615
+msgid "input file does not appear to be a valid archive\n"
+msgstr "vstupní soubor se nezdá bıt korektním archivem\n"
+
+#: pg_backup_archiver.c:1633
+#, c-format
+msgid "read %lu bytes into lookahead buffer\n"
+msgstr "naèteno %lu bytù do bufferu\n"
+
+#: pg_backup_archiver.c:1640
+#, c-format
+msgid "could not close the input file after reading header: %s\n"
+msgstr "nelze zavøít vstupní soubor po pøeètení hlavièky: %s\n"
+
+#: pg_backup_archiver.c:1657
+#, c-format
+msgid "allocating AH for %s, format %d\n"
+msgstr "alokován AH pro %s, formát %d\n"
+
+#: pg_backup_archiver.c:1711
+#, c-format
+msgid "archive format is %d\n"
+msgstr "formát archivu je %d\n"
+
+#: pg_backup_archiver.c:1739
+#, c-format
+msgid "unrecognized file format \"%d\"\n"
+msgstr "neznámı formát souboru \"%d\"\n"
+
+#: pg_backup_archiver.c:1866
+#, c-format
+msgid "entry ID %d out of range -- perhaps a corrupt TOC\n"
+msgstr "ID záznamu %d je mimo rozsah -- mo¾ná je po¹kozena TOC\n"
+
+#: pg_backup_archiver.c:1948
+#, c-format
+msgid "read TOC entry %d (ID %d) for %s %s\n"
+msgstr "pøeèetl jsem TOC záznam %d (ID %d) pro %s %s\n"
+
+#: pg_backup_archiver.c:2110
+#, c-format
+msgid "could not set session user to \"%s\": %s"
+msgstr "nelze nastavit u¾ivatele session na \"%s\": %s"
+
+#: pg_backup_archiver.c:2495
+msgid ""
+"WARNING: requested compression not available in this installation -- archive "
+"will be uncompressed\n"
+msgstr ""
+"VAROVÁNÍ: po¾adovaná komprese není v této instalaci dostupná -- archiv bude "
+"nekomprimovanı\n"
+
+#: pg_backup_archiver.c:2528
+msgid "did not find magic string in file header\n"
+msgstr "nelze najít identifikaèní øetìzec v hlavièce souboru\n"
+
+#: pg_backup_archiver.c:2542
+#, c-format
+msgid "unsupported version (%d.%d) in file header\n"
+msgstr "nepodporovaná verze (%d.%d) v hlavièce souboru\n"
+
+#: pg_backup_archiver.c:2547
+#, c-format
+msgid "sanity check on integer size (%lu) failed\n"
+msgstr "selhala kontrola velikosti integeru (%lu)\n"
+
+#: pg_backup_archiver.c:2551
+msgid ""
+"WARNING: archive was made on a machine with larger integers, some operations "
+"may fail\n"
+msgstr ""
+"VAROVÁNÍ: archiv byl vytvoøen na stroji s vìt¹ími celımi èísly (integer), "
+"nìkteré operace mohou selhat\n"
+
+#: pg_backup_archiver.c:2561
+#, c-format
+msgid "expected format (%d) differs from format found in file (%d)\n"
+msgstr "oèekávanı formát (%d) se li¹í se od formátu nalezeného v souboru (%d)\n"
+
+#: pg_backup_archiver.c:2577
+msgid ""
+"WARNING: archive is compressed, but this installation does not support "
+"compression -- no data will be available\n"
+msgstr ""
+"VAROVÁNÍ: archiv je komprimován, ale tato instalace nepodporuje kompresi -- "
+"data nebudou dostupná\n"
+
+#: pg_backup_archiver.c:2595
+msgid "WARNING: invalid creation date in header\n"
+msgstr "VAROVÁNÍ: v hlavièce je neplatné datum vytvoøení\n"
+
+#: pg_backup_custom.c:97
+msgid "custom archiver"
+msgstr "vlastní archiváø"
+
+#: pg_backup_custom.c:180 pg_backup_custom.c:191
+#, c-format
+msgid "could not open archive file \"%s\": %s\n"
+msgstr "nelze otevøít archivní soubor \"%s\": %s\n"
+
+#: pg_backup_custom.c:389
+msgid "invalid OID for large object\n"
+msgstr "neplatné OID pro \"large object\"\n"
+
+#: pg_backup_custom.c:447
+msgid ""
+"Dumping a specific TOC data block out of order is not supported without ID "
+"on this input stream (fseek required)\n"
+msgstr ""
+"Dumpování specifického datového bloku TOC mimo poøadí není podporováno bez "
+"ID na tomto vstupním proudu (vy¾adován fseek)\n"
+
+#: pg_backup_custom.c:462
+#, c-format
+msgid "unrecognized data block type (%d) while searching archive\n"
+msgstr "nepøípustnı typ datového bloku (%d) bìhem prohledávání archivu\n"
+
+#: pg_backup_custom.c:473
+#, c-format
+msgid "error during file seek: %s\n"
+msgstr "chyba bìhem posunu v souboru: %s\n"
+
+#: pg_backup_custom.c:480
+#, c-format
+msgid "found unexpected block ID (%d) when reading data -- expected %d\n"
+msgstr "nalezeno neoèekávané ID bloku (%d) bìhem ètení dat - oèekáván %d\n"
+
+#: pg_backup_custom.c:491
+msgid "large objects cannot be loaded without a database connection\n"
+msgstr "\"large objects\" nemohou bıt nata¾eny bez spojení s databází\n"
+
+#: pg_backup_custom.c:497
+#, c-format
+msgid "unrecognized data block type %d while restoring archive\n"
+msgstr "nepøípustnı typ datového bloku %d bìhem obnovení archivu\n"
+
+#: pg_backup_custom.c:531 pg_backup_custom.c:893
+#, c-format
+msgid "could not initialize compression library: %s\n"
+msgstr "nelze inicializovat kompresní knihovnu: %s\n"
+
+#: pg_backup_custom.c:553 pg_backup_custom.c:676
+#, c-format
+msgid "could not read data block -- expected %lu, got %lu\n"
+msgstr "nelze èíst datovı blok -- oèekáváno %lu, obdr¾eno %lu\n"
+
+#: pg_backup_custom.c:571 pg_backup_custom.c:601
+#, c-format
+msgid "could not uncompress data: %s\n"
+msgstr "nelze dekomprimovat data: %s\n"
+
+#: pg_backup_custom.c:607
+#, c-format
+msgid "could not close compression library: %s\n"
+msgstr "nelze uzavøít kompresní knihovnu: %s\n"
+
+#: pg_backup_custom.c:704
+#, c-format
+msgid "could not write byte: %s\n"
+msgstr "nelze zapsat byte: %s\n"
+
+#: pg_backup_custom.c:748 pg_backup_files.c:414
+#, c-format
+msgid "write error in _WriteBuf (%lu != %lu)\n"
+msgstr "chyba zápisu v _WriteBuf (%lu != %lu)\n"
+
+#: pg_backup_custom.c:819
+#, c-format
+msgid "could not close archive file: %s\n"
+msgstr "nelze uzavøít archivní soubor: %s\n"
+
+#: pg_backup_custom.c:842
+msgid "WARNING: ftell mismatch with expected position -- ftell used\n"
+msgstr "VAROVÁNÍ: ftell neodpovídá oèekávané pozici -- pou¾it ftell\n"
+
+#: pg_backup_custom.c:925
+#, c-format
+msgid "could not compress data: %s\n"
+msgstr "nelze komprimovat data: %s\n"
+
+#: pg_backup_custom.c:945
+msgid "could not write compressed chunk\n"
+msgstr "nelze zapsat komprimovanı blok\n"
+
+#: pg_backup_custom.c:959
+msgid "could not write uncompressed chunk\n"
+msgstr "nelze zapsat nekomprimovanı blok\n"
+
+#: pg_backup_custom.c:1005
+#, c-format
+msgid "could not close compression stream: %s\n"
+msgstr "nelze uzavøít kompresní stream: %s\n"
+
+#: pg_backup_db.c:31
+msgid "archiver (db)"
+msgstr "archiváø (db)"
+
+#: pg_backup_db.c:68
+msgid "could not get server_version from libpq\n"
+msgstr "nelze získat server_version z libpq\n"
+
+#: pg_backup_db.c:78
+#, c-format
+msgid "server version: %s; %s version: %s\n"
+msgstr "verze serveru: %s; %s verze: %s\n"
+
+#: pg_backup_db.c:81
+msgid "proceeding despite version mismatch\n"
+msgstr "pokraèuji navzdor rozdílnosti verzí\n"
+
+#: pg_backup_db.c:83
+msgid ""
+"aborting because of version mismatch  (Use the -i option to proceed "
+"anyway.)\n"
+msgstr ""
+"ukonèeno z dùvodu rozdílnosti verzí (Pou¾ijte pøepínaè -i pro pokraèování a "
+"ignorování verzí.)\n"
+
+#: pg_backup_db.c:150
+#, c-format
+msgid "connecting to database \"%s\" as user \"%s\"\n"
+msgstr "pøipojuji se k databázi \"%s\" jako u¾ivatel \"%s\"\n"
+
+#: pg_backup_db.c:154 pg_backup_db.c:186 pg_backup_db.c:230 pg_backup_db.c:259
+#: pg_dumpall.c:941 pg_dumpall.c:967
+msgid "Password: "
+msgstr "Heslo: "
+
+#: pg_backup_db.c:166
+msgid "failed to reconnect to database\n"
+msgstr "selhalo znovunavázání spojení s databází\n"
+
+#: pg_backup_db.c:189
+#, c-format
+msgid "could not reconnect to database: %s"
+msgstr "nelze znovu navázat spojení s databází: %s"
+
+#: pg_backup_db.c:226
+msgid "already connected to a database\n"
+msgstr "spojení s databází ji¾ existuje\n"
+
+#: pg_backup_db.c:249
+msgid "failed to connect to database\n"
+msgstr "selhalo spojení s databází\n"
+
+#: pg_backup_db.c:268
+#, c-format
+msgid "connection to database \"%s\" failed: %s"
+msgstr "spojení s databází \"%s\" selhalo: %s"
+
+#: pg_backup_db.c:283
+#, c-format
+msgid "%s"
+msgstr "%s"
+
+#: pg_backup_db.c:312
+#, c-format
+msgid "%s: no result from server\n"
+msgstr "%s: není odpovìï ze serveru\n"
+
+#: pg_backup_db.c:319
+msgid "COPY command executed in non-primary connection\n"
+msgstr "pøíkaz COPY provádìn na neprimárním spojení\n"
+
+#: pg_backup_db.c:409
+msgid "error returned by PQputline\n"
+msgstr "PQputline vrátilo chybu\n"
+
+#: pg_backup_db.c:420
+msgid "error returned by PQendcopy\n"
+msgstr "PQendcopy vrátilo chybu\n"
+
+#: pg_backup_db.c:480
+msgid "could not execute query"
+msgstr "nelze provést dotaz"
+
+#: pg_backup_db.c:700
+#, c-format
+msgid "could not find OID columns of table \"%s\": %s"
+msgstr "nelze najít OID sloupce tabulky \"%s\": %s"
+
+#: pg_backup_db.c:706
+#, c-format
+msgid "no OID type columns in table %s\n"
+msgstr "sloupce typu OID v tabulce %s nejsou\n"
+
+#: pg_backup_db.c:720
+#, c-format
+msgid "fixing large object cross-references for %s.%s\n"
+msgstr "opravovány \"large object\" odkazy pro %s.%s\n"
+
+#: pg_backup_db.c:759
+#, c-format
+msgid "SQL: %s\n"
+msgstr "SQL: %s\n"
+
+#: pg_backup_db.c:764
+#, c-format
+msgid "could not update column \"%s\" of table \"%s\": %s"
+msgstr "nelze provést update sloupce \"%s\" tabulky \"%s\": %s"
+
+#: pg_backup_db.c:769
+#, c-format
+msgid "error while updating column \"%s\" of table \"%s\": %s"
+msgstr "chyba bìhem update sloupce \"%s\" tabulky \"%s\": %s"
+
+#: pg_backup_db.c:792
+msgid "creating table for large object cross-references\n"
+msgstr "vytváøena tabulka pro \"large object\" odkazy\n"
+
+#: pg_backup_db.c:795
+msgid "could not create large object cross-reference table"
+msgstr "nelze vytvoøit tabulka pro \"large object\" odkazy"
+
+#: pg_backup_db.c:805
+msgid "creating index for large object cross-references\n"
+msgstr "vytváøím index pro køí¾ové odkazy \"large object\"\n"
+
+#: pg_backup_db.c:809
+msgid "could not create index on large object cross-reference table"
+msgstr "nelze vytvoøit index pro tabulku s \"large object\" odkazy"
+
+#: pg_backup_db.c:822
+msgid "could not create large object cross-reference entry"
+msgstr "nelze vytvoøit záznam pro \"large object\" odkaz"
+
+#: pg_backup_db.c:834
+msgid "could not start database transaction"
+msgstr "nelze nastartovat transakci"
+
+#: pg_backup_db.c:848
+msgid "could not start transaction for large object cross-references"
+msgstr "nelze nastartovat transakci pro \"large object\" odkazy"
+
+#: pg_backup_db.c:861
+msgid "could not commit database transaction"
+msgstr "nelze provést commit transakce"
+
+#: pg_backup_db.c:874
+msgid "could not commit transaction for large object cross-references"
+msgstr "nelze provést commit transakce pro \"large object\" odkazy"
+
+#: pg_backup_files.c:69
+msgid "file archiver"
+msgstr "archiváø souborù"
+
+#: pg_backup_files.c:120
+msgid ""
+"WARNING:\n"
+"  This format is for demonstration purposes; it is not intended for\n"
+"  normal use. Files will be written in the current working directory.\n"
+msgstr ""
+"VAROVÁNÍ:\n"
+"  Tento formát je pro demonstraèní úèely a není urèen k pro bì¾né\n"
+"  pou¾ití. Soubory budou zapsány do aktuálního adresáøe.\n"
+
+#: pg_backup_files.c:246
+msgid "could not open data file for output\n"
+msgstr "nelze otevøít datovı soubor pro vıstup\n"
+
+#: pg_backup_files.c:266
+msgid "could not close data file\n"
+msgstr "nelze zavøít datovı soubor\n"
+
+#: pg_backup_files.c:290
+msgid "could not open data file for input\n"
+msgstr "nelze otevøít datovı soubor pro vstup\n"
+
+#: pg_backup_files.c:299
+msgid "could not close data file after reading\n"
+msgstr "nelze zavøít datovı soubor po jeho ètení\n"
+
+#: pg_backup_files.c:362
+#, c-format
+msgid "could not open large object TOC for input: %s\n"
+msgstr "nelze otevøít \"large object\" TOC pro vstup: %s\n"
+
+#: pg_backup_files.c:375 pg_backup_files.c:545
+#, c-format
+msgid "could not close large object TOC file: %s\n"
+msgstr "nelze zavøít \"large object\" TOC soubor: %s\n"
+
+#: pg_backup_files.c:387
+msgid "could not write byte\n"
+msgstr "nelze zapsat byte\n"
+
+#: pg_backup_files.c:473
+#, c-format
+msgid "could not open large object TOC for output: %s\n"
+msgstr "nelze otevøít \"large object\" TOC pro vıstup: %s\n"
+
+#: pg_backup_files.c:493 pg_backup_tar.c:884
+#, c-format
+msgid "invalid OID for large object (%u)\n"
+msgstr "neplatné OID pro \"large object\" (%u)\n"
+
+#: pg_backup_files.c:512
+msgid "could not open large object file\n"
+msgstr "nelze otevøít \"large object\" soubor\n"
+
+#: pg_backup_files.c:527
+msgid "could not close large object file\n"
+msgstr "nelze zavøít \"large object\" soubor\n"
+
+#: pg_backup_null.c:55
+msgid "this format cannot be read\n"
+msgstr "tento formát nelze èíst\n"
+
+#: pg_backup_tar.c:105
+msgid "tar archiver"
+msgstr "tar archiváø"
+
+#: pg_backup_tar.c:183
+#, c-format
+msgid "could not open TOC file for output: %s\n"
+msgstr "nelze otevøít TOC soubor pro vıstup: %s\n"
+
+#: pg_backup_tar.c:208
+msgid "compression not supported by tar output format\n"
+msgstr "komprese není podporována v \"tar\" vıstupním formátu\n"
+
+#: pg_backup_tar.c:220
+#, c-format
+msgid "could not open TOC file for input: %s\n"
+msgstr "nelze otevøít TOC soubor pro vstup: %s\n"
+
+#: pg_backup_tar.c:341
+#, c-format
+msgid "could not find file %s in archive\n"
+msgstr "v archivu nelze najít soubor %s\n"
+
+#: pg_backup_tar.c:352
+msgid "compression support is disabled in this format\n"
+msgstr "pro tento formát je podpora komprese zablokována\n"
+
+#: pg_backup_tar.c:367
+#, c-format
+msgid "could not generate temporary file name: %s\n"
+msgstr "nelze vygenerovat jméno doèasného souboru: %s\n"
+
+#: pg_backup_tar.c:376
+msgid "could not open temporary file\n"
+msgstr "nelze otevøít doèasnı soubor\n"
+
+#: pg_backup_tar.c:406
+msgid "could not close tar member\n"
+msgstr "nelze zavøít tar polo¾ku\n"
+
+#: pg_backup_tar.c:506
+msgid "internal error -- neither th nor fh specified in tarReadRaw()\n"
+msgstr "interní chyba -- ani th ani fh nespecifikován v tarReadRaw()\n"
+
+#: pg_backup_tar.c:510
+#, c-format
+msgid "requested %d bytes, got %d from lookahead and %d from file\n"
+msgstr "po¾adováno %d bytù, obdr¾eno %d z \"lookahead\" a %d ze souboru\n"
+
+#: pg_backup_tar.c:549
+#, c-format
+msgid "could not write to tar member (wrote %lu, attempted %lu)\n"
+msgstr "nelze zapsat do tar polo¾ky (zapsáno %lu, po¾adováno %lu)\n"
+
+#: pg_backup_tar.c:638
+#, c-format
+msgid "invalid COPY statement -- could not find \"copy\" in string \"%s\"\n"
+msgstr "neplatnı COPY pøíkaz -- nelze najít \"copy\" v øetìzci \"%s\"\n"
+
+#: pg_backup_tar.c:656
 #, c-format
 msgid ""
-"NOTICE: there are circular foreign-key constraints among these table(s):\n"
-msgstr "NOTICE: mezi tÄ›mito tabulkami existuje cyklus cizÃ­ch klÃ­ÄÅ¯:\n"
+"invalid COPY statement -- could not find \"from stdin\" in string \"%s\" "
+"starting at position %lu\n"
+msgstr ""
+"neplatnı COPY pøíkaz -- nelze najít \"from stdin\" v øetìzci \"%s\" "
+"zaèínající na pozici %lu\n"
 
-#: pg_dump_sort.c:1137 pg_dump_sort.c:1157
+#: pg_backup_tar.c:692
 #, c-format
-msgid "  %s\n"
-msgstr "  %s\n"
+msgid "restoring large object OID %u\n"
+msgstr "obnovován \"large object\" s OID %u\n"
 
-#: pg_dump_sort.c:1138
+#: pg_backup_tar.c:829
+msgid "could not write null block at end of tar archive\n"
+msgstr "nelze zapsat null blok na konec tar archivu\n"
+
+#: pg_backup_tar.c:1023
+msgid "archive member too large for tar format\n"
+msgstr "polo¾ka archivu je pøíli¹ velká pro formát tar\n"
+
+#: pg_backup_tar.c:1033
+#, c-format
+msgid "write error appending to tar archive (wrote %lu, attempted %lu)\n"
+msgstr "chyba zápisu pøi pøipojování do tar archivu (zapsáno %lu, po¾adováno %lu)\n"
+
+#: pg_backup_tar.c:1039
+#, c-format
+msgid "could not close tar member: %s\n"
+msgstr "nelze uzavøít tar polo¾ku: %s\n"
+
+#: pg_backup_tar.c:1048
+#, c-format
+msgid "actual file length (%s) does not match expected (%s)\n"
+msgstr "aktuální délka souboru (%s) není stejná jako oèekávaná (%s)\n"
+
+#: pg_backup_tar.c:1056
+msgid "could not output padding at end of tar member\n"
+msgstr "nelze zapsat vycpávku (padding) na konec èlena taru\n"
+
+#: pg_backup_tar.c:1085
+#, c-format
+msgid "moving from position %s to next member at file position %s\n"
+msgstr "pøecházím z pozice %s na následujícího èlena na pozici souboru %s\n"
+
+#: pg_backup_tar.c:1096
+#, c-format
+msgid "now at file position %s\n"
+msgstr "nyní na pozici souboru %s\n"
+
+#: pg_backup_tar.c:1105 pg_backup_tar.c:1132
+#, c-format
+msgid "could not find header for file %s in tar archive\n"
+msgstr "nelze najít hlavièku pro soubor %s v tar archivu\n"
+
+#: pg_backup_tar.c:1116
+#, c-format
+msgid "skipping tar member %s\n"
+msgstr "pøeskakován tar èlen %s\n"
+
+#: pg_backup_tar.c:1120
 #, c-format
 msgid ""
-"You might not be able to restore the dump without using --disable-triggers "
-"or temporarily dropping the constraints.\n"
+"dumping data out of order is not supported in this archive format: %s is "
+"required, but comes before %s in the archive file.\n"
 msgstr ""
-"Bez zadÃ¡nÃ­ volby --disable-triggers nebo doÄasnÃ©ho vypnutÃ­ constraintÅ¯ "
-"zÅ™ejmÄ› nebudete schopni tento dump obnovit.\n"
+"dump dat mimo poøadí není podporováno v tomto formátu archivu: %s je "
+"vy¾adován, ale pøedchází %s.\n"
 
-#: pg_dump_sort.c:1139
+#: pg_backup_tar.c:1168
 #, c-format
-msgid ""
-"Consider using a full dump instead of a --data-only dump to avoid this "
-"problem.\n"
+msgid "mismatch in actual vs. predicted file position (%s vs. %s)\n"
+msgstr "aktuální a pøedpokládaná pozice souboru se neshodují (%s vs. %s)\n"
+
+#: pg_backup_tar.c:1183
+#, c-format
+msgid "incomplete tar header found (%lu bytes)\n"
+msgstr "nalezena nekompletní tar hlavièka (%lu bytù)\n"
+
+#: pg_backup_tar.c:1218
+#, c-format
+msgid "TOC Entry %s at %s (length %lu, checksum %d)\n"
+msgstr "TOC záznam %s na %s (délka %lu, kontrolní souèet %d)\n"
+
+#: pg_backup_tar.c:1228
+#, c-format
+msgid "corrupt tar header found in %s (expected %d, computed %d) file position %s\n"
 msgstr ""
-"ZvaÅ¾te pouÅ¾itÃ­ kompletnÃ­ho (full) dumpu namÃ­sto --data-only dumpu pro "
-"odstranÄ›nÃ­ tohoto problÃ©mu.\n"
+"nalezena po¹kozená tar hlavièka v %s (pøedpokládáno %d, vypoèteno %d) pozice "
+"souboru %s\n"
 
-#: pg_dump_sort.c:1151
+#: pg_backup_tar.c:1321
+msgid "could not write tar header\n"
+msgstr "nelze zapsat hlavièku tar archivu\n"
+
+#: pg_restore.c:283
 #, c-format
-msgid "WARNING: could not resolve dependency loop among these items:\n"
-msgstr "WARNING: nelze vyÅ™eÅ¡it smyÄku zÃ¡vislostÃ­ mezi tÄ›mito poloÅ¾kami:\n"
+msgid "%s: cannot specify both -d and -f output\n"
+msgstr "%s: není mo¾no specifikovat jak -d, tak i -f pro vıstup\n"
 
-#: pg_dumpall.c:180
-#, c-format
-msgid ""
-"The program \"pg_dump\" is needed by %s but was not found in the\n"
-"same directory as \"%s\".\n"
-"Check your installation.\n"
-msgstr ""
-"Program \"pg_dump\" je potÅ™ebnÃ½ pro %s, ale nebyl nalezen ve stejnÃ©m\n"
-"adresÃ¡Å™i jako \"%s\".\n"
-"Zkontrolujte vaÅ¡i instalaci.\n"
-
-#: pg_dumpall.c:187
-#, c-format
-msgid ""
-"The program \"pg_dump\" was found by \"%s\"\n"
-"but was not the same version as %s.\n"
-"Check your installation.\n"
-msgstr ""
-"\"%s\" naÅ¡el program \"pg_dump\",\n"
-"kterÃ½ ale nenÃ­ stejnÃ© verze jako %s.\n"
-"Zkontrolujte vaÅ¡i instalaci.\n"
-
-#: pg_dumpall.c:321
-#, c-format
-msgid ""
-"%s: options -g/--globals-only and -r/--roles-only cannot be used together\n"
-msgstr ""
-"%s: volby -g/--globals-only a -r/--roles-only nelze pouÅ¾Ã­vat spoleÄnÄ›\n"
-
-#: pg_dumpall.c:330
-#, c-format
-msgid ""
-"%s: options -g/--globals-only and -t/--tablespaces-only cannot be used "
-"together\n"
-msgstr ""
-"%s: volby -g/--globals-only a -t/--tablespaces-only nelze pouÅ¾Ã­vat spoleÄnÄ›\n"
-
-#: pg_dumpall.c:339
-#, c-format
-msgid ""
-"%s: options -r/--roles-only and -t/--tablespaces-only cannot be used "
-"together\n"
-msgstr ""
-"%s: volby -r/--roles-only a -t/--tablespaces-only nelze pouÅ¾Ã­vat spoleÄnÄ›\n"
-
-#: pg_dumpall.c:381 pg_dumpall.c:1823
-#, c-format
-msgid "%s: could not connect to database \"%s\"\n"
-msgstr "%s: nelze navÃ¡zat spojenÃ­ s databÃ¡zÃ­ \"%s\"\n"
-
-#: pg_dumpall.c:396
-#, c-format
-msgid ""
-"%s: could not connect to databases \"postgres\" or \"template1\"\n"
-"Please specify an alternative database.\n"
-msgstr ""
-"%s: nelze navÃ¡zat spojenÃ­ s databÃ¡zÃ­ \"postgres\" nebo \"template1\"\n"
-"Zadejte prosÃ­m alternativnÃ­ databÃ¡zi.\n"
-
-#: pg_dumpall.c:413
-#, c-format
-msgid "%s: could not open the output file \"%s\": %s\n"
-msgstr "%s: nelze otevÅ™Ã­t vÃ½stupnÃ­ soubor \"%s\": %s\n"
-
-#: pg_dumpall.c:540
-#, c-format
-msgid ""
-"%s extracts a PostgreSQL database cluster into an SQL script file.\n"
-"\n"
-msgstr ""
-"%s extrahuje PostgreSQL databÃ¡zi do souboru s SQL skriptem.\n"
-"\n"
-
-#: pg_dumpall.c:542
-#, c-format
-msgid "  %s [OPTION]...\n"
-msgstr "  %s [VOLBA]...\n"
-
-#: pg_dumpall.c:545
-#, c-format
-msgid "  -f, --file=FILENAME          output file name\n"
-msgstr "  -f, --file=SOUBOR        vÃ½stupnÃ­ soubor\n"
-
-#: pg_dumpall.c:551
-#, c-format
-msgid ""
-"  -c, --clean                  clean (drop) databases before recreating\n"
-msgstr ""
-"  -c, --clean              odstranit (drop) databÃ¡zi pÅ™ed jejÃ­m vytvoÅ™enÃ­m\n"
-
-#: pg_dumpall.c:552
-#, c-format
-msgid "  -g, --globals-only           dump only global objects, no databases\n"
-msgstr ""
-"  -g, --globals-only       dump pouze globÃ¡lnÃ­ch objektÅ¯, ne databÃ¡ze\n"
-
-#: pg_dumpall.c:554 pg_restore.c:436
-#, c-format
-msgid "  -O, --no-owner               skip restoration of object ownership\n"
-msgstr ""
-"  -O, --no-owner           nevypisuje pÅ™Ã­kazy k nastavenÃ­ vlastnÃ­ka objektÅ¯\n"
-
-#: pg_dumpall.c:555
-#, c-format
-msgid ""
-"  -r, --roles-only             dump only roles, no databases or tablespaces\n"
-msgstr ""
-"  -r, --roles-only            dump pouze rolÃ­, ne databÃ¡zÃ­ nebo tablespacÅ¯\n"
-
-#: pg_dumpall.c:557
-#, c-format
-msgid "  -S, --superuser=NAME         superuser user name to use in the dump\n"
-msgstr ""
-"  -S, --superuser=JMÃ‰NO    uÅ¾ivatelskÃ© jmÃ©no superuÅ¾ivatele pouÅ¾itÃ© pÅ™i "
-"dumpu\n"
-
-#: pg_dumpall.c:558
-#, c-format
-msgid ""
-"  -t, --tablespaces-only       dump only tablespaces, no databases or roles\n"
-msgstr ""
-"  -t, --tablespaces-only      dump pouze tablespacÅ¯, ne databÃ¡zÃ­ nebo rolÃ­\n"
-
-#: pg_dumpall.c:574
-#, c-format
-msgid "  -d, --dbname=CONNSTR     connect using connection string\n"
-msgstr "  -d, --dbname=CONNSTR     specifikace pÅ™ipojenÃ­ do databÃ¡ze\n"
-
-#: pg_dumpall.c:576
-#, c-format
-msgid "  -l, --database=DBNAME    alternative default database\n"
-msgstr "  -l, --database=DBNAME    alternativnÃ­ vÃ½chozÃ­ databÃ¡ze\n"
-
-#: pg_dumpall.c:583
-#, c-format
-msgid ""
-"\n"
-"If -f/--file is not used, then the SQL script will be written to the "
-"standard\n"
-"output.\n"
-"\n"
-msgstr ""
-"\n"
-"Pokud nenÃ­ pouÅ¾ito -f/--file, potom SQL skript bude vypsÃ¡n pÅ™Ã­mo na "
-"standardnÃ­\n"
-"vÃ½stup.\n"
-"\n"
-
-#: pg_dumpall.c:1083
-#, c-format
-msgid "%s: could not parse ACL list (%s) for tablespace \"%s\"\n"
-msgstr "%s: nelze zpracovat ACL seznam (%s) pro prostor tabulek \"%s\"\n"
-
-#: pg_dumpall.c:1387
-#, c-format
-msgid "%s: could not parse ACL list (%s) for database \"%s\"\n"
-msgstr "%s: nelze zpracovat ACL seznam (%s) pro databÃ¡zi \"%s\"\n"
-
-#: pg_dumpall.c:1599
-#, c-format
-msgid "%s: dumping database \"%s\"...\n"
-msgstr "%s: dumpuji databÃ¡zi \"%s\"...\n"
-
-#: pg_dumpall.c:1609
-#, c-format
-msgid "%s: pg_dump failed on database \"%s\", exiting\n"
-msgstr "%s: pg_dump selhal pÅ™i zpracovÃ¡vÃ¡nÃ­ databÃ¡ze \"%s\", ukonÄuji se\n"
-
-#: pg_dumpall.c:1618
-#, c-format
-msgid "%s: could not re-open the output file \"%s\": %s\n"
-msgstr "%s: nelze otevÅ™Ã­t logovacÃ­ soubor \"%s\": %s\n"
-
-#: pg_dumpall.c:1665
-#, c-format
-msgid "%s: running \"%s\"\n"
-msgstr "%s: bÄ›Å¾Ã­ \"%s\"\n"
-
-#: pg_dumpall.c:1845
-#, c-format
-msgid "%s: could not connect to database \"%s\": %s\n"
-msgstr "%s: nelze navÃ¡zat spojenÃ­ s databÃ¡zÃ­ \"%s\": %s\n"
-
-#: pg_dumpall.c:1875
-#, c-format
-msgid "%s: could not get server version\n"
-msgstr "%s: nelze zÃ­skat verzi serveru\n"
-
-#: pg_dumpall.c:1881
-#, c-format
-msgid "%s: could not parse server version \"%s\"\n"
-msgstr "%s: nelze zpracovat verzi serveru \"%s\"\n"
-
-#: pg_dumpall.c:1959 pg_dumpall.c:1985
-#, c-format
-msgid "%s: executing %s\n"
-msgstr "%s: vykonÃ¡vÃ¡m %s\n"
-
-#: pg_dumpall.c:1965 pg_dumpall.c:1991
-#, c-format
-msgid "%s: query failed: %s"
-msgstr "%s: dotaz selhal: %s"
-
-#: pg_dumpall.c:1967 pg_dumpall.c:1993
-#, c-format
-msgid "%s: query was: %s\n"
-msgstr "%s: dotaz byl: %s\n"
-
-#: pg_restore.c:308
-#, c-format
-msgid "%s: options -d/--dbname and -f/--file cannot be used together\n"
-msgstr "%s: volby -d/--dbname a -f/--file nelze pouÅ¾Ã­vat spoleÄnÄ›\n"
-
-#: pg_restore.c:320
-#, c-format
-msgid "%s: cannot specify both --single-transaction and multiple jobs\n"
-msgstr "%s: nelze zadat --single-transaction a nÄ›kolik Ãºloh\n"
-
-#: pg_restore.c:351
-#, c-format
-msgid ""
-"unrecognized archive format \"%s\"; please specify \"c\", \"d\", or \"t\"\n"
-msgstr ""
-"neznÃ¡mÃ½ formÃ¡t archivu \"%s\"; zadejte prosÃ­m \"c\", \"d\" nebo \"t\"\n"
-
-#: pg_restore.c:381
-#, c-format
-msgid "%s: maximum number of parallel jobs is %d\n"
-msgstr "%s: maximÃ¡lnÃ­ poÄet paralelnÃ­ch jobÅ¯ je %d\n"
-
-#: pg_restore.c:399
+#: pg_restore.c:344
 #, c-format
 msgid "WARNING: errors ignored on restore: %d\n"
-msgstr "VAROVÃNÃ: chyby ignorovÃ¡ny pÅ™i obnovenÃ­: %d\n"
+msgstr "VAROVÁNÍ: chyby ignorovány pøi obnovení: %d\n"
 
-#: pg_restore.c:413
+#: pg_restore.c:358
 #, c-format
 msgid ""
 "%s restores a PostgreSQL database from an archive created by pg_dump.\n"
 "\n"
 msgstr ""
-"%s obnovuje PostgreSQL databÃ¡zi z archivu vytvoÅ™enÃ©ho pomocÃ­ pg_dump.\n"
+"%s obnovuje PostgreSQL databázi z archivu vytvoøeného pomocí pg_dump.\n"
 "\n"
 
-#: pg_restore.c:415
+#: pg_restore.c:360
 #, c-format
 msgid "  %s [OPTION]... [FILE]\n"
-msgstr "  %s [PÅ˜EPÃNAÄŒ]... [SOUBOR]\n"
+msgstr "  %s [PØEPÍNAÈ]... [SOUBOR]\n"
 
-#: pg_restore.c:418
+#: pg_restore.c:363
 #, c-format
-msgid "  -d, --dbname=NAME        connect to database name\n"
-msgstr "  -d, --dbname=JMÃ‰NO        jmÃ©no cÃ­lovÃ© databÃ¡ze\n"
+msgid "  -d, --dbname=NAME        target database name\n"
+msgstr "  -d, --dbname=JMÉNO        jméno cílové databáze\n"
 
-#: pg_restore.c:419
+#: pg_restore.c:365
 #, c-format
-msgid "  -f, --file=FILENAME      output file name\n"
-msgstr "  -f, --file=SOUBOR        vÃ½stupnÃ­ soubor\n"
+msgid "  -F, --format=c|t         specify backup file format\n"
+msgstr "  -F, --format=c|t         formát zálo¾ního souboru\n"
 
-#: pg_restore.c:420
+#: pg_restore.c:366
 #, c-format
-msgid "  -F, --format=c|d|t       backup file format (should be automatic)\n"
-msgstr ""
-"  -F, --format=c|d|t         formÃ¡t zÃ¡loÅ¾nÃ­ho souboru (mÄ›l by bÃ½t "
-"automatickÃ½)\n"
+msgid "  -i, --ignore-version     proceed even when server version mismatches\n"
+msgstr "  -i, --ignore-version     ignorovat rozdílnou verzi serveru\n"
 
-#: pg_restore.c:421
+#: pg_restore.c:367
 #, c-format
 msgid "  -l, --list               print summarized TOC of the archive\n"
-msgstr "  -l, --list               zobrazit sumarizovanÃ½ obsah (TOC) archivu\n"
+msgstr "  -l, --list               zobrazit sumarizovanı obsah (TOC) archivu\n"
 
-#: pg_restore.c:422
-#, c-format
-msgid "  -v, --verbose            verbose mode\n"
-msgstr "  -v, --verbose            vypisovat vÃ­ce informacÃ­\n"
-
-#: pg_restore.c:423
-#, c-format
-msgid "  -V, --version            output version information, then exit\n"
-msgstr "  -V, --version            zobraz informaci o verzi, potÃ© skonÄi\n"
-
-#: pg_restore.c:424
-#, c-format
-msgid "  -?, --help               show this help, then exit\n"
-msgstr "  -?, --help               zobraz tuto nÃ¡povÄ›du, potÃ© skonÄi\n"
-
-#: pg_restore.c:426
+#: pg_restore.c:372
 #, c-format
 msgid ""
 "\n"
 "Options controlling the restore:\n"
 msgstr ""
 "\n"
-"PÅ™epÃ­naÄe ovlivÅˆujÃ­cÃ­ obnovu:\n"
+"Pøepínaèe ovlivòující obnovu:\n"
 
-#: pg_restore.c:427
+#: pg_restore.c:373
 #, c-format
-msgid "  -a, --data-only              restore only the data, no schema\n"
+msgid "  -a, --data-only          restore only the data, no schema\n"
 msgstr ""
-"  -a, --data-only          obnovit pouze data, ne definice databÃ¡zovÃ½ch "
-"objektÅ¯\n"
+"  -a, --data-only          obnovit pouze data, ne definice databázovıch "
+"objektù\n"
 
-#: pg_restore.c:429
+#: pg_restore.c:375
 #, c-format
-msgid "  -C, --create                 create the target database\n"
-msgstr "  -C, --create             vypÃ­Å¡e pÅ™Ã­kazy pro vytvoÅ™enÃ­ databÃ¡ze\n"
+msgid "  -C, --create             issue commands to create the database\n"
+msgstr "  -C, --create             vypí¹e pøíkazy pro vytvoøení databáze\n"
 
-#: pg_restore.c:430
+#: pg_restore.c:376
 #, c-format
-msgid "  -e, --exit-on-error          exit on error, default is to continue\n"
-msgstr "  -e, --exit-on-error      ukonÄit pÅ™i chybÄ›, implicitnÄ› pokraÄuje\n"
+msgid "  -I, --index=NAME         restore named index\n"
+msgstr "  -I, --index=JMÉNO        obnovit jmenovanı index\n"
 
-#: pg_restore.c:431
-#, c-format
-msgid "  -I, --index=NAME             restore named index\n"
-msgstr "  -I, --index=JMÃ‰NO        obnovit jmenovanÃ½ index\n"
-
-#: pg_restore.c:432
-#, c-format
-msgid "  -j, --jobs=NUM               use this many parallel jobs to restore\n"
-msgstr ""
-"  -j, --jobs=NUM           pouÅ¾ij pro obnovu danÃ½ poÄet paralelnÃ­ch jobÅ¯\n"
-
-#: pg_restore.c:433
+#: pg_restore.c:377
 #, c-format
 msgid ""
-"  -L, --use-list=FILENAME      use table of contents from this file for\n"
-"                               selecting/ordering output\n"
+"  -L, --use-list=FILENAME  use specified table of contents for ordering\n"
+"                           output from this file\n"
 msgstr ""
-"  -L, --use-list=SOUBOR    pouÅ¾Ã­t specifikovanÃ½ obsah (TOC) pro Å™azenÃ­\n"
-"                           vÃ½stupu z tohoto souboru\n"
+"  -L, --use-list=SOUBOR    pou¾ít specifikovanı obsah (TOC) pro øazení\n"
+"                           vıstupu z tohoto souboru\n"
 
-#: pg_restore.c:435
+#: pg_restore.c:379
 #, c-format
-msgid "  -n, --schema=NAME            restore only objects in this schema\n"
-msgstr "  -n, --schema=NAME        obnovit pouze objekty v tomto schÃ©matu\n"
+msgid "  -O, --no-owner           do not issue commands to set object ownership\n"
+msgstr "  -O, --no-owner           nevypisuje pøíkazy k nastavení vlastníka objektù\n"
 
-#: pg_restore.c:437
-#, c-format
-msgid "  -P, --function=NAME(args)    restore named function\n"
-msgstr ""
-"  -P, --function=JMÃ‰NO(args)\n"
-"                           obnovit funkci danÃ©ho jmÃ©na\n"
-
-#: pg_restore.c:438
-#, c-format
-msgid "  -s, --schema-only            restore only the schema, no data\n"
-msgstr "  -s, --schema-only        obnovit pouze definice objektÅ¯, bez dat\n"
-
-#: pg_restore.c:439
+#: pg_restore.c:380
 #, c-format
 msgid ""
-"  -S, --superuser=NAME         superuser user name to use for disabling "
-"triggers\n"
+"  -P, --function=NAME(args)\n"
+"                           restore named function\n"
 msgstr ""
-"  -S, --superuser=JMÃ‰NO    jmÃ©no superuÅ¾ivatele pouÅ¾itÃ© pro\n"
-"                           zakÃ¡zanÃ­ triggerÅ¯\n"
+"  -P, --function=JMÉNO(args)\n"
+"                           obnovit funkci daného jména\n"
 
-#: pg_restore.c:440
+#: pg_restore.c:382
 #, c-format
-msgid "  -t, --table=NAME             restore named table(s)\n"
-msgstr "  -t, --table=JMÃ‰NO        obnovit pouze jmenovanou tabulku\n"
+msgid "  -s, --schema-only        restore only the schema, no data\n"
+msgstr "  -s, --schema-only        obnovit pouze definice objektù, bez dat\n"
 
-#: pg_restore.c:441
-#, c-format
-msgid "  -T, --trigger=NAME           restore named trigger\n"
-msgstr "  -T, --trigger=JMÃ‰NO      obnovit pouze jmenovanÃ½ trigger\n"
-
-#: pg_restore.c:442
+#: pg_restore.c:383
 #, c-format
 msgid ""
-"  -x, --no-privileges          skip restoration of access privileges (grant/"
+"  -S, --superuser=NAME     specify the superuser user name to use for\n"
+"                           disabling triggers\n"
+msgstr ""
+"  -S, --superuser=JMÉNO    jméno superu¾ivatele pou¾ité pro\n"
+"                           zakázaní triggerù\n"
+
+#: pg_restore.c:385
+#, c-format
+msgid "  -t, --table=NAME         restore named table\n"
+msgstr "  -t, --table=JMÉNO        obnovit pouze jmenovanou tabulku\n"
+
+#: pg_restore.c:386
+#, c-format
+msgid "  -T, --trigger=NAME       restore named trigger\n"
+msgstr "  -T, --trigger=JMÉNO      obnovit pouze jmenovanı trigger\n"
+
+#: pg_restore.c:387
+#, c-format
+msgid ""
+"  -x, --no-privileges      skip restoration of access privileges (grant/"
 "revoke)\n"
 msgstr ""
-"  -x, --no-privileges      pÅ™eskoÄit obnovu pÅ™Ã­stupovÃ½ch prÃ¡v (grant/"
+"  -x, --no-privileges      pøeskoèit obnovu pøístupovıch práv (grant/"
 "revoke)\n"
 
-#: pg_restore.c:443
+#: pg_restore.c:399
 #, c-format
-msgid "  -1, --single-transaction     restore as a single transaction\n"
-msgstr ""
-"  -1, --single-transaction\n"
-"                           zpracuj soubor v rÃ¡mci jednÃ© transakce\n"
+msgid "  -e, --exit-on-error      exit on error, default is to continue\n"
+msgstr "  -e, --exit-on-error      ukonèit pøi chybì, implicitnì pokraèuje\n"
 
-#: pg_restore.c:445
-#, c-format
-msgid ""
-"  --no-data-for-failed-tables  do not restore data of tables that could not "
-"be\n"
-"                               created\n"
-msgstr ""
-"  --no-data-for-failed-tables\n"
-"                           neobnovuj data tabulek kterÃ© nemohly bÃ½t "
-"vytvoÅ™eny\n"
-
-#: pg_restore.c:447
-#, c-format
-msgid "  --no-security-labels         do not restore security labels\n"
-msgstr "  --no-security-labels         neobnovuj bezpeÄnostnÃ­ Å¡tÃ­tky\n"
-
-#: pg_restore.c:448
-#, c-format
-msgid "  --no-tablespaces             do not restore tablespace assignments\n"
-msgstr "  --no-tablespaces         neobnovuj pÅ™iÅ™azenÃ­ tablespaces\n"
-
-#: pg_restore.c:449
-#, c-format
-msgid ""
-"  --section=SECTION            restore named section (pre-data, data, or "
-"post-data)\n"
-msgstr ""
-"  --section=SECTION        obnov pojmenovanou sekci (pre-data, data, nebo "
-"post-data)\n"
-
-#: pg_restore.c:460
-#, c-format
-msgid "  --role=ROLENAME          do SET ROLE before restore\n"
-msgstr "  --role=ROLENAME          pÅ™ed obnovou proveÄ SET ROLE\n"
-
-#: pg_restore.c:462
+#: pg_restore.c:401
 #, c-format
 msgid ""
 "\n"
@@ -2604,108 +1665,146 @@ msgid ""
 "\n"
 msgstr ""
 "\n"
-"NenÃ­-li definovÃ¡n vstupnÃ­ soubor, je pouÅ¾it standardnÃ­ vstup.\n"
+"Není-li definován vstupní soubor, je pou¾it standardní vstup.\n"
 "\n"
 
-#~ msgid "worker process crashed: status %d\n"
-#~ msgstr "worker proces selhal: status %d\n"
+#: pg_dumpall.c:149
+#, c-format
+msgid ""
+"The program \"pg_dump\" is needed by %s but was not found in the\n"
+"same directory as \"%s\".\n"
+"Check your installation.\n"
+msgstr ""
+"Program \"pg_dump\" je potøebnı pro %s, ale nebyl nalezen ve stejném\n"
+"adresáøi jako \"%s\".\n"
+"Zkontrolujte va¹i instalaci.\n"
 
-#~ msgid "parallel_restore should not return\n"
-#~ msgstr "parallel_restore by nemÄ›l skonÄit\n"
+#: pg_dumpall.c:156
+#, c-format
+msgid ""
+"The program \"pg_dump\" was found by \"%s\"\n"
+"but was not the same version as %s.\n"
+"Check your installation.\n"
+msgstr ""
+"\"%s\" na¹el program \"pg_dump\",\n"
+"kterı ale není stejné verze jako %s.\n"
+"Zkontrolujte va¹i instalaci.\n"
 
-#~ msgid "could not create worker thread: %s\n"
-#~ msgstr "nelze vytvoÅ™it worker thread: %s\n"
+#: pg_dumpall.c:336
+#, c-format
+msgid ""
+"%s extracts a PostgreSQL database cluster into an SQL script file.\n"
+"\n"
+msgstr ""
+"%s extrahuje PostgreSQL databázi do souboru s SQL skriptem.\n"
+"\n"
 
-#~ msgid "could not parse version string \"%s\"\n"
-#~ msgstr "neplatnÃ½ formÃ¡t Å™etÄ›zce s verzÃ­ \"%s\"\n"
+#: pg_dumpall.c:338
+#, c-format
+msgid "  %s [OPTION]...\n"
+msgstr "  %s [PØEPÍNAÈ]...\n"
 
-#~ msgid "%s: could not parse version \"%s\"\n"
-#~ msgstr "%s: nelze zpracovat verzi serveru \"%s\"\n"
+#: pg_dumpall.c:341
+#, c-format
+msgid ""
+"  -i, --ignore-version     proceed even when server version mismatches\n"
+"                           pg_dumpall version\n"
+msgstr ""
+"  -i, --ignore-version     ignoruje rozdílnost verze serveru a\n"
+"                           verzí pg_dumpall\n"
 
-#~ msgid "child process exited with exit code %d"
-#~ msgstr "potomek skonÄil s nÃ¡vratovÃ½m kÃ³dem %d"
+#: pg_dumpall.c:347
+#, c-format
+msgid "  -c, --clean              clean (drop) databases prior to create\n"
+msgstr "  -c, --clean              odstranit (drop) databázi pøed jejím vytvoøením\n"
 
-#~ msgid "child process was terminated by exception 0x%X"
-#~ msgstr "potomek byl ukonÄen vyjÃ­mkou 0x%X"
+#: pg_dumpall.c:350
+#, c-format
+msgid "  -g, --globals-only       dump only global objects, no databases\n"
+msgstr "  -g, --globals-only       dump pouze globálních objektù, ne databáze\n"
 
-#~ msgid "child process was terminated by signal %s"
-#~ msgstr "potomek byl ukonÄen signÃ¡lem %s"
+#: pg_dumpall.c:352
+#, c-format
+msgid "  -O, --no-owner           do not output commands to set object ownership\n"
+msgstr "  -O, --no-owner           nevypisuj pøíkazy k nastavení vlastníka objektù\n"
 
-#~ msgid "child process was terminated by signal %d"
-#~ msgstr "potomek byl ukonÄen signÃ¡lem %d"
+#: pg_dumpall.c:354
+#, c-format
+msgid ""
+"  -S, --superuser=NAME     specify the superuser user name to use in the "
+"dump\n"
+msgstr ""
+"  -S, --superuser=JMÉNO    u¾ivatelské jméno superu¾ivatele pou¾ité pøi "
+"dumpu\n"
 
-#~ msgid "child process exited with unrecognized status %d"
-#~ msgstr "potomek skonÄil s nerozponanÃ½m stavem %d"
+#: pg_dumpall.c:370
+#, c-format
+msgid ""
+"\n"
+"The SQL script will be written to the standard output.\n"
+"\n"
+msgstr ""
+"\n"
+"SQL skript bude vypsán na standardní vıstup.\n"
+"\n"
 
-#~ msgid "-C and -c are incompatible options\n"
-#~ msgstr "-C a -c jsou nekompatibilnÃ­ pÅ™epÃ­naÄe\n"
+#: pg_dumpall.c:570
+#, c-format
+msgid "%s: could not parse ACL list (%s) for tablespace \"%s\"\n"
+msgstr "%s: nelze zpracovat ACL seznam (%s) pro prostor tabulek \"%s\"\n"
 
-#~ msgid "invalid COPY statement -- could not find \"copy\" in string \"%s\"\n"
-#~ msgstr "neplatnÃ½ COPY pÅ™Ã­kaz -- nelze najÃ­t \"copy\" v Å™etÄ›zci \"%s\"\n"
+#: pg_dumpall.c:702
+#, c-format
+msgid "%s: could not parse ACL list (%s) for database \"%s\"\n"
+msgstr "%s: nelze zpracovat ACL seznam (%s) pro databázi \"%s\"\n"
 
-#~ msgid ""
-#~ "invalid COPY statement -- could not find \"from stdin\" in string \"%s\" "
-#~ "starting at position %lu\n"
-#~ msgstr ""
-#~ "neplatnÃ½ COPY pÅ™Ã­kaz -- nelze najÃ­t \"from stdin\" v Å™etÄ›zci \"%s\" "
-#~ "zaÄÃ­najÃ­cÃ­ na pozici %lu\n"
+#: pg_dumpall.c:852
+#, c-format
+msgid "%s: dumping database \"%s\"...\n"
+msgstr "%s: dumpuji databázi \"%s\"...\n"
 
-#~ msgid "cannot create directory %s, it exists already\n"
-#~ msgstr "nelze vytvoÅ™it adresÃ¡Å™ %s, jiÅ¾ existuje\n"
+#: pg_dumpall.c:858
+#, c-format
+msgid "%s: pg_dump failed on database \"%s\", exiting\n"
+msgstr "%s: pg_dump selhal pøi zpracovávání databáze \"%s\", ukonèuji se\n"
 
-#~ msgid "cannot create directory %s, a file with this name exists already\n"
-#~ msgstr "nelze vytvoÅ™it adresÃ¡Å™ %s, soubor s tÃ­mto jmÃ©nem jiÅ¾ existuje\n"
+#: pg_dumpall.c:913
+#, c-format
+msgid "%s: running \"%s\"\n"
+msgstr "%s: bì¾í \"%s\"\n"
 
-#~ msgid "path name too long: %s"
-#~ msgstr "cesta pÅ™Ã­liÅ¡ dlouhÃ¡: %s"
+#: pg_dumpall.c:954
+#, c-format
+msgid "%s: could not connect to database \"%s\"\n"
+msgstr "%s: nelze navázat spojení s databází \"%s\"\n"
 
-#~ msgid "restoring large object OID %u\n"
-#~ msgstr "obnovuji \"large object\" s OID %u\n"
+#: pg_dumpall.c:977
+#, c-format
+msgid "%s: could not connect to database \"%s\": %s\n"
+msgstr "%s: nelze navázat spojení s databází \"%s\": %s\n"
 
-#~ msgid ""
-#~ "options -s/--schema-only and -a/--data-only cannot be used with --"
-#~ "section\n"
-#~ msgstr "volby -s/--schema-only a -a/--data-only nelze pouÅ¾Ã­t s --section\n"
+#: pg_dumpall.c:985
+#, c-format
+msgid "%s: could not get server version\n"
+msgstr "%s: nelze získat verzi serveru\n"
 
-#~ msgid "  --help                      show this help, then exit\n"
-#~ msgstr "  --help                       ukÃ¡Å¾e tento text a skonÄÃ­\n"
+#: pg_dumpall.c:991
+#, c-format
+msgid "%s: could not parse server version \"%s\"\n"
+msgstr "%s: nelze zpracovat verzi serveru \"%s\"\n"
 
-#~ msgid ""
-#~ "  --version                   output version information, then exit\n"
-#~ msgstr "  --version                    ukÃ¡Å¾e informace o verzi a skonÄÃ­\n"
+#: pg_dumpall.c:1010
+#, c-format
+msgid "%s: executing %s\n"
+msgstr "%s: vykonávám %s\n"
 
-#~ msgid ""
-#~ "%s: options -s/--schema-only and -a/--data-only cannot be used together\n"
-#~ msgstr "%s: volby -s/--schema-only a -a/--data-only nelze pouÅ¾Ã­t najednou\n"
+#: pg_dumpall.c:1016
+#, c-format
+msgid "%s: query failed: %s"
+msgstr "%s: dotaz selhal: %s"
 
-#~ msgid ""
-#~ "%s: options -s/--schema-only and -a/--data-only cannot be used with --"
-#~ "section\n"
-#~ msgstr ""
-#~ "%s: volby -s/--schema-only a -a/--data-only nelze pouÅ¾Ã­t s --section\n"
+#: pg_dumpall.c:1017
+#, c-format
+msgid "%s: query was: %s\n"
+msgstr "%s: dotaz byl: %s\n"
 
-#~ msgid ""
-#~ "  -c, --clean              clean (drop) database objects before "
-#~ "recreating\n"
-#~ msgstr ""
-#~ "  -c, --clean              odstranit (drop) databÃ¡zi pÅ™ed jejÃ­m "
-#~ "vytvoÅ™enÃ­m\n"
-
-#~ msgid "  -O, --no-owner           skip restoration of object ownership\n"
-#~ msgstr "  -O, --no-owner           pÅ™eskoÄ nastavenÃ­ vlastnÃ­ka objektÅ¯\n"
-
-#~ msgid ""
-#~ "  --disable-triggers       disable triggers during data-only restore\n"
-#~ msgstr ""
-#~ "  --disable-triggers       zakÃ¡zat volÃ¡nÃ­ triggerÅ¯ bÄ›hem obnovy dat\n"
-
-#~ msgid ""
-#~ "  --use-set-session-authorization\n"
-#~ "                           use SET SESSION AUTHORIZATION commands instead "
-#~ "of\n"
-#~ "                           ALTER OWNER commands to set ownership\n"
-#~ msgstr ""
-#~ "  --use-set-session-authorization\n"
-#~ "                           pouÅ¾Ã­vat pÅ™Ã­kaz SET SESSION AUTHORIZATION "
-#~ "namÃ­sto\n"
-#~ "                           pÅ™Ã­kazu ALTER OWNER pro nastavenÃ­ vlastnÃ­ka\n"

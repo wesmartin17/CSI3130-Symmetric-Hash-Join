@@ -1,4 +1,10 @@
 --
+-- checkpoint so that if we have a crash in the tests, replay of the
+-- just-completed CREATE DATABASE won't discard the core dump file
+--
+checkpoint;
+
+--
 -- Test result value processing
 --
 
@@ -32,8 +38,7 @@ SELECT perl_set_int(5);
 SELECT * FROM perl_set_int(5);
 
 
-CREATE TYPE testnestperl AS (f5 integer[]);
-CREATE TYPE testrowperl AS (f1 integer, f2 text, f3 text, f4 testnestperl);
+CREATE TYPE testrowperl AS (f1 integer, f2 text, f3 text);
 
 CREATE OR REPLACE FUNCTION perl_row() RETURNS testrowperl AS $$
     return undef;
@@ -42,20 +47,12 @@ $$ LANGUAGE plperl;
 SELECT perl_row();
 SELECT * FROM perl_row();
 
-
 CREATE OR REPLACE FUNCTION perl_row() RETURNS testrowperl AS $$
-    return {f2 => 'hello', f1 => 1, f3 => 'world', 'f4' => { 'f5' => [[1]] } };
+    return {f2 => 'hello', f1 => 1, f3 => 'world'};
 $$ LANGUAGE plperl;
 
 SELECT perl_row();
 SELECT * FROM perl_row();
-
--- test returning a composite literal
-CREATE OR REPLACE FUNCTION perl_row_lit() RETURNS testrowperl AS $$
-    return '(1,hello,world,"({{1}})")';
-$$ LANGUAGE plperl;
-
-SELECT perl_row_lit();
 
 
 CREATE OR REPLACE FUNCTION perl_set() RETURNS SETOF testrowperl AS $$
@@ -69,10 +66,7 @@ CREATE OR REPLACE FUNCTION perl_set() RETURNS SETOF testrowperl AS $$
     return [
         { f1 => 1, f2 => 'Hello', f3 =>  'World' },
         undef,
-        { f1 => 3, f2 => 'Hello', f3 =>  'PL/Perl', 'f4' => {} },
-        { f1 => 4, f2 => 'Hello', f3 =>  'PL/Perl', 'f4' => { 'f5' => undef }},
-        { f1 => 5, f2 => 'Hello', f3 =>  'PL/Perl', 'f4' => { 'f5' => '{1}' }},
-        { f1 => 6, f2 => 'Hello', f3 =>  'PL/Perl', 'f4' => { 'f5' => [1] }},
+        { f1 => 3, f2 => 'Hello', f3 =>  'PL/Perl' }
     ];
 $$  LANGUAGE plperl;
 
@@ -82,17 +76,15 @@ SELECT * FROM perl_set();
 CREATE OR REPLACE FUNCTION perl_set() RETURNS SETOF testrowperl AS $$
     return [
         { f1 => 1, f2 => 'Hello', f3 =>  'World' },
-        { f1 => 2, f2 => 'Hello', f3 =>  'PostgreSQL', 'f4' => undef },
-        { f1 => 3, f2 => 'Hello', f3 =>  'PL/Perl', 'f4' => {} },
-        { f1 => 4, f2 => 'Hello', f3 =>  'PL/Perl', 'f4' => { 'f5' => undef }},
-        { f1 => 5, f2 => 'Hello', f3 =>  'PL/Perl', 'f4' => { 'f5' => '{1}' }},
-        { f1 => 6, f2 => 'Hello', f3 =>  'PL/Perl', 'f4' => { 'f5' => [1] }},
-        { f1 => 7, f2 => 'Hello', f3 =>  'PL/Perl', 'f4' => '({1})' },
+        { f1 => 2, f2 => 'Hello', f3 =>  'PostgreSQL' },
+        { f1 => 3, f2 => 'Hello', f3 =>  'PL/Perl' }
     ];
 $$  LANGUAGE plperl;
 
 SELECT perl_set();
 SELECT * FROM perl_set();
+
+
 
 CREATE OR REPLACE FUNCTION perl_record() RETURNS record AS $$
     return undef;
@@ -100,15 +92,15 @@ $$ LANGUAGE plperl;
 
 SELECT perl_record();
 SELECT * FROM perl_record();
-SELECT * FROM perl_record() AS (f1 integer, f2 text, f3 text, f4 testnestperl);
+SELECT * FROM perl_record() AS (f1 integer, f2 text, f3 text);
 
 CREATE OR REPLACE FUNCTION perl_record() RETURNS record AS $$
-    return {f2 => 'hello', f1 => 1, f3 => 'world', 'f4' => { 'f5' => [1] } };
+    return {f2 => 'hello', f1 => 1, f3 => 'world'};
 $$ LANGUAGE plperl;
 
 SELECT perl_record();
 SELECT * FROM perl_record();
-SELECT * FROM perl_record() AS (f1 integer, f2 text, f3 text, f4 testnestperl);
+SELECT * FROM perl_record() AS (f1 integer, f2 text, f3 text);
 
 
 CREATE OR REPLACE FUNCTION perl_record_set() RETURNS SETOF record AS $$
@@ -231,38 +223,6 @@ $$ LANGUAGE plperl;
 
 SELECT * FROM foo_set_bad();
 
-CREATE DOMAIN orderedfootype AS footype CHECK ((VALUE).x <= (VALUE).y);
-
-CREATE OR REPLACE FUNCTION foo_ordered() RETURNS orderedfootype AS $$
-    return {x => 3, y => 4};
-$$ LANGUAGE plperl;
-
-SELECT * FROM foo_ordered();
-
-CREATE OR REPLACE FUNCTION foo_ordered() RETURNS orderedfootype AS $$
-    return {x => 5, y => 4};
-$$ LANGUAGE plperl;
-
-SELECT * FROM foo_ordered();  -- fail
-
-CREATE OR REPLACE FUNCTION foo_ordered_set() RETURNS SETOF orderedfootype AS $$
-return [
-    {x => 3, y => 4},
-    {x => 4, y => 7}
-];
-$$ LANGUAGE plperl;
-
-SELECT * FROM foo_ordered_set();
-
-CREATE OR REPLACE FUNCTION foo_ordered_set() RETURNS SETOF orderedfootype AS $$
-return [
-    {x => 3, y => 4},
-    {x => 9, y => 7}
-];
-$$ LANGUAGE plperl;
-
-SELECT * FROM foo_ordered_set();  -- fail
-
 --
 -- Check passing a tuple argument
 --
@@ -274,23 +234,6 @@ $$ LANGUAGE plperl;
 SELECT perl_get_field((11,12), 'x');
 SELECT perl_get_field((11,12), 'y');
 SELECT perl_get_field((11,12), 'z');
-
-CREATE OR REPLACE FUNCTION perl_get_cfield(orderedfootype, text) RETURNS integer AS $$
-    return $_[0]->{$_[1]};
-$$ LANGUAGE plperl;
-
-SELECT perl_get_cfield((11,12), 'x');
-SELECT perl_get_cfield((11,12), 'y');
-SELECT perl_get_cfield((12,11), 'x');  -- fail
-
-CREATE OR REPLACE FUNCTION perl_get_rfield(record, text) RETURNS integer AS $$
-    return $_[0]->{$_[1]};
-$$ LANGUAGE plperl;
-
-SELECT perl_get_rfield((11,12), 'f1');
-SELECT perl_get_rfield((11,12)::footype, 'y');
-SELECT perl_get_rfield((11,12)::orderedfootype, 'x');
-SELECT perl_get_rfield((12,11)::orderedfootype, 'x');  -- fail
 
 --
 -- Test return_next
@@ -317,16 +260,6 @@ while (defined (my $y = spi_fetchrow($x))) {
 return;
 $$ LANGUAGE plperl;
 SELECT * from perl_spi_func();
-
---
--- Test spi_fetchrow abort
---
-CREATE OR REPLACE FUNCTION perl_spi_func2() RETURNS INTEGER AS $$
-my $x = spi_query("select 1 as a union select 2 as a");
-spi_cursor_close( $x);
-return 0;
-$$ LANGUAGE plperl;
-SELECT * from perl_spi_func2();
 
 
 ---
@@ -360,164 +293,11 @@ SELECT * FROM recurse(3);
 
 
 ---
---- Test array return
+--- Test arrary return
 ---
-CREATE OR REPLACE FUNCTION  array_of_text() RETURNS TEXT[][]
-LANGUAGE plperl as $$
-    return [['a"b',undef,'c,d'],['e\\f',undef,'g']];
+CREATE OR REPLACE FUNCTION  array_of_text() RETURNS TEXT[][] 
+LANGUAGE plperl as $$ 
+    return [['a"b','c,d'],['e\\f','g']]; 
 $$;
 
-SELECT array_of_text();
-
---
--- Test spi_prepare/spi_exec_prepared/spi_freeplan
---
-CREATE OR REPLACE FUNCTION perl_spi_prepared(INTEGER) RETURNS INTEGER AS $$
-   my $x = spi_prepare('select $1 AS a', 'INTEGER');
-   my $q = spi_exec_prepared( $x, $_[0] + 1);
-   spi_freeplan($x);
-return $q->{rows}->[0]->{a};
-$$ LANGUAGE plperl;
-SELECT * from perl_spi_prepared(42);
-
---
--- Test spi_prepare/spi_query_prepared/spi_freeplan
---
-CREATE OR REPLACE FUNCTION perl_spi_prepared_set(INTEGER, INTEGER) RETURNS SETOF INTEGER AS $$
-  my $x = spi_prepare('SELECT $1 AS a union select $2 as a', 'INT4', 'INT4');
-  my $q = spi_query_prepared( $x, 1+$_[0], 2+$_[1]);
-  while (defined (my $y = spi_fetchrow($q))) {
-      return_next $y->{a};
-  }
-  spi_freeplan($x);
-  return;
-$$ LANGUAGE plperl;
-SELECT * from perl_spi_prepared_set(1,2);
-
---
--- Test prepare with a type with spaces
---
-CREATE OR REPLACE FUNCTION perl_spi_prepared_double(double precision) RETURNS double precision AS $$
-  my $x = spi_prepare('SELECT 10.0 * $1 AS a', 'DOUBLE PRECISION');
-  my $q = spi_query_prepared($x,$_[0]);
-  my $result;
-  while (defined (my $y = spi_fetchrow($q))) {
-      $result = $y->{a};
-  }
-  spi_freeplan($x);
-  return $result;
-$$ LANGUAGE plperl;
-SELECT perl_spi_prepared_double(4.35) as "double precision";
-
---
--- Test with a bad type
---
-CREATE OR REPLACE FUNCTION perl_spi_prepared_bad(double precision) RETURNS double precision AS $$
-  my $x = spi_prepare('SELECT 10.0 * $1 AS a', 'does_not_exist');
-  my $q = spi_query_prepared($x,$_[0]);
-  my $result;
-  while (defined (my $y = spi_fetchrow($q))) {
-      $result = $y->{a};
-  }
-  spi_freeplan($x);
-  return $result;
-$$ LANGUAGE plperl;
-SELECT perl_spi_prepared_bad(4.35) as "double precision";
-
--- Test with a row type
-CREATE OR REPLACE FUNCTION perl_spi_prepared() RETURNS INTEGER AS $$
-   my $x = spi_prepare('select $1::footype AS a', 'footype');
-   my $q = spi_exec_prepared( $x, '(1, 2)');
-   spi_freeplan($x);
-return $q->{rows}->[0]->{a}->{x};
-$$ LANGUAGE plperl;
-SELECT * from perl_spi_prepared();
-
-CREATE OR REPLACE FUNCTION perl_spi_prepared_row(footype) RETURNS footype AS $$
-   my $footype = shift;
-   my $x = spi_prepare('select $1 AS a', 'footype');
-   my $q = spi_exec_prepared( $x, {}, $footype );
-   spi_freeplan($x);
-return $q->{rows}->[0]->{a};
-$$ LANGUAGE plperl;
-SELECT * from perl_spi_prepared_row('(1, 2)');
-
--- simple test of a DO block
-DO $$
-  $a = 'This is a test';
-  elog(NOTICE, $a);
-$$ LANGUAGE plperl;
-
--- check that restricted operations are rejected in a plperl DO block
-DO $$ system("/nonesuch"); $$ LANGUAGE plperl;
-DO $$ qx("/nonesuch"); $$ LANGUAGE plperl;
-DO $$ open my $fh, "</nonesuch"; $$ LANGUAGE plperl;
-
--- check that eval is allowed and eval'd restricted ops are caught
-DO $$ eval q{chdir '.';}; warn "Caught: $@"; $$ LANGUAGE plperl;
-
--- check that compiling do (dofile opcode) is allowed
--- but that executing it for a file not already loaded (via require) dies
-DO $$ warn do "/dev/null"; $$ LANGUAGE plperl;
-
--- check that we can't "use" a module that's not been loaded already
--- compile-time error: "Unable to load blib.pm into plperl"
-DO $$ use blib; $$ LANGUAGE plperl;
-
--- check that we can "use" a module that has already been loaded
--- runtime error: "Can't use string ("foo") as a SCALAR ref while "strict refs" in use
-DO $do$ use strict; my $name = "foo"; my $ref = $$name; $do$ LANGUAGE plperl;
-
--- check that we can "use warnings" (in this case to turn a warn into an error)
--- yields "ERROR:  Useless use of sort in scalar context."
-DO $do$ use warnings FATAL => qw(void) ; my @y; my $x = sort @y; 1; $do$ LANGUAGE plperl;
-
--- make sure functions marked as VOID without an explicit return work
-CREATE OR REPLACE FUNCTION myfuncs() RETURNS void AS $$
-   $_SHARED{myquote} = sub {
-       my $arg = shift;
-       $arg =~ s/(['\\])/\\$1/g;
-       return "'$arg'";
-   };
-$$ LANGUAGE plperl;
-
-SELECT myfuncs();
-
--- make sure we can't return an array as a scalar
-CREATE OR REPLACE FUNCTION text_arrayref() RETURNS text AS $$
-	return ['array'];
-$$ LANGUAGE plperl;
-
-SELECT text_arrayref();
-
---- make sure we can't return a hash as a scalar
-CREATE OR REPLACE FUNCTION text_hashref() RETURNS text AS $$
-	return {'hash'=>1};
-$$ LANGUAGE plperl;
-
-SELECT text_hashref();
-
----- make sure we can't return a blessed object as a scalar
-CREATE OR REPLACE FUNCTION text_obj() RETURNS text AS $$
-	return bless({}, 'Fake::Object');
-$$ LANGUAGE plperl;
-
-SELECT text_obj();
-
------ make sure we can't return a scalar ref
-CREATE OR REPLACE FUNCTION text_scalarref() RETURNS text AS $$
-	my $str = 'str';
-	return \$str;
-$$ LANGUAGE plperl;
-
-SELECT text_scalarref();
-
--- check safe behavior when a function body is replaced during execution
-CREATE OR REPLACE FUNCTION self_modify(INTEGER) RETURNS INTEGER AS $$
-   spi_exec_query('CREATE OR REPLACE FUNCTION self_modify(INTEGER) RETURNS INTEGER AS \'return $_[0] * 3;\' LANGUAGE plperl;');
-   spi_exec_query('select self_modify(42) AS a');
-   return $_[0] * 2;
-$$ LANGUAGE plperl;
-
-SELECT self_modify(42);
-SELECT self_modify(42);
+SELECT array_of_text(); 

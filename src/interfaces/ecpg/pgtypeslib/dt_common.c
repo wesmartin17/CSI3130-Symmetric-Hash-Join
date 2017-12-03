@@ -1,5 +1,3 @@
-/* src/interfaces/ecpg/pgtypeslib/dt_common.c */
-
 #include "postgres_fe.h"
 
 #include <time.h>
@@ -16,31 +14,39 @@ int			day_tab[2][13] = {
 
 typedef long AbsoluteTime;
 
+#define ABS_SIGNBIT				((char) 0200)
+#define POS(n)					(n)
+#define NEG(n)					((n)|ABS_SIGNBIT)
+#define FROMVAL(tp)				(-SIGNEDCHAR((tp)->value) * 15) /* uncompress */
+#define VALMASK					((char) 0177)
+#define SIGNEDCHAR(c)	((c)&ABS_SIGNBIT? -((c)&VALMASK): (c))
+
 static datetkn datetktbl[] = {
 /*	text, token, lexval */
 	{EARLY, RESERV, DTK_EARLY}, /* "-infinity" reserved for "early time" */
-	{"acsst", DTZ, 37800},		/* Cent. Australia */
-	{"acst", DTZ, -14400},		/* Atlantic/Porto Acre */
-	{"act", TZ, -18000},		/* Atlantic/Porto Acre */
+	{"abstime", IGNORE_DTF, 0}, /* for pre-v6.1 "Invalid Abstime" */
+	{"acsst", DTZ, POS(42)},	/* Cent. Australia */
+	{"acst", DTZ, NEG(16)},		/* Atlantic/Porto Acre */
+	{"act", TZ, NEG(20)},		/* Atlantic/Porto Acre */
 	{DA_D, ADBC, AD},			/* "ad" for years >= 0 */
-	{"adt", DTZ, -10800},		/* Atlantic Daylight Time */
-	{"aesst", DTZ, 39600},		/* E. Australia */
-	{"aest", TZ, 36000},		/* Australia Eastern Std Time */
-	{"aft", TZ, 16200},			/* Kabul */
-	{"ahst", TZ, -36000},		/* Alaska-Hawaii Std Time */
-	{"akdt", DTZ, -28800},		/* Alaska Daylight Time */
-	{"akst", DTZ, -32400},		/* Alaska Standard Time */
-	{"allballs", RESERV, DTK_ZULU}, /* 00:00:00 */
-	{"almst", TZ, 25200},		/* Almaty Savings Time */
-	{"almt", TZ, 21600},		/* Almaty Time */
+	{"adt", DTZ, NEG(12)},		/* Atlantic Daylight Time */
+	{"aesst", DTZ, POS(44)},	/* E. Australia */
+	{"aest", TZ, POS(40)},		/* Australia Eastern Std Time */
+	{"aft", TZ, POS(18)},		/* Kabul */
+	{"ahst", TZ, NEG(40)},		/* Alaska-Hawaii Std Time */
+	{"akdt", DTZ, NEG(32)},		/* Alaska Daylight Time */
+	{"akst", DTZ, NEG(36)},		/* Alaska Standard Time */
+	{"allballs", RESERV, DTK_ZULU},		/* 00:00:00 */
+	{"almst", TZ, POS(28)},		/* Almaty Savings Time */
+	{"almt", TZ, POS(24)},		/* Almaty Time */
 	{"am", AMPM, AM},
-	{"amst", DTZ, 18000},		/* Armenia Summer Time (Yerevan) */
+	{"amst", DTZ, POS(20)},		/* Armenia Summer Time (Yerevan) */
 #if 0
-	{"amst", DTZ, -10800},		/* Porto Velho */
+	{"amst", DTZ, NEG(12)},		/* Porto Velho */
 #endif
-	{"amt", TZ, 14400},			/* Armenia Time (Yerevan) */
-	{"anast", DTZ, 46800},		/* Anadyr Summer Time (Russia) */
-	{"anat", TZ, 43200},		/* Anadyr Time (Russia) */
+	{"amt", TZ, POS(16)},		/* Armenia Time (Yerevan) */
+	{"anast", DTZ, POS(52)},	/* Anadyr Summer Time (Russia) */
+	{"anat", TZ, POS(48)},		/* Anadyr Time (Russia) */
 	{"apr", MONTH, 4},
 	{"april", MONTH, 4},
 #if 0
@@ -48,376 +54,375 @@ static datetkn datetktbl[] = {
 	aqtt
 	arst
 #endif
-	{"art", TZ, -10800},		/* Argentina Time */
+	{"art", TZ, NEG(12)},		/* Argentina Time */
 #if 0
 	ashst
 	ast							/* Atlantic Standard Time, Arabia Standard
 								 * Time, Acre Standard Time */
 #endif
-	{"ast", TZ, -14400},		/* Atlantic Std Time (Canada) */
+	{"ast", TZ, NEG(16)},		/* Atlantic Std Time (Canada) */
 	{"at", IGNORE_DTF, 0},		/* "at" (throwaway) */
 	{"aug", MONTH, 8},
 	{"august", MONTH, 8},
-	{"awsst", DTZ, 32400},		/* W. Australia */
-	{"awst", TZ, 28800},		/* W. Australia */
-	{"awt", DTZ, -10800},
-	{"azost", DTZ, 0},			/* Azores Summer Time */
-	{"azot", TZ, -3600},		/* Azores Time */
-	{"azst", DTZ, 18000},		/* Azerbaijan Summer Time */
-	{"azt", TZ, 14400},			/* Azerbaijan Time */
+	{"awsst", DTZ, POS(36)},	/* W. Australia */
+	{"awst", TZ, POS(32)},		/* W. Australia */
+	{"awt", DTZ, NEG(12)},
+	{"azost", DTZ, POS(0)},		/* Azores Summer Time */
+	{"azot", TZ, NEG(4)},		/* Azores Time */
+	{"azst", DTZ, POS(20)},		/* Azerbaijan Summer Time */
+	{"azt", TZ, POS(16)},		/* Azerbaijan Time */
 	{DB_C, ADBC, BC},			/* "bc" for years < 0 */
-	{"bdst", TZ, 7200},			/* British Double Summer Time */
-	{"bdt", TZ, 21600},			/* Dacca */
-	{"bnt", TZ, 28800},			/* Brunei Darussalam Time */
-	{"bort", TZ, 28800},		/* Borneo Time (Indonesia) */
+	{"bdst", TZ, POS(8)},		/* British Double Summer Time */
+	{"bdt", TZ, POS(24)},		/* Dacca */
+	{"bnt", TZ, POS(32)},		/* Brunei Darussalam Time */
+	{"bort", TZ, POS(32)},		/* Borneo Time (Indonesia) */
 #if 0
 	bortst
 	bost
 #endif
-	{"bot", TZ, -14400},		/* Bolivia Time */
-	{"bra", TZ, -10800},		/* Brazil Time */
+	{"bot", TZ, NEG(16)},		/* Bolivia Time */
+	{"bra", TZ, NEG(12)},		/* Brazil Time */
 #if 0
 	brst
 	brt
 #endif
-	{"bst", DTZ, 3600},			/* British Summer Time */
+	{"bst", DTZ, POS(4)},		/* British Summer Time */
 #if 0
-	{"bst", TZ, -10800},		/* Brazil Standard Time */
-	{"bst", DTZ, -39600},		/* Bering Summer Time */
+	{"bst", TZ, NEG(12)},		/* Brazil Standard Time */
+	{"bst", DTZ, NEG(44)},		/* Bering Summer Time */
 #endif
-	{"bt", TZ, 10800},			/* Baghdad Time */
-	{"btt", TZ, 21600},			/* Bhutan Time */
-	{"cadt", DTZ, 37800},		/* Central Australian DST */
-	{"cast", TZ, 34200},		/* Central Australian ST */
-	{"cat", TZ, -36000},		/* Central Alaska Time */
-	{"cct", TZ, 28800},			/* China Coast Time */
+	{"bt", TZ, POS(12)},		/* Baghdad Time */
+	{"btt", TZ, POS(24)},		/* Bhutan Time */
+	{"cadt", DTZ, POS(42)},		/* Central Australian DST */
+	{"cast", TZ, POS(38)},		/* Central Australian ST */
+	{"cat", TZ, NEG(40)},		/* Central Alaska Time */
+	{"cct", TZ, POS(32)},		/* China Coast Time */
 #if 0
-	{"cct", TZ, 23400},			/* Indian Cocos (Island) Time */
+	{"cct", TZ, POS(26)},		/* Indian Cocos (Island) Time */
 #endif
-	{"cdt", DTZ, -18000},		/* Central Daylight Time */
-	{"cest", DTZ, 7200},		/* Central European Dayl.Time */
-	{"cet", TZ, 3600},			/* Central European Time */
-	{"cetdst", DTZ, 7200},		/* Central European Dayl.Time */
-	{"chadt", DTZ, 49500},		/* Chatham Island Daylight Time (13:45) */
-	{"chast", TZ, 45900},		/* Chatham Island Time (12:45) */
+	{"cdt", DTZ, NEG(20)},		/* Central Daylight Time */
+	{"cest", DTZ, POS(8)},		/* Central European Dayl.Time */
+	{"cet", TZ, POS(4)},		/* Central European Time */
+	{"cetdst", DTZ, POS(8)},	/* Central European Dayl.Time */
+	{"chadt", DTZ, POS(55)},	/* Chatham Island Daylight Time (13:45) */
+	{"chast", TZ, POS(51)},		/* Chatham Island Time (12:45) */
 #if 0
 	ckhst
 #endif
-	{"ckt", TZ, 43200},			/* Cook Islands Time */
-	{"clst", DTZ, -10800},		/* Chile Summer Time */
-	{"clt", TZ, -14400},		/* Chile Time */
+	{"ckt", TZ, POS(48)},		/* Cook Islands Time */
+	{"clst", DTZ, NEG(12)},		/* Chile Summer Time */
+	{"clt", TZ, NEG(16)},		/* Chile Time */
 #if 0
 	cost
 #endif
-	{"cot", TZ, -18000},		/* Columbia Time */
-	{"cst", TZ, -21600},		/* Central Standard Time */
+	{"cot", TZ, NEG(20)},		/* Columbia Time */
+	{"cst", TZ, NEG(24)},		/* Central Standard Time */
 	{DCURRENT, RESERV, DTK_CURRENT},	/* "current" is always now */
 #if 0
 	cvst
 #endif
-	{"cvt", TZ, 25200},			/* Christmas Island Time (Indian Ocean) */
-	{"cxt", TZ, 25200},			/* Christmas Island Time (Indian Ocean) */
+	{"cvt", TZ, POS(28)},		/* Christmas Island Time (Indian Ocean) */
+	{"cxt", TZ, POS(28)},		/* Christmas Island Time (Indian Ocean) */
 	{"d", UNITS, DTK_DAY},		/* "day of month" for ISO input */
-	{"davt", TZ, 25200},		/* Davis Time (Antarctica) */
-	{"ddut", TZ, 36000},		/* Dumont-d'Urville Time (Antarctica) */
+	{"davt", TZ, POS(28)},		/* Davis Time (Antarctica) */
+	{"ddut", TZ, POS(40)},		/* Dumont-d'Urville Time (Antarctica) */
 	{"dec", MONTH, 12},
 	{"december", MONTH, 12},
-	{"dnt", TZ, 3600},			/* Dansk Normal Tid */
-	{"dow", UNITS, DTK_DOW},	/* day of week */
-	{"doy", UNITS, DTK_DOY},	/* day of year */
-	{"dst", DTZMOD, SECS_PER_HOUR},
+	{"dnt", TZ, POS(4)},		/* Dansk Normal Tid */
+	{"dow", RESERV, DTK_DOW},	/* day of week */
+	{"doy", RESERV, DTK_DOY},	/* day of year */
+	{"dst", DTZMOD, 6},
 #if 0
-	{"dusst", DTZ, 21600},		/* Dushanbe Summer Time */
+	{"dusst", DTZ, POS(24)},	/* Dushanbe Summer Time */
 #endif
-	{"easst", DTZ, -18000},		/* Easter Island Summer Time */
-	{"east", TZ, -21600},		/* Easter Island Time */
-	{"eat", TZ, 10800},			/* East Africa Time */
+	{"easst", DTZ, NEG(20)},	/* Easter Island Summer Time */
+	{"east", TZ, NEG(24)},		/* Easter Island Time */
+	{"eat", TZ, POS(12)},		/* East Africa Time */
 #if 0
-	{"east", DTZ, 14400},		/* Indian Antananarivo Savings Time */
-	{"eat", TZ, 10800},			/* Indian Antananarivo Time */
-	{"ect", TZ, -14400},		/* Eastern Caribbean Time */
-	{"ect", TZ, -18000},		/* Ecuador Time */
+	{"east", DTZ, POS(16)},		/* Indian Antananarivo Savings Time */
+	{"eat", TZ, POS(12)},		/* Indian Antananarivo Time */
+	{"ect", TZ, NEG(16)},		/* Eastern Caribbean Time */
+	{"ect", TZ, NEG(20)},		/* Ecuador Time */
 #endif
-	{"edt", DTZ, -14400},		/* Eastern Daylight Time */
-	{"eest", DTZ, 10800},		/* Eastern Europe Summer Time */
-	{"eet", TZ, 7200},			/* East. Europe, USSR Zone 1 */
-	{"eetdst", DTZ, 10800},		/* Eastern Europe Daylight Time */
-	{"egst", DTZ, 0},			/* East Greenland Summer Time */
-	{"egt", TZ, -3600},			/* East Greenland Time */
+	{"edt", DTZ, NEG(16)},		/* Eastern Daylight Time */
+	{"eest", DTZ, POS(12)},		/* Eastern Europe Summer Time */
+	{"eet", TZ, POS(8)},		/* East. Europe, USSR Zone 1 */
+	{"eetdst", DTZ, POS(12)},	/* Eastern Europe Daylight Time */
+	{"egst", DTZ, POS(0)},		/* East Greenland Summer Time */
+	{"egt", TZ, NEG(4)},		/* East Greenland Time */
 #if 0
 	ehdt
 #endif
 	{EPOCH, RESERV, DTK_EPOCH}, /* "epoch" reserved for system epoch time */
-	{"est", TZ, -18000},		/* Eastern Standard Time */
+	{"est", TZ, NEG(20)},		/* Eastern Standard Time */
 	{"feb", MONTH, 2},
 	{"february", MONTH, 2},
-	{"fjst", DTZ, -46800},		/* Fiji Summer Time (13 hour offset!) */
-	{"fjt", TZ, -43200},		/* Fiji Time */
-	{"fkst", DTZ, -10800},		/* Falkland Islands Summer Time */
-	{"fkt", TZ, -7200},			/* Falkland Islands Time */
+	{"fjst", DTZ, NEG(52)},		/* Fiji Summer Time (13 hour offset!) */
+	{"fjt", TZ, NEG(48)},		/* Fiji Time */
+	{"fkst", DTZ, NEG(12)},		/* Falkland Islands Summer Time */
+	{"fkt", TZ, NEG(8)},		/* Falkland Islands Time */
 #if 0
 	fnst
 	fnt
 #endif
 	{"fri", DOW, 5},
 	{"friday", DOW, 5},
-	{"fst", TZ, 3600},			/* French Summer Time */
-	{"fwt", DTZ, 7200},			/* French Winter Time  */
-	{"galt", TZ, -21600},		/* Galapagos Time */
-	{"gamt", TZ, -32400},		/* Gambier Time */
-	{"gest", DTZ, 18000},		/* Georgia Summer Time */
-	{"get", TZ, 14400},			/* Georgia Time */
-	{"gft", TZ, -10800},		/* French Guiana Time */
+	{"fst", TZ, POS(4)},		/* French Summer Time */
+	{"fwt", DTZ, POS(8)},		/* French Winter Time  */
+	{"galt", TZ, NEG(24)},		/* Galapagos Time */
+	{"gamt", TZ, NEG(36)},		/* Gambier Time */
+	{"gest", DTZ, POS(20)},		/* Georgia Summer Time */
+	{"get", TZ, POS(16)},		/* Georgia Time */
+	{"gft", TZ, NEG(12)},		/* French Guiana Time */
 #if 0
 	ghst
 #endif
-	{"gilt", TZ, 43200},		/* Gilbert Islands Time */
-	{"gmt", TZ, 0},				/* Greenwish Mean Time */
-	{"gst", TZ, 36000},			/* Guam Std Time, USSR Zone 9 */
-	{"gyt", TZ, -14400},		/* Guyana Time */
+	{"gilt", TZ, POS(48)},		/* Gilbert Islands Time */
+	{"gmt", TZ, POS(0)},		/* Greenwish Mean Time */
+	{"gst", TZ, POS(40)},		/* Guam Std Time, USSR Zone 9 */
+	{"gyt", TZ, NEG(16)},		/* Guyana Time */
 	{"h", UNITS, DTK_HOUR},		/* "hour" */
 #if 0
 	hadt
 	hast
 #endif
-	{"hdt", DTZ, -32400},		/* Hawaii/Alaska Daylight Time */
+	{"hdt", DTZ, NEG(36)},		/* Hawaii/Alaska Daylight Time */
 #if 0
 	hkst
 #endif
-	{"hkt", TZ, 28800},			/* Hong Kong Time */
+	{"hkt", TZ, POS(32)},		/* Hong Kong Time */
 #if 0
-	{"hmt", TZ, 10800},			/* Hellas ? ? */
+	{"hmt", TZ, POS(12)},		/* Hellas ? ? */
 	hovst
 	hovt
 #endif
-	{"hst", TZ, -36000},		/* Hawaii Std Time */
+	{"hst", TZ, NEG(40)},		/* Hawaii Std Time */
 #if 0
 	hwt
 #endif
-	{"ict", TZ, 25200},			/* Indochina Time */
-	{"idle", TZ, 43200},		/* Intl. Date Line, East */
-	{"idlw", TZ, -43200},		/* Intl. Date Line, West */
+	{"ict", TZ, POS(28)},		/* Indochina Time */
+	{"idle", TZ, POS(48)},		/* Intl. Date Line, East */
+	{"idlw", TZ, NEG(48)},		/* Intl. Date Line, West */
 #if 0
 	idt							/* Israeli, Iran, Indian Daylight Time */
 #endif
 	{LATE, RESERV, DTK_LATE},	/* "infinity" reserved for "late time" */
-	{INVALID, RESERV, DTK_INVALID}, /* "invalid" reserved for bad time */
-	{"iot", TZ, 18000},			/* Indian Chagos Time */
-	{"irkst", DTZ, 32400},		/* Irkutsk Summer Time */
-	{"irkt", TZ, 28800},		/* Irkutsk Time */
-	{"irt", TZ, 12600},			/* Iran Time */
-	{"isodow", UNITS, DTK_ISODOW},	/* ISO day of week, Sunday == 7 */
+	{INVALID, RESERV, DTK_INVALID},		/* "invalid" reserved for bad time */
+	{"iot", TZ, POS(20)},		/* Indian Chagos Time */
+	{"irkst", DTZ, POS(36)},	/* Irkutsk Summer Time */
+	{"irkt", TZ, POS(32)},		/* Irkutsk Time */
+	{"irt", TZ, POS(14)},		/* Iran Time */
 #if 0
 	isst
 #endif
-	{"ist", TZ, 7200},			/* Israel */
-	{"it", TZ, 12600},			/* Iran Time */
+	{"ist", TZ, POS(8)},		/* Israel */
+	{"it", TZ, POS(14)},		/* Iran Time */
 	{"j", UNITS, DTK_JULIAN},
 	{"jan", MONTH, 1},
 	{"january", MONTH, 1},
-	{"javt", TZ, 25200},		/* Java Time (07:00? see JT) */
-	{"jayt", TZ, 32400},		/* Jayapura Time (Indonesia) */
+	{"javt", TZ, POS(28)},		/* Java Time (07:00? see JT) */
+	{"jayt", TZ, POS(36)},		/* Jayapura Time (Indonesia) */
 	{"jd", UNITS, DTK_JULIAN},
-	{"jst", TZ, 32400},			/* Japan Std Time,USSR Zone 8 */
-	{"jt", TZ, 27000},			/* Java Time (07:30? see JAVT) */
+	{"jst", TZ, POS(36)},		/* Japan Std Time,USSR Zone 8 */
+	{"jt", TZ, POS(30)},		/* Java Time (07:30? see JAVT) */
 	{"jul", MONTH, 7},
 	{"julian", UNITS, DTK_JULIAN},
 	{"july", MONTH, 7},
 	{"jun", MONTH, 6},
 	{"june", MONTH, 6},
-	{"kdt", DTZ, 36000},		/* Korea Daylight Time */
-	{"kgst", DTZ, 21600},		/* Kyrgyzstan Summer Time */
-	{"kgt", TZ, 18000},			/* Kyrgyzstan Time */
-	{"kost", TZ, 43200},		/* Kosrae Time */
-	{"krast", DTZ, 25200},		/* Krasnoyarsk Summer Time */
-	{"krat", TZ, 28800},		/* Krasnoyarsk Standard Time */
-	{"kst", TZ, 32400},			/* Korea Standard Time */
-	{"lhdt", DTZ, 39600},		/* Lord Howe Daylight Time, Australia */
-	{"lhst", TZ, 37800},		/* Lord Howe Standard Time, Australia */
-	{"ligt", TZ, 36000},		/* From Melbourne, Australia */
-	{"lint", TZ, 50400},		/* Line Islands Time (Kiribati; +14 hours!) */
-	{"lkt", TZ, 21600},			/* Lanka Time */
+	{"kdt", DTZ, POS(40)},		/* Korea Daylight Time */
+	{"kgst", DTZ, POS(24)},		/* Kyrgyzstan Summer Time */
+	{"kgt", TZ, POS(20)},		/* Kyrgyzstan Time */
+	{"kost", TZ, POS(48)},		/* Kosrae Time */
+	{"krast", DTZ, POS(28)},	/* Krasnoyarsk Summer Time */
+	{"krat", TZ, POS(32)},		/* Krasnoyarsk Standard Time */
+	{"kst", TZ, POS(36)},		/* Korea Standard Time */
+	{"lhdt", DTZ, POS(44)},		/* Lord Howe Daylight Time, Australia */
+	{"lhst", TZ, POS(42)},		/* Lord Howe Standard Time, Australia */
+	{"ligt", TZ, POS(40)},		/* From Melbourne, Australia */
+	{"lint", TZ, POS(56)},		/* Line Islands Time (Kiribati; +14 hours!) */
+	{"lkt", TZ, POS(24)},		/* Lanka Time */
 	{"m", UNITS, DTK_MONTH},	/* "month" for ISO input */
-	{"magst", DTZ, 43200},		/* Magadan Summer Time */
-	{"magt", TZ, 39600},		/* Magadan Time */
+	{"magst", DTZ, POS(48)},	/* Magadan Summer Time */
+	{"magt", TZ, POS(44)},		/* Magadan Time */
 	{"mar", MONTH, 3},
 	{"march", MONTH, 3},
-	{"mart", TZ, -34200},		/* Marquesas Time */
-	{"mawt", TZ, 21600},		/* Mawson, Antarctica */
+	{"mart", TZ, NEG(38)},		/* Marquesas Time */
+	{"mawt", TZ, POS(24)},		/* Mawson, Antarctica */
 	{"may", MONTH, 5},
-	{"mdt", DTZ, -21600},		/* Mountain Daylight Time */
-	{"mest", DTZ, 7200},		/* Middle Europe Summer Time */
-	{"met", TZ, 3600},			/* Middle Europe Time */
-	{"metdst", DTZ, 7200},		/* Middle Europe Daylight Time */
-	{"mewt", TZ, 3600},			/* Middle Europe Winter Time */
-	{"mez", TZ, 3600},			/* Middle Europe Zone */
-	{"mht", TZ, 43200},			/* Kwajalein */
+	{"mdt", DTZ, NEG(24)},		/* Mountain Daylight Time */
+	{"mest", DTZ, POS(8)},		/* Middle Europe Summer Time */
+	{"met", TZ, POS(4)},		/* Middle Europe Time */
+	{"metdst", DTZ, POS(8)},	/* Middle Europe Daylight Time */
+	{"mewt", TZ, POS(4)},		/* Middle Europe Winter Time */
+	{"mez", TZ, POS(4)},		/* Middle Europe Zone */
+	{"mht", TZ, POS(48)},		/* Kwajalein */
 	{"mm", UNITS, DTK_MINUTE},	/* "minute" for ISO input */
-	{"mmt", TZ, 23400},			/* Myannar Time */
+	{"mmt", TZ, POS(26)},		/* Myannar Time */
 	{"mon", DOW, 1},
 	{"monday", DOW, 1},
 #if 0
 	most
 #endif
-	{"mpt", TZ, 36000},			/* North Mariana Islands Time */
-	{"msd", DTZ, 14400},		/* Moscow Summer Time */
-	{"msk", TZ, 10800},			/* Moscow Time */
-	{"mst", TZ, -25200},		/* Mountain Standard Time */
-	{"mt", TZ, 30600},			/* Moluccas Time */
-	{"mut", TZ, 14400},			/* Mauritius Island Time */
-	{"mvt", TZ, 18000},			/* Maldives Island Time */
-	{"myt", TZ, 28800},			/* Malaysia Time */
+	{"mpt", TZ, POS(40)},		/* North Mariana Islands Time */
+	{"msd", DTZ, POS(16)},		/* Moscow Summer Time */
+	{"msk", TZ, POS(12)},		/* Moscow Time */
+	{"mst", TZ, NEG(28)},		/* Mountain Standard Time */
+	{"mt", TZ, POS(34)},		/* Moluccas Time */
+	{"mut", TZ, POS(16)},		/* Mauritius Island Time */
+	{"mvt", TZ, POS(20)},		/* Maldives Island Time */
+	{"myt", TZ, POS(32)},		/* Malaysia Time */
 #if 0
 	ncst
 #endif
-	{"nct", TZ, 39600},			/* New Caledonia Time */
-	{"ndt", DTZ, -9000},		/* Nfld. Daylight Time */
-	{"nft", TZ, -12600},		/* Newfoundland Standard Time */
-	{"nor", TZ, 3600},			/* Norway Standard Time */
+	{"nct", TZ, POS(44)},		/* New Caledonia Time */
+	{"ndt", DTZ, NEG(10)},		/* Nfld. Daylight Time */
+	{"nft", TZ, NEG(14)},		/* Newfoundland Standard Time */
+	{"nor", TZ, POS(4)},		/* Norway Standard Time */
 	{"nov", MONTH, 11},
 	{"november", MONTH, 11},
-	{"novst", DTZ, 25200},		/* Novosibirsk Summer Time */
-	{"novt", TZ, 21600},		/* Novosibirsk Standard Time */
+	{"novst", DTZ, POS(28)},	/* Novosibirsk Summer Time */
+	{"novt", TZ, POS(24)},		/* Novosibirsk Standard Time */
 	{NOW, RESERV, DTK_NOW},		/* current transaction time */
-	{"npt", TZ, 20700},			/* Nepal Standard Time (GMT-5:45) */
-	{"nst", TZ, -12600},		/* Nfld. Standard Time */
-	{"nt", TZ, -39600},			/* Nome Time */
-	{"nut", TZ, -39600},		/* Niue Time */
-	{"nzdt", DTZ, 46800},		/* New Zealand Daylight Time */
-	{"nzst", TZ, 43200},		/* New Zealand Standard Time */
-	{"nzt", TZ, 43200},			/* New Zealand Time */
+	{"npt", TZ, POS(23)},		/* Nepal Standard Time (GMT-5:45) */
+	{"nst", TZ, NEG(14)},		/* Nfld. Standard Time */
+	{"nt", TZ, NEG(44)},		/* Nome Time */
+	{"nut", TZ, NEG(44)},		/* Niue Time */
+	{"nzdt", DTZ, POS(52)},		/* New Zealand Daylight Time */
+	{"nzst", TZ, POS(48)},		/* New Zealand Standard Time */
+	{"nzt", TZ, POS(48)},		/* New Zealand Time */
 	{"oct", MONTH, 10},
 	{"october", MONTH, 10},
-	{"omsst", DTZ, 25200},		/* Omsk Summer Time */
-	{"omst", TZ, 21600},		/* Omsk Time */
+	{"omsst", DTZ, POS(28)},	/* Omsk Summer Time */
+	{"omst", TZ, POS(24)},		/* Omsk Time */
 	{"on", IGNORE_DTF, 0},		/* "on" (throwaway) */
-	{"pdt", DTZ, -25200},		/* Pacific Daylight Time */
+	{"pdt", DTZ, NEG(28)},		/* Pacific Daylight Time */
 #if 0
 	pest
 #endif
-	{"pet", TZ, -18000},		/* Peru Time */
-	{"petst", DTZ, 46800},		/* Petropavlovsk-Kamchatski Summer Time */
-	{"pett", TZ, 43200},		/* Petropavlovsk-Kamchatski Time */
-	{"pgt", TZ, 36000},			/* Papua New Guinea Time */
-	{"phot", TZ, 46800},		/* Phoenix Islands (Kiribati) Time */
+	{"pet", TZ, NEG(20)},		/* Peru Time */
+	{"petst", DTZ, POS(52)},	/* Petropavlovsk-Kamchatski Summer Time */
+	{"pett", TZ, POS(48)},		/* Petropavlovsk-Kamchatski Time */
+	{"pgt", TZ, POS(40)},		/* Papua New Guinea Time */
+	{"phot", TZ, POS(52)},		/* Phoenix Islands (Kiribati) Time */
 #if 0
 	phst
 #endif
-	{"pht", TZ, 28800},			/* Philippine Time */
-	{"pkt", TZ, 18000},			/* Pakistan Time */
+	{"pht", TZ, POS(32)},		/* Phillipine Time */
+	{"pkt", TZ, POS(20)},		/* Pakistan Time */
 	{"pm", AMPM, PM},
-	{"pmdt", DTZ, -7200},		/* Pierre & Miquelon Daylight Time */
+	{"pmdt", DTZ, NEG(8)},		/* Pierre & Miquelon Daylight Time */
 #if 0
 	pmst
 #endif
-	{"pont", TZ, 39600},		/* Ponape Time (Micronesia) */
-	{"pst", TZ, -28800},		/* Pacific Standard Time */
-	{"pwt", TZ, 32400},			/* Palau Time */
-	{"pyst", DTZ, -10800},		/* Paraguay Summer Time */
-	{"pyt", TZ, -14400},		/* Paraguay Time */
-	{"ret", DTZ, 14400},		/* Reunion Island Time */
+	{"pont", TZ, POS(44)},		/* Ponape Time (Micronesia) */
+	{"pst", TZ, NEG(32)},		/* Pacific Standard Time */
+	{"pwt", TZ, POS(36)},		/* Palau Time */
+	{"pyst", DTZ, NEG(12)},		/* Paraguay Summer Time */
+	{"pyt", TZ, NEG(16)},		/* Paraguay Time */
+	{"ret", DTZ, POS(16)},		/* Reunion Island Time */
 	{"s", UNITS, DTK_SECOND},	/* "seconds" for ISO input */
-	{"sadt", DTZ, 37800},		/* S. Australian Dayl. Time */
+	{"sadt", DTZ, POS(42)},		/* S. Australian Dayl. Time */
 #if 0
 	samst
 	samt
 #endif
-	{"sast", TZ, 34200},		/* South Australian Std Time */
+	{"sast", TZ, POS(38)},		/* South Australian Std Time */
 	{"sat", DOW, 6},
 	{"saturday", DOW, 6},
 #if 0
 	sbt
 #endif
-	{"sct", DTZ, 14400},		/* Mahe Island Time */
+	{"sct", DTZ, POS(16)},		/* Mahe Island Time */
 	{"sep", MONTH, 9},
 	{"sept", MONTH, 9},
 	{"september", MONTH, 9},
-	{"set", TZ, -3600},			/* Seychelles Time ?? */
+	{"set", TZ, NEG(4)},		/* Seychelles Time ?? */
 #if 0
 	sgt
 #endif
-	{"sst", DTZ, 7200},			/* Swedish Summer Time */
+	{"sst", DTZ, POS(8)},		/* Swedish Summer Time */
 	{"sun", DOW, 0},
 	{"sunday", DOW, 0},
-	{"swt", TZ, 3600},			/* Swedish Winter Time */
+	{"swt", TZ, POS(4)},		/* Swedish Winter Time */
 #if 0
 	syot
 #endif
 	{"t", ISOTIME, DTK_TIME},	/* Filler for ISO time fields */
-	{"tft", TZ, 18000},			/* Kerguelen Time */
-	{"that", TZ, -36000},		/* Tahiti Time */
+	{"tft", TZ, POS(20)},		/* Kerguelen Time */
+	{"that", TZ, NEG(40)},		/* Tahiti Time */
 	{"thu", DOW, 4},
 	{"thur", DOW, 4},
 	{"thurs", DOW, 4},
 	{"thursday", DOW, 4},
-	{"tjt", TZ, 18000},			/* Tajikistan Time */
-	{"tkt", TZ, -36000},		/* Tokelau Time */
-	{"tmt", TZ, 18000},			/* Turkmenistan Time */
+	{"tjt", TZ, POS(20)},		/* Tajikistan Time */
+	{"tkt", TZ, NEG(40)},		/* Tokelau Time */
+	{"tmt", TZ, POS(20)},		/* Turkmenistan Time */
 	{TODAY, RESERV, DTK_TODAY}, /* midnight */
 	{TOMORROW, RESERV, DTK_TOMORROW},	/* tomorrow midnight */
 #if 0
 	tost
 #endif
-	{"tot", TZ, 46800},			/* Tonga Time */
+	{"tot", TZ, POS(52)},		/* Tonga Time */
 #if 0
 	tpt
 #endif
-	{"truk", TZ, 36000},		/* Truk Time */
+	{"truk", TZ, POS(40)},		/* Truk Time */
 	{"tue", DOW, 2},
 	{"tues", DOW, 2},
 	{"tuesday", DOW, 2},
-	{"tvt", TZ, 43200},			/* Tuvalu Time */
+	{"tvt", TZ, POS(48)},		/* Tuvalu Time */
 #if 0
 	uct
 #endif
-	{"ulast", DTZ, 32400},		/* Ulan Bator Summer Time */
-	{"ulat", TZ, 28800},		/* Ulan Bator Time */
+	{"ulast", DTZ, POS(36)},	/* Ulan Bator Summer Time */
+	{"ulat", TZ, POS(32)},		/* Ulan Bator Time */
 	{"undefined", RESERV, DTK_INVALID}, /* pre-v6.1 invalid time */
-	{"ut", TZ, 0},
-	{"utc", TZ, 0},
-	{"uyst", DTZ, -7200},		/* Uruguay Summer Time */
-	{"uyt", TZ, -10800},		/* Uruguay Time */
-	{"uzst", DTZ, 21600},		/* Uzbekistan Summer Time */
-	{"uzt", TZ, 18000},			/* Uzbekistan Time */
-	{"vet", TZ, -14400},		/* Venezuela Time */
-	{"vlast", DTZ, 39600},		/* Vladivostok Summer Time */
-	{"vlat", TZ, 36000},		/* Vladivostok Time */
+	{"ut", TZ, POS(0)},
+	{"utc", TZ, POS(0)},
+	{"uyst", DTZ, NEG(8)},		/* Uruguay Summer Time */
+	{"uyt", TZ, NEG(12)},		/* Uruguay Time */
+	{"uzst", DTZ, POS(24)},		/* Uzbekistan Summer Time */
+	{"uzt", TZ, POS(20)},		/* Uzbekistan Time */
+	{"vet", TZ, NEG(16)},		/* Venezuela Time */
+	{"vlast", DTZ, POS(44)},	/* Vladivostok Summer Time */
+	{"vlat", TZ, POS(40)},		/* Vladivostok Time */
 #if 0
 	vust
 #endif
-	{"vut", TZ, 39600},			/* Vanuata Time */
-	{"wadt", DTZ, 28800},		/* West Australian DST */
-	{"wakt", TZ, 43200},		/* Wake Time */
+	{"vut", TZ, POS(44)},		/* Vanuata Time */
+	{"wadt", DTZ, POS(32)},		/* West Australian DST */
+	{"wakt", TZ, POS(48)},		/* Wake Time */
 #if 0
 	warst
 #endif
-	{"wast", TZ, 25200},		/* West Australian Std Time */
-	{"wat", TZ, -3600},			/* West Africa Time */
-	{"wdt", DTZ, 32400},		/* West Australian DST */
+	{"wast", TZ, POS(28)},		/* West Australian Std Time */
+	{"wat", TZ, NEG(4)},		/* West Africa Time */
+	{"wdt", DTZ, POS(36)},		/* West Australian DST */
 	{"wed", DOW, 3},
 	{"wednesday", DOW, 3},
 	{"weds", DOW, 3},
-	{"west", DTZ, 3600},		/* Western Europe Summer Time */
-	{"wet", TZ, 0},				/* Western Europe */
-	{"wetdst", DTZ, 3600},		/* Western Europe Daylight Savings Time */
-	{"wft", TZ, 43200},			/* Wallis and Futuna Time */
-	{"wgst", DTZ, -7200},		/* West Greenland Summer Time */
-	{"wgt", TZ, -10800},		/* West Greenland Time */
-	{"wst", TZ, 28800},			/* West Australian Standard Time */
+	{"west", DTZ, POS(4)},		/* Western Europe Summer Time */
+	{"wet", TZ, POS(0)},		/* Western Europe */
+	{"wetdst", DTZ, POS(4)},	/* Western Europe Daylight Savings Time */
+	{"wft", TZ, POS(48)},		/* Wallis and Futuna Time */
+	{"wgst", DTZ, NEG(8)},		/* West Greenland Summer Time */
+	{"wgt", TZ, NEG(12)},		/* West Greenland Time */
+	{"wst", TZ, POS(32)},		/* West Australian Standard Time */
 	{"y", UNITS, DTK_YEAR},		/* "year" for ISO input */
-	{"yakst", DTZ, 36000},		/* Yakutsk Summer Time */
-	{"yakt", TZ, 32400},		/* Yakutsk Time */
-	{"yapt", TZ, 36000},		/* Yap Time (Micronesia) */
-	{"ydt", DTZ, -28800},		/* Yukon Daylight Time */
-	{"yekst", DTZ, 21600},		/* Yekaterinburg Summer Time */
-	{"yekt", TZ, 18000},		/* Yekaterinburg Time */
+	{"yakst", DTZ, POS(40)},	/* Yakutsk Summer Time */
+	{"yakt", TZ, POS(36)},		/* Yakutsk Time */
+	{"yapt", TZ, POS(40)},		/* Yap Time (Micronesia) */
+	{"ydt", DTZ, NEG(32)},		/* Yukon Daylight Time */
+	{"yekst", DTZ, POS(24)},	/* Yekaterinburg Summer Time */
+	{"yekt", TZ, POS(20)},		/* Yekaterinburg Time */
 	{YESTERDAY, RESERV, DTK_YESTERDAY}, /* yesterday midnight */
-	{"yst", TZ, -32400},		/* Yukon Standard Time */
-	{"z", TZ, 0},				/* time zone tag per ISO-8601 */
-	{"zp4", TZ, -14400},		/* UTC +4  hours. */
-	{"zp5", TZ, -18000},		/* UTC +5  hours. */
-	{"zp6", TZ, -21600},		/* UTC +6  hours. */
-	{ZULU, TZ, 0},				/* UTC */
+	{"yst", TZ, NEG(36)},		/* Yukon Standard Time */
+	{"z", TZ, POS(0)},			/* time zone tag per ISO-8601 */
+	{"zp4", TZ, NEG(16)},		/* UTC +4  hours. */
+	{"zp5", TZ, NEG(20)},		/* UTC +5  hours. */
+	{"zp6", TZ, NEG(24)},		/* UTC +6  hours. */
+	{ZULU, TZ, POS(0)},			/* UTC */
 };
 
 static datetkn deltatktbl[] = {
@@ -425,33 +430,33 @@ static datetkn deltatktbl[] = {
 	{"@", IGNORE_DTF, 0},		/* postgres relative prefix */
 	{DAGO, AGO, 0},				/* "ago" indicates negative time offset */
 	{"c", UNITS, DTK_CENTURY},	/* "century" relative */
-	{"cent", UNITS, DTK_CENTURY},	/* "century" relative */
+	{"cent", UNITS, DTK_CENTURY},		/* "century" relative */
 	{"centuries", UNITS, DTK_CENTURY},	/* "centuries" relative */
-	{DCENTURY, UNITS, DTK_CENTURY}, /* "century" relative */
+	{DCENTURY, UNITS, DTK_CENTURY},		/* "century" relative */
 	{"d", UNITS, DTK_DAY},		/* "day" relative */
 	{DDAY, UNITS, DTK_DAY},		/* "day" relative */
 	{"days", UNITS, DTK_DAY},	/* "days" relative */
 	{"dec", UNITS, DTK_DECADE}, /* "decade" relative */
-	{DDECADE, UNITS, DTK_DECADE},	/* "decade" relative */
-	{"decades", UNITS, DTK_DECADE}, /* "decades" relative */
+	{DDECADE, UNITS, DTK_DECADE},		/* "decade" relative */
+	{"decades", UNITS, DTK_DECADE},		/* "decades" relative */
 	{"decs", UNITS, DTK_DECADE},	/* "decades" relative */
 	{"h", UNITS, DTK_HOUR},		/* "hour" relative */
 	{DHOUR, UNITS, DTK_HOUR},	/* "hour" relative */
 	{"hours", UNITS, DTK_HOUR}, /* "hours" relative */
 	{"hr", UNITS, DTK_HOUR},	/* "hour" relative */
 	{"hrs", UNITS, DTK_HOUR},	/* "hours" relative */
-	{INVALID, RESERV, DTK_INVALID}, /* reserved for invalid time */
+	{INVALID, RESERV, DTK_INVALID},		/* reserved for invalid time */
 	{"m", UNITS, DTK_MINUTE},	/* "minute" relative */
-	{"microsecon", UNITS, DTK_MICROSEC},	/* "microsecond" relative */
-	{"mil", UNITS, DTK_MILLENNIUM}, /* "millennium" relative */
-	{"millennia", UNITS, DTK_MILLENNIUM},	/* "millennia" relative */
-	{DMILLENNIUM, UNITS, DTK_MILLENNIUM},	/* "millennium" relative */
-	{"millisecon", UNITS, DTK_MILLISEC},	/* relative */
+	{"microsecon", UNITS, DTK_MICROSEC},		/* "microsecond" relative */
+	{"mil", UNITS, DTK_MILLENNIUM},		/* "millennium" relative */
+	{"millennia", UNITS, DTK_MILLENNIUM},		/* "millennia" relative */
+	{DMILLENNIUM, UNITS, DTK_MILLENNIUM},		/* "millennium" relative */
+	{"millisecon", UNITS, DTK_MILLISEC},		/* relative */
 	{"mils", UNITS, DTK_MILLENNIUM},	/* "millennia" relative */
 	{"min", UNITS, DTK_MINUTE}, /* "minute" relative */
 	{"mins", UNITS, DTK_MINUTE},	/* "minutes" relative */
-	{DMINUTE, UNITS, DTK_MINUTE},	/* "minute" relative */
-	{"minutes", UNITS, DTK_MINUTE}, /* "minutes" relative */
+	{DMINUTE, UNITS, DTK_MINUTE},		/* "minute" relative */
+	{"minutes", UNITS, DTK_MINUTE},		/* "minutes" relative */
 	{"mon", UNITS, DTK_MONTH},	/* "months" relative */
 	{"mons", UNITS, DTK_MONTH}, /* "months" relative */
 	{DMONTH, UNITS, DTK_MONTH}, /* "month" relative */
@@ -462,7 +467,8 @@ static datetkn deltatktbl[] = {
 	{"mseconds", UNITS, DTK_MILLISEC},
 	{"msecs", UNITS, DTK_MILLISEC},
 	{"qtr", UNITS, DTK_QUARTER},	/* "quarter" relative */
-	{DQUARTER, UNITS, DTK_QUARTER}, /* "quarter" relative */
+	{DQUARTER, UNITS, DTK_QUARTER},		/* "quarter" relative */
+	{"reltime", IGNORE_DTF, 0}, /* pre-v6.1 "Undefined Reltime" */
 	{"s", UNITS, DTK_SECOND},
 	{"sec", UNITS, DTK_SECOND},
 	{DSECOND, UNITS, DTK_SECOND},
@@ -470,13 +476,13 @@ static datetkn deltatktbl[] = {
 	{"secs", UNITS, DTK_SECOND},
 	{DTIMEZONE, UNITS, DTK_TZ}, /* "timezone" time offset */
 	{"timezone_h", UNITS, DTK_TZ_HOUR}, /* timezone hour units */
-	{"timezone_m", UNITS, DTK_TZ_MINUTE},	/* timezone minutes units */
+	{"timezone_m", UNITS, DTK_TZ_MINUTE},		/* timezone minutes units */
 	{"undefined", RESERV, DTK_INVALID}, /* pre-v6.1 invalid time */
 	{"us", UNITS, DTK_MICROSEC},	/* "microsecond" relative */
-	{"usec", UNITS, DTK_MICROSEC},	/* "microsecond" relative */
+	{"usec", UNITS, DTK_MICROSEC},		/* "microsecond" relative */
 	{DMICROSEC, UNITS, DTK_MICROSEC},	/* "microsecond" relative */
 	{"useconds", UNITS, DTK_MICROSEC},	/* "microseconds" relative */
-	{"usecs", UNITS, DTK_MICROSEC}, /* "microseconds" relative */
+	{"usecs", UNITS, DTK_MICROSEC},		/* "microseconds" relative */
 	{"w", UNITS, DTK_WEEK},		/* "week" relative */
 	{DWEEK, UNITS, DTK_WEEK},	/* "week" relative */
 	{"weeks", UNITS, DTK_WEEK}, /* "weeks" relative */
@@ -487,8 +493,8 @@ static datetkn deltatktbl[] = {
 	{"yrs", UNITS, DTK_YEAR},	/* "years" relative */
 };
 
-static const unsigned int szdatetktbl = lengthof(datetktbl);
-static const unsigned int szdeltatktbl = lengthof(deltatktbl);
+static unsigned int szdatetktbl = sizeof datetktbl / sizeof datetktbl[0];
+static unsigned int szdeltatktbl = sizeof deltatktbl / sizeof deltatktbl[0];
 
 static datetkn *datecache[MAXDATEFIELDS] = {NULL};
 
@@ -505,29 +511,24 @@ char	   *pgtypes_date_months[] = {"January", "February", "March", "April", "May"
 static datetkn *
 datebsearch(char *key, datetkn *base, unsigned int nel)
 {
-	if (nel > 0)
-	{
-		datetkn    *last = base + nel - 1,
-				   *position;
-		int			result;
+	datetkn    *last = base + nel - 1,
+			   *position;
+	int			result;
 
-		while (last >= base)
+	while (last >= base)
+	{
+		position = base + ((last - base) >> 1);
+		result = key[0] - position->token[0];
+		if (result == 0)
 		{
-			position = base + ((last - base) >> 1);
-			/* precheck the first character for a bit of extra speed */
-			result = (int) key[0] - (int) position->token[0];
+			result = strncmp(key, position->token, TOKMAXLEN);
 			if (result == 0)
-			{
-				/* use strncmp so that we match truncated tokens */
-				result = strncmp(key, position->token, TOKMAXLEN);
-				if (result == 0)
-					return position;
-			}
-			if (result < 0)
-				last = position - 1;
-			else
-				base = position + 1;
+				return position;
 		}
+		if (result < 0)
+			last = position - 1;
+		else
+			base = position + 1;
 	}
 	return NULL;
 }
@@ -542,7 +543,6 @@ DecodeUnits(int field, char *lowtoken, int *val)
 	int			type;
 	datetkn    *tp;
 
-	/* use strncmp so that we match truncated tokens */
 	if (deltacache[field] != NULL &&
 		strncmp(lowtoken, deltacache[field]->token, TOKMAXLEN) == 0)
 		tp = deltacache[field];
@@ -557,11 +557,14 @@ DecodeUnits(int field, char *lowtoken, int *val)
 	else
 	{
 		type = tp->type;
-		*val = tp->value;
+		if (type == TZ || type == DTZ)
+			*val = FROMVAL(tp);
+		else
+			*val = tp->value;
 	}
 
 	return type;
-}								/* DecodeUnits() */
+}	/* DecodeUnits() */
 
 /*
  * Calendar time to Julian date conversions.
@@ -604,7 +607,7 @@ date2j(int y, int m, int d)
 	julian += 7834 * m / 256 + d;
 
 	return julian;
-}								/* date2j() */
+}	/* date2j() */
 
 void
 j2date(int jd, int *year, int *month, int *day)
@@ -630,7 +633,7 @@ j2date(int jd, int *year, int *month, int *day)
 	*month = (quad + 10) % 12 + 1;
 
 	return;
-}								/* j2date() */
+}	/* j2date() */
 
 /* DecodeSpecial()
  * Decode text string using lookup table.
@@ -643,7 +646,6 @@ DecodeSpecial(int field, char *lowtoken, int *val)
 	int			type;
 	datetkn    *tp;
 
-	/* use strncmp so that we match truncated tokens */
 	if (datecache[field] != NULL &&
 		strncmp(lowtoken, datecache[field]->token, TOKMAXLEN) == 0)
 		tp = datecache[field];
@@ -662,19 +664,31 @@ DecodeSpecial(int field, char *lowtoken, int *val)
 	else
 	{
 		type = tp->type;
-		*val = tp->value;
+		switch (type)
+		{
+			case TZ:
+			case DTZ:
+			case DTZMOD:
+				*val = FROMVAL(tp);
+				break;
+
+			default:
+				*val = tp->value;
+				break;
+		}
 	}
 
 	return type;
-}								/* DecodeSpecial() */
+}	/* DecodeSpecial() */
 
 /* EncodeDateOnly()
  * Encode date as local time.
  */
-void
-EncodeDateOnly(struct tm *tm, int style, char *str, bool EuroDates)
+int
+EncodeDateOnly(struct tm * tm, int style, char *str, bool EuroDates)
 {
-	Assert(tm->tm_mon >= 1 && tm->tm_mon <= MONTHS_PER_YEAR);
+	if (tm->tm_mon < 1 || tm->tm_mon > MONTHS_PER_YEAR)
+		return -1;
 
 	switch (style)
 	{
@@ -722,9 +736,11 @@ EncodeDateOnly(struct tm *tm, int style, char *str, bool EuroDates)
 				sprintf(str + 5, "-%04d %s", -(tm->tm_year - 1), "BC");
 			break;
 	}
-}
 
-void
+	return TRUE;
+}	/* EncodeDateOnly() */
+
+static void
 TrimTrailingZeros(char *str)
 {
 	int			len = strlen(str);
@@ -739,14 +755,7 @@ TrimTrailingZeros(char *str)
 
 /* EncodeDateTime()
  * Encode date and time interpreted as local time.
- *
- * tm and fsec are the value to encode, print_tz determines whether to include
- * a time zone (the difference between timestamp and timestamptz types), tz is
- * the numeric time zone offset, tzn is the textual time zone, which if
- * specified will be used instead of tz by some styles, style is the date
- * style, str is where to write the output.
- *
- * Supported date styles:
+ * Support several date styles:
  *	Postgres - day mon hh:mm:ss yyyy tz
  *	SQL - mm/dd/yyyy hh:mm:ss.ss tz
  *	ISO - yyyy-mm-dd hh:mm:ss+/-tz
@@ -755,18 +764,12 @@ TrimTrailingZeros(char *str)
  *	US - mm/dd/yyyy
  *	European - dd/mm/yyyy
  */
-void
-EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tzn, int style, char *str, bool EuroDates)
+int
+EncodeDateTime(struct tm * tm, fsec_t fsec, int *tzp, char **tzn, int style, char *str, bool EuroDates)
 {
 	int			day,
 				hour,
 				min;
-
-	/*
-	 * Negative tm_isdst means we have no valid time zone translation.
-	 */
-	if (tm->tm_isdst < 0)
-		print_tz = false;
 
 	switch (style)
 	{
@@ -780,10 +783,19 @@ EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tz
 			/*
 			 * Print fractional seconds if any.  The field widths here should
 			 * be at least equal to MAX_TIMESTAMP_PRECISION.
+			 *
+			 * In float mode, don't print fractional seconds before 1 AD,
+			 * since it's unlikely there's any precision left ...
 			 */
+#ifdef HAVE_INT64_TIMESTAMP
 			if (fsec != 0)
 			{
 				sprintf(str + strlen(str), ":%02d.%06d", tm->tm_sec, fsec);
+#else
+			if ((fsec != 0) && (tm->tm_year > 0))
+			{
+				sprintf(str + strlen(str), ":%09.6f", tm->tm_sec + fsec);
+#endif
 				TrimTrailingZeros(str);
 			}
 			else
@@ -792,14 +804,17 @@ EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tz
 			if (tm->tm_year <= 0)
 				sprintf(str + strlen(str), " BC");
 
-			if (print_tz)
+			/*
+			 * tzp == NULL indicates that we don't want *any* time zone info
+			 * in the output string. *tzn != NULL indicates that we have alpha
+			 * time zone info available. tm_isdst != -1 indicates that we have
+			 * a valid time zone translation.
+			 */
+			if (tzp != NULL && tm->tm_isdst >= 0)
 			{
-				hour = -(tz / SECS_PER_HOUR);
-				min = (abs(tz) / MINS_PER_HOUR) % MINS_PER_HOUR;
-				if (min != 0)
-					sprintf(str + strlen(str), "%+03d:%02d", hour, min);
-				else
-					sprintf(str + strlen(str), "%+03d", hour);
+				hour = -(*tzp / SECS_PER_HOUR);
+				min = (abs(*tzp) / MINS_PER_HOUR) % MINS_PER_HOUR;
+				sprintf(str + strlen(str), (min != 0) ? "%+03d:%02d" : "%+03d", hour, min);
 			}
 			break;
 
@@ -818,10 +833,19 @@ EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tz
 			/*
 			 * Print fractional seconds if any.  The field widths here should
 			 * be at least equal to MAX_TIMESTAMP_PRECISION.
+			 *
+			 * In float mode, don't print fractional seconds before 1 AD,
+			 * since it's unlikely there's any precision left ...
 			 */
+#ifdef HAVE_INT64_TIMESTAMP
 			if (fsec != 0)
 			{
 				sprintf(str + strlen(str), ":%02d.%06d", tm->tm_sec, fsec);
+#else
+			if (fsec != 0 && tm->tm_year > 0)
+			{
+				sprintf(str + strlen(str), ":%09.6f", tm->tm_sec + fsec);
+#endif
 				TrimTrailingZeros(str);
 			}
 			else
@@ -830,24 +854,15 @@ EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tz
 			if (tm->tm_year <= 0)
 				sprintf(str + strlen(str), " BC");
 
-			/*
-			 * Note: the uses of %.*s in this function would be risky if the
-			 * timezone names ever contain non-ASCII characters.  However, all
-			 * TZ abbreviations in the Olson database are plain ASCII.
-			 */
-
-			if (print_tz)
+			if (tzp != NULL && tm->tm_isdst >= 0)
 			{
-				if (tzn)
-					sprintf(str + strlen(str), " %.*s", MAXTZLEN, tzn);
+				if (*tzn != NULL)
+					sprintf(str + strlen(str), " %.*s", MAXTZLEN, *tzn);
 				else
 				{
-					hour = -(tz / SECS_PER_HOUR);
-					min = (abs(tz) / MINS_PER_HOUR) % MINS_PER_HOUR;
-					if (min != 0)
-						sprintf(str + strlen(str), "%+03d:%02d", hour, min);
-					else
-						sprintf(str + strlen(str), "%+03d", hour);
+					hour = -(*tzp / SECS_PER_HOUR);
+					min = (abs(*tzp) / MINS_PER_HOUR) % MINS_PER_HOUR;
+					sprintf(str + strlen(str), (min != 0) ? "%+03d:%02d" : "%+03d", hour, min);
 				}
 			}
 			break;
@@ -864,10 +879,19 @@ EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tz
 			/*
 			 * Print fractional seconds if any.  The field widths here should
 			 * be at least equal to MAX_TIMESTAMP_PRECISION.
+			 *
+			 * In float mode, don't print fractional seconds before 1 AD,
+			 * since it's unlikely there's any precision left ...
 			 */
+#ifdef HAVE_INT64_TIMESTAMP
 			if (fsec != 0)
 			{
 				sprintf(str + strlen(str), ":%02d.%06d", tm->tm_sec, fsec);
+#else
+			if (fsec != 0 && tm->tm_year > 0)
+			{
+				sprintf(str + strlen(str), ":%09.6f", tm->tm_sec + fsec);
+#endif
 				TrimTrailingZeros(str);
 			}
 			else
@@ -876,18 +900,15 @@ EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tz
 			if (tm->tm_year <= 0)
 				sprintf(str + strlen(str), " BC");
 
-			if (print_tz)
+			if (tzp != NULL && tm->tm_isdst >= 0)
 			{
-				if (tzn)
-					sprintf(str + strlen(str), " %.*s", MAXTZLEN, tzn);
+				if (*tzn != NULL)
+					sprintf(str + strlen(str), " %.*s", MAXTZLEN, *tzn);
 				else
 				{
-					hour = -(tz / SECS_PER_HOUR);
-					min = (abs(tz) / MINS_PER_HOUR) % MINS_PER_HOUR;
-					if (min != 0)
-						sprintf(str + strlen(str), "%+03d:%02d", hour, min);
-					else
-						sprintf(str + strlen(str), "%+03d", hour);
+					hour = -(*tzp / SECS_PER_HOUR);
+					min = (abs(*tzp) / MINS_PER_HOUR) % MINS_PER_HOUR;
+					sprintf(str + strlen(str), (min != 0) ? "%+03d:%02d" : "%+03d", hour, min);
 				}
 			}
 			break;
@@ -899,7 +920,7 @@ EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tz
 			day = date2j(tm->tm_year, tm->tm_mon, tm->tm_mday);
 			tm->tm_wday = (int) ((day + date2j(2000, 1, 1) + 1) % 7);
 
-			memcpy(str, days[tm->tm_wday], 3);
+			strncpy(str, days[tm->tm_wday], 3);
 			strcpy(str + 3, " ");
 
 			if (EuroDates)
@@ -912,10 +933,19 @@ EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tz
 			/*
 			 * Print fractional seconds if any.  The field widths here should
 			 * be at least equal to MAX_TIMESTAMP_PRECISION.
+			 *
+			 * In float mode, don't print fractional seconds before 1 AD,
+			 * since it's unlikely there's any precision left ...
 			 */
+#ifdef HAVE_INT64_TIMESTAMP
 			if (fsec != 0)
 			{
 				sprintf(str + strlen(str), ":%02d.%06d", tm->tm_sec, fsec);
+#else
+			if (fsec != 0 && tm->tm_year > 0)
+			{
+				sprintf(str + strlen(str), ":%09.6f", tm->tm_sec + fsec);
+#endif
 				TrimTrailingZeros(str);
 			}
 			else
@@ -926,10 +956,10 @@ EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tz
 			if (tm->tm_year <= 0)
 				sprintf(str + strlen(str), " BC");
 
-			if (print_tz)
+			if (tzp != NULL && tm->tm_isdst >= 0)
 			{
-				if (tzn)
-					sprintf(str + strlen(str), " %.*s", MAXTZLEN, tzn);
+				if (*tzn != NULL)
+					sprintf(str + strlen(str), " %.*s", MAXTZLEN, *tzn);
 				else
 				{
 					/*
@@ -938,58 +968,49 @@ EncodeDateTime(struct tm *tm, fsec_t fsec, bool print_tz, int tz, const char *tz
 					 * avoid formatting something which would be rejected by
 					 * the date/time parser later. - thomas 2001-10-19
 					 */
-					hour = -(tz / SECS_PER_HOUR);
-					min = (abs(tz) / MINS_PER_HOUR) % MINS_PER_HOUR;
-					if (min != 0)
-						sprintf(str + strlen(str), " %+03d:%02d", hour, min);
-					else
-						sprintf(str + strlen(str), " %+03d", hour);
+					hour = -(*tzp / SECS_PER_HOUR);
+					min = (abs(*tzp) / MINS_PER_HOUR) % MINS_PER_HOUR;
+					sprintf(str + strlen(str), (min != 0) ? " %+03d:%02d" : " %+03d", hour, min);
 				}
 			}
 			break;
 	}
-}
 
-int
-GetEpochTime(struct tm *tm)
+	return TRUE;
+}	/* EncodeDateTime() */
+
+void
+GetEpochTime(struct tm * tm)
 {
 	struct tm  *t0;
 	time_t		epoch = 0;
 
 	t0 = gmtime(&epoch);
 
-	if (t0)
-	{
-		tm->tm_year = t0->tm_year + 1900;
-		tm->tm_mon = t0->tm_mon + 1;
-		tm->tm_mday = t0->tm_mday;
-		tm->tm_hour = t0->tm_hour;
-		tm->tm_min = t0->tm_min;
-		tm->tm_sec = t0->tm_sec;
+	tm->tm_year = t0->tm_year;
+	tm->tm_mon = t0->tm_mon;
+	tm->tm_mday = t0->tm_mday;
+	tm->tm_hour = t0->tm_hour;
+	tm->tm_min = t0->tm_min;
+	tm->tm_sec = t0->tm_sec;
 
-		return 0;
-	}
+	if (tm->tm_year < 1900)
+		tm->tm_year += 1900;
+	tm->tm_mon++;
 
-	return -1;
-}								/* GetEpochTime() */
+	return;
+}	/* GetEpochTime() */
 
 static void
-abstime2tm(AbsoluteTime _time, int *tzp, struct tm *tm, char **tzn)
+abstime2tm(AbsoluteTime _time, int *tzp, struct tm * tm, char **tzn)
 {
 	time_t		time = (time_t) _time;
 	struct tm  *tx;
 
-	errno = 0;
 	if (tzp != NULL)
 		tx = localtime((time_t *) &time);
 	else
 		tx = gmtime((time_t *) &time);
-
-	if (!tx)
-	{
-		errno = PGTYPES_TS_BAD_TIMESTAMP;
-		return;
-	}
 
 	tm->tm_year = tx->tm_year + 1900;
 	tm->tm_mon = tx->tm_mon + 1;
@@ -1012,7 +1033,7 @@ abstime2tm(AbsoluteTime _time, int *tzp, struct tm *tm, char **tzn)
 		*tzp = -tm->tm_gmtoff;	/* tm_gmtoff is Sun/DEC-ism */
 
 		/*
-		 * FreeBSD man pages indicate that this should work - tgl 97/04/23
+		 * XXX FreeBSD man pages indicate that this should work - tgl 97/04/23
 		 */
 		if (tzn != NULL)
 		{
@@ -1059,26 +1080,177 @@ abstime2tm(AbsoluteTime _time, int *tzp, struct tm *tm, char **tzn)
 }
 
 void
-GetCurrentDateTime(struct tm *tm)
+GetCurrentDateTime(struct tm * tm)
 {
 	int			tz;
 
 	abstime2tm(time(NULL), &tz, tm, NULL);
 }
 
-void
+/* DetermineLocalTimeZone()
+ *
+ * Given a struct tm in which tm_year, tm_mon, tm_mday, tm_hour, tm_min, and
+ * tm_sec fields are set, attempt to determine the applicable local zone
+ * (ie, regular or daylight-savings time) at that time.  Set the struct tm's
+ * tm_isdst field accordingly, and return the actual timezone offset.
+ *
+ * This subroutine exists to centralize uses of mktime() and defend against
+ * mktime() bugs/restrictions on various platforms.  This should be
+ * the *only* call of mktime() in the backend.
+ */
+static int
+DetermineLocalTimeZone(struct tm * tm)
+{
+	int			tz;
+
+	if (IS_VALID_UTIME(tm->tm_year, tm->tm_mon, tm->tm_mday))
+	{
+#if defined(HAVE_TM_ZONE) || defined(HAVE_INT_TIMEZONE)
+
+		/*
+		 * Some buggy mktime() implementations may change the year/month/day
+		 * when given a time right at a DST boundary.  To prevent corruption
+		 * of the caller's data, give mktime() a copy...
+		 */
+		struct tm	tt,
+				   *tmp = &tt;
+
+		*tmp = *tm;
+		/* change to Unix conventions for year/month */
+		tmp->tm_year -= 1900;
+		tmp->tm_mon -= 1;
+
+		/* indicate timezone unknown */
+		tmp->tm_isdst = -1;
+
+		if (mktime(tmp) != (time_t) -1 && tmp->tm_isdst >= 0)
+		{
+			/* mktime() succeeded, trust its result */
+			tm->tm_isdst = tmp->tm_isdst;
+
+#if defined(HAVE_TM_ZONE)
+			/* tm_gmtoff is Sun/DEC-ism */
+			tz = -tmp->tm_gmtoff;
+#elif defined(HAVE_INT_TIMEZONE)
+			tz = (tmp->tm_isdst > 0) ? TIMEZONE_GLOBAL - SECS_PER_HOUR : TIMEZONE_GLOBAL;
+#endif   /* HAVE_INT_TIMEZONE */
+		}
+		else
+		{
+			/*
+			 * We have a buggy (not to say deliberately brain damaged)
+			 * mktime().  Work around it by using localtime() instead.
+			 *
+			 * First, generate the time_t value corresponding to the given
+			 * y/m/d/h/m/s taken as GMT time.  This will not overflow (at
+			 * least not for time_t taken as signed) because of the range
+			 * check we did above.
+			 */
+			long		day,
+						mysec,
+						locsec,
+						delta1,
+						delta2;
+			time_t		mytime;
+
+			day = (date2j(tm->tm_year, tm->tm_mon, tm->tm_mday) -
+				   date2j(1970, 1, 1));
+			mysec = tm->tm_sec + (tm->tm_min + (day * HOURS_PER_DAY + tm->tm_hour) * MINS_PER_HOUR) * SECS_PER_MINUTE;
+			mytime = (time_t) mysec;
+
+			/*
+			 * Use localtime to convert that time_t to broken-down time, and
+			 * reassemble to get a representation of local time.
+			 */
+			tmp = localtime(&mytime);
+			day = (date2j(tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday) -
+				   date2j(1970, 1, 1));
+			locsec = tmp->tm_sec + (tmp->tm_min + (day * HOURS_PER_DAY + tmp->tm_hour) * MINS_PER_HOUR) * SECS_PER_MINUTE;
+
+			/*
+			 * The local time offset corresponding to that GMT time is now
+			 * computable as mysec - locsec.
+			 */
+			delta1 = mysec - locsec;
+
+			/*
+			 * However, if that GMT time and the local time we are actually
+			 * interested in are on opposite sides of a daylight-savings-time
+			 * transition, then this is not the time offset we want.  So,
+			 * adjust the time_t to be what we think the GMT time
+			 * corresponding to our target local time is, and repeat the
+			 * localtime() call and delta calculation.	We may have to do it
+			 * twice before we have a trustworthy delta.
+			 *
+			 * Note: think not to put a loop here, since if we've been given
+			 * an "impossible" local time (in the gap during a spring-forward
+			 * transition) we'd never get out of the loop. Twice is enough to
+			 * give the behavior we want, which is that "impossible" times are
+			 * taken as standard time, while at a fall-back boundary ambiguous
+			 * times are also taken as standard.
+			 */
+			mysec += delta1;
+			mytime = (time_t) mysec;
+			tmp = localtime(&mytime);
+			day = (date2j(tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday) -
+				   date2j(1970, 1, 1));
+			locsec = tmp->tm_sec + (tmp->tm_min + (day * HOURS_PER_DAY + tmp->tm_hour) * MINS_PER_HOUR) * SECS_PER_MINUTE;
+			delta2 = mysec - locsec;
+			if (delta2 != delta1)
+			{
+				mysec += (delta2 - delta1);
+				mytime = (time_t) mysec;
+				tmp = localtime(&mytime);
+				day = (date2j(tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday) -
+					   date2j(1970, 1, 1));
+				locsec = tmp->tm_sec + (tmp->tm_min + (day * HOURS_PER_DAY + tmp->tm_hour) * MINS_PER_HOUR) * SECS_PER_MINUTE;
+				delta2 = mysec - locsec;
+			}
+			tm->tm_isdst = tmp->tm_isdst;
+			tz = (int) delta2;
+		}
+#else							/* not (HAVE_TM_ZONE || HAVE_INT_TIMEZONE) */
+		/* Assume UTC if no system timezone info available */
+		tm->tm_isdst = 0;
+		tz = 0;
+#endif
+	}
+	else
+	{
+		/* Given date is out of range, so assume UTC */
+		tm->tm_isdst = 0;
+		tz = 0;
+	}
+
+	return tz;
+}
+
+static void
 dt2time(double jd, int *hour, int *min, int *sec, fsec_t *fsec)
 {
+#ifdef HAVE_INT64_TIMESTAMP
 	int64		time;
+#else
+	double		time;
+#endif
 
 	time = jd;
+#ifdef HAVE_INT64_TIMESTAMP
 	*hour = time / USECS_PER_HOUR;
 	time -= (*hour) * USECS_PER_HOUR;
 	*min = time / USECS_PER_MINUTE;
 	time -= (*min) * USECS_PER_MINUTE;
 	*sec = time / USECS_PER_SEC;
 	*fsec = time - (*sec * USECS_PER_SEC);
-}								/* dt2time() */
+#else
+	*hour = time / SECS_PER_HOUR;
+	time -= (*hour) * SECS_PER_HOUR;
+	*min = time / SECS_PER_MINUTE;
+	time -= (*min) * SECS_PER_MINUTE;
+	*sec = time;
+	*fsec = time - *sec;
+#endif
+}	/* dt2time() */
 
 
 
@@ -1089,7 +1261,7 @@ dt2time(double jd, int *hour, int *min, int *sec, fsec_t *fsec)
  */
 static int
 DecodeNumberField(int len, char *str, int fmask,
-				  int *tmask, struct tm *tm, fsec_t *fsec, bool *is2digits)
+	int *tmask, struct tm * tm, fsec_t *fsec, int *is2digits, bool EuroDates)
 {
 	char	   *cp;
 
@@ -1099,23 +1271,20 @@ DecodeNumberField(int len, char *str, int fmask,
 	 */
 	if ((cp = strchr(str, '.')) != NULL)
 	{
-		char		fstr[7];
-		int			i;
-
-		cp++;
+#ifdef HAVE_INT64_TIMESTAMP
+		char		fstr[MAXDATELEN + 1];
 
 		/*
 		 * OK, we have at most six digits to care about. Let's construct a
-		 * string with those digits, zero-padded on the right, and then do the
-		 * conversion to an integer.
-		 *
-		 * XXX This truncates the seventh digit, unlike rounding it as the
-		 * backend does.
+		 * string and then do the conversion to an integer.
 		 */
-		for (i = 0; i < 6; i++)
-			fstr[i] = *cp != '\0' ? *cp++ : '0';
-		fstr[i] = '\0';
+		strcpy(fstr, (cp + 1));
+		strcpy(fstr + strlen(fstr), "000000");
+		*(fstr + 6) = '\0';
 		*fsec = strtol(fstr, NULL, 10);
+#else
+		*fsec = strtod(cp, NULL);
+#endif
 		*cp = '\0';
 		len = strlen(str);
 	}
@@ -1144,7 +1313,7 @@ DecodeNumberField(int len, char *str, int fmask,
 			tm->tm_mon = atoi(str + 2);
 			*(str + 2) = '\0';
 			tm->tm_year = atoi(str + 0);
-			*is2digits = true;
+			*is2digits = TRUE;
 
 			return DTK_DATE;
 		}
@@ -1156,7 +1325,7 @@ DecodeNumberField(int len, char *str, int fmask,
 			*(str + 2) = '\0';
 			tm->tm_mon = 1;
 			tm->tm_year = atoi(str + 0);
-			*is2digits = true;
+			*is2digits = TRUE;
 
 			return DTK_DATE;
 		}
@@ -1191,7 +1360,7 @@ DecodeNumberField(int len, char *str, int fmask,
 	}
 
 	return -1;
-}								/* DecodeNumberField() */
+}	/* DecodeNumberField() */
 
 
 /* DecodeNumber()
@@ -1199,7 +1368,7 @@ DecodeNumberField(int len, char *str, int fmask,
  */
 static int
 DecodeNumber(int flen, char *str, int fmask,
-			 int *tmask, struct tm *tm, fsec_t *fsec, bool *is2digits, bool EuroDates)
+	int *tmask, struct tm * tm, fsec_t *fsec, int *is2digits, bool EuroDates)
 {
 	int			val;
 	char	   *cp;
@@ -1218,7 +1387,7 @@ DecodeNumber(int flen, char *str, int fmask,
 		 */
 		if (cp - str > 2)
 			return DecodeNumberField(flen, str, (fmask | DTK_DATE_M),
-									 tmask, tm, fsec, is2digits);
+									 tmask, tm, fsec, is2digits, EuroDates);
 
 		*fsec = strtod(cp, &cp);
 		if (*cp != '\0')
@@ -1300,22 +1469,22 @@ DecodeNumber(int flen, char *str, int fmask,
 		return -1;
 
 	return 0;
-}								/* DecodeNumber() */
+}	/* DecodeNumber() */
 
 /* DecodeDate()
  * Decode date string which includes delimiters.
  * Insist on a complete set of fields.
  */
 static int
-DecodeDate(char *str, int fmask, int *tmask, struct tm *tm, bool EuroDates)
+DecodeDate(char *str, int fmask, int *tmask, struct tm * tm, bool EuroDates)
 {
 	fsec_t		fsec;
 
 	int			nf = 0;
 	int			i,
 				len;
-	bool		bc = false;
-	bool		is2digits = false;
+	int			bc = FALSE;
+	int			is2digits = FALSE;
 	int			type,
 				val,
 				dmask = 0;
@@ -1427,7 +1596,7 @@ DecodeDate(char *str, int fmask, int *tmask, struct tm *tm, bool EuroDates)
 	}
 
 	return 0;
-}								/* DecodeDate() */
+}	/* DecodeDate() */
 
 
 /* DecodeTime()
@@ -1435,8 +1604,8 @@ DecodeDate(char *str, int fmask, int *tmask, struct tm *tm, bool EuroDates)
  * Only check the lower limit on hours, since this same code
  *	can be used to represent time spans.
  */
-int
-DecodeTime(char *str, int *tmask, struct tm *tm, fsec_t *fsec)
+static int
+DecodeTime(char *str, int fmask, int *tmask, struct tm * tm, fsec_t *fsec)
 {
 	char	   *cp;
 
@@ -1462,23 +1631,21 @@ DecodeTime(char *str, int *tmask, struct tm *tm, fsec_t *fsec)
 			*fsec = 0;
 		else if (*cp == '.')
 		{
-			char		fstr[7];
-			int			i;
-
-			cp++;
+#ifdef HAVE_INT64_TIMESTAMP
+			char		fstr[MAXDATELEN + 1];
 
 			/*
-			 * OK, we have at most six digits to care about. Let's construct a
-			 * string with those digits, zero-padded on the right, and then do
-			 * the conversion to an integer.
-			 *
-			 * XXX This truncates the seventh digit, unlike rounding it as the
-			 * backend does.
+			 * OK, we have at most six digits to work with. Let's construct a
+			 * string and then do the conversion to an integer.
 			 */
-			for (i = 0; i < 6; i++)
-				fstr[i] = *cp != '\0' ? *cp++ : '0';
-			fstr[i] = '\0';
+			strncpy(fstr, (cp + 1), 7);
+			strcpy(fstr + strlen(fstr), "000000");
+			*(fstr + 6) = '\0';
 			*fsec = strtol(fstr, &cp, 10);
+#else
+			str = cp;
+			*fsec = strtod(str, &cp);
+#endif
 			if (*cp != '\0')
 				return -1;
 		}
@@ -1487,12 +1654,18 @@ DecodeTime(char *str, int *tmask, struct tm *tm, fsec_t *fsec)
 	}
 
 	/* do a sanity check */
+#ifdef HAVE_INT64_TIMESTAMP
 	if (tm->tm_hour < 0 || tm->tm_min < 0 || tm->tm_min > 59 ||
 		tm->tm_sec < 0 || tm->tm_sec > 59 || *fsec >= USECS_PER_SEC)
 		return -1;
+#else
+	if (tm->tm_hour < 0 || tm->tm_min < 0 || tm->tm_min > 59 ||
+		tm->tm_sec < 0 || tm->tm_sec > 59 || *fsec >= 1)
+		return -1;
+#endif
 
 	return 0;
-}								/* DecodeTime() */
+}	/* DecodeTime() */
 
 /* DecodeTimezone()
  * Interpret string as a numeric timezone.
@@ -1536,7 +1709,7 @@ DecodeTimezone(char *str, int *tzp)
 
 	*tzp = -tz;
 	return *cp != '\0';
-}								/* DecodeTimezone() */
+}	/* DecodeTimezone() */
 
 
 /* DecodePosixTimezone()
@@ -1570,7 +1743,7 @@ DecodePosixTimezone(char *str, int *tzp)
 	{
 		case DTZ:
 		case TZ:
-			*tzp = -(val + tz);
+			*tzp = (val * MINS_PER_HOUR) - tz;
 			break;
 
 		default:
@@ -1578,7 +1751,7 @@ DecodePosixTimezone(char *str, int *tzp)
 	}
 
 	return 0;
-}								/* DecodePosixTimezone() */
+}	/* DecodePosixTimezone() */
 
 /* ParseDateTime()
  * Break string into tokens based on a date/time context.
@@ -1593,14 +1766,10 @@ DecodePosixTimezone(char *str, int *tzp)
  *	DTK_NUMBER can hold date fields (yy.ddd)
  *	DTK_STRING can hold months (January) and time zones (PST)
  *	DTK_DATE can hold Posix time zones (GMT-8)
- *
- * The "lowstr" work buffer must have at least strlen(timestr) + MAXDATEFIELDS
- * bytes of space.  On output, field[] entries will point into it.
- * The field[] and ftype[] arrays must have at least MAXDATEFIELDS entries.
  */
 int
 ParseDateTime(char *timestr, char *lowstr,
-			  char **field, int *ftype, int *numfields, char **endstr)
+	  char **field, int *ftype, int maxfields, int *numfields, char **endstr)
 {
 	int			nf = 0;
 	char	   *lp = lowstr;
@@ -1609,9 +1778,6 @@ ParseDateTime(char *timestr, char *lowstr,
 	/* outer loop through fields */
 	while (*(*endstr) != '\0')
 	{
-		/* Record start of current field */
-		if (nf >= MAXDATEFIELDS)
-			return -1;
 		field[nf] = lp;
 
 		/* leading digit? then date or time */
@@ -1753,12 +1919,14 @@ ParseDateTime(char *timestr, char *lowstr,
 		/* force in a delimiter after each field */
 		*lp++ = '\0';
 		nf++;
+		if (nf > MAXDATEFIELDS)
+			return -1;
 	}
 
 	*numfields = nf;
 
 	return 0;
-}								/* ParseDateTime() */
+}	/* ParseDateTime() */
 
 
 /* DecodeDateTime()
@@ -1783,7 +1951,7 @@ ParseDateTime(char *timestr, char *lowstr,
  */
 int
 DecodeDateTime(char **field, int *ftype, int nf,
-			   int *dtype, struct tm *tm, fsec_t *fsec, bool EuroDates)
+		  int *dtype, struct tm * tm, fsec_t *fsec, int *tzp, bool EuroDates)
 {
 	int			fmask = 0,
 				tmask,
@@ -1792,11 +1960,9 @@ DecodeDateTime(char **field, int *ftype, int nf,
 	int			i;
 	int			val;
 	int			mer = HR24;
-	bool		haveTextMonth = false;
-	bool		is2digits = false;
-	bool		bc = false;
-	int			t = 0;
-	int		   *tzp = &t;
+	int			haveTextMonth = FALSE;
+	int			is2digits = FALSE;
+	int			bc = FALSE;
 
 	/***
 	 * We'll insist on at least all of the date fields, but initialize the
@@ -1889,7 +2055,7 @@ DecodeDateTime(char **field, int *ftype, int nf,
 						 * time
 						 */
 						if ((ftype[i] = DecodeNumberField(strlen(field[i]), field[i], fmask,
-														  &tmask, tm, fsec, &is2digits)) < 0)
+							   &tmask, tm, fsec, &is2digits, EuroDates)) < 0)
 							return -1;
 
 						/*
@@ -1912,7 +2078,7 @@ DecodeDateTime(char **field, int *ftype, int nf,
 				break;
 
 			case DTK_TIME:
-				if (DecodeTime(field[i], &tmask, tm, fsec) != 0)
+				if (DecodeTime(field[i], fmask, &tmask, tm, fsec) != 0)
 					return -1;
 
 				/*
@@ -2036,7 +2202,11 @@ DecodeDateTime(char **field, int *ftype, int nf,
 								frac = strtod(cp, &cp);
 								if (*cp != '\0')
 									return -1;
+#ifdef HAVE_INT64_TIMESTAMP
 								*fsec = frac * 1000000;
+#else
+								*fsec = frac;
+#endif
 							}
 							break;
 
@@ -2062,14 +2232,18 @@ DecodeDateTime(char **field, int *ftype, int nf,
 									return -1;
 
 								tmask |= DTK_TIME_M;
+#ifdef HAVE_INT64_TIMESTAMP
 								dt2time((time * USECS_PER_DAY), &tm->tm_hour, &tm->tm_min, &tm->tm_sec, fsec);
+#else
+								dt2time((time * SECS_PER_DAY), &tm->tm_hour, &tm->tm_min, &tm->tm_sec, fsec);
+#endif
 							}
 							break;
 
 						case DTK_TIME:
 							/* previous field was "t" for ISO time */
 							if ((ftype[i] = DecodeNumberField(strlen(field[i]), field[i], (fmask | DTK_DATE_M),
-															  &tmask, tm, fsec, &is2digits)) < 0)
+							   &tmask, tm, fsec, &is2digits, EuroDates)) < 0)
 								return -1;
 
 							if (tmask != DTK_TIME_M)
@@ -2107,18 +2281,18 @@ DecodeDateTime(char **field, int *ftype, int nf,
 						 * Example: 20011223 or 040506
 						 */
 						if ((ftype[i] = DecodeNumberField(flen, field[i], fmask,
-														  &tmask, tm, fsec, &is2digits)) < 0)
+							   &tmask, tm, fsec, &is2digits, EuroDates)) < 0)
 							return -1;
 					}
 					else if (flen > 4)
 					{
 						if ((ftype[i] = DecodeNumberField(flen, field[i], fmask,
-														  &tmask, tm, fsec, &is2digits)) < 0)
+							   &tmask, tm, fsec, &is2digits, EuroDates)) < 0)
 							return -1;
 					}
 					/* otherwise it is a single date/time field... */
 					else if (DecodeNumber(flen, field[i], fmask,
-										  &tmask, tm, fsec, &is2digits, EuroDates) != 0)
+							   &tmask, tm, fsec, &is2digits, EuroDates) != 0)
 						return -1;
 				}
 				break;
@@ -2146,7 +2320,7 @@ DecodeDateTime(char **field, int *ftype, int nf,
 								*dtype = DTK_DATE;
 								GetCurrentDateTime(tm);
 								j2date(date2j(tm->tm_year, tm->tm_mon, tm->tm_mday) - 1,
-									   &tm->tm_year, &tm->tm_mon, &tm->tm_mday);
+									&tm->tm_year, &tm->tm_mon, &tm->tm_mday);
 								tm->tm_hour = 0;
 								tm->tm_min = 0;
 								tm->tm_sec = 0;
@@ -2166,7 +2340,7 @@ DecodeDateTime(char **field, int *ftype, int nf,
 								*dtype = DTK_DATE;
 								GetCurrentDateTime(tm);
 								j2date(date2j(tm->tm_year, tm->tm_mon, tm->tm_mday) + 1,
-									   &tm->tm_year, &tm->tm_mon, &tm->tm_mday);
+									&tm->tm_year, &tm->tm_mon, &tm->tm_mday);
 								tm->tm_hour = 0;
 								tm->tm_min = 0;
 								tm->tm_sec = 0;
@@ -2200,7 +2374,7 @@ DecodeDateTime(char **field, int *ftype, int nf,
 							tm->tm_mday = tm->tm_mon;
 							tmask = DTK_M(DAY);
 						}
-						haveTextMonth = true;
+						haveTextMonth = TRUE;
 						tm->tm_mon = val;
 						break;
 
@@ -2214,7 +2388,7 @@ DecodeDateTime(char **field, int *ftype, int nf,
 						tm->tm_isdst = 1;
 						if (tzp == NULL)
 							return -1;
-						*tzp -= val;
+						*tzp += val * MINS_PER_HOUR;
 						break;
 
 					case DTZ:
@@ -2227,7 +2401,7 @@ DecodeDateTime(char **field, int *ftype, int nf,
 						tm->tm_isdst = 1;
 						if (tzp == NULL)
 							return -1;
-						*tzp = -val;
+						*tzp = val * MINS_PER_HOUR;
 						ftype[i] = DTK_TZ;
 						break;
 
@@ -2235,7 +2409,7 @@ DecodeDateTime(char **field, int *ftype, int nf,
 						tm->tm_isdst = 0;
 						if (tzp == NULL)
 							return -1;
-						*tzp = -val;
+						*tzp = val * MINS_PER_HOUR;
 						ftype[i] = DTK_TZ;
 						break;
 
@@ -2267,7 +2441,7 @@ DecodeDateTime(char **field, int *ftype, int nf,
 						 */
 						tmask = 0;
 
-						/* No preceding date? Then quit... */
+						/* No preceeding date? Then quit... */
 						if ((fmask & DTK_DATE_M) != DTK_DATE_M)
 							return -1;
 
@@ -2336,17 +2510,22 @@ DecodeDateTime(char **field, int *ftype, int nf,
 		if (tm->tm_mday < 1 || tm->tm_mday > day_tab[isleap(tm->tm_year)][tm->tm_mon - 1])
 			return -1;
 
-		/*
-		 * backend tried to find local timezone here but we don't use the
-		 * result afterwards anyway so we only check for this error: daylight
-		 * savings time modifier but no standard timezone?
-		 */
-		if ((fmask & DTK_DATE_M) == DTK_DATE_M && tzp != NULL && !(fmask & DTK_M(TZ)) && (fmask & DTK_M(DTZMOD)))
-			return -1;
+		/* timezone not specified? then find local timezone if possible */
+		if ((fmask & DTK_DATE_M) == DTK_DATE_M && tzp != NULL && !(fmask & DTK_M(TZ)))
+		{
+			/*
+			 * daylight savings time modifier but no standard timezone? then
+			 * error
+			 */
+			if (fmask & DTK_M(DTZMOD))
+				return -1;
+
+			*tzp = DetermineLocalTimeZone(tm);
+		}
 	}
 
 	return 0;
-}								/* DecodeDateTime() */
+}	/* DecodeDateTime() */
 
 /* Function works as follows:
  *
@@ -2459,7 +2638,7 @@ find_end_token(char *str, char *fmt)
 }
 
 static int
-pgtypes_defmt_scan(union un_fmt_comb *scan_val, int scan_type, char **pstr, char *pfmt)
+pgtypes_defmt_scan(union un_fmt_comb * scan_val, int scan_type, char **pstr, char *pfmt)
 {
 	/*
 	 * scan everything between pstr and pstr_end. This is not including the
@@ -2501,7 +2680,7 @@ pgtypes_defmt_scan(union un_fmt_comb *scan_val, int scan_type, char **pstr, char
 			while (**pstr == ' ')
 				(*pstr)++;
 			errno = 0;
-			scan_val->luint_val = (unsigned long int) strtol(*pstr, &strtol_end, 10);
+			scan_val->uint_val = (unsigned long int) strtol(*pstr, &strtol_end, 10);
 			if (errno)
 				err = 1;
 			break;
@@ -2520,6 +2699,9 @@ pgtypes_defmt_scan(union un_fmt_comb *scan_val, int scan_type, char **pstr, char
 }
 
 /* XXX range checking */
+int PGTYPEStimestamp_defmt_scan(char **, char *, timestamp *, int *, int *, int *,
+							int *, int *, int *, int *);
+
 int
 PGTYPEStimestamp_defmt_scan(char **str, char *fmt, timestamp * d,
 							int *year, int *month, int *day,
@@ -2533,7 +2715,7 @@ PGTYPEStimestamp_defmt_scan(char **str, char *fmt, timestamp * d,
 			   *pfmt,
 			   *tmp;
 	int			err = 1;
-	unsigned int j;
+	int			j;
 	struct tm	tm;
 
 	pfmt = fmt;
@@ -2555,7 +2737,7 @@ PGTYPEStimestamp_defmt_scan(char **str, char *fmt, timestamp * d,
 			}
 			else
 			{
-				/* Error: no match */
+				/* XXX Error: no match */
 				err = 1;
 				return err;
 			}
@@ -2812,18 +2994,12 @@ PGTYPEStimestamp_defmt_scan(char **str, char *fmt, timestamp * d,
 					time_t		et = (time_t) scan_val.luint_val;
 
 					tms = gmtime(&et);
-
-					if (tms)
-					{
-						*year = tms->tm_year + 1900;
-						*month = tms->tm_mon + 1;
-						*day = tms->tm_mday;
-						*hour = tms->tm_hour;
-						*minute = tms->tm_min;
-						*second = tms->tm_sec;
-					}
-					else
-						err = 1;
+					*year = tms->tm_year;
+					*month = tms->tm_mon;
+					*day = tms->tm_mday;
+					*hour = tms->tm_hour;
+					*minute = tms->tm_min;
+					*second = tms->tm_sec;
 				}
 				break;
 			case 'S':
@@ -2858,7 +3034,7 @@ PGTYPEStimestamp_defmt_scan(char **str, char *fmt, timestamp * d,
 				pfmt++;
 				scan_type = PGTYPES_TYPE_UINT;
 				err = pgtypes_defmt_scan(&scan_val, scan_type, &pstr, pfmt);
-				if (scan_val.uint_val > 53)
+				if (scan_val.uint_val < 0 || scan_val.uint_val > 53)
 					err = 1;
 				break;
 			case 'V':
@@ -2872,14 +3048,14 @@ PGTYPEStimestamp_defmt_scan(char **str, char *fmt, timestamp * d,
 				pfmt++;
 				scan_type = PGTYPES_TYPE_UINT;
 				err = pgtypes_defmt_scan(&scan_val, scan_type, &pstr, pfmt);
-				if (scan_val.uint_val > 6)
+				if (scan_val.uint_val < 0 || scan_val.uint_val > 6)
 					err = 1;
 				break;
 			case 'W':
 				pfmt++;
 				scan_type = PGTYPES_TYPE_UINT;
 				err = pgtypes_defmt_scan(&scan_val, scan_type, &pstr, pfmt);
-				if (scan_val.uint_val > 53)
+				if (scan_val.uint_val < 0 || scan_val.uint_val > 53)
 					err = 1;
 				break;
 			case 'x':
@@ -2906,26 +3082,25 @@ PGTYPEStimestamp_defmt_scan(char **str, char *fmt, timestamp * d,
 				pfmt++;
 				scan_type = PGTYPES_TYPE_STRING_MALLOCED;
 				err = pgtypes_defmt_scan(&scan_val, scan_type, &pstr, pfmt);
-				if (!err)
+
+				/*
+				 * XXX use DecodeSpecial instead ? - it's declared static but
+				 * the arrays as well. :-(
+				 */
+				for (j = 0; !err && j < szdatetktbl; j++)
 				{
-					/*
-					 * XXX use DecodeSpecial instead?  Do we need strcasecmp
-					 * here?
-					 */
-					err = 1;
-					for (j = 0; j < szdatetktbl; j++)
+					if (pg_strcasecmp(datetktbl[j].token, scan_val.str_val) == 0)
 					{
-						if ((datetktbl[j].type == TZ || datetktbl[j].type == DTZ) &&
-							pg_strcasecmp(datetktbl[j].token,
-										  scan_val.str_val) == 0)
-						{
-							*tz = -datetktbl[j].value;
-							err = 0;
-							break;
-						}
+						/*
+						 * tz calculates the offset for the seconds, the
+						 * timezone value of the datetktbl table is in quarter
+						 * hours
+						 */
+						*tz = -15 * MINS_PER_HOUR * datetktbl[j].value;
+						break;
 					}
-					free(scan_val.str_val);
 				}
+				free(scan_val.str_val);
 				break;
 			case '+':
 				/* XXX */

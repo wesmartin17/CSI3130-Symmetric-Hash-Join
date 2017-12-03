@@ -4,7 +4,7 @@
 #    Makefile for access/hash
 #
 # IDENTIFICATION
-#    src/backend/access/hash/Makefile
+#    $PostgreSQL: pgsql/src/backend/access/hash/Makefile,v 1.12 2003/11/29 19:51:40 pgsql Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -12,7 +12,21 @@ subdir = src/backend/access/hash
 top_builddir = ../../../..
 include $(top_builddir)/src/Makefile.global
 
-OBJS = hash.o hashfunc.o hashinsert.o hashovfl.o hashpage.o hashsearch.o \
-       hashsort.o hashutil.o hashvalidate.o hash_xlog.o
+OBJS = hash.o hashfunc.o hashinsert.o hashovfl.o hashpage.o hashscan.o \
+       hashsearch.o hashutil.o
 
-include $(top_srcdir)/src/backend/common.mk
+all: SUBSYS.o
+
+SUBSYS.o: $(OBJS)
+	$(LD) $(LDREL) $(LDOUT) SUBSYS.o $(OBJS)
+
+depend dep:
+	$(CC) -MM $(CFLAGS) *.c >depend
+
+clean: 
+	rm -f SUBSYS.o $(OBJS)
+
+ifeq (depend,$(wildcard depend))
+include depend
+endif
+

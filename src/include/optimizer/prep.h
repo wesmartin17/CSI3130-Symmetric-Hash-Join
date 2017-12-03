@@ -4,10 +4,10 @@
  *	  prototypes for files in optimizer/prep/
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/optimizer/prep.h
+ * $PostgreSQL: pgsql/src/include/optimizer/prep.h,v 1.52 2005/10/15 02:49:45 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -21,18 +21,20 @@
 /*
  * prototypes for prepjointree.c
  */
-extern void pull_up_sublinks(PlannerInfo *root);
-extern void inline_set_returning_functions(PlannerInfo *root);
-extern void pull_up_subqueries(PlannerInfo *root);
-extern void flatten_simple_union_all(PlannerInfo *root);
+extern int	from_collapse_limit;
+extern int	join_collapse_limit;
+
+extern Node *pull_up_IN_clauses(PlannerInfo *root, Node *node);
+extern Node *pull_up_subqueries(PlannerInfo *root, Node *jtnode,
+				   bool below_outer_join);
 extern void reduce_outer_joins(PlannerInfo *root);
-extern Relids get_relids_in_jointree(Node *jtnode, bool include_joins);
+extern Node *simplify_jointree(PlannerInfo *root, Node *jtnode);
+extern Relids get_relids_in_jointree(Node *jtnode);
 extern Relids get_relids_for_join(PlannerInfo *root, int joinrelid);
 
 /*
  * prototypes for prepqual.c
  */
-extern Node *negate_clause(Node *node);
 extern Expr *canonicalize_qual(Expr *qual);
 
 /*
@@ -40,32 +42,18 @@ extern Expr *canonicalize_qual(Expr *qual);
  */
 extern List *preprocess_targetlist(PlannerInfo *root, List *tlist);
 
-extern List *preprocess_onconflict_targetlist(List *tlist,
-								 int result_relation, List *range_table);
-
-extern PlanRowMark *get_plan_rowmark(List *rowmarks, Index rtindex);
-
 /*
  * prototypes for prepunion.c
  */
-extern RelOptInfo *plan_set_operations(PlannerInfo *root);
+extern Plan *plan_set_operations(PlannerInfo *root, double tuple_fraction,
+					List **sortClauses);
 
-extern void expand_inherited_tables(PlannerInfo *root);
+extern List *find_all_inheritors(Oid parentrel);
 
-extern Node *adjust_appendrel_attrs(PlannerInfo *root, Node *node,
-					   int nappinfos, AppendRelInfo **appinfos);
+extern List *expand_inherited_rtentry(PlannerInfo *root, Index rti);
 
-extern Node *adjust_appendrel_attrs_multilevel(PlannerInfo *root, Node *node,
-								  Relids child_relids,
-								  Relids top_parent_relids);
+extern Node *adjust_inherited_attrs(Node *node,
+					   Index old_rt_index, Oid old_relid,
+					   Index new_rt_index, Oid new_relid);
 
-extern AppendRelInfo **find_appinfos_by_relids(PlannerInfo *root,
-						Relids relids, int *nappinfos);
-
-extern SpecialJoinInfo *build_child_join_sjinfo(PlannerInfo *root,
-						SpecialJoinInfo *parent_sjinfo,
-						Relids left_relids, Relids right_relids);
-extern Relids adjust_child_relids_multilevel(PlannerInfo *root, Relids relids,
-							   Relids child_relids, Relids top_parent_relids);
-
-#endif							/* PREP_H */
+#endif   /* PREP_H */

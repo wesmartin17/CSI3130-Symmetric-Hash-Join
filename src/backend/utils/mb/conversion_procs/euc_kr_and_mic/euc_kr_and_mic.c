@@ -2,11 +2,11 @@
  *
  *	  EUC_KR and MULE_INTERNAL
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/utils/mb/conversion_procs/euc_kr_and_mic/euc_kr_and_mic.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/mb/conversion_procs/euc_kr_and_mic/euc_kr_and_mic.c,v 1.10.2.1 2006/05/21 20:05:48 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -15,10 +15,11 @@
 #include "fmgr.h"
 #include "mb/pg_wchar.h"
 
-PG_MODULE_MAGIC;
-
 PG_FUNCTION_INFO_V1(euc_kr_to_mic);
 PG_FUNCTION_INFO_V1(mic_to_euc_kr);
+
+extern Datum euc_kr_to_mic(PG_FUNCTION_ARGS);
+extern Datum mic_to_euc_kr(PG_FUNCTION_ARGS);
 
 /* ----------
  * conv_proc(
@@ -41,7 +42,9 @@ euc_kr_to_mic(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_EUC_KR, PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(0) == PG_EUC_KR);
+	Assert(PG_GETARG_INT32(1) == PG_MULE_INTERNAL);
+	Assert(len >= 0);
 
 	euc_kr2mic(src, dest, len);
 
@@ -55,7 +58,9 @@ mic_to_euc_kr(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_MULE_INTERNAL, PG_EUC_KR);
+	Assert(PG_GETARG_INT32(0) == PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(1) == PG_EUC_KR);
+	Assert(len >= 0);
 
 	mic2euc_kr(src, dest, len);
 

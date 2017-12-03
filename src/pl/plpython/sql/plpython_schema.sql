@@ -1,9 +1,10 @@
+
 CREATE TABLE users (
 	fname text not null,
 	lname text not null,
 	username text,
 	userid serial,
-	PRIMARY KEY(lname, fname)
+	PRIMARY KEY(lname, fname) 
 	) ;
 
 CREATE INDEX users_username_idx ON users(username);
@@ -37,3 +38,7 @@ CREATE TABLE xsequences (
 	sequence text not null
 	) ;
 CREATE INDEX xsequences_pid_idx ON xsequences(pid) ;
+
+CREATE TABLE unicode_test (
+	testvalue  text NOT NULL
+);

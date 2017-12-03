@@ -9,12 +9,12 @@
  * always use NAMEDATALEN as the symbolic constant!   - jolly 8/21/95
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/utils/adt/name.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/adt/name.c,v 1.56.2.1 2006/05/21 20:05:48 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -46,17 +46,13 @@ Datum
 namein(PG_FUNCTION_ARGS)
 {
 	char	   *s = PG_GETARG_CSTRING(0);
-	Name		result;
+	NameData   *result;
 	int			len;
 
 	len = strlen(s);
+	len = pg_mbcliplen(s, len, NAMEDATALEN - 1);
 
-	/* Truncate oversize input */
-	if (len >= NAMEDATALEN)
-		len = pg_mbcliplen(s, len, NAMEDATALEN - 1);
-
-	/* We use palloc0 here to ensure result is zero-padded */
-	result = (Name) palloc0(NAMEDATALEN);
+	result = (NameData *) palloc0(NAMEDATALEN);
 	memcpy(NameStr(*result), s, len);
 
 	PG_RETURN_NAME(result);
@@ -126,8 +122,8 @@ namesend(PG_FUNCTION_ARGS)
  *
  *		namelt	- returns 1 iff a < b
  *		namele	- returns 1 iff a <= b
- *		namegt	- returns 1 iff a > b
- *		namege	- returns 1 iff a >= b
+ *		namegt	- returns 1 iff a < b
+ *		namege	- returns 1 iff a <= b
  *
  */
 Datum
@@ -185,6 +181,65 @@ namege(PG_FUNCTION_ARGS)
 }
 
 
+/*
+ * comparison routines for LIKE indexing support
+ */
+
+Datum
+name_pattern_eq(PG_FUNCTION_ARGS)
+{
+	Name		arg1 = PG_GETARG_NAME(0);
+	Name		arg2 = PG_GETARG_NAME(1);
+
+	PG_RETURN_BOOL(memcmp(NameStr(*arg1), NameStr(*arg2), NAMEDATALEN) == 0);
+}
+
+Datum
+name_pattern_ne(PG_FUNCTION_ARGS)
+{
+	Name		arg1 = PG_GETARG_NAME(0);
+	Name		arg2 = PG_GETARG_NAME(1);
+
+	PG_RETURN_BOOL(memcmp(NameStr(*arg1), NameStr(*arg2), NAMEDATALEN) != 0);
+}
+
+Datum
+name_pattern_lt(PG_FUNCTION_ARGS)
+{
+	Name		arg1 = PG_GETARG_NAME(0);
+	Name		arg2 = PG_GETARG_NAME(1);
+
+	PG_RETURN_BOOL(memcmp(NameStr(*arg1), NameStr(*arg2), NAMEDATALEN) < 0);
+}
+
+Datum
+name_pattern_le(PG_FUNCTION_ARGS)
+{
+	Name		arg1 = PG_GETARG_NAME(0);
+	Name		arg2 = PG_GETARG_NAME(1);
+
+	PG_RETURN_BOOL(memcmp(NameStr(*arg1), NameStr(*arg2), NAMEDATALEN) <= 0);
+}
+
+Datum
+name_pattern_gt(PG_FUNCTION_ARGS)
+{
+	Name		arg1 = PG_GETARG_NAME(0);
+	Name		arg2 = PG_GETARG_NAME(1);
+
+	PG_RETURN_BOOL(memcmp(NameStr(*arg1), NameStr(*arg2), NAMEDATALEN) > 0);
+}
+
+Datum
+name_pattern_ge(PG_FUNCTION_ARGS)
+{
+	Name		arg1 = PG_GETARG_NAME(0);
+	Name		arg2 = PG_GETARG_NAME(1);
+
+	PG_RETURN_BOOL(memcmp(NameStr(*arg1), NameStr(*arg2), NAMEDATALEN) >= 0);
+}
+
+
 /* (see char.c for comparison/operation routines) */
 
 int
@@ -192,7 +247,7 @@ namecpy(Name n1, Name n2)
 {
 	if (!n1 || !n2)
 		return -1;
-	StrNCpy(NameStr(*n1), NameStr(*n2), NAMEDATALEN);
+	strncpy(NameStr(*n1), NameStr(*n2), NAMEDATALEN);
 	return 0;
 }
 
@@ -200,7 +255,8 @@ namecpy(Name n1, Name n2)
 int
 namecat(Name n1, Name n2)
 {
-	return namestrcat(n1, NameStr(*n2));	/* n2 can't be any longer than n1 */
+	return namestrcat(n1, NameStr(*n2));		/* n2 can't be any longer than
+												 * n1 */
 }
 #endif
 
@@ -262,13 +318,13 @@ namestrcmp(Name name, const char *str)
 Datum
 current_user(PG_FUNCTION_ARGS)
 {
-	PG_RETURN_DATUM(DirectFunctionCall1(namein, CStringGetDatum(GetUserNameFromId(GetUserId(), false))));
+	PG_RETURN_DATUM(DirectFunctionCall1(namein, CStringGetDatum(GetUserNameFromId(GetUserId()))));
 }
 
 Datum
 session_user(PG_FUNCTION_ARGS)
 {
-	PG_RETURN_DATUM(DirectFunctionCall1(namein, CStringGetDatum(GetUserNameFromId(GetSessionUserId(), false))));
+	PG_RETURN_DATUM(DirectFunctionCall1(namein, CStringGetDatum(GetUserNameFromId(GetSessionUserId()))));
 }
 
 
@@ -316,9 +372,9 @@ current_schemas(PG_FUNCTION_ARGS)
 
 	array = construct_array(names, i,
 							NAMEOID,
-							NAMEDATALEN,	/* sizeof(Name) */
-							false,	/* Name is not by-val */
-							'c');	/* alignment of Name */
+							NAMEDATALEN,		/* sizeof(Name) */
+							false,		/* Name is not by-val */
+							'i');		/* alignment of Name */
 
 	PG_RETURN_POINTER(array);
 }

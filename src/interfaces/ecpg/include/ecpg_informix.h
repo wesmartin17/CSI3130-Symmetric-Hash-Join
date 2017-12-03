@@ -1,6 +1,7 @@
 /*
  * This file contains stuff needed to be as compatible to Informix as possible.
- * src/interfaces/ecpg/include/ecpg_informix.h
+ *
+ * $PostgreSQL: pgsql/src/interfaces/ecpg/include/ecpg_informix.h,v 1.16 2004/08/29 05:06:59 momjian Exp $
  */
 #ifndef _ECPG_INFORMIX_H
 #define _ECPG_INFORMIX_H
@@ -29,22 +30,22 @@
 #define ECPG_INFORMIX_EXTRA_CHARS	-1264
 
 #ifdef __cplusplus
-extern "C"
+extern		"C"
 {
 #endif
 
 extern int	rdatestr(date, char *);
 extern void rtoday(date *);
 extern int	rjulmdy(date, short *);
-extern int	rdefmtdate(date *, const char *, const char *);
-extern int	rfmtdate(date, const char *, char *);
+extern int	rdefmtdate(date *, char *, char *);
+extern int	rfmtdate(date, char *, char *);
 extern int	rmdyjul(short *, date *);
-extern int	rstrdate(const char *, date *);
+extern int	rstrdate(char *, date *);
 extern int	rdayofweek(date);
 
-extern int	rfmtlong(long, const char *, char *);
+extern int	rfmtlong(long, char *, char *);
 extern int	rgetmsg(int, char *, int);
-extern int	risnull(int, const char *);
+extern int	risnull(int, char *);
 extern int	rsetnull(int, char *);
 extern int	rtypalign(int, int);
 extern int	rtypmsize(int, int);
@@ -56,13 +57,12 @@ extern void ldchar(char *, int, char *);
 
 extern void ECPG_informix_set_var(int, void *, int);
 extern void *ECPG_informix_get_var(int);
-extern void ECPG_informix_reset_sqlca(void);
 
 /* Informix defines these in decimal.h */
 int			decadd(decimal *, decimal *, decimal *);
 int			deccmp(decimal *, decimal *);
 void		deccopy(decimal *, decimal *);
-int			deccvasc(const char *, int, decimal *);
+int			deccvasc(char *, int, decimal *);
 int			deccvdbl(double, decimal *);
 int			deccvint(int, decimal *);
 int			deccvlong(long, decimal *);
@@ -87,4 +87,4 @@ extern int	dtcvfmtasc(char *, char *, timestamp *);
 }
 #endif
 
-#endif							/* ndef _ECPG_INFORMIX_H */
+#endif   /* ndef _ECPG_INFORMIX_H */

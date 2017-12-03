@@ -1,7 +1,4 @@
 /*
- * contrib/tablefunc/tablefunc.h
- *
- *
  * tablefunc
  *
  * Sample to demonstrate C functions which return setof scalar
@@ -10,7 +7,7 @@
  * And contributors:
  * Nabil Sayegh <postgresql@e-trolley.de>
  *
- * Copyright (c) 2002-2017, PostgreSQL Global Development Group
+ * Copyright (c) 2002-2005, PostgreSQL Global Development Group
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written agreement
@@ -34,6 +31,13 @@
 #ifndef TABLEFUNC_H
 #define TABLEFUNC_H
 
-#include "fmgr.h"
+/*
+ * External declarations
+ */
+extern Datum normal_rand(PG_FUNCTION_ARGS);
+extern Datum crosstab(PG_FUNCTION_ARGS);
+extern Datum crosstab_hash(PG_FUNCTION_ARGS);
+extern Datum connectby_text(PG_FUNCTION_ARGS);
+extern Datum connectby_text_serial(PG_FUNCTION_ARGS);
 
-#endif							/* TABLEFUNC_H */
+#endif   /* TABLEFUNC_H */

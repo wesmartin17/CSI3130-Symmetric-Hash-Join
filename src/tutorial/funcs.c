@@ -1,5 +1,3 @@
-/* src/tutorial/funcs.c */
-
 /******************************************************************************
   These are user-defined functions that can be bound to a Postgres backend
   and called by Postgres to execute SQL functions of the same name.
@@ -16,7 +14,6 @@
 #include "executor/executor.h"	/* for GetAttributeByName() */
 #include "utils/geo_decls.h"	/* for point type */
 
-PG_MODULE_MAGIC;
 
 /* These prototypes just prevent possible warnings from gcc. */
 
@@ -25,7 +22,7 @@ float8	   *add_one_float8(float8 *arg);
 Point	   *makepoint(Point *pointx, Point *pointy);
 text	   *copytext(text *t);
 text	   *concat_text(text *arg1, text *arg2);
-bool c_overpaid(HeapTupleHeader t,		/* the current instance of EMP */
+bool c_overpaid(HeapTupleHeader t,	/* the current instance of EMP */
 		   int32 limit);
 
 
@@ -70,28 +67,27 @@ copytext(text *t)
 	 */
 	text	   *new_t = (text *) palloc(VARSIZE(t));
 
-	SET_VARSIZE(new_t, VARSIZE(t));
+	VARATT_SIZEP(new_t) = VARSIZE(t);
 
 	/*
 	 * VARDATA is a pointer to the data region of the struct.
 	 */
-	memcpy((void *) VARDATA(new_t), /* destination */
+	memcpy((void *) VARDATA(new_t),		/* destination */
 		   (void *) VARDATA(t), /* source */
-		   VARSIZE(t) - VARHDRSZ);	/* how many bytes */
+		   VARSIZE(t) - VARHDRSZ);		/* how many bytes */
 	return new_t;
 }
 
 text *
 concat_text(text *arg1, text *arg2)
 {
-	int32		arg1_size = VARSIZE(arg1) - VARHDRSZ;
-	int32		arg2_size = VARSIZE(arg2) - VARHDRSZ;
-	int32		new_text_size = arg1_size + arg2_size + VARHDRSZ;
+	int32		new_text_size = VARSIZE(arg1) + VARSIZE(arg2) - VARHDRSZ;
 	text	   *new_text = (text *) palloc(new_text_size);
 
-	SET_VARSIZE(new_text, new_text_size);
-	memcpy(VARDATA(new_text), VARDATA(arg1), arg1_size);
-	memcpy(VARDATA(new_text) + arg1_size, VARDATA(arg2), arg2_size);
+	memset((void *) new_text, 0, new_text_size);
+	VARATT_SIZEP(new_text) = new_text_size;
+	strncpy(VARDATA(new_text), VARDATA(arg1), VARSIZE(arg1) - VARHDRSZ);
+	strncat(VARDATA(new_text), VARDATA(arg2), VARSIZE(arg2) - VARHDRSZ);
 	return new_text;
 }
 
@@ -106,6 +102,6 @@ c_overpaid(HeapTupleHeader t,	/* the current instance of EMP */
 
 	salary = DatumGetInt32(GetAttributeByName(t, "salary", &isnull));
 	if (isnull)
-		return false;
+		return (false);
 	return salary > limit;
 }

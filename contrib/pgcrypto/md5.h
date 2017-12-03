@@ -1,4 +1,4 @@
-/*	contrib/pgcrypto/md5.h */
+/*	$PostgreSQL: pgsql/contrib/pgcrypto/md5.h,v 1.9 2005/10/15 02:49:06 momjian Exp $ */
 /*	   $KAME: md5.h,v 1.3 2000/02/22 14:01:18 itojun Exp $	   */
 
 /*
@@ -20,7 +20,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -59,7 +59,7 @@ typedef struct
 
 	unsigned int md5_i;
 	uint8		md5_buf[MD5_BUFLEN];
-} md5_ctxt;
+}	md5_ctxt;
 
 extern void md5_init(md5_ctxt *);
 extern void md5_loop(md5_ctxt *, const uint8 *, unsigned int);
@@ -76,4 +76,4 @@ do {				\
 	md5_result((x), (y));	\
 } while (0)
 
-#endif							/* ! _NETINET6_MD5_H_ */
+#endif   /* ! _NETINET6_MD5_H_ */

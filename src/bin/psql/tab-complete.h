@@ -1,17 +1,15 @@
 /*
  * psql - the PostgreSQL interactive terminal
  *
- * Copyright (c) 2000-2017, PostgreSQL Global Development Group
+ * Copyright (c) 2000-2005, PostgreSQL Global Development Group
  *
- * src/bin/psql/tab-complete.h
+ * $PostgreSQL: pgsql/src/bin/psql/tab-complete.h,v 1.12 2005/01/01 05:43:08 momjian Exp $
  */
 #ifndef TAB_COMPLETE_H
 #define TAB_COMPLETE_H
 
-#include "pqexpbuffer.h"
+#include "postgres_fe.h"
 
-extern PQExpBuffer tab_completion_query_buf;
+void		initialize_readline(void);
 
-extern void initialize_readline(void);
-
-#endif							/* TAB_COMPLETE_H */
+#endif

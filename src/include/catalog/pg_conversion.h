@@ -5,13 +5,13 @@
  *	  along with the relation's initial contents.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/catalog/pg_conversion.h
+ * $PostgreSQL: pgsql/src/include/catalog/pg_conversion.h,v 1.16 2005/06/28 05:09:05 tgl Exp $
  *
  * NOTES
- *	  the genbki.pl script reads this file and generates .bki
+ *	  the genbki.sh script reads this file and generates .bki
  *	  information from the DATA() statements.
  *
  *-------------------------------------------------------------------------
@@ -19,7 +19,12 @@
 #ifndef PG_CONVERSION_H
 #define PG_CONVERSION_H
 
-#include "catalog/genbki.h"
+/* ----------------
+ *		postgres.h contains the system type definitions and the
+ *		CATALOG(), BKI_BOOTSTRAP and DATA() sugar words so this file
+ *		can be read by both genbki.sh and the C compiler.
+ * ----------------
+ */
 
 /* ----------------------------------------------------------------
  *		pg_conversion definition.
@@ -32,7 +37,7 @@
  *	conforencoding		FOR encoding id
  *	contoencoding		TO encoding id
  *	conproc				OID of the conversion proc
- *	condefault			true if this is a default conversion
+ *	condefault			TRUE if this is a default conversion
  * ----------------------------------------------------------------
  */
 #define ConversionRelationId  2607
@@ -42,8 +47,8 @@ CATALOG(pg_conversion,2607)
 	NameData	conname;
 	Oid			connamespace;
 	Oid			conowner;
-	int32		conforencoding;
-	int32		contoencoding;
+	int4		conforencoding;
+	int4		contoencoding;
 	regproc		conproc;
 	bool		condefault;
 } FormData_pg_conversion;
@@ -74,4 +79,19 @@ typedef FormData_pg_conversion *Form_pg_conversion;
  * ---------------
  */
 
-#endif							/* PG_CONVERSION_H */
+/*
+ * prototypes for functions in pg_conversion.c
+ */
+#include "nodes/pg_list.h"
+#include "nodes/parsenodes.h"
+
+extern Oid ConversionCreate(const char *conname, Oid connamespace,
+				 Oid conowner,
+				 int32 conforencoding, int32 contoencoding,
+				 Oid conproc, bool def);
+extern void ConversionDrop(Oid conversionOid, DropBehavior behavior);
+extern void RemoveConversionById(Oid conversionOid);
+extern Oid	FindConversion(const char *conname, Oid connamespace);
+extern Oid	FindDefaultConversion(Oid connamespace, int32 for_encoding, int32 to_encoding);
+
+#endif   /* PG_CONVERSION_H */

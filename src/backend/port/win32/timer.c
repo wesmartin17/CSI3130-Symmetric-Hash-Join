@@ -8,15 +8,17 @@
  *	  - Does not support interval timer (value->it_interval)
  *	  - Only supports ITIMER_REAL
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  *
  * IDENTIFICATION
- *	  src/backend/port/win32/timer.c
+ *	  $PostgreSQL: pgsql/src/backend/port/win32/timer.c,v 1.6.2.1 2005/11/22 18:23:15 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 
 #include "postgres.h"
+
+#include "libpq/pqsignal.h"
 
 
 /* Communication area for inter-thread communication */
@@ -25,7 +27,7 @@ typedef struct timerCA
 	struct itimerval value;
 	HANDLE		event;
 	CRITICAL_SECTION crit_sec;
-} timerCA;
+}	timerCA;
 
 static timerCA timerCommArea;
 static HANDLE timerThreadHandle = INVALID_HANDLE_VALUE;
@@ -54,11 +56,7 @@ pg_timer_thread(LPVOID param)
 				timerCommArea.value.it_value.tv_usec == 0)
 				waittime = INFINITE;	/* Cancel the interrupt */
 			else
-			{
-				/* WaitForSingleObjectEx() uses milliseconds, round up */
-				waittime = (timerCommArea.value.it_value.tv_usec + 999) / 1000 +
-					timerCommArea.value.it_value.tv_sec * 1000;
-			}
+				waittime = timerCommArea.value.it_value.tv_usec / 10 + timerCommArea.value.it_value.tv_sec * 1000;
 			ResetEvent(timerCommArea.event);
 			LeaveCriticalSection(&timerCommArea.crit_sec);
 		}
@@ -83,7 +81,7 @@ pg_timer_thread(LPVOID param)
  * to handle the timer setting and notification upon timeout.
  */
 int
-setitimer(int which, const struct itimerval *value, struct itimerval *ovalue)
+setitimer(int which, const struct itimerval * value, struct itimerval * ovalue)
 {
 	Assert(value != NULL);
 	Assert(value->it_interval.tv_sec == 0 && value->it_interval.tv_usec == 0);
@@ -95,8 +93,8 @@ setitimer(int which, const struct itimerval *value, struct itimerval *ovalue)
 		timerCommArea.event = CreateEvent(NULL, TRUE, FALSE, NULL);
 		if (timerCommArea.event == NULL)
 			ereport(FATAL,
-					(errmsg_internal("could not create timer event: error code %lu",
-									 GetLastError())));
+					(errmsg_internal("failed to create timer event: %d",
+									 (int) GetLastError())));
 
 		MemSet(&timerCommArea.value, 0, sizeof(struct itimerval));
 
@@ -105,8 +103,8 @@ setitimer(int which, const struct itimerval *value, struct itimerval *ovalue)
 		timerThreadHandle = CreateThread(NULL, 0, pg_timer_thread, NULL, 0, NULL);
 		if (timerThreadHandle == INVALID_HANDLE_VALUE)
 			ereport(FATAL,
-					(errmsg_internal("could not create timer thread: error code %lu",
-									 GetLastError())));
+					(errmsg_internal("failed to create timer thread: %d",
+									 (int) GetLastError())));
 	}
 
 	/* Request the timer thread to change settings */

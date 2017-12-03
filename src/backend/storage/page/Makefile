@@ -4,7 +4,7 @@
 #    Makefile for storage/page
 #
 # IDENTIFICATION
-#    src/backend/storage/page/Makefile
+#    $PostgreSQL: pgsql/src/backend/storage/page/Makefile,v 1.11 2003/11/29 19:51:57 pgsql Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -12,9 +12,19 @@ subdir = src/backend/storage/page
 top_builddir = ../../../..
 include $(top_builddir)/src/Makefile.global
 
-OBJS =  bufpage.o checksum.o itemptr.o
+OBJS =  bufpage.o itemptr.o
 
-include $(top_srcdir)/src/backend/common.mk
+all: SUBSYS.o
 
-# important optimizations flags for checksum.c
-checksum.o: CFLAGS += ${CFLAGS_VECTOR}
+SUBSYS.o: $(OBJS)
+	$(LD) $(LDREL) $(LDOUT) SUBSYS.o $(OBJS)
+
+depend dep:
+	$(CC) -MM $(CFLAGS) *.c >depend
+
+clean: 
+	rm -f SUBSYS.o $(OBJS)
+
+ifeq (depend,$(wildcard depend))
+include depend
+endif

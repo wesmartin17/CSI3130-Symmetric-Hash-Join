@@ -3,10 +3,10 @@
  * geqo_random.h
  *	  random number generator
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/optimizer/geqo_random.h
+ * $PostgreSQL: pgsql/src/include/optimizer/geqo_random.h,v 1.16 2004/12/31 22:03:36 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -26,16 +26,13 @@
 
 #include <math.h>
 
-#include "optimizer/geqo.h"
-
-
-extern void geqo_set_seed(PlannerInfo *root, double seed);
-
 /* geqo_rand returns a random float value between 0 and 1 inclusive */
-extern double geqo_rand(PlannerInfo *root);
+
+#define geqo_rand() (((double) random()) / ((double) MAX_RANDOM_VALUE))
 
 /* geqo_randint returns integer value between lower and upper inclusive */
-#define geqo_randint(root, upper, lower) \
-	( (int) floor( geqo_rand(root)*(((upper)-(lower))+0.999999) ) + (lower) )
 
-#endif							/* GEQO_RANDOM_H */
+#define geqo_randint(upper,lower) \
+	( (int) floor( geqo_rand()*(((upper)-(lower))+0.999999) ) + (lower) )
+
+#endif   /* GEQO_RANDOM_H */

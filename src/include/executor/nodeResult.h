@@ -4,10 +4,10 @@
  *
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/executor/nodeResult.h
+ * $PostgreSQL: pgsql/src/include/executor/nodeResult.h,v 1.20 2004/12/31 22:03:29 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -16,10 +16,10 @@
 
 #include "nodes/execnodes.h"
 
-extern ResultState *ExecInitResult(Result *node, EState *estate, int eflags);
+extern int	ExecCountSlotsResult(Result *node);
+extern ResultState *ExecInitResult(Result *node, EState *estate);
+extern TupleTableSlot *ExecResult(ResultState *node);
 extern void ExecEndResult(ResultState *node);
-extern void ExecResultMarkPos(ResultState *node);
-extern void ExecResultRestrPos(ResultState *node);
-extern void ExecReScanResult(ResultState *node);
+extern void ExecReScanResult(ResultState *node, ExprContext *exprCtxt);
 
-#endif							/* NODERESULT_H */
+#endif   /* NODERESULT_H */

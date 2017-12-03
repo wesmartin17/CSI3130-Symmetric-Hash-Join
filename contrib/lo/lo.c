@@ -1,18 +1,28 @@
 /*
  *	PostgreSQL definitions for managed Large Objects.
  *
- *	contrib/lo/lo.c
+ *	$PostgreSQL: pgsql/contrib/lo/lo.c,v 1.15 2005/06/23 00:06:37 tgl Exp $
  *
  */
 
 #include "postgres.h"
 
-#include "commands/trigger.h"
-#include "executor/spi.h"
-#include "utils/builtins.h"
-#include "utils/rel.h"
+/* Required for largeobjects */
+#include "libpq/libpq-fs.h"
+#include "libpq/be-fsstubs.h"
 
-PG_MODULE_MAGIC;
+/* Required for SPI */
+#include "executor/spi.h"
+
+/* Required for triggers */
+#include "commands/trigger.h"
+
+
+#define atooid(x)  ((Oid) strtoul((x), NULL, 10))
+
+
+/* forward declarations */
+Datum		lo_manage(PG_FUNCTION_ARGS);
 
 
 /*
@@ -32,13 +42,8 @@ lo_manage(PG_FUNCTION_ARGS)
 	HeapTuple	newtuple;		/* The new value for tuple		*/
 	HeapTuple	trigtuple;		/* The original value of tuple	*/
 
-	if (!CALLED_AS_TRIGGER(fcinfo)) /* internal error */
-		elog(ERROR, "%s: not fired by trigger manager",
-			 trigdata->tg_trigger->tgname);
-
-	if (!TRIGGER_FIRED_FOR_ROW(trigdata->tg_event)) /* internal error */
-		elog(ERROR, "%s: must be fired for row",
-			 trigdata->tg_trigger->tgname);
+	if (!CALLED_AS_TRIGGER(fcinfo))		/* internal error */
+		elog(ERROR, "not fired by trigger manager");
 
 	/*
 	 * Fetch some values from trigdata
@@ -47,10 +52,6 @@ lo_manage(PG_FUNCTION_ARGS)
 	trigtuple = trigdata->tg_trigtuple;
 	tupdesc = trigdata->tg_relation->rd_att;
 	args = trigdata->tg_trigger->tgargs;
-
-	if (args == NULL)			/* internal error */
-		elog(ERROR, "%s: no column name provided in the trigger definition",
-			 trigdata->tg_trigger->tgname);
 
 	/* tuple to return to Executor */
 	if (TRIGGER_FIRED_BY_UPDATE(trigdata->tg_event))
@@ -65,8 +66,7 @@ lo_manage(PG_FUNCTION_ARGS)
 	attnum = SPI_fnumber(tupdesc, args[0]);
 
 	if (attnum <= 0)
-		elog(ERROR, "%s: column \"%s\" does not exist",
-			 trigdata->tg_trigger->tgname, args[0]);
+		elog(ERROR, "column \"%s\" does not exist", args[0]);
 
 	/*
 	 * Handle updates
@@ -80,7 +80,7 @@ lo_manage(PG_FUNCTION_ARGS)
 		char	   *newv = SPI_getvalue(newtuple, tupdesc, attnum);
 
 		if (orig != NULL && (newv == NULL || strcmp(orig, newv) != 0))
-			DirectFunctionCall1(be_lo_unlink,
+			DirectFunctionCall1(lo_unlink,
 								ObjectIdGetDatum(atooid(orig)));
 
 		if (newv)
@@ -100,7 +100,7 @@ lo_manage(PG_FUNCTION_ARGS)
 
 		if (orig != NULL)
 		{
-			DirectFunctionCall1(be_lo_unlink,
+			DirectFunctionCall1(lo_unlink,
 								ObjectIdGetDatum(atooid(orig)));
 
 			pfree(orig);

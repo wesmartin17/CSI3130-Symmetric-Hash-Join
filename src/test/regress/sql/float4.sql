@@ -10,11 +10,11 @@ INSERT INTO FLOAT4_TBL(f1) VALUES ('     -34.84    ');
 INSERT INTO FLOAT4_TBL(f1) VALUES ('1.2345678901234e+20');
 INSERT INTO FLOAT4_TBL(f1) VALUES ('1.2345678901234e-20');
 
--- test for over and under flow
-INSERT INTO FLOAT4_TBL(f1) VALUES ('10e70');
-INSERT INTO FLOAT4_TBL(f1) VALUES ('-10e70');
-INSERT INTO FLOAT4_TBL(f1) VALUES ('10e-70');
-INSERT INTO FLOAT4_TBL(f1) VALUES ('-10e-70');
+-- test for over and under flow 
+INSERT INTO FLOAT4_TBL(f1) VALUES ('10e40');
+INSERT INTO FLOAT4_TBL(f1) VALUES ('-10e40');
+INSERT INTO FLOAT4_TBL(f1) VALUES ('10e-40');
+INSERT INTO FLOAT4_TBL(f1) VALUES ('-10e-40');
 
 -- bad input
 INSERT INTO FLOAT4_TBL(f1) VALUES ('');
@@ -40,7 +40,7 @@ SELECT ' INFINITY    x'::float4;
 SELECT 'Infinity'::float4 + 100.0;
 SELECT 'Infinity'::float4 / 'Infinity'::float4;
 SELECT 'nan'::float4 / 'nan'::float4;
-SELECT 'nan'::numeric::float4;
+
 
 SELECT '' AS five, * FROM FLOAT4_TBL;
 
@@ -73,7 +73,7 @@ SELECT '' AS bad, f.f1 / '0.0' from FLOAT4_TBL f;
 
 SELECT '' AS five, * FROM FLOAT4_TBL;
 
--- test the unary float4abs operator
+-- test the unary float4abs operator 
 SELECT '' AS five, f.f1, @f.f1 AS abs_f1 FROM FLOAT4_TBL f;
 
 UPDATE FLOAT4_TBL
@@ -81,3 +81,4 @@ UPDATE FLOAT4_TBL
    WHERE FLOAT4_TBL.f1 > '0.0';
 
 SELECT '' AS five, * FROM FLOAT4_TBL;
+

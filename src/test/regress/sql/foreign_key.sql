@@ -47,7 +47,7 @@ DROP TABLE PKTABLE;
 -- check set NULL and table constraint on multiple columns
 --
 CREATE TABLE PKTABLE ( ptest1 int, ptest2 int, ptest3 text, PRIMARY KEY(ptest1, ptest2) );
-CREATE TABLE FKTABLE ( ftest1 int, ftest2 int, ftest3 int, CONSTRAINT constrname FOREIGN KEY(ftest1, ftest2)
+CREATE TABLE FKTABLE ( ftest1 int, ftest2 int, ftest3 int, CONSTRAINT constrname FOREIGN KEY(ftest1, ftest2) 
                        REFERENCES PKTABLE MATCH FULL ON DELETE SET NULL ON UPDATE SET NULL);
 
 -- Test comments
@@ -110,7 +110,7 @@ DROP TABLE FKTABLE;
 -- check set default and table constraint on multiple columns
 --
 CREATE TABLE PKTABLE ( ptest1 int, ptest2 int, ptest3 text, PRIMARY KEY(ptest1, ptest2) );
-CREATE TABLE FKTABLE ( ftest1 int DEFAULT -1, ftest2 int DEFAULT -2, ftest3 int, CONSTRAINT constrname2 FOREIGN KEY(ftest1, ftest2)
+CREATE TABLE FKTABLE ( ftest1 int DEFAULT -1, ftest2 int DEFAULT -2, ftest3 int, CONSTRAINT constrname2 FOREIGN KEY(ftest1, ftest2) 
                        REFERENCES PKTABLE MATCH FULL ON DELETE SET DEFAULT ON UPDATE SET DEFAULT);
 
 -- Insert a value in PKTABLE for default
@@ -214,7 +214,7 @@ DROP TABLE FKTABLE;
 DROP TABLE PKTABLE;
 
 
--- MATCH SIMPLE
+-- MATCH unspecified
 
 -- Base test restricting update/delete
 CREATE TABLE PKTABLE ( ptest1 int, ptest2 int, ptest3 int, ptest4 text, PRIMARY KEY(ptest1, ptest2, ptest3) );
@@ -228,7 +228,7 @@ INSERT INTO PKTABLE VALUES (2, 3, 4, 'test3');
 INSERT INTO PKTABLE VALUES (2, 4, 5, 'test4');
 
 -- Insert Foreign Key values
-INSERT INTO FKTABLE VALUES (1, 2, 3, 1);
+INSERT INTO FKTABLE VALUES (1, 2, 3, 1); 
 INSERT INTO FKTABLE VALUES (NULL, 2, 3, 2);
 INSERT INTO FKTABLE VALUES (2, NULL, 3, 3);
 INSERT INTO FKTABLE VALUES (NULL, 2, 7, 4);
@@ -273,7 +273,7 @@ INSERT INTO PKTABLE VALUES (2, 3, 4, 'test3');
 INSERT INTO PKTABLE VALUES (2, 4, 5, 'test4');
 
 -- Insert Foreign Key values
-INSERT INTO FKTABLE VALUES (1, 2, 3, 1);
+INSERT INTO FKTABLE VALUES (1, 2, 3, 1); 
 INSERT INTO FKTABLE VALUES (NULL, 2, 3, 2);
 INSERT INTO FKTABLE VALUES (2, NULL, 3, 3);
 INSERT INTO FKTABLE VALUES (NULL, 2, 7, 4);
@@ -325,8 +325,8 @@ INSERT INTO PKTABLE VALUES (2, 3, 4, 'test3');
 INSERT INTO PKTABLE VALUES (2, 4, 5, 'test4');
 
 -- Insert Foreign Key values
-INSERT INTO FKTABLE VALUES (1, 2, 3, 1);
-INSERT INTO FKTABLE VALUES (2, 3, 4, 1);
+INSERT INTO FKTABLE VALUES (1, 2, 3, 1); 
+INSERT INTO FKTABLE VALUES (2, 3, 4, 1); 
 INSERT INTO FKTABLE VALUES (NULL, 2, 3, 2);
 INSERT INTO FKTABLE VALUES (2, NULL, 3, 3);
 INSERT INTO FKTABLE VALUES (NULL, 2, 7, 4);
@@ -367,7 +367,7 @@ DROP TABLE PKTABLE;
 
 -- set default update / set null delete
 CREATE TABLE PKTABLE ( ptest1 int, ptest2 int, ptest3 int, ptest4 text, PRIMARY KEY(ptest1, ptest2, ptest3) );
-CREATE TABLE FKTABLE ( ftest1 int DEFAULT 0, ftest2 int DEFAULT -1, ftest3 int DEFAULT -2, ftest4 int, CONSTRAINT constrname3
+CREATE TABLE FKTABLE ( ftest1 int DEFAULT 0, ftest2 int DEFAULT -1, ftest3 int, ftest4 int,  CONSTRAINT constrname3
 			FOREIGN KEY(ftest1, ftest2, ftest3) REFERENCES PKTABLE
 			ON DELETE SET NULL ON UPDATE SET DEFAULT);
 
@@ -379,8 +379,8 @@ INSERT INTO PKTABLE VALUES (2, 4, 5, 'test4');
 INSERT INTO PKTABLE VALUES (2, -1, 5, 'test5');
 
 -- Insert Foreign Key values
-INSERT INTO FKTABLE VALUES (1, 2, 3, 1);
-INSERT INTO FKTABLE VALUES (2, 3, 4, 1);
+INSERT INTO FKTABLE VALUES (1, 2, 3, 1); 
+INSERT INTO FKTABLE VALUES (2, 3, 4, 1); 
 INSERT INTO FKTABLE VALUES (2, 4, 5, 1);
 INSERT INTO FKTABLE VALUES (NULL, 2, 3, 2);
 INSERT INTO FKTABLE VALUES (2, NULL, 3, 3);
@@ -397,7 +397,7 @@ SELECT * from FKTABLE;
 UPDATE PKTABLE set ptest2=5 where ptest2=2;
 
 -- Try to update something that will set default
-UPDATE PKTABLE set ptest1=0, ptest2=-1, ptest3=-2 where ptest2=2;
+UPDATE PKTABLE set ptest1=0, ptest2=5, ptest3=10 where ptest2=2;
 UPDATE PKTABLE set ptest2=10 where ptest2=4;
 
 -- Try to update something that should not set default
@@ -415,7 +415,7 @@ SELECT * from PKTABLE;
 SELECT * from FKTABLE;
 
 -- Try to delete something that should not set null
-DELETE FROM PKTABLE where ptest2=-1 and ptest3=5;
+DELETE FROM PKTABLE where ptest2=5;
 
 -- Show PKTABLE and FKTABLE
 SELECT * from PKTABLE;
@@ -442,38 +442,19 @@ DROP TABLE PKTABLE;
 --
 -- Tests for mismatched types
 --
--- Basic one column, two table setup
+-- Basic one column, two table setup 
 CREATE TABLE PKTABLE (ptest1 int PRIMARY KEY);
-INSERT INTO PKTABLE VALUES(42);
--- This next should fail, because int=inet does not exist
+-- This next should fail, because inet=int does not exist
 CREATE TABLE FKTABLE (ftest1 inet REFERENCES pktable);
 -- This should also fail for the same reason, but here we
 -- give the column name
 CREATE TABLE FKTABLE (ftest1 inet REFERENCES pktable(ptest1));
--- This should succeed, even though they are different types,
--- because int=int8 exists and is a member of the integer opfamily
-CREATE TABLE FKTABLE (ftest1 int8 REFERENCES pktable);
--- Check it actually works
-INSERT INTO FKTABLE VALUES(42);		-- should succeed
-INSERT INTO FKTABLE VALUES(43);		-- should fail
-UPDATE FKTABLE SET ftest1 = ftest1;	-- should succeed
-UPDATE FKTABLE SET ftest1 = ftest1 + 1;	-- should fail
+-- This should succeed (with a warning), even though they are different types
+-- because int=varchar does exist
+CREATE TABLE FKTABLE (ftest1 varchar REFERENCES pktable);
 DROP TABLE FKTABLE;
--- This should fail, because we'd have to cast numeric to int which is
--- not an implicit coercion (or use numeric=numeric, but that's not part
--- of the integer opfamily)
-CREATE TABLE FKTABLE (ftest1 numeric REFERENCES pktable);
-DROP TABLE PKTABLE;
--- On the other hand, this should work because int implicitly promotes to
--- numeric, and we allow promotion on the FK side
-CREATE TABLE PKTABLE (ptest1 numeric PRIMARY KEY);
-INSERT INTO PKTABLE VALUES(42);
-CREATE TABLE FKTABLE (ftest1 int REFERENCES pktable);
--- Check it actually works
-INSERT INTO FKTABLE VALUES(42);		-- should succeed
-INSERT INTO FKTABLE VALUES(43);		-- should fail
-UPDATE FKTABLE SET ftest1 = ftest1;	-- should succeed
-UPDATE FKTABLE SET ftest1 = ftest1 + 1;	-- should fail
+-- As should this
+CREATE TABLE FKTABLE (ftest1 varchar REFERENCES pktable(ptest1));
 DROP TABLE FKTABLE;
 DROP TABLE PKTABLE;
 
@@ -502,7 +483,7 @@ DROP TABLE PKTABLE;
 CREATE TABLE PKTABLE (ptest1 int, ptest2 inet, ptest3 int, ptest4 inet, PRIMARY KEY(ptest1, ptest2), FOREIGN KEY(ptest3,
 ptest4) REFERENCES pktable(ptest1, ptest2));
 DROP TABLE PKTABLE;
--- And this,
+-- And this, 
 CREATE TABLE PKTABLE (ptest1 int, ptest2 inet, ptest3 int, ptest4 inet, PRIMARY KEY(ptest1, ptest2), FOREIGN KEY(ptest3,
 ptest4) REFERENCES pktable);
 DROP TABLE PKTABLE;
@@ -525,7 +506,7 @@ create table fktable (ftest1 int references pktable(base1));
 -- now some ins, upd, del
 insert into pktable(base1) values (1);
 insert into pktable(base1) values (2);
---  let's insert a non-existent fktable value
+--  let's insert a non-existant fktable value
 insert into fktable(ftest1) values (3);
 --  let's make a valid row for that
 insert into pktable(base1) values (3);
@@ -548,7 +529,7 @@ create table fktable (ftest1 int, ftest2 int, foreign key(ftest1, ftest2) refere
 -- now some ins, upd, del
 insert into pktable(base1, ptest1) values (1, 1);
 insert into pktable(base1, ptest1) values (2, 2);
---  let's insert a non-existent fktable value
+--  let's insert a non-existant fktable value
 insert into fktable(ftest1, ftest2) values (3, 1);
 --  let's make a valid row for that
 insert into pktable(base1,ptest1) values (3, 1);
@@ -618,7 +599,7 @@ drop table pktable_base;
 --		(right now, only FOREIGN KEY constraints can be deferred)
 --
 
--- deferrable, explicitly deferred
+-- deferrable, explicitely deferred
 CREATE TABLE pktable (
 	id		INT4 PRIMARY KEY,
 	other	INT4
@@ -632,7 +613,7 @@ CREATE TABLE fktable (
 -- default to immediate: should fail
 INSERT INTO fktable VALUES (5, 10);
 
--- explicitly defer the constraint
+-- explicitely defer the constraint
 BEGIN;
 
 SET CONSTRAINTS ALL DEFERRED;
@@ -663,7 +644,7 @@ INSERT INTO pktable VALUES (200, 500); -- make the FK insert valid
 
 COMMIT;
 
--- default to deferred, explicitly make immediate
+-- default to deferred, explicitely make immediate
 BEGIN;
 
 SET CONSTRAINTS ALL IMMEDIATE;
@@ -724,7 +705,7 @@ INSERT INTO fktable VALUES (100, 200);
 -- error here on commit
 COMMIT;
 
-DROP TABLE pktable, fktable;
+DROP TABLE pktable, fktable CASCADE;
 
 -- test notice about expensive referential integrity checks,
 -- where the index cannot be used because of type incompatibilities.
@@ -746,25 +727,22 @@ CREATE TEMP TABLE fktable (
 
 -- check individual constraints with alter table.
 
--- should fail
+-- should generate warnings
 
--- varchar does not promote to real
 ALTER TABLE fktable ADD CONSTRAINT fk_2_3
 FOREIGN KEY (x2) REFERENCES pktable(id3);
 
--- nor to int4
 ALTER TABLE fktable ADD CONSTRAINT fk_2_1
 FOREIGN KEY (x2) REFERENCES pktable(id1);
 
--- real does not promote to int4
 ALTER TABLE fktable ADD CONSTRAINT fk_3_1
 FOREIGN KEY (x3) REFERENCES pktable(id1);
 
--- int4 does not promote to text
+-- should NOT generate warnings
+
+-- int4 promotes to text, so this is ok
 ALTER TABLE fktable ADD CONSTRAINT fk_1_2
 FOREIGN KEY (x1) REFERENCES pktable(id2);
-
--- should succeed
 
 -- int4 promotes to real
 ALTER TABLE fktable ADD CONSTRAINT fk_1_3
@@ -774,13 +752,13 @@ FOREIGN KEY (x1) REFERENCES pktable(id3);
 ALTER TABLE fktable ADD CONSTRAINT fk_4_2
 FOREIGN KEY (x4) REFERENCES pktable(id2);
 
--- int2 is part of integer opfamily as of 8.0
+-- int2 is part of int4 opclass as of 8.0
 ALTER TABLE fktable ADD CONSTRAINT fk_5_1
 FOREIGN KEY (x5) REFERENCES pktable(id1);
 
 -- check multikey cases, especially out-of-order column lists
 
--- these should work
+-- no warnings here
 
 ALTER TABLE fktable ADD CONSTRAINT fk_123_123
 FOREIGN KEY (x1,x2,x3) REFERENCES pktable(id1,id2,id3);
@@ -791,7 +769,7 @@ FOREIGN KEY (x2,x1,x3) REFERENCES pktable(id2,id1,id3);
 ALTER TABLE fktable ADD CONSTRAINT fk_253_213
 FOREIGN KEY (x2,x5,x3) REFERENCES pktable(id2,id1,id3);
 
--- these should fail
+-- warnings here
 
 ALTER TABLE fktable ADD CONSTRAINT fk_123_231
 FOREIGN KEY (x1,x2,x3) REFERENCES pktable(id2,id3,id1);
@@ -799,7 +777,7 @@ FOREIGN KEY (x1,x2,x3) REFERENCES pktable(id2,id3,id1);
 ALTER TABLE fktable ADD CONSTRAINT fk_241_132
 FOREIGN KEY (x2,x4,x1) REFERENCES pktable(id1,id3,id2);
 
-DROP TABLE pktable, fktable;
+DROP TABLE pktable, fktable CASCADE;
 
 -- test a tricky case: we can elide firing the FK check trigger during
 -- an UPDATE if the UPDATE did not change the foreign key
@@ -830,228 +808,3 @@ UPDATE fktable SET id = id + 1;
 
 -- should catch error from initial INSERT
 COMMIT;
-
--- check same case when insert is in a different subtransaction than update
-
-BEGIN;
-
--- doesn't match PK, but no error yet
-INSERT INTO fktable VALUES (0, 20);
-
--- UPDATE will be in a subxact
-SAVEPOINT savept1;
-
--- don't change FK
-UPDATE fktable SET id = id + 1;
-
--- should catch error from initial INSERT
-COMMIT;
-
-BEGIN;
-
--- INSERT will be in a subxact
-SAVEPOINT savept1;
-
--- doesn't match PK, but no error yet
-INSERT INTO fktable VALUES (0, 20);
-
-RELEASE SAVEPOINT savept1;
-
--- don't change FK
-UPDATE fktable SET id = id + 1;
-
--- should catch error from initial INSERT
-COMMIT;
-
-BEGIN;
-
--- doesn't match PK, but no error yet
-INSERT INTO fktable VALUES (0, 20);
-
--- UPDATE will be in a subxact
-SAVEPOINT savept1;
-
--- don't change FK
-UPDATE fktable SET id = id + 1;
-
--- Roll back the UPDATE
-ROLLBACK TO savept1;
-
--- should catch error from initial INSERT
-COMMIT;
-
---
--- check ALTER CONSTRAINT
---
-
-INSERT INTO fktable VALUES (1, 5);
-
-ALTER TABLE fktable ALTER CONSTRAINT fktable_fk_fkey DEFERRABLE INITIALLY IMMEDIATE;
-
-BEGIN;
-
--- doesn't match FK, should throw error now
-UPDATE pktable SET id = 10 WHERE id = 5;
-
-COMMIT;
-
-BEGIN;
-
--- doesn't match PK, should throw error now
-INSERT INTO fktable VALUES (0, 20);
-
-COMMIT;
-
--- try additional syntax
-ALTER TABLE fktable ALTER CONSTRAINT fktable_fk_fkey NOT DEFERRABLE;
--- illegal option
-ALTER TABLE fktable ALTER CONSTRAINT fktable_fk_fkey NOT DEFERRABLE INITIALLY DEFERRED;
-
--- test order of firing of FK triggers when several RI-induced changes need to
--- be made to the same row.  This was broken by subtransaction-related
--- changes in 8.0.
-
-CREATE TEMP TABLE users (
-  id INT PRIMARY KEY,
-  name VARCHAR NOT NULL
-);
-
-INSERT INTO users VALUES (1, 'Jozko');
-INSERT INTO users VALUES (2, 'Ferko');
-INSERT INTO users VALUES (3, 'Samko');
-
-CREATE TEMP TABLE tasks (
-  id INT PRIMARY KEY,
-  owner INT REFERENCES users ON UPDATE CASCADE ON DELETE SET NULL,
-  worker INT REFERENCES users ON UPDATE CASCADE ON DELETE SET NULL,
-  checked_by INT REFERENCES users ON UPDATE CASCADE ON DELETE SET NULL
-);
-
-INSERT INTO tasks VALUES (1,1,NULL,NULL);
-INSERT INTO tasks VALUES (2,2,2,NULL);
-INSERT INTO tasks VALUES (3,3,3,3);
-
-SELECT * FROM tasks;
-
-UPDATE users SET id = 4 WHERE id = 3;
-
-SELECT * FROM tasks;
-
-DELETE FROM users WHERE id = 4;
-
-SELECT * FROM tasks;
-
--- could fail with only 2 changes to make, if row was already updated
-BEGIN;
-UPDATE tasks set id=id WHERE id=2;
-SELECT * FROM tasks;
-DELETE FROM users WHERE id = 2;
-SELECT * FROM tasks;
-COMMIT;
-
---
--- Test self-referential FK with CASCADE (bug #6268)
---
-create temp table selfref (
-    a int primary key,
-    b int,
-    foreign key (b) references selfref (a)
-        on update cascade on delete cascade
-);
-
-insert into selfref (a, b)
-values
-    (0, 0),
-    (1, 1);
-
-begin;
-    update selfref set a = 123 where a = 0;
-    select a, b from selfref;
-    update selfref set a = 456 where a = 123;
-    select a, b from selfref;
-commit;
-
---
--- Test that SET DEFAULT actions recognize updates to default values
---
-create temp table defp (f1 int primary key);
-create temp table defc (f1 int default 0
-                        references defp on delete set default);
-insert into defp values (0), (1), (2);
-insert into defc values (2);
-select * from defc;
-delete from defp where f1 = 2;
-select * from defc;
-delete from defp where f1 = 0; -- fail
-alter table defc alter column f1 set default 1;
-delete from defp where f1 = 0;
-select * from defc;
-delete from defp where f1 = 1; -- fail
-
---
--- Test the difference between NO ACTION and RESTRICT
---
-create temp table pp (f1 int primary key);
-create temp table cc (f1 int references pp on update no action);
-insert into pp values(12);
-insert into pp values(11);
-update pp set f1=f1+1;
-insert into cc values(13);
-update pp set f1=f1+1;
-update pp set f1=f1+1; -- fail
-drop table pp, cc;
-
-create temp table pp (f1 int primary key);
-create temp table cc (f1 int references pp on update restrict);
-insert into pp values(12);
-insert into pp values(11);
-update pp set f1=f1+1;
-insert into cc values(13);
-update pp set f1=f1+1; -- fail
-drop table pp, cc;
-
---
--- Test interaction of foreign-key optimization with rules (bug #14219)
---
-create temp table t1 (a integer primary key, b text);
-create temp table t2 (a integer primary key, b integer references t1);
-create rule r1 as on delete to t1 do delete from t2 where t2.b = old.a;
-
-explain (costs off) delete from t1 where a = 1;
-delete from t1 where a = 1;
-
---
--- Test deferred FK check on a tuple deleted by a rolled-back subtransaction
---
-create table pktable2(f1 int primary key);
-create table fktable2(f1 int references pktable2 deferrable initially deferred);
-insert into pktable2 values(1);
-
-begin;
-insert into fktable2 values(1);
-savepoint x;
-delete from fktable2;
-rollback to x;
-commit;
-
-begin;
-insert into fktable2 values(2);
-savepoint x;
-delete from fktable2;
-rollback to x;
-commit; -- fail
-
---
--- Test that we prevent dropping FK constraint with pending trigger events
---
-begin;
-insert into fktable2 values(2);
-alter table fktable2 drop constraint fktable2_f1_fkey;
-commit;
-
-begin;
-delete from pktable2 where f1 = 1;
-alter table fktable2 drop constraint fktable2_f1_fkey;
-commit;
-
-drop table pktable2, fktable2;

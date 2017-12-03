@@ -1,9 +1,19 @@
 <!--
-doc/src/sgml/ref/execute.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/execute.sgml,v 1.12 2004/09/30 04:23:27 neilc Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-execute">
+<refentry id="SQL-EXECUTE">
+ <refmeta>
+  <refentrytitle id="sql-execute-title">EXECUTE</refentrytitle>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>EXECUTE</refname>
+  <refpurpose>execute a prepared statement</refpurpose>
+ </refnamediv>
+
  <indexterm zone="sql-execute">
   <primary>EXECUTE</primary>
  </indexterm>
@@ -13,20 +23,9 @@ PostgreSQL documentation
   <secondary>executing</secondary>
  </indexterm>
 
- <refmeta>
-  <refentrytitle>EXECUTE</refentrytitle>
-  <manvolnum>7</manvolnum>
-  <refmiscinfo>SQL - Language Statements</refmiscinfo>
- </refmeta>
-
- <refnamediv>
-  <refname>EXECUTE</refname>
-  <refpurpose>execute a prepared statement</refpurpose>
- </refnamediv>
-
  <refsynopsisdiv>
 <synopsis>
-EXECUTE <replaceable class="parameter">name</replaceable> [ ( <replaceable class="parameter">parameter</replaceable> [, ...] ) ]
+EXECUTE <replaceable class="PARAMETER">plan_name</replaceable> [ (<replaceable class="PARAMETER">parameter</replaceable> [, ...] ) ]
 </synopsis>
  </refsynopsisdiv>
 
@@ -52,7 +51,7 @@ EXECUTE <replaceable class="parameter">name</replaceable> [ ( <replaceable class
 
   <para>
    For more information on the creation and usage of prepared statements,
-   see <xref linkend="sql-prepare"/>.
+   see <xref linkend="sql-prepare" endterm="sql-prepare-title">.
   </para>
  </refsect1>
 
@@ -61,7 +60,7 @@ EXECUTE <replaceable class="parameter">name</replaceable> [ ( <replaceable class
 
   <variablelist>
    <varlistentry>
-    <term><replaceable class="parameter">name</replaceable></term>
+    <term><replaceable class="PARAMETER">plan_name</replaceable></term>
     <listitem>
      <para>
       The name of the prepared statement to execute.
@@ -70,13 +69,14 @@ EXECUTE <replaceable class="parameter">name</replaceable> [ ( <replaceable class
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">parameter</replaceable></term>
+    <term><replaceable class="PARAMETER">parameter</replaceable></term>
     <listitem>
      <para>
       The actual value of a parameter to the prepared statement.  This
-      must be an expression yielding a value that is compatible with
-      the data type of this parameter, as was determined when the
-      prepared statement was created.
+      must be an expression yielding a value of a type compatible with
+      the data type specified for this parameter position in the
+      <command>PREPARE</command> command that created the prepared
+      statement.
      </para>
     </listitem>
    </varlistentry>
@@ -87,16 +87,16 @@ EXECUTE <replaceable class="parameter">name</replaceable> [ ( <replaceable class
   <title>Outputs</title>
    <para>
    The command tag returned by <command>EXECUTE</command>
-   is that of the prepared statement, and not <literal>EXECUTE</literal>.
+   is that of the prepared statement, and not <literal>EXECUTE</>.
   </para>
  </refsect1>
 
  <refsect1>
-  <title>Examples</title>
+  <title>Examples</>
   <para>
     Examples are given in the <xref linkend="sql-prepare-examples"
-    endterm="sql-prepare-examples-title"/> section of the <xref
-    linkend="sql-prepare"/> documentation.
+    endterm="sql-prepare-examples-title"> section of the <xref
+    linkend="sql-prepare" endterm="sql-prepare-title"> documentation.
    </para>
  </refsect1>
 
@@ -115,8 +115,25 @@ EXECUTE <replaceable class="parameter">name</replaceable> [ ( <replaceable class
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-deallocate"/></member>
-   <member><xref linkend="sql-prepare"/></member>
+   <member><xref linkend="sql-deallocate" endterm="sql-deallocate-title"></member>
+   <member><xref linkend="sql-prepare" endterm="sql-prepare-title"></member>
   </simplelist>
  </refsect1>
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

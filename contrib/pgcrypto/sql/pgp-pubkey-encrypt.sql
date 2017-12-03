@@ -1,8 +1,6 @@
 --
 -- PGP Public Key Encryption
 --
--- ensure consistent test output regardless of the default bytea format
-SET bytea_output TO escape;
 
 -- successful encrypt/decrypt
 select pgp_pub_decrypt(
@@ -48,3 +46,5 @@ select pgp_pub_decrypt(
 		pgp_pub_encrypt_bytea('Secret msg', dearmor(pubkey)),
 		dearmor(seckey))
 from keytbl where keytbl.id=1;
+
+

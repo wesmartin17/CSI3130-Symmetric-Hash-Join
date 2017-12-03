@@ -1,16 +1,11 @@
 <!--
-doc/src/sgml/ref/drop_table.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/drop_table.sgml,v 1.22 2005/01/04 00:39:53 tgl Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-droptable">
- <indexterm zone="sql-droptable">
-  <primary>DROP TABLE</primary>
- </indexterm>
-
+<refentry id="SQL-DROPTABLE">
  <refmeta>
-  <refentrytitle>DROP TABLE</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="SQL-DROPTABLE-TITLE">DROP TABLE</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -19,50 +14,42 @@ PostgreSQL documentation
   <refpurpose>remove a table</refpurpose>
  </refnamediv>
 
+ <indexterm zone="sql-droptable">
+  <primary>DROP TABLE</primary>
+ </indexterm>
+
  <refsynopsisdiv>
 <synopsis>
-DROP TABLE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...] [ CASCADE | RESTRICT ]
+DROP TABLE <replaceable class="PARAMETER">name</replaceable> [, ...] [ CASCADE | RESTRICT ]
 </synopsis>
  </refsynopsisdiv>
-
+ 
  <refsect1>
   <title>Description</title>
 
   <para>
    <command>DROP TABLE</command> removes tables from the database.
-   Only the table owner, the schema owner, and superuser can drop a
-   table.  To empty a table of rows
-   without destroying the table, use <xref linkend="sql-delete"/>
-   or <xref linkend="sql-truncate"/>.
+   Only its owner may destroy a table.  To empty a table of rows,
+   without destroying the table, use <command>DELETE</command>.
   </para>
 
   <para>
    <command>DROP TABLE</command> always removes any indexes, rules,
    triggers, and constraints that exist for the target table.
    However, to drop a table that is referenced by a view or a foreign-key
-   constraint of another table, <literal>CASCADE</literal> must be
-   specified. (<literal>CASCADE</literal> will remove a dependent view entirely,
+   constraint of another table, <literal>CASCADE</> must be
+   specified. (<literal>CASCADE</> will remove a dependent view entirely,
    but in the foreign-key case it will only remove the foreign-key
    constraint, not the other table entirely.)
   </para>
  </refsect1>
-
+  
  <refsect1>
   <title>Parameters</title>
 
   <variablelist>
    <varlistentry>
-    <term><literal>IF EXISTS</literal></term>
-    <listitem>
-     <para>
-      Do not throw an error if the table does not exist. A notice is issued
-      in this case.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">name</replaceable></term>
+    <term><replaceable class="PARAMETER">name</replaceable></term>
     <listitem>
      <para>
       The name (optionally schema-qualified) of the table to drop.
@@ -75,9 +62,7 @@ DROP TABLE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ..
     <listitem>
      <para>
       Automatically drop objects that depend on the table (such as
-      views),
-      and in turn all objects that depend on those objects
-      (see <xref linkend="ddl-depend"/>).
+      views).
      </para>
     </listitem>
    </varlistentry>
@@ -98,22 +83,21 @@ DROP TABLE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ..
   <title>Examples</title>
 
   <para>
-   To destroy two tables, <literal>films</literal> and
+   To destroy two tables, <literal>films</literal> and 
    <literal>distributors</literal>:
 
 <programlisting>
 DROP TABLE films, distributors;
-</programlisting></para>
+</programlisting>
+  </para>
  </refsect1>
-
+ 
  <refsect1>
   <title>Compatibility</title>
 
   <para>
    This command conforms to the SQL standard, except that the standard only
-   allows one table to be dropped per command, and apart from the
-   <literal>IF EXISTS</literal> option, which is a <productname>PostgreSQL</productname>
-   extension.
+   allows one table to be dropped per command. 
   </para>
  </refsect1>
 
@@ -121,9 +105,26 @@ DROP TABLE films, distributors;
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-altertable"/></member>
-   <member><xref linkend="sql-createtable"/></member>
+   <member><xref linkend="sql-altertable" endterm="sql-altertable-title"></member>
+   <member><xref linkend="sql-createtable" endterm="sql-createtable-title"></member>
   </simplelist>
  </refsect1>
 
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

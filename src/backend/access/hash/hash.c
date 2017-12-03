@@ -3,12 +3,12 @@
  * hash.c
  *	  Implementation of Margo Seltzer's Hashing package for postgres.
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/access/hash/hash.c
+ *	  $PostgreSQL: pgsql/src/backend/access/hash/hash.c,v 1.81 2005/10/15 02:49:08 momjian Exp $
  *
  * NOTES
  *	  This file contains only the public interface routines.
@@ -18,25 +18,20 @@
 
 #include "postgres.h"
 
+#include "access/genam.h"
 #include "access/hash.h"
-#include "access/hash_xlog.h"
-#include "access/relscan.h"
+#include "access/heapam.h"
+#include "access/xlogutils.h"
 #include "catalog/index.h"
 #include "commands/vacuum.h"
-#include "miscadmin.h"
-#include "optimizer/plancat.h"
-#include "utils/builtins.h"
-#include "utils/index_selfuncs.h"
-#include "utils/rel.h"
+#include "executor/executor.h"
 #include "miscadmin.h"
 
 
 /* Working state for hashbuild and its callback */
 typedef struct
 {
-	HSpool	   *spool;			/* NULL if not using spooling */
-	double		indtuples;		/* # tuples accepted into index */
-	Relation	heapRel;		/* heap relation descriptor */
+	double		indtuples;
 } HashBuildState;
 
 static void hashbuildCallback(Relation index,
@@ -48,66 +43,15 @@ static void hashbuildCallback(Relation index,
 
 
 /*
- * Hash handler function: return IndexAmRoutine with access method parameters
- * and callbacks.
- */
-Datum
-hashhandler(PG_FUNCTION_ARGS)
-{
-	IndexAmRoutine *amroutine = makeNode(IndexAmRoutine);
-
-	amroutine->amstrategies = HTMaxStrategyNumber;
-	amroutine->amsupport = HASHNProcs;
-	amroutine->amcanorder = false;
-	amroutine->amcanorderbyop = false;
-	amroutine->amcanbackward = true;
-	amroutine->amcanunique = false;
-	amroutine->amcanmulticol = false;
-	amroutine->amoptionalkey = false;
-	amroutine->amsearcharray = false;
-	amroutine->amsearchnulls = false;
-	amroutine->amstorage = false;
-	amroutine->amclusterable = false;
-	amroutine->ampredlocks = false;
-	amroutine->amcanparallel = false;
-	amroutine->amkeytype = INT4OID;
-
-	amroutine->ambuild = hashbuild;
-	amroutine->ambuildempty = hashbuildempty;
-	amroutine->aminsert = hashinsert;
-	amroutine->ambulkdelete = hashbulkdelete;
-	amroutine->amvacuumcleanup = hashvacuumcleanup;
-	amroutine->amcanreturn = NULL;
-	amroutine->amcostestimate = hashcostestimate;
-	amroutine->amoptions = hashoptions;
-	amroutine->amproperty = NULL;
-	amroutine->amvalidate = hashvalidate;
-	amroutine->ambeginscan = hashbeginscan;
-	amroutine->amrescan = hashrescan;
-	amroutine->amgettuple = hashgettuple;
-	amroutine->amgetbitmap = hashgetbitmap;
-	amroutine->amendscan = hashendscan;
-	amroutine->ammarkpos = NULL;
-	amroutine->amrestrpos = NULL;
-	amroutine->amestimateparallelscan = NULL;
-	amroutine->aminitparallelscan = NULL;
-	amroutine->amparallelrescan = NULL;
-
-	PG_RETURN_POINTER(amroutine);
-}
-
-/*
  *	hashbuild() -- build a new hash index.
  */
-IndexBuildResult *
-hashbuild(Relation heap, Relation index, IndexInfo *indexInfo)
+Datum
+hashbuild(PG_FUNCTION_ARGS)
 {
-	IndexBuildResult *result;
-	BlockNumber relpages;
+	Relation	heap = (Relation) PG_GETARG_POINTER(0);
+	Relation	index = (Relation) PG_GETARG_POINTER(1);
+	IndexInfo  *indexInfo = (IndexInfo *) PG_GETARG_POINTER(2);
 	double		reltuples;
-	double		allvisfrac;
-	uint32		num_buckets;
-	long		sort_threshold;
 	HashBuildState buildstate;
 
 	/*
@@ -118,74 +62,20 @@ hashbuild(Relation heap, Relation index, IndexInfo *indexInfo)
 		elog(ERROR, "index \"%s\" already contains data",
 			 RelationGetRelationName(index));
 
-	/* Estimate the number of rows currently present in the table */
-	estimate_rel_size(heap, NULL, &relpages, &reltuples, &allvisfrac);
+	/* initialize the hash index metadata page */
+	_hash_metapinit(index);
 
-	/* Initialize the hash index metadata page and initial buckets */
-	num_buckets = _hash_init(index, reltuples, MAIN_FORKNUM);
-
-	/*
-	 * If we just insert the tuples into the index in scan order, then
-	 * (assuming their hash codes are pretty random) there will be no locality
-	 * of access to the index, and if the index is bigger than available RAM
-	 * then we'll thrash horribly.  To prevent that scenario, we can sort the
-	 * tuples by (expected) bucket number.  However, such a sort is useless
-	 * overhead when the index does fit in RAM.  We choose to sort if the
-	 * initial index size exceeds maintenance_work_mem, or the number of
-	 * buffers usable for the index, whichever is less.  (Limiting by the
-	 * number of buffers should reduce thrashing between PG buffers and kernel
-	 * buffers, which seems useful even if no physical I/O results.  Limiting
-	 * by maintenance_work_mem is useful to allow easy testing of the sort
-	 * code path, and may be useful to DBAs as an additional control knob.)
-	 *
-	 * NOTE: this test will need adjustment if a bucket is ever different from
-	 * one page.  Also, "initial index size" accounting does not include the
-	 * metapage, nor the first bitmap page.
-	 */
-	sort_threshold = (maintenance_work_mem * 1024L) / BLCKSZ;
-	if (index->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
-		sort_threshold = Min(sort_threshold, NBuffers);
-	else
-		sort_threshold = Min(sort_threshold, NLocBuffer);
-
-	if (num_buckets >= (uint32) sort_threshold)
-		buildstate.spool = _h_spoolinit(heap, index, num_buckets);
-	else
-		buildstate.spool = NULL;
-
-	/* prepare to build the index */
+	/* build the index */
 	buildstate.indtuples = 0;
-	buildstate.heapRel = heap;
 
 	/* do the heap scan */
-	reltuples = IndexBuildHeapScan(heap, index, indexInfo, true,
+	reltuples = IndexBuildHeapScan(heap, index, indexInfo,
 								   hashbuildCallback, (void *) &buildstate);
 
-	if (buildstate.spool)
-	{
-		/* sort the tuples and insert them into the index */
-		_h_indexbuild(buildstate.spool, buildstate.heapRel);
-		_h_spooldestroy(buildstate.spool);
-	}
+	/* since we just counted the # of tuples, may as well update stats */
+	IndexCloseAndUpdateStats(heap, reltuples, index, buildstate.indtuples);
 
-	/*
-	 * Return statistics
-	 */
-	result = (IndexBuildResult *) palloc(sizeof(IndexBuildResult));
-
-	result->heap_tuples = reltuples;
-	result->index_tuples = buildstate.indtuples;
-
-	return result;
-}
-
-/*
- *	hashbuildempty() -- build an empty hash index in the initialization fork
- */
-void
-hashbuildempty(Relation index)
-{
-	_hash_init(index, 0, INIT_FORKNUM);
+	PG_RETURN_VOID();
 }
 
 /*
@@ -200,87 +90,108 @@ hashbuildCallback(Relation index,
 				  void *state)
 {
 	HashBuildState *buildstate = (HashBuildState *) state;
-	Datum		index_values[1];
-	bool		index_isnull[1];
 	IndexTuple	itup;
+	HashItem	hitem;
 
-	/* convert data to a hash key; on failure, do not insert anything */
-	if (!_hash_convert_tuple(index,
-							 values, isnull,
-							 index_values, index_isnull))
-		return;
+	/* form an index tuple and point it at the heap tuple */
+	itup = index_form_tuple(RelationGetDescr(index), values, isnull);
+	itup->t_tid = htup->t_self;
 
-	/* Either spool the tuple for sorting, or just put it into the index */
-	if (buildstate->spool)
-		_h_spool(buildstate->spool, &htup->t_self,
-				 index_values, index_isnull);
-	else
+	/* Hash indexes don't index nulls, see notes in hashinsert */
+	if (IndexTupleHasNulls(itup))
 	{
-		/* form an index tuple and point it at the heap tuple */
-		itup = index_form_tuple(RelationGetDescr(index),
-								index_values, index_isnull);
-		itup->t_tid = htup->t_self;
-		_hash_doinsert(index, itup, buildstate->heapRel);
 		pfree(itup);
+		return;
 	}
 
+	hitem = _hash_formitem(itup);
+
+	_hash_doinsert(index, hitem);
+
 	buildstate->indtuples += 1;
+
+	pfree(hitem);
+	pfree(itup);
 }
 
 /*
  *	hashinsert() -- insert an index tuple into a hash table.
  *
- *	Hash on the heap tuple's key, form an index tuple with hash code.
- *	Find the appropriate location for the new tuple, and put it there.
+ *	Hash on the index tuple's key, find the appropriate location
+ *	for the new tuple, and put it there.
  */
-bool
-hashinsert(Relation rel, Datum *values, bool *isnull,
-		   ItemPointer ht_ctid, Relation heapRel,
-		   IndexUniqueCheck checkUnique,
-		   IndexInfo *indexInfo)
+Datum
+hashinsert(PG_FUNCTION_ARGS)
 {
-	Datum		index_values[1];
-	bool		index_isnull[1];
+	Relation	rel = (Relation) PG_GETARG_POINTER(0);
+	Datum	   *values = (Datum *) PG_GETARG_POINTER(1);
+	bool	   *isnull = (bool *) PG_GETARG_POINTER(2);
+	ItemPointer ht_ctid = (ItemPointer) PG_GETARG_POINTER(3);
+
+#ifdef NOT_USED
+	Relation	heapRel = (Relation) PG_GETARG_POINTER(4);
+	bool		checkUnique = PG_GETARG_BOOL(5);
+#endif
+	HashItem	hitem;
 	IndexTuple	itup;
 
-	/* convert data to a hash key; on failure, do not insert anything */
-	if (!_hash_convert_tuple(rel,
-							 values, isnull,
-							 index_values, index_isnull))
-		return false;
-
-	/* form an index tuple and point it at the heap tuple */
-	itup = index_form_tuple(RelationGetDescr(rel), index_values, index_isnull);
+	/* generate an index tuple */
+	itup = index_form_tuple(RelationGetDescr(rel), values, isnull);
 	itup->t_tid = *ht_ctid;
 
-	_hash_doinsert(rel, itup, heapRel);
+	/*
+	 * If the single index key is null, we don't insert it into the index.
+	 * Hash tables support scans on '='. Relational algebra says that A = B
+	 * returns null if either A or B is null.  This means that no
+	 * qualification used in an index scan could ever return true on a null
+	 * attribute.  It also means that indices can't be used by ISNULL or
+	 * NOTNULL scans, but that's an artifact of the strategy map architecture
+	 * chosen in 1986, not of the way nulls are handled here.
+	 */
+	if (IndexTupleHasNulls(itup))
+	{
+		pfree(itup);
+		PG_RETURN_BOOL(false);
+	}
 
+	hitem = _hash_formitem(itup);
+
+	_hash_doinsert(rel, hitem);
+
+	pfree(hitem);
 	pfree(itup);
 
-	return false;
+	PG_RETURN_BOOL(true);
 }
 
 
 /*
  *	hashgettuple() -- Get the next tuple in the scan.
  */
-bool
-hashgettuple(IndexScanDesc scan, ScanDirection dir)
+Datum
+hashgettuple(PG_FUNCTION_ARGS)
 {
+	IndexScanDesc scan = (IndexScanDesc) PG_GETARG_POINTER(0);
+	ScanDirection dir = (ScanDirection) PG_GETARG_INT32(1);
 	HashScanOpaque so = (HashScanOpaque) scan->opaque;
+	Relation	rel = scan->indexRelation;
+	Page		page;
+	OffsetNumber offnum;
 	bool		res;
 
-	/* Hash indexes are always lossy since we store only the hash code */
-	scan->xs_recheck = true;
+	/*
+	 * We hold pin but not lock on current buffer while outside the hash AM.
+	 * Reacquire the read lock here.
+	 */
+	if (BufferIsValid(so->hashso_curbuf))
+		_hash_chgbufaccess(rel, so->hashso_curbuf, HASH_NOLOCK, HASH_READ);
 
 	/*
 	 * If we've already initialized this scan, we can just advance it in the
 	 * appropriate direction.  If we haven't done so yet, we call a routine to
 	 * get the first item in the scan.
 	 */
-	if (!HashScanPosIsValid(so->currPos))
-		res = _hash_first(scan, dir);
-	else
+	if (ItemPointerIsValid(&(scan->currentItemData)))
 	{
 		/*
 		 * Check to see if we should kill the previously-fetched tuple.
@@ -288,19 +199,18 @@ hashgettuple(IndexScanDesc scan, ScanDirection dir)
 		if (scan->kill_prior_tuple)
 		{
 			/*
-			 * Yes, so remember it for later. (We'll deal with all such tuples
-			 * at once right after leaving the index page or at end of scan.)
-			 * In case if caller reverses the indexscan direction it is quite
-			 * possible that the same item might get entered multiple times.
-			 * But, we don't detect that; instead, we just forget any excess
-			 * entries.
+			 * Yes, so mark it by setting the LP_DELETE bit in the item flags.
 			 */
-			if (so->killedItems == NULL)
-				so->killedItems = (int *)
-					palloc(MaxIndexTuplesPerPage * sizeof(int));
+			offnum = ItemPointerGetOffsetNumber(&(scan->currentItemData));
+			page = BufferGetPage(so->hashso_curbuf);
+			PageGetItemId(page, offnum)->lp_flags |= LP_DELETE;
 
-			if (so->numKilled < MaxIndexTuplesPerPage)
-				so->killedItems[so->numKilled++] = so->currPos.itemIndex;
+			/*
+			 * Since this can be redone later if needed, it's treated the same
+			 * as a commit-hint-bit status update for heap tuples: we mark the
+			 * buffer dirty but don't make a WAL log entry.
+			 */
+			SetBufferCommitInfoNeedsSave(so->hashso_curbuf);
 		}
 
 		/*
@@ -308,94 +218,159 @@ hashgettuple(IndexScanDesc scan, ScanDirection dir)
 		 */
 		res = _hash_next(scan, dir);
 	}
+	else
+		res = _hash_first(scan, dir);
 
-	return res;
+	/*
+	 * Skip killed tuples if asked to.
+	 */
+	if (scan->ignore_killed_tuples)
+	{
+		while (res)
+		{
+			offnum = ItemPointerGetOffsetNumber(&(scan->currentItemData));
+			page = BufferGetPage(so->hashso_curbuf);
+			if (!ItemIdDeleted(PageGetItemId(page, offnum)))
+				break;
+			res = _hash_next(scan, dir);
+		}
+	}
+
+	/* Release read lock on current buffer, but keep it pinned */
+	if (BufferIsValid(so->hashso_curbuf))
+		_hash_chgbufaccess(rel, so->hashso_curbuf, HASH_READ, HASH_NOLOCK);
+
+	PG_RETURN_BOOL(res);
 }
 
 
 /*
- *	hashgetbitmap() -- get all tuples at once
+ *	hashgetmulti() -- get multiple tuples at once
+ *
+ * This is a somewhat generic implementation: it avoids lock reacquisition
+ * overhead, but there's no smarts about picking especially good stopping
+ * points such as index page boundaries.
  */
-int64
-hashgetbitmap(IndexScanDesc scan, TIDBitmap *tbm)
+Datum
+hashgetmulti(PG_FUNCTION_ARGS)
 {
+	IndexScanDesc scan = (IndexScanDesc) PG_GETARG_POINTER(0);
+	ItemPointer tids = (ItemPointer) PG_GETARG_POINTER(1);
+	int32		max_tids = PG_GETARG_INT32(2);
+	int32	   *returned_tids = (int32 *) PG_GETARG_POINTER(3);
 	HashScanOpaque so = (HashScanOpaque) scan->opaque;
-	bool		res;
-	int64		ntids = 0;
-	HashScanPosItem *currItem;
+	Relation	rel = scan->indexRelation;
+	bool		res = true;
+	int32		ntids = 0;
 
-	res = _hash_first(scan, ForwardScanDirection);
+	/*
+	 * We hold pin but not lock on current buffer while outside the hash AM.
+	 * Reacquire the read lock here.
+	 */
+	if (BufferIsValid(so->hashso_curbuf))
+		_hash_chgbufaccess(rel, so->hashso_curbuf, HASH_NOLOCK, HASH_READ);
 
-	while (res)
+	while (ntids < max_tids)
 	{
-		currItem = &so->currPos.items[so->currPos.itemIndex];
+		/*
+		 * Start scan, or advance to next tuple.
+		 */
+		if (ItemPointerIsValid(&(scan->currentItemData)))
+			res = _hash_next(scan, ForwardScanDirection);
+		else
+			res = _hash_first(scan, ForwardScanDirection);
 
 		/*
-		 * _hash_first and _hash_next handle eliminate dead index entries
-		 * whenever scan->ignored_killed_tuples is true.  Therefore, there's
-		 * nothing to do here except add the results to the TIDBitmap.
+		 * Skip killed tuples if asked to.
 		 */
-		tbm_add_tuples(tbm, &(currItem->heapTid), 1, true);
-		ntids++;
+		if (scan->ignore_killed_tuples)
+		{
+			while (res)
+			{
+				Page		page;
+				OffsetNumber offnum;
 
-		res = _hash_next(scan, ForwardScanDirection);
+				offnum = ItemPointerGetOffsetNumber(&(scan->currentItemData));
+				page = BufferGetPage(so->hashso_curbuf);
+				if (!ItemIdDeleted(PageGetItemId(page, offnum)))
+					break;
+				res = _hash_next(scan, ForwardScanDirection);
+			}
+		}
+
+		if (!res)
+			break;
+		/* Save tuple ID, and continue scanning */
+		tids[ntids] = scan->xs_ctup.t_self;
+		ntids++;
 	}
 
-	return ntids;
+	/* Release read lock on current buffer, but keep it pinned */
+	if (BufferIsValid(so->hashso_curbuf))
+		_hash_chgbufaccess(rel, so->hashso_curbuf, HASH_READ, HASH_NOLOCK);
+
+	*returned_tids = ntids;
+	PG_RETURN_BOOL(res);
 }
 
 
 /*
  *	hashbeginscan() -- start a scan on a hash index
  */
-IndexScanDesc
-hashbeginscan(Relation rel, int nkeys, int norderbys)
+Datum
+hashbeginscan(PG_FUNCTION_ARGS)
 {
+	Relation	rel = (Relation) PG_GETARG_POINTER(0);
+	int			keysz = PG_GETARG_INT32(1);
+	ScanKey		scankey = (ScanKey) PG_GETARG_POINTER(2);
 	IndexScanDesc scan;
 	HashScanOpaque so;
 
-	/* no order by operators allowed */
-	Assert(norderbys == 0);
-
-	scan = RelationGetIndexScan(rel, nkeys, norderbys);
-
+	scan = RelationGetIndexScan(rel, keysz, scankey);
 	so = (HashScanOpaque) palloc(sizeof(HashScanOpaqueData));
-	HashScanPosInvalidate(so->currPos);
-	so->hashso_bucket_buf = InvalidBuffer;
-	so->hashso_split_bucket_buf = InvalidBuffer;
-
-	so->hashso_buc_populated = false;
-	so->hashso_buc_split = false;
-
-	so->killedItems = NULL;
-	so->numKilled = 0;
-
+	so->hashso_bucket_valid = false;
+	so->hashso_bucket_blkno = 0;
+	so->hashso_curbuf = so->hashso_mrkbuf = InvalidBuffer;
 	scan->opaque = so;
 
-	return scan;
+	/* register scan in case we change pages it's using */
+	_hash_regscan(scan);
+
+	PG_RETURN_POINTER(scan);
 }
 
 /*
  *	hashrescan() -- rescan an index relation
  */
-void
-hashrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
-		   ScanKey orderbys, int norderbys)
+Datum
+hashrescan(PG_FUNCTION_ARGS)
 {
+	IndexScanDesc scan = (IndexScanDesc) PG_GETARG_POINTER(0);
+	ScanKey		scankey = (ScanKey) PG_GETARG_POINTER(1);
 	HashScanOpaque so = (HashScanOpaque) scan->opaque;
 	Relation	rel = scan->indexRelation;
 
-	if (HashScanPosIsValid(so->currPos))
+	/* if we are called from beginscan, so is still NULL */
+	if (so)
 	{
-		/* Before leaving current page, deal with any killed items */
-		if (so->numKilled > 0)
-			_hash_kill_items(scan);
+		/* release any pins we still hold */
+		if (BufferIsValid(so->hashso_curbuf))
+			_hash_dropbuf(rel, so->hashso_curbuf);
+		so->hashso_curbuf = InvalidBuffer;
+
+		if (BufferIsValid(so->hashso_mrkbuf))
+			_hash_dropbuf(rel, so->hashso_mrkbuf);
+		so->hashso_mrkbuf = InvalidBuffer;
+
+		/* release lock on bucket, too */
+		if (so->hashso_bucket_blkno)
+			_hash_droplock(rel, so->hashso_bucket_blkno, HASH_SHARE);
+		so->hashso_bucket_blkno = 0;
 	}
 
-	_hash_dropscanbuf(rel, so);
-
-	/* set position invalid (this will cause _hash_first call) */
-	HashScanPosInvalidate(so->currPos);
+	/* set positions invalid (this will cause _hash_first call) */
+	ItemPointerSetInvalid(&(scan->currentItemData));
+	ItemPointerSetInvalid(&(scan->currentMarkData));
 
 	/* Update scan key, if a new one is given */
 	if (scankey && scan->numberOfKeys > 0)
@@ -403,34 +378,102 @@ hashrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 		memmove(scan->keyData,
 				scankey,
 				scan->numberOfKeys * sizeof(ScanKeyData));
+		if (so)
+			so->hashso_bucket_valid = false;
 	}
 
-	so->hashso_buc_populated = false;
-	so->hashso_buc_split = false;
+	PG_RETURN_VOID();
 }
 
 /*
  *	hashendscan() -- close down a scan
  */
-void
-hashendscan(IndexScanDesc scan)
+Datum
+hashendscan(PG_FUNCTION_ARGS)
 {
+	IndexScanDesc scan = (IndexScanDesc) PG_GETARG_POINTER(0);
 	HashScanOpaque so = (HashScanOpaque) scan->opaque;
 	Relation	rel = scan->indexRelation;
 
-	if (HashScanPosIsValid(so->currPos))
-	{
-		/* Before leaving current page, deal with any killed items */
-		if (so->numKilled > 0)
-			_hash_kill_items(scan);
-	}
+	/* don't need scan registered anymore */
+	_hash_dropscan(scan);
 
-	_hash_dropscanbuf(rel, so);
+	/* release any pins we still hold */
+	if (BufferIsValid(so->hashso_curbuf))
+		_hash_dropbuf(rel, so->hashso_curbuf);
+	so->hashso_curbuf = InvalidBuffer;
 
-	if (so->killedItems != NULL)
-		pfree(so->killedItems);
+	if (BufferIsValid(so->hashso_mrkbuf))
+		_hash_dropbuf(rel, so->hashso_mrkbuf);
+	so->hashso_mrkbuf = InvalidBuffer;
+
+	/* release lock on bucket, too */
+	if (so->hashso_bucket_blkno)
+		_hash_droplock(rel, so->hashso_bucket_blkno, HASH_SHARE);
+	so->hashso_bucket_blkno = 0;
+
+	/* be tidy */
+	ItemPointerSetInvalid(&(scan->currentItemData));
+	ItemPointerSetInvalid(&(scan->currentMarkData));
+
 	pfree(so);
 	scan->opaque = NULL;
+
+	PG_RETURN_VOID();
+}
+
+/*
+ *	hashmarkpos() -- save current scan position
+ */
+Datum
+hashmarkpos(PG_FUNCTION_ARGS)
+{
+	IndexScanDesc scan = (IndexScanDesc) PG_GETARG_POINTER(0);
+	HashScanOpaque so = (HashScanOpaque) scan->opaque;
+	Relation	rel = scan->indexRelation;
+
+	/* release pin on old marked data, if any */
+	if (BufferIsValid(so->hashso_mrkbuf))
+		_hash_dropbuf(rel, so->hashso_mrkbuf);
+	so->hashso_mrkbuf = InvalidBuffer;
+	ItemPointerSetInvalid(&(scan->currentMarkData));
+
+	/* bump pin count on currentItemData and copy to currentMarkData */
+	if (ItemPointerIsValid(&(scan->currentItemData)))
+	{
+		IncrBufferRefCount(so->hashso_curbuf);
+		so->hashso_mrkbuf = so->hashso_curbuf;
+		scan->currentMarkData = scan->currentItemData;
+	}
+
+	PG_RETURN_VOID();
+}
+
+/*
+ *	hashrestrpos() -- restore scan to last saved position
+ */
+Datum
+hashrestrpos(PG_FUNCTION_ARGS)
+{
+	IndexScanDesc scan = (IndexScanDesc) PG_GETARG_POINTER(0);
+	HashScanOpaque so = (HashScanOpaque) scan->opaque;
+	Relation	rel = scan->indexRelation;
+
+	/* release pin on current data, if any */
+	if (BufferIsValid(so->hashso_curbuf))
+		_hash_dropbuf(rel, so->hashso_curbuf);
+	so->hashso_curbuf = InvalidBuffer;
+	ItemPointerSetInvalid(&(scan->currentItemData));
+
+	/* bump pin count on currentMarkData and copy to currentItemData */
+	if (ItemPointerIsValid(&(scan->currentMarkData)))
+	{
+		IncrBufferRefCount(so->hashso_mrkbuf);
+		so->hashso_curbuf = so->hashso_mrkbuf;
+		scan->currentItemData = scan->currentMarkData;
+	}
+
+	PG_RETURN_VOID();
 }
 
 /*
@@ -438,40 +481,44 @@ hashendscan(IndexScanDesc scan)
  * The set of target tuples is specified via a callback routine that tells
  * whether any given heap tuple (identified by ItemPointer) is being deleted.
  *
- * This function also deletes the tuples that are moved by split to other
- * bucket.
- *
  * Result: a palloc'd struct containing statistical info for VACUUM displays.
  */
-IndexBulkDeleteResult *
-hashbulkdelete(IndexVacuumInfo *info, IndexBulkDeleteResult *stats,
-			   IndexBulkDeleteCallback callback, void *callback_state)
+Datum
+hashbulkdelete(PG_FUNCTION_ARGS)
 {
-	Relation	rel = info->index;
+	Relation	rel = (Relation) PG_GETARG_POINTER(0);
+	IndexBulkDeleteCallback callback = (IndexBulkDeleteCallback) PG_GETARG_POINTER(1);
+	void	   *callback_state = (void *) PG_GETARG_POINTER(2);
+	IndexBulkDeleteResult *result;
+	BlockNumber num_pages;
 	double		tuples_removed;
 	double		num_index_tuples;
 	double		orig_ntuples;
 	Bucket		orig_maxbucket;
 	Bucket		cur_maxbucket;
 	Bucket		cur_bucket;
-	Buffer		metabuf = InvalidBuffer;
+	Buffer		metabuf;
 	HashMetaPage metap;
-	HashMetaPage cachedmetap;
+	HashMetaPageData local_metapage;
 
 	tuples_removed = 0;
 	num_index_tuples = 0;
 
 	/*
-	 * We need a copy of the metapage so that we can use its hashm_spares[]
-	 * values to compute bucket page addresses, but a cached copy should be
-	 * good enough.  (If not, we'll detect that further down and refresh the
-	 * cache as necessary.)
+	 * Read the metapage to fetch original bucket and tuple counts.  Also, we
+	 * keep a copy of the last-seen metapage so that we can use its
+	 * hashm_spares[] values to compute bucket page addresses.	This is a bit
+	 * hokey but perfectly safe, since the interesting entries in the spares
+	 * array cannot change under us; and it beats rereading the metapage for
+	 * each bucket.
 	 */
-	cachedmetap = _hash_getcachedmetap(rel, &metabuf, false);
-	Assert(cachedmetap != NULL);
-
-	orig_maxbucket = cachedmetap->hashm_maxbucket;
-	orig_ntuples = cachedmetap->hashm_ntuples;
+	metabuf = _hash_getbuf(rel, HASH_METAPAGE, HASH_READ);
+	metap = (HashMetaPage) BufferGetPage(metabuf);
+	_hash_checkpage(rel, (Page) metap, LH_META_PAGE);
+	orig_maxbucket = metap->hashm_maxbucket;
+	orig_ntuples = metap->hashm_ntuples;
+	memcpy(&local_metapage, metap, sizeof(local_metapage));
+	_hash_relbuf(rel, metabuf);
 
 	/* Scan the buckets that we know exist */
 	cur_bucket = 0;
@@ -482,89 +529,104 @@ loop_top:
 	{
 		BlockNumber bucket_blkno;
 		BlockNumber blkno;
-		Buffer		bucket_buf;
-		Buffer		buf;
-		HashPageOpaque bucket_opaque;
-		Page		page;
-		bool		split_cleanup = false;
+		bool		bucket_dirty = false;
 
 		/* Get address of bucket's start page */
-		bucket_blkno = BUCKET_TO_BLKNO(cachedmetap, cur_bucket);
+		bucket_blkno = BUCKET_TO_BLKNO(&local_metapage, cur_bucket);
 
+		/* Exclusive-lock the bucket so we can shrink it */
+		_hash_getlock(rel, bucket_blkno, HASH_EXCLUSIVE);
+
+		/* Shouldn't have any active scans locally, either */
+		if (_hash_has_active_scan(rel, cur_bucket))
+			elog(ERROR, "hash index has active scan during VACUUM");
+
+		/* Scan each page in bucket */
 		blkno = bucket_blkno;
-
-		/*
-		 * We need to acquire a cleanup lock on the primary bucket page to out
-		 * wait concurrent scans before deleting the dead tuples.
-		 */
-		buf = ReadBufferExtended(rel, MAIN_FORKNUM, blkno, RBM_NORMAL, info->strategy);
-		LockBufferForCleanup(buf);
-		_hash_checkpage(rel, buf, LH_BUCKET_PAGE);
-
-		page = BufferGetPage(buf);
-		bucket_opaque = (HashPageOpaque) PageGetSpecialPointer(page);
-
-		/*
-		 * If the bucket contains tuples that are moved by split, then we need
-		 * to delete such tuples.  We can't delete such tuples if the split
-		 * operation on bucket is not finished as those are needed by scans.
-		 */
-		if (!H_BUCKET_BEING_SPLIT(bucket_opaque) &&
-			H_NEEDS_SPLIT_CLEANUP(bucket_opaque))
+		while (BlockNumberIsValid(blkno))
 		{
-			split_cleanup = true;
+			Buffer		buf;
+			Page		page;
+			HashPageOpaque opaque;
+			OffsetNumber offno;
+			OffsetNumber maxoffno;
+			bool		page_dirty = false;
+
+			vacuum_delay_point();
+
+			buf = _hash_getbuf(rel, blkno, HASH_WRITE);
+			page = BufferGetPage(buf);
+			_hash_checkpage(rel, page, LH_BUCKET_PAGE | LH_OVERFLOW_PAGE);
+			opaque = (HashPageOpaque) PageGetSpecialPointer(page);
+			Assert(opaque->hasho_bucket == cur_bucket);
+
+			/* Scan each tuple in page */
+			offno = FirstOffsetNumber;
+			maxoffno = PageGetMaxOffsetNumber(page);
+			while (offno <= maxoffno)
+			{
+				HashItem	hitem;
+				ItemPointer htup;
+
+				hitem = (HashItem) PageGetItem(page,
+											   PageGetItemId(page, offno));
+				htup = &(hitem->hash_itup.t_tid);
+				if (callback(htup, callback_state))
+				{
+					/* delete the item from the page */
+					PageIndexTupleDelete(page, offno);
+					bucket_dirty = page_dirty = true;
+
+					/* don't increment offno, instead decrement maxoffno */
+					maxoffno = OffsetNumberPrev(maxoffno);
+
+					tuples_removed += 1;
+				}
+				else
+				{
+					offno = OffsetNumberNext(offno);
+
+					num_index_tuples += 1;
+				}
+			}
 
 			/*
-			 * This bucket might have been split since we last held a lock on
-			 * the metapage.  If so, hashm_maxbucket, hashm_highmask and
-			 * hashm_lowmask might be old enough to cause us to fail to remove
-			 * tuples left behind by the most recent split.  To prevent that,
-			 * now that the primary page of the target bucket has been locked
-			 * (and thus can't be further split), check whether we need to
-			 * update our cached metapage data.
+			 * Write page if needed, advance to next page.
 			 */
-			Assert(bucket_opaque->hasho_prevblkno != InvalidBlockNumber);
-			if (bucket_opaque->hasho_prevblkno > cachedmetap->hashm_maxbucket)
-			{
-				cachedmetap = _hash_getcachedmetap(rel, &metabuf, true);
-				Assert(cachedmetap != NULL);
-			}
+			blkno = opaque->hasho_nextblkno;
+
+			if (page_dirty)
+				_hash_wrtbuf(rel, buf);
+			else
+				_hash_relbuf(rel, buf);
 		}
 
-		bucket_buf = buf;
+		/* If we deleted anything, try to compact free space */
+		if (bucket_dirty)
+			_hash_squeezebucket(rel, cur_bucket, bucket_blkno);
 
-		hashbucketcleanup(rel, cur_bucket, bucket_buf, blkno, info->strategy,
-						  cachedmetap->hashm_maxbucket,
-						  cachedmetap->hashm_highmask,
-						  cachedmetap->hashm_lowmask, &tuples_removed,
-						  &num_index_tuples, split_cleanup,
-						  callback, callback_state);
-
-		_hash_dropbuf(rel, bucket_buf);
+		/* Release bucket lock */
+		_hash_droplock(rel, bucket_blkno, HASH_EXCLUSIVE);
 
 		/* Advance to next bucket */
 		cur_bucket++;
 	}
 
-	if (BufferIsInvalid(metabuf))
-		metabuf = _hash_getbuf(rel, HASH_METAPAGE, HASH_NOLOCK, LH_META_PAGE);
-
 	/* Write-lock metapage and check for split since we started */
-	LockBuffer(metabuf, BUFFER_LOCK_EXCLUSIVE);
-	metap = HashPageGetMeta(BufferGetPage(metabuf));
+	metabuf = _hash_getbuf(rel, HASH_METAPAGE, HASH_WRITE);
+	metap = (HashMetaPage) BufferGetPage(metabuf);
+	_hash_checkpage(rel, (Page) metap, LH_META_PAGE);
 
 	if (cur_maxbucket != metap->hashm_maxbucket)
 	{
 		/* There's been a split, so process the additional bucket(s) */
-		LockBuffer(metabuf, BUFFER_LOCK_UNLOCK);
-		cachedmetap = _hash_getcachedmetap(rel, &metabuf, true);
-		Assert(cachedmetap != NULL);
-		cur_maxbucket = cachedmetap->hashm_maxbucket;
+		cur_maxbucket = metap->hashm_maxbucket;
+		memcpy(&local_metapage, metap, sizeof(local_metapage));
+		_hash_relbuf(rel, metabuf);
 		goto loop_top;
 	}
 
 	/* Okay, we're really done.  Update tuple count in metapage. */
-	START_CRIT_SECTION();
 
 	if (orig_maxbucket == metap->hashm_maxbucket &&
 		orig_ntuples == metap->hashm_ntuples)
@@ -579,9 +641,7 @@ loop_top:
 	{
 		/*
 		 * Otherwise, our count is untrustworthy since we may have
-		 * double-scanned tuples in split buckets.  Proceed by dead-reckoning.
-		 * (Note: we still return estimated_count = false, because using this
-		 * count is better than not updating reltuples at all.)
+		 * double-scanned tuples in split buckets.	Proceed by dead-reckoning.
 		 */
 		if (metap->hashm_ntuples > tuples_removed)
 			metap->hashm_ntuples -= tuples_removed;
@@ -590,318 +650,27 @@ loop_top:
 		num_index_tuples = metap->hashm_ntuples;
 	}
 
-	MarkBufferDirty(metabuf);
-
-	/* XLOG stuff */
-	if (RelationNeedsWAL(rel))
-	{
-		xl_hash_update_meta_page xlrec;
-		XLogRecPtr	recptr;
-
-		xlrec.ntuples = metap->hashm_ntuples;
-
-		XLogBeginInsert();
-		XLogRegisterData((char *) &xlrec, SizeOfHashUpdateMetaPage);
-
-		XLogRegisterBuffer(0, metabuf, REGBUF_STANDARD);
-
-		recptr = XLogInsert(RM_HASH_ID, XLOG_HASH_UPDATE_META_PAGE);
-		PageSetLSN(BufferGetPage(metabuf), recptr);
-	}
-
-	END_CRIT_SECTION();
-
-	_hash_relbuf(rel, metabuf);
+	_hash_wrtbuf(rel, metabuf);
 
 	/* return statistics */
-	if (stats == NULL)
-		stats = (IndexBulkDeleteResult *) palloc0(sizeof(IndexBulkDeleteResult));
-	stats->estimated_count = false;
-	stats->num_index_tuples = num_index_tuples;
-	stats->tuples_removed += tuples_removed;
-	/* hashvacuumcleanup will fill in num_pages */
-
-	return stats;
-}
-
-/*
- * Post-VACUUM cleanup.
- *
- * Result: a palloc'd struct containing statistical info for VACUUM displays.
- */
-IndexBulkDeleteResult *
-hashvacuumcleanup(IndexVacuumInfo *info, IndexBulkDeleteResult *stats)
-{
-	Relation	rel = info->index;
-	BlockNumber num_pages;
-
-	/* If hashbulkdelete wasn't called, return NULL signifying no change */
-	/* Note: this covers the analyze_only case too */
-	if (stats == NULL)
-		return NULL;
-
-	/* update statistics */
 	num_pages = RelationGetNumberOfBlocks(rel);
-	stats->num_pages = num_pages;
 
-	return stats;
+	result = (IndexBulkDeleteResult *) palloc0(sizeof(IndexBulkDeleteResult));
+	result->num_pages = num_pages;
+	result->num_index_tuples = num_index_tuples;
+	result->tuples_removed = tuples_removed;
+
+	PG_RETURN_POINTER(result);
 }
 
-/*
- * Helper function to perform deletion of index entries from a bucket.
- *
- * This function expects that the caller has acquired a cleanup lock on the
- * primary bucket page, and will return with a write lock again held on the
- * primary bucket page.  The lock won't necessarily be held continuously,
- * though, because we'll release it when visiting overflow pages.
- *
- * There can't be any concurrent scans in progress when we first enter this
- * function because of the cleanup lock we hold on the primary bucket page,
- * but as soon as we release that lock, there might be.  If those scans got
- * ahead of our cleanup scan, they might see a tuple before we kill it and
- * wake up only after VACUUM has completed and the TID has been recycled for
- * an unrelated tuple.  To avoid that calamity, we prevent scans from passing
- * our cleanup scan by locking the next page in the bucket chain before
- * releasing the lock on the previous page.  (This type of lock chaining is not
- * ideal, so we might want to look for a better solution at some point.)
- *
- * We need to retain a pin on the primary bucket to ensure that no concurrent
- * split can start.
- */
+
 void
-hashbucketcleanup(Relation rel, Bucket cur_bucket, Buffer bucket_buf,
-				  BlockNumber bucket_blkno, BufferAccessStrategy bstrategy,
-				  uint32 maxbucket, uint32 highmask, uint32 lowmask,
-				  double *tuples_removed, double *num_index_tuples,
-				  bool split_cleanup,
-				  IndexBulkDeleteCallback callback, void *callback_state)
+hash_redo(XLogRecPtr lsn, XLogRecord *record)
 {
-	BlockNumber blkno;
-	Buffer		buf;
-	Bucket		new_bucket PG_USED_FOR_ASSERTS_ONLY = InvalidBucket;
-	bool		bucket_dirty = false;
+	elog(PANIC, "hash_redo: unimplemented");
+}
 
-	blkno = bucket_blkno;
-	buf = bucket_buf;
-
-	if (split_cleanup)
-		new_bucket = _hash_get_newbucket_from_oldbucket(rel, cur_bucket,
-														lowmask, maxbucket);
-
-	/* Scan each page in bucket */
-	for (;;)
-	{
-		HashPageOpaque opaque;
-		OffsetNumber offno;
-		OffsetNumber maxoffno;
-		Buffer		next_buf;
-		Page		page;
-		OffsetNumber deletable[MaxOffsetNumber];
-		int			ndeletable = 0;
-		bool		retain_pin = false;
-		bool		clear_dead_marking = false;
-
-		vacuum_delay_point();
-
-		page = BufferGetPage(buf);
-		opaque = (HashPageOpaque) PageGetSpecialPointer(page);
-
-		/* Scan each tuple in page */
-		maxoffno = PageGetMaxOffsetNumber(page);
-		for (offno = FirstOffsetNumber;
-			 offno <= maxoffno;
-			 offno = OffsetNumberNext(offno))
-		{
-			ItemPointer htup;
-			IndexTuple	itup;
-			Bucket		bucket;
-			bool		kill_tuple = false;
-
-			itup = (IndexTuple) PageGetItem(page,
-											PageGetItemId(page, offno));
-			htup = &(itup->t_tid);
-
-			/*
-			 * To remove the dead tuples, we strictly want to rely on results
-			 * of callback function.  refer btvacuumpage for detailed reason.
-			 */
-			if (callback && callback(htup, callback_state))
-			{
-				kill_tuple = true;
-				if (tuples_removed)
-					*tuples_removed += 1;
-			}
-			else if (split_cleanup)
-			{
-				/* delete the tuples that are moved by split. */
-				bucket = _hash_hashkey2bucket(_hash_get_indextuple_hashkey(itup),
-											  maxbucket,
-											  highmask,
-											  lowmask);
-				/* mark the item for deletion */
-				if (bucket != cur_bucket)
-				{
-					/*
-					 * We expect tuples to either belong to current bucket or
-					 * new_bucket.  This is ensured because we don't allow
-					 * further splits from bucket that contains garbage. See
-					 * comments in _hash_expandtable.
-					 */
-					Assert(bucket == new_bucket);
-					kill_tuple = true;
-				}
-			}
-
-			if (kill_tuple)
-			{
-				/* mark the item for deletion */
-				deletable[ndeletable++] = offno;
-			}
-			else
-			{
-				/* we're keeping it, so count it */
-				if (num_index_tuples)
-					*num_index_tuples += 1;
-			}
-		}
-
-		/* retain the pin on primary bucket page till end of bucket scan */
-		if (blkno == bucket_blkno)
-			retain_pin = true;
-		else
-			retain_pin = false;
-
-		blkno = opaque->hasho_nextblkno;
-
-		/*
-		 * Apply deletions, advance to next page and write page if needed.
-		 */
-		if (ndeletable > 0)
-		{
-			/* No ereport(ERROR) until changes are logged */
-			START_CRIT_SECTION();
-
-			PageIndexMultiDelete(page, deletable, ndeletable);
-			bucket_dirty = true;
-
-			/*
-			 * Let us mark the page as clean if vacuum removes the DEAD tuples
-			 * from an index page. We do this by clearing
-			 * LH_PAGE_HAS_DEAD_TUPLES flag.
-			 */
-			if (tuples_removed && *tuples_removed > 0 &&
-				H_HAS_DEAD_TUPLES(opaque))
-			{
-				opaque->hasho_flag &= ~LH_PAGE_HAS_DEAD_TUPLES;
-				clear_dead_marking = true;
-			}
-
-			MarkBufferDirty(buf);
-
-			/* XLOG stuff */
-			if (RelationNeedsWAL(rel))
-			{
-				xl_hash_delete xlrec;
-				XLogRecPtr	recptr;
-
-				xlrec.clear_dead_marking = clear_dead_marking;
-				xlrec.is_primary_bucket_page = (buf == bucket_buf) ? true : false;
-
-				XLogBeginInsert();
-				XLogRegisterData((char *) &xlrec, SizeOfHashDelete);
-
-				/*
-				 * bucket buffer needs to be registered to ensure that we can
-				 * acquire a cleanup lock on it during replay.
-				 */
-				if (!xlrec.is_primary_bucket_page)
-					XLogRegisterBuffer(0, bucket_buf, REGBUF_STANDARD | REGBUF_NO_IMAGE);
-
-				XLogRegisterBuffer(1, buf, REGBUF_STANDARD);
-				XLogRegisterBufData(1, (char *) deletable,
-									ndeletable * sizeof(OffsetNumber));
-
-				recptr = XLogInsert(RM_HASH_ID, XLOG_HASH_DELETE);
-				PageSetLSN(BufferGetPage(buf), recptr);
-			}
-
-			END_CRIT_SECTION();
-		}
-
-		/* bail out if there are no more pages to scan. */
-		if (!BlockNumberIsValid(blkno))
-			break;
-
-		next_buf = _hash_getbuf_with_strategy(rel, blkno, HASH_WRITE,
-											  LH_OVERFLOW_PAGE,
-											  bstrategy);
-
-		/*
-		 * release the lock on previous page after acquiring the lock on next
-		 * page
-		 */
-		if (retain_pin)
-			LockBuffer(buf, BUFFER_LOCK_UNLOCK);
-		else
-			_hash_relbuf(rel, buf);
-
-		buf = next_buf;
-	}
-
-	/*
-	 * lock the bucket page to clear the garbage flag and squeeze the bucket.
-	 * if the current buffer is same as bucket buffer, then we already have
-	 * lock on bucket page.
-	 */
-	if (buf != bucket_buf)
-	{
-		_hash_relbuf(rel, buf);
-		LockBuffer(bucket_buf, BUFFER_LOCK_EXCLUSIVE);
-	}
-
-	/*
-	 * Clear the garbage flag from bucket after deleting the tuples that are
-	 * moved by split.  We purposefully clear the flag before squeeze bucket,
-	 * so that after restart, vacuum shouldn't again try to delete the moved
-	 * by split tuples.
-	 */
-	if (split_cleanup)
-	{
-		HashPageOpaque bucket_opaque;
-		Page		page;
-
-		page = BufferGetPage(bucket_buf);
-		bucket_opaque = (HashPageOpaque) PageGetSpecialPointer(page);
-
-		/* No ereport(ERROR) until changes are logged */
-		START_CRIT_SECTION();
-
-		bucket_opaque->hasho_flag &= ~LH_BUCKET_NEEDS_SPLIT_CLEANUP;
-		MarkBufferDirty(bucket_buf);
-
-		/* XLOG stuff */
-		if (RelationNeedsWAL(rel))
-		{
-			XLogRecPtr	recptr;
-
-			XLogBeginInsert();
-			XLogRegisterBuffer(0, bucket_buf, REGBUF_STANDARD);
-
-			recptr = XLogInsert(RM_HASH_ID, XLOG_HASH_SPLIT_CLEANUP);
-			PageSetLSN(page, recptr);
-		}
-
-		END_CRIT_SECTION();
-	}
-
-	/*
-	 * If we have deleted anything, try to compact free space.  For squeezing
-	 * the bucket, we must have a cleanup lock, else it can impact the
-	 * ordering of tuples for a scan that has started before it.
-	 */
-	if (bucket_dirty && IsBufferCleanupOK(bucket_buf))
-		_hash_squeezebucket(rel, cur_bucket, bucket_blkno, bucket_buf,
-							bstrategy);
-	else
-		LockBuffer(bucket_buf, BUFFER_LOCK_UNLOCK);
+void
+hash_desc(char *buf, uint8 xl_info, char *rec)
+{
 }

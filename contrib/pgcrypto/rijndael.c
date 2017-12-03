@@ -1,18 +1,18 @@
 /*	$OpenBSD: rijndael.c,v 1.6 2000/12/09 18:51:34 markus Exp $ */
 
-/* contrib/pgcrypto/rijndael.c */
+/* $PostgreSQL: pgsql/contrib/pgcrypto/rijndael.c,v 1.12 2005/10/15 02:49:06 momjian Exp $ */
 
 /* This is an independent implementation of the encryption algorithm:	*/
 /*																		*/
 /*		   RIJNDAEL by Joan Daemen and Vincent Rijmen					*/
 /*																		*/
 /* which is a candidate algorithm in the Advanced Encryption Standard	*/
-/* programme of the US National Institute of Standards and Technology.  */
+/* programme of the US National Institute of Standards and Technology.	*/
 /*																		*/
 /* Copyright in this implementation is held by Dr B R Gladman but I		*/
 /* hereby give permission for its free direct or derivative use subject */
 /* to acknowledgment of its origin and compliance with any conditions	*/
-/* that the originators of the algorithm place on its exploitation.     */
+/* that the originators of the algorithm place on its exploitation.		*/
 /*																		*/
 /* Dr Brian Gladman (gladman@seven77.demon.co.uk) 14th January 1999		*/
 
@@ -47,6 +47,12 @@ Mean:		   500 cycles =    51.2 mbits/sec
 #include "px.h"
 #include "rijndael.h"
 
+/* sanity check */
+#if !defined(BYTE_ORDER) || (BYTE_ORDER != LITTLE_ENDIAN && BYTE_ORDER != BIG_ENDIAN)
+#error Define BYTE_ORDER to be equal to either LITTLE_ENDIAN or BIG_ENDIAN
+#endif
+
+
 #define PRE_CALC_TABLES
 #define LARGE_TABLES
 
@@ -67,7 +73,11 @@ static void gen_tabs(void);
 
 #define byte(x,n)	((u1byte)((x) >> (8 * (n))))
 
-#ifdef WORDS_BIGENDIAN
+#if BYTE_ORDER != LITTLE_ENDIAN
+#define BYTE_SWAP
+#endif
+
+#ifdef	BYTE_SWAP
 #define io_swap(x)	bswap(x)
 #else
 #define io_swap(x)	(x)
@@ -97,7 +107,7 @@ static u4byte il_tab[4][256];
 #endif
 
 static u4byte tab_gen = 0;
-#endif							/* !PRE_CALC_TABLES */
+#endif   /* !PRE_CALC_TABLES */
 
 #define ff_mult(a,b)	((a) && (b) ? pow_tab[(log_tab[a] + log_tab[b]) % 255] : 0)
 
@@ -188,7 +198,7 @@ gen_tabs(void)
 	/* rijndael specification is in big endian format with	*/
 	/* bit 0 as the most significant bit. In the remainder	*/
 	/* of the specification the bits are numbered from the	*/
-	/* least significant end of a byte.                     */
+	/* least significant end of a byte.						*/
 
 	for (i = 0; i < 256; ++i)
 	{
@@ -250,7 +260,7 @@ gen_tabs(void)
 	}
 
 	tab_gen = 1;
-#endif							/* !PRE_CALC_TABLES */
+#endif   /* !PRE_CALC_TABLES */
 }
 
 
@@ -302,7 +312,7 @@ do {   t = ls_box(rotr(t,  8)) ^ rco_tab[i];		   \
 } while (0)
 
 rijndael_ctx *
-rijndael_set_key(rijndael_ctx *ctx, const u4byte *in_key, const u4byte key_len,
+rijndael_set_key(rijndael_ctx * ctx, const u4byte * in_key, const u4byte key_len,
 				 int encrypt)
 {
 	u4byte		i,
@@ -384,7 +394,7 @@ do { \
 } while (0)
 
 void
-rijndael_encrypt(rijndael_ctx *ctx, const u4byte *in_blk, u4byte *out_blk)
+rijndael_encrypt(rijndael_ctx * ctx, const u4byte * in_blk, u4byte * out_blk)
 {
 	u4byte		k_len = ctx->k_len;
 	u4byte	   *e_key = ctx->e_key;
@@ -448,7 +458,7 @@ do { \
 } while (0)
 
 void
-rijndael_decrypt(rijndael_ctx *ctx, const u4byte *in_blk, u4byte *out_blk)
+rijndael_decrypt(rijndael_ctx * ctx, const u4byte * in_blk, u4byte * out_blk)
 {
 	u4byte		b0[4],
 				b1[4],
@@ -501,7 +511,7 @@ rijndael_decrypt(rijndael_ctx *ctx, const u4byte *in_blk, u4byte *out_blk)
  */
 
 void
-aes_set_key(rijndael_ctx *ctx, const uint8 *key, unsigned keybits, int enc)
+aes_set_key(rijndael_ctx * ctx, const uint8 *key, unsigned keybits, int enc)
 {
 	uint32	   *k;
 
@@ -510,7 +520,7 @@ aes_set_key(rijndael_ctx *ctx, const uint8 *key, unsigned keybits, int enc)
 }
 
 void
-aes_ecb_encrypt(rijndael_ctx *ctx, uint8 *data, unsigned len)
+aes_ecb_encrypt(rijndael_ctx * ctx, uint8 *data, unsigned len)
 {
 	unsigned	bs = 16;
 	uint32	   *d;
@@ -526,7 +536,7 @@ aes_ecb_encrypt(rijndael_ctx *ctx, uint8 *data, unsigned len)
 }
 
 void
-aes_ecb_decrypt(rijndael_ctx *ctx, uint8 *data, unsigned len)
+aes_ecb_decrypt(rijndael_ctx * ctx, uint8 *data, unsigned len)
 {
 	unsigned	bs = 16;
 	uint32	   *d;
@@ -542,7 +552,7 @@ aes_ecb_decrypt(rijndael_ctx *ctx, uint8 *data, unsigned len)
 }
 
 void
-aes_cbc_encrypt(rijndael_ctx *ctx, uint8 *iva, uint8 *data, unsigned len)
+aes_cbc_encrypt(rijndael_ctx * ctx, uint8 *iva, uint8 *data, unsigned len)
 {
 	uint32	   *iv = (uint32 *) iva;
 	uint32	   *d = (uint32 *) data;
@@ -564,7 +574,7 @@ aes_cbc_encrypt(rijndael_ctx *ctx, uint8 *iva, uint8 *data, unsigned len)
 }
 
 void
-aes_cbc_decrypt(rijndael_ctx *ctx, uint8 *iva, uint8 *data, unsigned len)
+aes_cbc_decrypt(rijndael_ctx * ctx, uint8 *iva, uint8 *data, unsigned len)
 {
 	uint32	   *d = (uint32 *) data;
 	unsigned	bs = 16;

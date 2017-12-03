@@ -1,20 +1,16 @@
 /*
- * contrib/spi/insert_username.c
+ * insert_username.c
+ * $Modified: Thu Oct 16 08:13:42 1997 by brook $
  *
  * insert user name in response to a trigger
  * usage:  insert_username (column_name)
  */
-#include "postgres.h"
 
-#include "access/htup_details.h"
-#include "catalog/pg_type.h"
-#include "commands/trigger.h"
-#include "executor/spi.h"
-#include "miscadmin.h"
-#include "utils/builtins.h"
-#include "utils/rel.h"
+#include "executor/spi.h"		/* this is what you need to work with SPI */
+#include "commands/trigger.h"	/* -"- and triggers */
+#include "miscadmin.h"			/* for GetUserName() */
 
-PG_MODULE_MAGIC;
+extern Datum insert_username(PG_FUNCTION_ARGS);
 
 PG_FUNCTION_INFO_V1(insert_username);
 
@@ -25,7 +21,6 @@ insert_username(PG_FUNCTION_ARGS)
 	Trigger    *trigger;		/* to get trigger name */
 	int			nargs;			/* # of arguments */
 	Datum		newval;			/* new value of column */
-	bool		newnull;		/* null flag */
 	char	  **args;			/* arguments */
 	char	   *relname;		/* triggered relation name */
 	Relation	rel;			/* triggered relation */
@@ -37,10 +32,10 @@ insert_username(PG_FUNCTION_ARGS)
 	if (!CALLED_AS_TRIGGER(fcinfo))
 		/* internal error */
 		elog(ERROR, "insert_username: not fired by trigger manager");
-	if (!TRIGGER_FIRED_FOR_ROW(trigdata->tg_event))
+	if (TRIGGER_FIRED_FOR_STATEMENT(trigdata->tg_event))
 		/* internal error */
-		elog(ERROR, "insert_username: must be fired for row");
-	if (!TRIGGER_FIRED_BEFORE(trigdata->tg_event))
+		elog(ERROR, "insert_username: can't process STATEMENT events");
+	if (TRIGGER_FIRED_AFTER(trigdata->tg_event))
 		/* internal error */
 		elog(ERROR, "insert_username: must be fired before event");
 
@@ -50,7 +45,7 @@ insert_username(PG_FUNCTION_ARGS)
 		rettuple = trigdata->tg_newtuple;
 	else
 		/* internal error */
-		elog(ERROR, "insert_username: cannot process DELETE events");
+		elog(ERROR, "insert_username: can't process DELETE events");
 
 	rel = trigdata->tg_relation;
 	relname = SPI_getrelname(rel);
@@ -67,7 +62,7 @@ insert_username(PG_FUNCTION_ARGS)
 
 	attnum = SPI_fnumber(tupdesc, args[0]);
 
-	if (attnum <= 0)
+	if (attnum < 0)
 		ereport(ERROR,
 				(errcode(ERRCODE_TRIGGERED_ACTION_EXCEPTION),
 				 errmsg("\"%s\" has no attribute \"%s\"", relname, args[0])));
@@ -79,12 +74,15 @@ insert_username(PG_FUNCTION_ARGS)
 						args[0], relname)));
 
 	/* create fields containing name */
-	newval = CStringGetTextDatum(GetUserNameFromId(GetUserId(), false));
-	newnull = false;
+	newval = DirectFunctionCall1(textin,
+							CStringGetDatum(GetUserNameFromId(GetUserId())));
 
 	/* construct new tuple */
-	rettuple = heap_modify_tuple_by_cols(rettuple, tupdesc,
-										 1, &attnum, &newval, &newnull);
+	rettuple = SPI_modifytuple(rel, rettuple, 1, &attnum, &newval, NULL);
+	if (rettuple == NULL)
+		/* internal error */
+		elog(ERROR, "insert_username (\"%s\"): %d returned by SPI_modifytuple",
+			 relname, SPI_result);
 
 	pfree(relname);
 

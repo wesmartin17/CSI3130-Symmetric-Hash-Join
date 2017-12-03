@@ -1,50 +1,44 @@
 %{
-/* contrib/seg/segparse.y */
-
+#define YYPARSE_PARAM result  /* need this to pass a pointer (void *) to yyparse */
+  
 #include "postgres.h"
 
 #include <math.h>
 
 #include "fmgr.h"
 #include "utils/builtins.h"
-
 #include "segdata.h"
 
-/*
- * Bison doesn't allocate anything that needs to live across parser calls,
- * so we can easily have it use palloc instead of malloc.  This prevents
- * memory leaks if we error out during parsing.  Note this only works with
- * bison >= 2.0.  However, in bison 1.875 the default is to use alloca()
- * if possible, so there's not really much problem anyhow, at least if
- * you're building with gcc.
- */
-#define YYMALLOC palloc
-#define YYFREE   pfree
+#undef yylex                  /* failure to redefine yylex will result in calling the */
+#define yylex seg_yylex       /* wrong scanner when running inside postgres backend  */
 
-static float seg_atof(const char *value);
+  extern int yylex(void);     /* defined as seg_yylex in segscan.l */
+  extern int significant_digits( char *str );    /* defined in seg.c */
+  
+  void seg_yyerror(const char *message);
+  int seg_yyparse( void *result );
 
-static char strbuf[25] = {
-	'0', '0', '0', '0', '0',
-	'0', '0', '0', '0', '0',
-	'0', '0', '0', '0', '0',
-	'0', '0', '0', '0', '0',
-	'0', '0', '0', '0', '\0'
-};
+  float seg_atof( char *value );
+
+  long threshold;
+  char strbuf[25] = {
+    '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '\0'
+  };
 
 %}
 
 /* BISON Declarations */
-%parse-param {SEG *result}
-%expect 0
-%name-prefix="seg_yy"
-
 %union {
-	struct BND {
-		float val;
-		char  ext;
-		char  sigd;
-	} bnd;
-	char * text;
+  struct BND {
+    float val;
+    char  ext;
+    char  sigd;
+  } bnd;
+  char * text;
 }
 %token <text> SEGFLOAT
 %token <text> RANGE
@@ -58,100 +52,87 @@ static char strbuf[25] = {
 %%
 
 
-range: boundary PLUMIN deviation
-	{
-		result->lower = $1.val - $3.val;
-		result->upper = $1.val + $3.val;
-		sprintf(strbuf, "%g", result->lower);
-		result->l_sigd = Max(Min(6, significant_digits(strbuf)), Max($1.sigd, $3.sigd));
-		sprintf(strbuf, "%g", result->upper);
-		result->u_sigd = Max(Min(6, significant_digits(strbuf)), Max($1.sigd, $3.sigd));
-		result->l_ext = '\0';
-		result->u_ext = '\0';
-	}
+range:
+          boundary PLUMIN deviation {
+	    ((SEG *)result)->lower = $1.val - $3.val;
+	    ((SEG *)result)->upper = $1.val + $3.val;
+	    sprintf(strbuf, "%g", ((SEG *)result)->lower);
+	    ((SEG *)result)->l_sigd = Max(Min(6, significant_digits(strbuf)), Max($1.sigd, $3.sigd));
+	    sprintf(strbuf, "%g", ((SEG *)result)->upper);
+	    ((SEG *)result)->u_sigd = Max(Min(6, significant_digits(strbuf)), Max($1.sigd, $3.sigd));
+	    ((SEG *)result)->l_ext = '\0';
+	    ((SEG *)result)->u_ext = '\0';
+          }
+      |
+          boundary RANGE boundary {
+	    ((SEG *)result)->lower = $1.val;
+	    ((SEG *)result)->upper = $3.val;
+	    if ( ((SEG *)result)->lower > ((SEG *)result)->upper ) {
+	      ereport(ERROR,
+				  (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				   errmsg("swapped boundaries: %g is greater than %g",
+						  ((SEG *)result)->lower, ((SEG *)result)->upper)));
 
-	| boundary RANGE boundary
-	{
-		result->lower = $1.val;
-		result->upper = $3.val;
-		if ( result->lower > result->upper ) {
-			ereport(ERROR,
-					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-					 errmsg("swapped boundaries: %g is greater than %g",
-							result->lower, result->upper)));
+	      YYERROR;
+	    }
+	    ((SEG *)result)->l_sigd = $1.sigd;
+	    ((SEG *)result)->u_sigd = $3.sigd;
+	    ((SEG *)result)->l_ext = ( $1.ext ? $1.ext : '\0' );
+	    ((SEG *)result)->u_ext = ( $3.ext ? $3.ext : '\0' );
+          }
+      |
+          boundary RANGE {
+	    ((SEG *)result)->lower = $1.val;
+	    ((SEG *)result)->upper = HUGE_VAL;
+	    ((SEG *)result)->l_sigd = $1.sigd;
+	    ((SEG *)result)->u_sigd = 0;
+	    ((SEG *)result)->l_ext = ( $1.ext ? $1.ext : '\0' );
+	    ((SEG *)result)->u_ext = '-';
+          }
+      |
+          RANGE boundary {
+	    ((SEG *)result)->lower = -HUGE_VAL;
+	    ((SEG *)result)->upper = $2.val;
+	    ((SEG *)result)->l_sigd = 0;
+	    ((SEG *)result)->u_sigd = $2.sigd;
+	    ((SEG *)result)->l_ext = '-';
+	    ((SEG *)result)->u_ext = ( $2.ext ? $2.ext : '\0' );
+          }
+      |
+          boundary {
+	    ((SEG *)result)->lower = ((SEG *)result)->upper = $1.val;
+	    ((SEG *)result)->l_sigd = ((SEG *)result)->u_sigd = $1.sigd;
+	    ((SEG *)result)->l_ext = ((SEG *)result)->u_ext = ( $1.ext ? $1.ext : '\0' );
+          }
+      ;
 
-			YYERROR;
-		}
-		result->l_sigd = $1.sigd;
-		result->u_sigd = $3.sigd;
-		result->l_ext = ( $1.ext ? $1.ext : '\0' );
-		result->u_ext = ( $3.ext ? $3.ext : '\0' );
-	}
+boundary:
+          SEGFLOAT {
+             $$.ext = '\0';
+	     $$.sigd = significant_digits($1);
+             $$.val = seg_atof($1);
+	  }
+      | 
+	  EXTENSION SEGFLOAT {
+             $$.ext = $1[0];
+	     $$.sigd = significant_digits($2);
+             $$.val = seg_atof($2);
+	  }
+      ;
 
-	| boundary RANGE
-	{
-		result->lower = $1.val;
-		result->upper = HUGE_VAL;
-		result->l_sigd = $1.sigd;
-		result->u_sigd = 0;
-		result->l_ext = ( $1.ext ? $1.ext : '\0' );
-		result->u_ext = '-';
-	}
-
-	| RANGE boundary
-	{
-		result->lower = -HUGE_VAL;
-		result->upper = $2.val;
-		result->l_sigd = 0;
-		result->u_sigd = $2.sigd;
-		result->l_ext = '-';
-		result->u_ext = ( $2.ext ? $2.ext : '\0' );
-	}
-
-	| boundary
-	{
-		result->lower = result->upper = $1.val;
-		result->l_sigd = result->u_sigd = $1.sigd;
-		result->l_ext = result->u_ext = ( $1.ext ? $1.ext : '\0' );
-	}
-	;
-
-boundary: SEGFLOAT
-	{
-		/* temp variable avoids a gcc 3.3.x bug on Sparc64 */
-		float val = seg_atof($1);
-
-		$$.ext = '\0';
-		$$.sigd = significant_digits($1);
-		$$.val = val;
-	}
-	| EXTENSION SEGFLOAT
-	{
-		/* temp variable avoids a gcc 3.3.x bug on Sparc64 */
-		float val = seg_atof($2);
-
-		$$.ext = $1[0];
-		$$.sigd = significant_digits($2);
-		$$.val = val;
-	}
-	;
-
-deviation: SEGFLOAT
-	{
-		/* temp variable avoids a gcc 3.3.x bug on Sparc64 */
-		float val = seg_atof($1);
-
-		$$.ext = '\0';
-		$$.sigd = significant_digits($1);
-		$$.val = val;
-	}
-	;
+deviation:
+          SEGFLOAT {
+             $$.ext = '\0';
+	     $$.sigd = significant_digits($1);
+             $$.val = seg_atof($1);
+	  }
+      ;
 
 %%
 
 
-static float
-seg_atof(const char *value)
+float
+seg_atof(char *value)
 {
 	Datum datum;
 

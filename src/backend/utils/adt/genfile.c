@@ -4,12 +4,12 @@
  *		Functions for direct access to files
  *
  *
- * Copyright (c) 2004-2017, PostgreSQL Global Development Group
+ * Copyright (c) 2004-2005, PostgreSQL Global Development Group
  *
  * Author: Andreas Pflug <pgadmin@pse-consulting.de>
  *
  * IDENTIFICATION
- *	  src/backend/utils/adt/genfile.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/adt/genfile.c,v 1.9 2005/10/29 00:31:51 petere Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -20,121 +20,98 @@
 #include <unistd.h>
 #include <dirent.h>
 
-#include "access/htup_details.h"
-#include "access/xlog_internal.h"
+#include "access/heapam.h"
 #include "catalog/pg_type.h"
 #include "funcapi.h"
-#include "mb/pg_wchar.h"
 #include "miscadmin.h"
 #include "postmaster/syslogger.h"
 #include "storage/fd.h"
 #include "utils/builtins.h"
 #include "utils/memutils.h"
-#include "utils/timestamp.h"
+
 
 typedef struct
 {
 	char	   *location;
 	DIR		   *dirdesc;
-	bool		include_dot_dirs;
 } directory_fctx;
 
 
 /*
- * Convert a "text" filename argument to C string, and check it's allowable.
+ * Validate a path and convert to absolute form.
  *
- * Filename may be absolute or relative to the DataDir, but we only allow
- * absolute paths that match DataDir or Log_directory.
+ * Argument may be absolute or relative to the DataDir (but we only allow
+ * absolute paths that match DataDir or Log_directory).
  */
 static char *
-convert_and_check_filename(text *arg)
+check_and_make_absolute(text *arg)
 {
-	char	   *filename;
+	int			input_len = VARSIZE(arg) - VARHDRSZ;
+	char	   *filename = palloc(input_len + 1);
 
-	filename = text_to_cstring(arg);
+	memcpy(filename, VARDATA(arg), input_len);
+	filename[input_len] = '\0';
+
 	canonicalize_path(filename);	/* filename can change length here */
+
+	/* Disallow ".." in the path */
+	if (path_contains_parent_reference(filename))
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+			(errmsg("reference to parent directory (\"..\") not allowed"))));
 
 	if (is_absolute_path(filename))
 	{
-		/* Disallow '/a/b/data/..' */
-		if (path_contains_parent_reference(filename))
-			ereport(ERROR,
-					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-					 (errmsg("reference to parent directory (\"..\") not allowed"))));
+		/* Allow absolute references within DataDir */
+		if (path_is_prefix_of_path(DataDir, filename))
+			return filename;
+		/* The log directory might be outside our datadir, but allow it */
+		if (is_absolute_path(Log_directory) &&
+			path_is_prefix_of_path(Log_directory, filename))
+			return filename;
 
-		/*
-		 * Allow absolute paths if within DataDir or Log_directory, even
-		 * though Log_directory might be outside DataDir.
-		 */
-		if (!path_is_prefix_of_path(DataDir, filename) &&
-			(!is_absolute_path(Log_directory) ||
-			 !path_is_prefix_of_path(Log_directory, filename)))
-			ereport(ERROR,
-					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-					 (errmsg("absolute path not allowed"))));
-	}
-	else if (!path_is_relative_and_below_cwd(filename))
 		ereport(ERROR,
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-				 (errmsg("path must be in or below the current directory"))));
+				 (errmsg("absolute path not allowed"))));
+		return NULL;			/* keep compiler quiet */
+	}
+	else
+	{
+		char	   *absname = palloc(strlen(DataDir) + strlen(filename) + 2);
 
-	return filename;
+		sprintf(absname, "%s/%s", DataDir, filename);
+		pfree(filename);
+		return absname;
+	}
 }
 
 
 /*
- * Read a section of a file, returning it as bytea
- *
- * Caller is responsible for all permissions checking.
- *
- * We read the whole of the file when bytes_to_read is negative.
+ * Read a section of a file, returning it as text
  */
-static bytea *
-read_binary_file(const char *filename, int64 seek_offset, int64 bytes_to_read,
-				 bool missing_ok)
+Datum
+pg_read_file(PG_FUNCTION_ARGS)
 {
-	bytea	   *buf;
+	text	   *filename_t = PG_GETARG_TEXT_P(0);
+	int64		seek_offset = PG_GETARG_INT64(1);
+	int64		bytes_to_read = PG_GETARG_INT64(2);
+	char	   *buf;
 	size_t		nbytes;
 	FILE	   *file;
+	char	   *filename;
 
-	if (bytes_to_read < 0)
-	{
-		if (seek_offset < 0)
-			bytes_to_read = -seek_offset;
-		else
-		{
-			struct stat fst;
-
-			if (stat(filename, &fst) < 0)
-			{
-				if (missing_ok && errno == ENOENT)
-					return NULL;
-				else
-					ereport(ERROR,
-							(errcode_for_file_access(),
-							 errmsg("could not stat file \"%s\": %m", filename)));
-			}
-
-			bytes_to_read = fst.st_size - seek_offset;
-		}
-	}
-
-	/* not sure why anyone thought that int64 length was a good idea */
-	if (bytes_to_read > (MaxAllocSize - VARHDRSZ))
+	if (!superuser())
 		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("requested length too large")));
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 (errmsg("must be superuser to read files"))));
+
+	filename = check_and_make_absolute(filename_t);
 
 	if ((file = AllocateFile(filename, PG_BINARY_R)) == NULL)
-	{
-		if (missing_ok && errno == ENOENT)
-			return NULL;
-		else
-			ereport(ERROR,
-					(errcode_for_file_access(),
-					 errmsg("could not open file \"%s\" for reading: %m",
-							filename)));
-	}
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not open file \"%s\" for reading: %m",
+						filename)));
 
 	if (fseeko(file, (off_t) seek_offset,
 			   (seek_offset >= 0) ? SEEK_SET : SEEK_END) != 0)
@@ -142,7 +119,18 @@ read_binary_file(const char *filename, int64 seek_offset, int64 bytes_to_read,
 				(errcode_for_file_access(),
 				 errmsg("could not seek in file \"%s\": %m", filename)));
 
-	buf = (bytea *) palloc((Size) bytes_to_read + VARHDRSZ);
+	if (bytes_to_read < 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("requested length may not be negative")));
+
+	/* not sure why anyone thought that int64 length was a good idea */
+	if (bytes_to_read > (MaxAllocSize - VARHDRSZ))
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("requested length too large")));
+
+	buf = palloc((Size) bytes_to_read + VARHDRSZ);
 
 	nbytes = fread(VARDATA(buf), 1, (size_t) bytes_to_read, file);
 
@@ -151,151 +139,12 @@ read_binary_file(const char *filename, int64 seek_offset, int64 bytes_to_read,
 				(errcode_for_file_access(),
 				 errmsg("could not read file \"%s\": %m", filename)));
 
-	SET_VARSIZE(buf, nbytes + VARHDRSZ);
+	VARATT_SIZEP(buf) = nbytes + VARHDRSZ;
 
 	FreeFile(file);
+	pfree(filename);
 
-	return buf;
-}
-
-/*
- * Similar to read_binary_file, but we verify that the contents are valid
- * in the database encoding.
- */
-static text *
-read_text_file(const char *filename, int64 seek_offset, int64 bytes_to_read,
-			   bool missing_ok)
-{
-	bytea	   *buf;
-
-	buf = read_binary_file(filename, seek_offset, bytes_to_read, missing_ok);
-
-	if (buf != NULL)
-	{
-		/* Make sure the input is valid */
-		pg_verifymbstr(VARDATA(buf), VARSIZE(buf) - VARHDRSZ, false);
-
-		/* OK, we can cast it to text safely */
-		return (text *) buf;
-	}
-	else
-		return NULL;
-}
-
-/*
- * Read a section of a file, returning it as text
- */
-Datum
-pg_read_file(PG_FUNCTION_ARGS)
-{
-	text	   *filename_t = PG_GETARG_TEXT_PP(0);
-	int64		seek_offset = 0;
-	int64		bytes_to_read = -1;
-	bool		missing_ok = false;
-	char	   *filename;
-	text	   *result;
-
-	if (!superuser())
-		ereport(ERROR,
-				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-				 (errmsg("must be superuser to read files"))));
-
-	/* handle optional arguments */
-	if (PG_NARGS() >= 3)
-	{
-		seek_offset = PG_GETARG_INT64(1);
-		bytes_to_read = PG_GETARG_INT64(2);
-
-		if (bytes_to_read < 0)
-			ereport(ERROR,
-					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-					 errmsg("requested length cannot be negative")));
-	}
-	if (PG_NARGS() >= 4)
-		missing_ok = PG_GETARG_BOOL(3);
-
-	filename = convert_and_check_filename(filename_t);
-
-	result = read_text_file(filename, seek_offset, bytes_to_read, missing_ok);
-	if (result)
-		PG_RETURN_TEXT_P(result);
-	else
-		PG_RETURN_NULL();
-}
-
-/*
- * Read a section of a file, returning it as bytea
- */
-Datum
-pg_read_binary_file(PG_FUNCTION_ARGS)
-{
-	text	   *filename_t = PG_GETARG_TEXT_PP(0);
-	int64		seek_offset = 0;
-	int64		bytes_to_read = -1;
-	bool		missing_ok = false;
-	char	   *filename;
-	bytea	   *result;
-
-	if (!superuser())
-		ereport(ERROR,
-				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-				 (errmsg("must be superuser to read files"))));
-
-	/* handle optional arguments */
-	if (PG_NARGS() >= 3)
-	{
-		seek_offset = PG_GETARG_INT64(1);
-		bytes_to_read = PG_GETARG_INT64(2);
-
-		if (bytes_to_read < 0)
-			ereport(ERROR,
-					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-					 errmsg("requested length cannot be negative")));
-	}
-	if (PG_NARGS() >= 4)
-		missing_ok = PG_GETARG_BOOL(3);
-
-	filename = convert_and_check_filename(filename_t);
-
-	result = read_binary_file(filename, seek_offset,
-							  bytes_to_read, missing_ok);
-	if (result)
-		PG_RETURN_BYTEA_P(result);
-	else
-		PG_RETURN_NULL();
-}
-
-
-/*
- * Wrapper functions for the 1 and 3 argument variants of pg_read_file()
- * and pg_binary_read_file().
- *
- * These are necessary to pass the sanity check in opr_sanity, which checks
- * that all built-in functions that share the implementing C function take
- * the same number of arguments.
- */
-Datum
-pg_read_file_off_len(PG_FUNCTION_ARGS)
-{
-	return pg_read_file(fcinfo);
-}
-
-Datum
-pg_read_file_all(PG_FUNCTION_ARGS)
-{
-	return pg_read_file(fcinfo);
-}
-
-Datum
-pg_read_binary_file_off_len(PG_FUNCTION_ARGS)
-{
-	return pg_read_binary_file(fcinfo);
-}
-
-Datum
-pg_read_binary_file_all(PG_FUNCTION_ARGS)
-{
-	return pg_read_binary_file(fcinfo);
+	PG_RETURN_TEXT_P(buf);
 }
 
 /*
@@ -304,39 +153,29 @@ pg_read_binary_file_all(PG_FUNCTION_ARGS)
 Datum
 pg_stat_file(PG_FUNCTION_ARGS)
 {
-	text	   *filename_t = PG_GETARG_TEXT_PP(0);
+	text	   *filename_t = PG_GETARG_TEXT_P(0);
 	char	   *filename;
 	struct stat fst;
 	Datum		values[6];
 	bool		isnull[6];
 	HeapTuple	tuple;
 	TupleDesc	tupdesc;
-	bool		missing_ok = false;
 
 	if (!superuser())
 		ereport(ERROR,
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 				 (errmsg("must be superuser to get file information"))));
 
-	/* check the optional argument */
-	if (PG_NARGS() == 2)
-		missing_ok = PG_GETARG_BOOL(1);
-
-	filename = convert_and_check_filename(filename_t);
+	filename = check_and_make_absolute(filename_t);
 
 	if (stat(filename, &fst) < 0)
-	{
-		if (missing_ok && errno == ENOENT)
-			PG_RETURN_NULL();
-		else
-			ereport(ERROR,
-					(errcode_for_file_access(),
-					 errmsg("could not stat file \"%s\": %m", filename)));
-	}
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not stat file \"%s\": %m", filename)));
 
 	/*
 	 * This record type had better match the output parameters declared for me
-	 * in pg_proc.h.
+	 * in pg_proc.h (actually, in system_views.sql at the moment).
 	 */
 	tupdesc = CreateTemplateTupleDesc(6, false);
 	TupleDescInitEntry(tupdesc, (AttrNumber) 1,
@@ -366,7 +205,7 @@ pg_stat_file(PG_FUNCTION_ARGS)
 	isnull[3] = true;
 	values[4] = TimestampTzGetDatum(time_t_to_timestamptz(fst.st_ctime));
 #endif
-	values[5] = BoolGetDatum(S_ISDIR(fst.st_mode));
+	values[5] = BoolGetDatum(fst.st_mode & S_IFDIR);
 
 	tuple = heap_form_tuple(tupdesc, values, isnull);
 
@@ -375,18 +214,6 @@ pg_stat_file(PG_FUNCTION_ARGS)
 	PG_RETURN_DATUM(HeapTupleGetDatum(tuple));
 }
 
-/*
- * stat a file (1 argument version)
- *
- * note: this wrapper is necessary to pass the sanity check in opr_sanity,
- * which checks that all built-in functions that share the implementing C
- * function take the same number of arguments
- */
-Datum
-pg_stat_file_1arg(PG_FUNCTION_ARGS)
-{
-	return pg_stat_file(fcinfo);
-}
 
 /*
  * List a directory (returns the filenames only)
@@ -397,7 +224,6 @@ pg_ls_dir(PG_FUNCTION_ARGS)
 	FuncCallContext *funcctx;
 	struct dirent *de;
 	directory_fctx *fctx;
-	MemoryContext oldcontext;
 
 	if (!superuser())
 		ereport(ERROR,
@@ -406,109 +232,20 @@ pg_ls_dir(PG_FUNCTION_ARGS)
 
 	if (SRF_IS_FIRSTCALL())
 	{
-		bool		missing_ok = false;
-		bool		include_dot_dirs = false;
-
-		/* check the optional arguments */
-		if (PG_NARGS() == 3)
-		{
-			if (!PG_ARGISNULL(1))
-				missing_ok = PG_GETARG_BOOL(1);
-			if (!PG_ARGISNULL(2))
-				include_dot_dirs = PG_GETARG_BOOL(2);
-		}
-
-		funcctx = SRF_FIRSTCALL_INIT();
-		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
-
-		fctx = palloc(sizeof(directory_fctx));
-		fctx->location = convert_and_check_filename(PG_GETARG_TEXT_PP(0));
-
-		fctx->include_dot_dirs = include_dot_dirs;
-		fctx->dirdesc = AllocateDir(fctx->location);
-
-		if (!fctx->dirdesc)
-		{
-			if (missing_ok && errno == ENOENT)
-			{
-				MemoryContextSwitchTo(oldcontext);
-				SRF_RETURN_DONE(funcctx);
-			}
-			else
-				ereport(ERROR,
-						(errcode_for_file_access(),
-						 errmsg("could not open directory \"%s\": %m",
-								fctx->location)));
-		}
-		funcctx->user_fctx = fctx;
-		MemoryContextSwitchTo(oldcontext);
-	}
-
-	funcctx = SRF_PERCALL_SETUP();
-	fctx = (directory_fctx *) funcctx->user_fctx;
-
-	while ((de = ReadDir(fctx->dirdesc, fctx->location)) != NULL)
-	{
-		if (!fctx->include_dot_dirs &&
-			(strcmp(de->d_name, ".") == 0 ||
-			 strcmp(de->d_name, "..") == 0))
-			continue;
-
-		SRF_RETURN_NEXT(funcctx, CStringGetTextDatum(de->d_name));
-	}
-
-	FreeDir(fctx->dirdesc);
-
-	SRF_RETURN_DONE(funcctx);
-}
-
-/*
- * List a directory (1 argument version)
- *
- * note: this wrapper is necessary to pass the sanity check in opr_sanity,
- * which checks that all built-in functions that share the implementing C
- * function take the same number of arguments.
- */
-Datum
-pg_ls_dir_1arg(PG_FUNCTION_ARGS)
-{
-	return pg_ls_dir(fcinfo);
-}
-
-/* Generic function to return a directory listing of files */
-static Datum
-pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir)
-{
-	FuncCallContext *funcctx;
-	struct dirent *de;
-	directory_fctx *fctx;
-
-	if (SRF_IS_FIRSTCALL())
-	{
 		MemoryContext oldcontext;
-		TupleDesc	tupdesc;
 
 		funcctx = SRF_FIRSTCALL_INIT();
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 
 		fctx = palloc(sizeof(directory_fctx));
+		fctx->location = check_and_make_absolute(PG_GETARG_TEXT_P(0));
 
-		tupdesc = CreateTemplateTupleDesc(3, false);
-		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "name",
-						   TEXTOID, -1, 0);
-		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "size",
-						   INT8OID, -1, 0);
-		TupleDescInitEntry(tupdesc, (AttrNumber) 3, "modification",
-						   TIMESTAMPTZOID, -1, 0);
-		funcctx->tuple_desc = BlessTupleDesc(tupdesc);
-
-		fctx->location = pstrdup(dir);
 		fctx->dirdesc = AllocateDir(fctx->location);
 
 		if (!fctx->dirdesc)
 			ereport(ERROR,
 					(errcode_for_file_access(),
-					 errmsg("could not read directory \"%s\": %m",
+					 errmsg("could not open directory \"%s\": %m",
 							fctx->location)));
 
 		funcctx->user_fctx = fctx;
@@ -520,50 +257,21 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir)
 
 	while ((de = ReadDir(fctx->dirdesc, fctx->location)) != NULL)
 	{
-		Datum		values[3];
-		bool		nulls[3];
-		char		path[MAXPGPATH * 2];
-		struct stat attrib;
-		HeapTuple	tuple;
+		int			len = strlen(de->d_name);
+		text	   *result;
 
-		/* Skip hidden files */
-		if (de->d_name[0] == '.')
+		if (strcmp(de->d_name, ".") == 0 ||
+			strcmp(de->d_name, "..") == 0)
 			continue;
 
-		/* Get the file info */
-		snprintf(path, sizeof(path), "%s/%s", fctx->location, de->d_name);
-		if (stat(path, &attrib) < 0)
-			ereport(ERROR,
-					(errcode_for_file_access(),
-					 errmsg("could not stat directory \"%s\": %m", dir)));
+		result = palloc(len + VARHDRSZ);
+		VARATT_SIZEP(result) = len + VARHDRSZ;
+		memcpy(VARDATA(result), de->d_name, len);
 
-		/* Ignore anything but regular files */
-		if (!S_ISREG(attrib.st_mode))
-			continue;
-
-		values[0] = CStringGetTextDatum(de->d_name);
-		values[1] = Int64GetDatum((int64) attrib.st_size);
-		values[2] = TimestampTzGetDatum(time_t_to_timestamptz(attrib.st_mtime));
-		memset(nulls, 0, sizeof(nulls));
-
-		tuple = heap_form_tuple(funcctx->tuple_desc, values, nulls);
-		SRF_RETURN_NEXT(funcctx, HeapTupleGetDatum(tuple));
+		SRF_RETURN_NEXT(funcctx, PointerGetDatum(result));
 	}
 
 	FreeDir(fctx->dirdesc);
+
 	SRF_RETURN_DONE(funcctx);
-}
-
-/* Function to return the list of files in the log directory */
-Datum
-pg_ls_logdir(PG_FUNCTION_ARGS)
-{
-	return pg_ls_dir_files(fcinfo, Log_directory);
-}
-
-/* Function to return the list of files in the WAL directory */
-Datum
-pg_ls_waldir(PG_FUNCTION_ARGS)
-{
-	return pg_ls_dir_files(fcinfo, XLOGDIR);
 }

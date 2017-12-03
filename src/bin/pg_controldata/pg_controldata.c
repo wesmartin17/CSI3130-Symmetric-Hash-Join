@@ -6,37 +6,33 @@
  * copyright (c) Oliver Elphick <olly@lfix.co.uk>, 2001;
  * licence: BSD
  *
- * src/bin/pg_controldata/pg_controldata.c
+ * $PostgreSQL: pgsql/src/bin/pg_controldata/pg_controldata.c,v 1.27 2005/10/15 02:49:37 momjian Exp $
  */
-
-/*
- * We have to use postgres.h not postgres_fe.h here, because there's so much
- * backend-only stuff in the XLOG include files we need.  But we need a
- * frontend-ish environment otherwise.  Hence this ugly hack.
- */
-#define FRONTEND 1
-
 #include "postgres.h"
 
+#include <unistd.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-#include "access/xlog.h"
-#include "access/xlog_internal.h"
 #include "catalog/pg_control.h"
-#include "common/controldata_utils.h"
-#include "pg_getopt.h"
 
 
 static void
 usage(const char *progname)
 {
 	printf(_("%s displays control information of a PostgreSQL database cluster.\n\n"), progname);
-	printf(_("Usage:\n"));
-	printf(_("  %s [OPTION] [DATADIR]\n"), progname);
-	printf(_("\nOptions:\n"));
-	printf(_(" [-D] DATADIR    data directory\n"));
-	printf(_("  -V, --version  output version information, then exit\n"));
-	printf(_("  -?, --help     show this help, then exit\n"));
+	printf
+		(
+		 _(
+		   "Usage:\n"
+		   "  %s [OPTION] [DATADIR]\n\n"
+		   "Options:\n"
+		   "  --help         show this help, then exit\n"
+		   "  --version      output version information, then exit\n"
+		   ),
+		 progname
+		);
 	printf(_("\nIf no data directory (DATADIR) is specified, "
 			 "the environment variable PGDATA\nis used.\n\n"));
 	printf(_("Report bugs to <pgsql-bugs@postgresql.org>.\n"));
@@ -52,56 +48,32 @@ dbState(DBState state)
 			return _("starting up");
 		case DB_SHUTDOWNED:
 			return _("shut down");
-		case DB_SHUTDOWNED_IN_RECOVERY:
-			return _("shut down in recovery");
 		case DB_SHUTDOWNING:
 			return _("shutting down");
-		case DB_IN_CRASH_RECOVERY:
-			return _("in crash recovery");
-		case DB_IN_ARCHIVE_RECOVERY:
-			return _("in archive recovery");
+		case DB_IN_RECOVERY:
+			return _("in recovery");
 		case DB_IN_PRODUCTION:
 			return _("in production");
 	}
 	return _("unrecognized status code");
 }
 
-static const char *
-wal_level_str(WalLevel wal_level)
-{
-	switch (wal_level)
-	{
-		case WAL_LEVEL_MINIMAL:
-			return "minimal";
-		case WAL_LEVEL_REPLICA:
-			return "replica";
-		case WAL_LEVEL_LOGICAL:
-			return "logical";
-	}
-	return _("unrecognized wal_level");
-}
-
 
 int
 main(int argc, char *argv[])
 {
-	ControlFileData *ControlFile;
-	bool		crc_ok;
-	char	   *DataDir = NULL;
-	time_t		time_tmp;
+	ControlFileData ControlFile;
+	int			fd;
+	char		ControlFilePath[MAXPGPATH];
+	char	   *DataDir;
+	pg_crc32	crc;
 	char		pgctime_str[128];
 	char		ckpttime_str[128];
 	char		sysident_str[32];
-	char		mock_auth_nonce_str[MOCK_AUTH_NONCE_LEN * 2 + 1];
-	const char *strftime_fmt = "%c";
+	char	   *strftime_fmt = "%c";
 	const char *progname;
-	XLogSegNo	segno;
-	char		xlogfilename[MAXFNAMELEN];
-	int			c;
-	int			i;
-	int			WalSegSz;
 
-	set_pglocale_pgservice(argv[0], PG_TEXTDOMAIN("pg_controldata"));
+	set_pglocale_pgservice(argv[0], "pg_controldata");
 
 	progname = get_progname(argv[0]);
 
@@ -119,38 +91,10 @@ main(int argc, char *argv[])
 		}
 	}
 
-	while ((c = getopt(argc, argv, "D:")) != -1)
-	{
-		switch (c)
-		{
-			case 'D':
-				DataDir = optarg;
-				break;
-
-			default:
-				fprintf(stderr, _("Try \"%s --help\" for more information.\n"), progname);
-				exit(1);
-		}
-	}
-
-	if (DataDir == NULL)
-	{
-		if (optind < argc)
-			DataDir = argv[optind++];
-		else
-			DataDir = getenv("PGDATA");
-	}
-
-	/* Complain if any arguments remain */
-	if (optind < argc)
-	{
-		fprintf(stderr, _("%s: too many command-line arguments (first is \"%s\")\n"),
-				progname, argv[optind]);
-		fprintf(stderr, _("Try \"%s --help\" for more information.\n"),
-				progname);
-		exit(1);
-	}
-
+	if (argc > 1)
+		DataDir = argv[1];
+	else
+		DataDir = getenv("PGDATA");
 	if (DataDir == NULL)
 	{
 		fprintf(stderr, _("%s: no data directory specified\n"), progname);
@@ -158,165 +102,84 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	/* get a copy of the control file */
-	ControlFile = get_controlfile(DataDir, progname, &crc_ok);
-	if (!crc_ok)
+	snprintf(ControlFilePath, MAXPGPATH, "%s/global/pg_control", DataDir);
+
+	if ((fd = open(ControlFilePath, O_RDONLY)) == -1)
+	{
+		fprintf(stderr, _("%s: could not open file \"%s\" for reading: %s\n"),
+				progname, ControlFilePath, strerror(errno));
+		exit(2);
+	}
+
+	if (read(fd, &ControlFile, sizeof(ControlFileData)) != sizeof(ControlFileData))
+	{
+		fprintf(stderr, _("%s: could not read file \"%s\": %s\n"),
+				progname, ControlFilePath, strerror(errno));
+		exit(2);
+	}
+	close(fd);
+
+	/* Check the CRC. */
+	INIT_CRC32(crc);
+	COMP_CRC32(crc,
+			   (char *) &ControlFile,
+			   offsetof(ControlFileData, crc));
+	FIN_CRC32(crc);
+
+	if (!EQ_CRC32(crc, ControlFile.crc))
 		printf(_("WARNING: Calculated CRC checksum does not match value stored in file.\n"
 				 "Either the file is corrupt, or it has a different layout than this program\n"
 				 "is expecting.  The results below are untrustworthy.\n\n"));
 
-	/* set wal segment size */
-	WalSegSz = ControlFile->xlog_seg_size;
-
-	if (!IsValidWalSegSize(WalSegSz))
-		fprintf(stderr,
-				_("WARNING: WAL segment size specified, %d bytes, is not a power of two between 1MB and 1GB.\n"
-				  "The file is corrupt and the results below are untrustworthy.\n"),
-				WalSegSz);
-
 	/*
-	 * This slightly-chintzy coding will work as long as the control file
-	 * timestamps are within the range of time_t; that should be the case in
-	 * all foreseeable circumstances, so we don't bother importing the
-	 * backend's timezone library into pg_controldata.
-	 *
 	 * Use variable for format to suppress overly-anal-retentive gcc warning
 	 * about %c
 	 */
-	time_tmp = (time_t) ControlFile->time;
 	strftime(pgctime_str, sizeof(pgctime_str), strftime_fmt,
-			 localtime(&time_tmp));
-	time_tmp = (time_t) ControlFile->checkPointCopy.time;
+			 localtime(&(ControlFile.time)));
 	strftime(ckpttime_str, sizeof(ckpttime_str), strftime_fmt,
-			 localtime(&time_tmp));
+			 localtime(&(ControlFile.checkPointCopy.time)));
 
 	/*
-	 * Calculate name of the WAL file containing the latest checkpoint's REDO
-	 * start point.
-	 */
-	XLByteToSeg(ControlFile->checkPointCopy.redo, segno, WalSegSz);
-	XLogFileName(xlogfilename, ControlFile->checkPointCopy.ThisTimeLineID,
-				 segno, WalSegSz);
-
-	/*
-	 * Format system_identifier and mock_authentication_nonce separately to
-	 * keep platform-dependent format code out of the translatable message
-	 * string.
+	 * Format system_identifier separately to keep platform-dependent format
+	 * code out of the translatable message string.
 	 */
 	snprintf(sysident_str, sizeof(sysident_str), UINT64_FORMAT,
-			 ControlFile->system_identifier);
-	for (i = 0; i < MOCK_AUTH_NONCE_LEN; i++)
-		snprintf(&mock_auth_nonce_str[i * 2], 3, "%02x",
-				 (unsigned char) ControlFile->mock_authentication_nonce[i]);
+			 ControlFile.system_identifier);
 
-	printf(_("pg_control version number:            %u\n"),
-		   ControlFile->pg_control_version);
-	printf(_("Catalog version number:               %u\n"),
-		   ControlFile->catalog_version_no);
-	printf(_("Database system identifier:           %s\n"),
-		   sysident_str);
-	printf(_("Database cluster state:               %s\n"),
-		   dbState(ControlFile->state));
-	printf(_("pg_control last modified:             %s\n"),
-		   pgctime_str);
+	printf(_("pg_control version number:            %u\n"), ControlFile.pg_control_version);
+	printf(_("Catalog version number:               %u\n"), ControlFile.catalog_version_no);
+	printf(_("Database system identifier:           %s\n"), sysident_str);
+	printf(_("Database cluster state:               %s\n"), dbState(ControlFile.state));
+	printf(_("pg_control last modified:             %s\n"), pgctime_str);
+	printf(_("Current log file ID:                  %u\n"), ControlFile.logId);
+	printf(_("Next log file segment:                %u\n"), ControlFile.logSeg);
 	printf(_("Latest checkpoint location:           %X/%X\n"),
-		   (uint32) (ControlFile->checkPoint >> 32),
-		   (uint32) ControlFile->checkPoint);
+		   ControlFile.checkPoint.xlogid, ControlFile.checkPoint.xrecoff);
+	printf(_("Prior checkpoint location:            %X/%X\n"),
+	  ControlFile.prevCheckPoint.xlogid, ControlFile.prevCheckPoint.xrecoff);
 	printf(_("Latest checkpoint's REDO location:    %X/%X\n"),
-		   (uint32) (ControlFile->checkPointCopy.redo >> 32),
-		   (uint32) ControlFile->checkPointCopy.redo);
-	printf(_("Latest checkpoint's REDO WAL file:    %s\n"),
-		   xlogfilename);
-	printf(_("Latest checkpoint's TimeLineID:       %u\n"),
-		   ControlFile->checkPointCopy.ThisTimeLineID);
-	printf(_("Latest checkpoint's PrevTimeLineID:   %u\n"),
-		   ControlFile->checkPointCopy.PrevTimeLineID);
-	printf(_("Latest checkpoint's full_page_writes: %s\n"),
-		   ControlFile->checkPointCopy.fullPageWrites ? _("on") : _("off"));
-	printf(_("Latest checkpoint's NextXID:          %u:%u\n"),
-		   ControlFile->checkPointCopy.nextXidEpoch,
-		   ControlFile->checkPointCopy.nextXid);
-	printf(_("Latest checkpoint's NextOID:          %u\n"),
-		   ControlFile->checkPointCopy.nextOid);
-	printf(_("Latest checkpoint's NextMultiXactId:  %u\n"),
-		   ControlFile->checkPointCopy.nextMulti);
-	printf(_("Latest checkpoint's NextMultiOffset:  %u\n"),
-		   ControlFile->checkPointCopy.nextMultiOffset);
-	printf(_("Latest checkpoint's oldestXID:        %u\n"),
-		   ControlFile->checkPointCopy.oldestXid);
-	printf(_("Latest checkpoint's oldestXID's DB:   %u\n"),
-		   ControlFile->checkPointCopy.oldestXidDB);
-	printf(_("Latest checkpoint's oldestActiveXID:  %u\n"),
-		   ControlFile->checkPointCopy.oldestActiveXid);
-	printf(_("Latest checkpoint's oldestMultiXid:   %u\n"),
-		   ControlFile->checkPointCopy.oldestMulti);
-	printf(_("Latest checkpoint's oldestMulti's DB: %u\n"),
-		   ControlFile->checkPointCopy.oldestMultiDB);
-	printf(_("Latest checkpoint's oldestCommitTsXid:%u\n"),
-		   ControlFile->checkPointCopy.oldestCommitTsXid);
-	printf(_("Latest checkpoint's newestCommitTsXid:%u\n"),
-		   ControlFile->checkPointCopy.newestCommitTsXid);
-	printf(_("Time of latest checkpoint:            %s\n"),
-		   ckpttime_str);
-	printf(_("Fake LSN counter for unlogged rels:   %X/%X\n"),
-		   (uint32) (ControlFile->unloggedLSN >> 32),
-		   (uint32) ControlFile->unloggedLSN);
-	printf(_("Minimum recovery ending location:     %X/%X\n"),
-		   (uint32) (ControlFile->minRecoveryPoint >> 32),
-		   (uint32) ControlFile->minRecoveryPoint);
-	printf(_("Min recovery ending loc's timeline:   %u\n"),
-		   ControlFile->minRecoveryPointTLI);
-	printf(_("Backup start location:                %X/%X\n"),
-		   (uint32) (ControlFile->backupStartPoint >> 32),
-		   (uint32) ControlFile->backupStartPoint);
-	printf(_("Backup end location:                  %X/%X\n"),
-		   (uint32) (ControlFile->backupEndPoint >> 32),
-		   (uint32) ControlFile->backupEndPoint);
-	printf(_("End-of-backup record required:        %s\n"),
-		   ControlFile->backupEndRequired ? _("yes") : _("no"));
-	printf(_("wal_level setting:                    %s\n"),
-		   wal_level_str(ControlFile->wal_level));
-	printf(_("wal_log_hints setting:                %s\n"),
-		   ControlFile->wal_log_hints ? _("on") : _("off"));
-	printf(_("max_connections setting:              %d\n"),
-		   ControlFile->MaxConnections);
-	printf(_("max_worker_processes setting:         %d\n"),
-		   ControlFile->max_worker_processes);
-	printf(_("max_prepared_xacts setting:           %d\n"),
-		   ControlFile->max_prepared_xacts);
-	printf(_("max_locks_per_xact setting:           %d\n"),
-		   ControlFile->max_locks_per_xact);
-	printf(_("track_commit_timestamp setting:       %s\n"),
-		   ControlFile->track_commit_timestamp ? _("on") : _("off"));
-	printf(_("Maximum data alignment:               %u\n"),
-		   ControlFile->maxAlign);
+		   ControlFile.checkPointCopy.redo.xlogid, ControlFile.checkPointCopy.redo.xrecoff);
+	printf(_("Latest checkpoint's UNDO location:    %X/%X\n"),
+		   ControlFile.checkPointCopy.undo.xlogid, ControlFile.checkPointCopy.undo.xrecoff);
+	printf(_("Latest checkpoint's TimeLineID:       %u\n"), ControlFile.checkPointCopy.ThisTimeLineID);
+	printf(_("Latest checkpoint's NextXID:          %u\n"), ControlFile.checkPointCopy.nextXid);
+	printf(_("Latest checkpoint's NextOID:          %u\n"), ControlFile.checkPointCopy.nextOid);
+	printf(_("Latest checkpoint's NextMultiXactId:  %u\n"), ControlFile.checkPointCopy.nextMulti);
+	printf(_("Latest checkpoint's NextMultiOffset:  %u\n"), ControlFile.checkPointCopy.nextMultiOffset);
+	printf(_("Time of latest checkpoint:            %s\n"), ckpttime_str);
+	printf(_("Maximum data alignment:               %u\n"), ControlFile.maxAlign);
 	/* we don't print floatFormat since can't say much useful about it */
-	printf(_("Database block size:                  %u\n"),
-		   ControlFile->blcksz);
-	printf(_("Blocks per segment of large relation: %u\n"),
-		   ControlFile->relseg_size);
-	printf(_("WAL block size:                       %u\n"),
-		   ControlFile->xlog_blcksz);
-	printf(_("Bytes per WAL segment:                %u\n"),
-		   ControlFile->xlog_seg_size);
-	printf(_("Maximum length of identifiers:        %u\n"),
-		   ControlFile->nameDataLen);
-	printf(_("Maximum columns in an index:          %u\n"),
-		   ControlFile->indexMaxKeys);
-	printf(_("Maximum size of a TOAST chunk:        %u\n"),
-		   ControlFile->toast_max_chunk_size);
-	printf(_("Size of a large-object chunk:         %u\n"),
-		   ControlFile->loblksize);
-	/* This is no longer configurable, but users may still expect to see it: */
+	printf(_("Database block size:                  %u\n"), ControlFile.blcksz);
+	printf(_("Blocks per segment of large relation: %u\n"), ControlFile.relseg_size);
+	printf(_("Bytes per WAL segment:                %u\n"), ControlFile.xlog_seg_size);
+	printf(_("Maximum length of identifiers:        %u\n"), ControlFile.nameDataLen);
+	printf(_("Maximum columns in an index:          %u\n"), ControlFile.indexMaxKeys);
 	printf(_("Date/time type storage:               %s\n"),
-		   _("64-bit integers"));
-	printf(_("Float4 argument passing:              %s\n"),
-		   (ControlFile->float4ByVal ? _("by value") : _("by reference")));
-	printf(_("Float8 argument passing:              %s\n"),
-		   (ControlFile->float8ByVal ? _("by value") : _("by reference")));
-	printf(_("Data page checksum version:           %u\n"),
-		   ControlFile->data_checksum_version);
-	printf(_("Mock authentication nonce:            %s\n"),
-		   mock_auth_nonce_str);
+		   (ControlFile.enableIntTimes ? _("64-bit integers") : _("floating-point numbers")));
+	printf(_("Maximum length of locale name:        %u\n"), ControlFile.localeBuflen);
+	printf(_("LC_COLLATE:                           %s\n"), ControlFile.lc_collate);
+	printf(_("LC_CTYPE:                             %s\n"), ControlFile.lc_ctype);
+
 	return 0;
 }

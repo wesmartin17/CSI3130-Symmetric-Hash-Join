@@ -4,10 +4,10 @@
  *	  handle clauses in parser
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/parser/parse_clause.h
+ * $PostgreSQL: pgsql/src/include/parser/parse_clause.h,v 1.43 2004/12/31 22:03:38 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -19,36 +19,28 @@
 extern void transformFromClause(ParseState *pstate, List *frmList);
 extern int setTargetTable(ParseState *pstate, RangeVar *relation,
 			   bool inh, bool alsoSource, AclMode requiredPerms);
-extern bool interpretOidsOption(List *defList, bool allowOids);
+extern bool interpretInhOption(InhOption inhOpt);
+extern bool interpretOidsOption(ContainsOids opt);
 
 extern Node *transformWhereClause(ParseState *pstate, Node *clause,
-					 ParseExprKind exprKind, const char *constructName);
+					 const char *constructName);
 extern Node *transformLimitClause(ParseState *pstate, Node *clause,
-					 ParseExprKind exprKind, const char *constructName);
+					 const char *constructName);
 extern List *transformGroupClause(ParseState *pstate, List *grouplist,
-					 List **groupingSets,
-					 List **targetlist, List *sortClause,
-					 ParseExprKind exprKind, bool useSQL99);
+					 List **targetlist, List *sortClause);
 extern List *transformSortClause(ParseState *pstate, List *orderlist,
-					List **targetlist, ParseExprKind exprKind,
-					bool useSQL99);
+					List **targetlist, bool resolveUnknown);
+extern List *transformDistinctClause(ParseState *pstate, List *distinctlist,
+						List **targetlist, List **sortClause);
 
-extern List *transformWindowDefinitions(ParseState *pstate,
-						   List *windowdefs,
-						   List **targetlist);
-
-extern List *transformDistinctClause(ParseState *pstate,
-						List **targetlist, List *sortClause, bool is_agg);
-extern List *transformDistinctOnClause(ParseState *pstate, List *distinctlist,
-						  List **targetlist, List *sortClause);
-extern void transformOnConflictArbiter(ParseState *pstate,
-						   OnConflictClause *onConflictClause,
-						   List **arbiterExpr, Node **arbiterWhere,
-						   Oid *constraint);
-
+extern List *addAllTargetsToSortList(ParseState *pstate,
+						List *sortlist, List *targetlist,
+						bool resolveUnknown);
 extern List *addTargetToSortList(ParseState *pstate, TargetEntry *tle,
-					List *sortlist, List *targetlist, SortBy *sortby);
+					List *sortlist, List *targetlist,
+					int sortby_kind, List *sortby_opname,
+					bool resolveUnknown);
 extern Index assignSortGroupRef(TargetEntry *tle, List *tlist);
-extern bool targetIsInSortList(TargetEntry *tle, Oid sortop, List *sortList);
+extern bool targetIsInSortList(TargetEntry *tle, List *sortList);
 
-#endif							/* PARSE_CLAUSE_H */
+#endif   /* PARSE_CLAUSE_H */

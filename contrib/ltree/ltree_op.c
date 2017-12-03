@@ -1,20 +1,10 @@
 /*
  * op function for ltree
  * Teodor Sigaev <teodor@stack.net>
- * contrib/ltree/ltree_op.c
  */
-#include "postgres.h"
 
-#include <ctype.h>
-
-#include "access/htup_details.h"
-#include "catalog/pg_statistic.h"
-#include "utils/builtins.h"
-#include "utils/lsyscache.h"
-#include "utils/selfuncs.h"
 #include "ltree.h"
-
-PG_MODULE_MAGIC;
+#include <ctype.h>
 
 /* compare functions */
 PG_FUNCTION_INFO_V1(ltree_cmp);
@@ -36,10 +26,26 @@ PG_FUNCTION_INFO_V1(ltree_textadd);
 PG_FUNCTION_INFO_V1(lca);
 PG_FUNCTION_INFO_V1(ltree2text);
 PG_FUNCTION_INFO_V1(text2ltree);
-PG_FUNCTION_INFO_V1(ltreeparentsel);
+Datum		ltree_cmp(PG_FUNCTION_ARGS);
+Datum		ltree_lt(PG_FUNCTION_ARGS);
+Datum		ltree_le(PG_FUNCTION_ARGS);
+Datum		ltree_eq(PG_FUNCTION_ARGS);
+Datum		ltree_ne(PG_FUNCTION_ARGS);
+Datum		ltree_ge(PG_FUNCTION_ARGS);
+Datum		ltree_gt(PG_FUNCTION_ARGS);
+Datum		nlevel(PG_FUNCTION_ARGS);
+Datum		subltree(PG_FUNCTION_ARGS);
+Datum		subpath(PG_FUNCTION_ARGS);
+Datum		ltree_index(PG_FUNCTION_ARGS);
+Datum		ltree_addltree(PG_FUNCTION_ARGS);
+Datum		ltree_addtext(PG_FUNCTION_ARGS);
+Datum		ltree_textadd(PG_FUNCTION_ARGS);
+Datum		lca(PG_FUNCTION_ARGS);
+Datum		ltree2text(PG_FUNCTION_ARGS);
+Datum		text2ltree(PG_FUNCTION_ARGS);
 
 int
-ltree_compare(const ltree *a, const ltree *b)
+ltree_compare(const ltree * a, const ltree * b)
 {
 	ltree_level *al = LTREE_FIRST(a);
 	ltree_level *bl = LTREE_FIRST(b);
@@ -49,7 +55,7 @@ ltree_compare(const ltree *a, const ltree *b)
 
 	while (an > 0 && bn > 0)
 	{
-		if ((res = memcmp(al->name, bl->name, Min(al->len, bl->len))) == 0)
+		if ((res = strncmp(al->name, bl->name, Min(al->len, bl->len))) == 0)
 		{
 			if (al->len != bl->len)
 				return (al->len - bl->len) * 10 * (an + 1);
@@ -67,65 +73,65 @@ ltree_compare(const ltree *a, const ltree *b)
 }
 
 #define RUNCMP						\
-ltree *a = PG_GETARG_LTREE_P(0);	\
-ltree *b = PG_GETARG_LTREE_P(1);	\
-int res = ltree_compare(a,b);		\
-PG_FREE_IF_COPY(a,0);				\
-PG_FREE_IF_COPY(b,1)
+ltree *a	= PG_GETARG_LTREE(0);			\
+ltree *b	= PG_GETARG_LTREE(1);			\
+int res = ltree_compare(a,b);				\
+PG_FREE_IF_COPY(a,0);					\
+PG_FREE_IF_COPY(b,1);					\
 
 Datum
 ltree_cmp(PG_FUNCTION_ARGS)
 {
-	RUNCMP;
-	PG_RETURN_INT32(res);
+	RUNCMP
+		PG_RETURN_INT32(res);
 }
 
 Datum
 ltree_lt(PG_FUNCTION_ARGS)
 {
-	RUNCMP;
-	PG_RETURN_BOOL((res < 0) ? true : false);
+	RUNCMP
+		PG_RETURN_BOOL((res < 0) ? true : false);
 }
 
 Datum
 ltree_le(PG_FUNCTION_ARGS)
 {
-	RUNCMP;
-	PG_RETURN_BOOL((res <= 0) ? true : false);
+	RUNCMP
+		PG_RETURN_BOOL((res <= 0) ? true : false);
 }
 
 Datum
 ltree_eq(PG_FUNCTION_ARGS)
 {
-	RUNCMP;
-	PG_RETURN_BOOL((res == 0) ? true : false);
+	RUNCMP
+		PG_RETURN_BOOL((res == 0) ? true : false);
 }
 
 Datum
 ltree_ge(PG_FUNCTION_ARGS)
 {
-	RUNCMP;
-	PG_RETURN_BOOL((res >= 0) ? true : false);
+	RUNCMP
+		PG_RETURN_BOOL((res >= 0) ? true : false);
 }
 
 Datum
 ltree_gt(PG_FUNCTION_ARGS)
 {
-	RUNCMP;
-	PG_RETURN_BOOL((res > 0) ? true : false);
+	RUNCMP
+		PG_RETURN_BOOL((res > 0) ? true : false);
 }
 
 Datum
 ltree_ne(PG_FUNCTION_ARGS)
 {
-	RUNCMP;
-	PG_RETURN_BOOL((res != 0) ? true : false);
+	RUNCMP
+		PG_RETURN_BOOL((res != 0) ? true : false);
 }
 
 Datum
 nlevel(PG_FUNCTION_ARGS)
 {
-	ltree	   *a = PG_GETARG_LTREE_P(0);
+	ltree	   *a = PG_GETARG_LTREE(0);
 	int			res = a->numlevel;
 
 	PG_FREE_IF_COPY(a, 0);
@@ -133,7 +139,7 @@ nlevel(PG_FUNCTION_ARGS)
 }
 
 bool
-inner_isparent(const ltree *c, const ltree *p)
+inner_isparent(const ltree * c, const ltree * p)
 {
 	ltree_level *cl = LTREE_FIRST(c);
 	ltree_level *pl = LTREE_FIRST(p);
@@ -146,7 +152,7 @@ inner_isparent(const ltree *c, const ltree *p)
 	{
 		if (cl->len != pl->len)
 			return false;
-		if (memcmp(cl->name, pl->name, cl->len))
+		if (strncmp(cl->name, pl->name, cl->len))
 			return false;
 
 		pn--;
@@ -159,8 +165,8 @@ inner_isparent(const ltree *c, const ltree *p)
 Datum
 ltree_isparent(PG_FUNCTION_ARGS)
 {
-	ltree	   *c = PG_GETARG_LTREE_P(1);
-	ltree	   *p = PG_GETARG_LTREE_P(0);
+	ltree	   *c = PG_GETARG_LTREE(1);
+	ltree	   *p = PG_GETARG_LTREE(0);
 	bool		res = inner_isparent(c, p);
 
 	PG_FREE_IF_COPY(c, 1);
@@ -171,8 +177,8 @@ ltree_isparent(PG_FUNCTION_ARGS)
 Datum
 ltree_risparent(PG_FUNCTION_ARGS)
 {
-	ltree	   *c = PG_GETARG_LTREE_P(0);
-	ltree	   *p = PG_GETARG_LTREE_P(1);
+	ltree	   *c = PG_GETARG_LTREE(0);
+	ltree	   *p = PG_GETARG_LTREE(1);
 	bool		res = inner_isparent(c, p);
 
 	PG_FREE_IF_COPY(c, 0);
@@ -182,7 +188,7 @@ ltree_risparent(PG_FUNCTION_ARGS)
 
 
 static ltree *
-inner_subltree(ltree *t, int32 startpos, int32 endpos)
+inner_subltree(ltree * t, int4 startpos, int4 endpos)
 {
 	char	   *start = NULL,
 			   *end = NULL;
@@ -211,8 +217,8 @@ inner_subltree(ltree *t, int32 startpos, int32 endpos)
 		ptr = LEVEL_NEXT(ptr);
 	}
 
-	res = (ltree *) palloc0(LTREE_HDRSIZE + (end - start));
-	SET_VARSIZE(res, LTREE_HDRSIZE + (end - start));
+	res = (ltree *) palloc(LTREE_HDRSIZE + (end - start));
+	res->len = LTREE_HDRSIZE + (end - start);
 	res->numlevel = endpos - startpos;
 
 	memcpy(LTREE_FIRST(res), start, end - start);
@@ -223,7 +229,7 @@ inner_subltree(ltree *t, int32 startpos, int32 endpos)
 Datum
 subltree(PG_FUNCTION_ARGS)
 {
-	ltree	   *t = PG_GETARG_LTREE_P(0);
+	ltree	   *t = PG_GETARG_LTREE(0);
 	ltree	   *res = inner_subltree(t, PG_GETARG_INT32(1), PG_GETARG_INT32(2));
 
 	PG_FREE_IF_COPY(t, 0);
@@ -233,10 +239,10 @@ subltree(PG_FUNCTION_ARGS)
 Datum
 subpath(PG_FUNCTION_ARGS)
 {
-	ltree	   *t = PG_GETARG_LTREE_P(0);
-	int32		start = PG_GETARG_INT32(1);
-	int32		len = (fcinfo->nargs == 3) ? PG_GETARG_INT32(2) : 0;
-	int32		end;
+	ltree	   *t = PG_GETARG_LTREE(0);
+	int4		start = PG_GETARG_INT32(1);
+	int4		len = (fcinfo->nargs == 3) ? PG_GETARG_INT32(2) : 0;
+	int4		end;
 	ltree	   *res;
 
 	end = start + len;
@@ -264,26 +270,25 @@ subpath(PG_FUNCTION_ARGS)
 }
 
 static ltree *
-ltree_concat(ltree *a, ltree *b)
+ltree_concat(ltree * a, ltree * b)
 {
 	ltree	   *r;
 
-	r = (ltree *) palloc0(VARSIZE(a) + VARSIZE(b) - LTREE_HDRSIZE);
-	SET_VARSIZE(r, VARSIZE(a) + VARSIZE(b) - LTREE_HDRSIZE);
+	r = (ltree *) palloc(a->len + b->len - LTREE_HDRSIZE);
+	r->len = a->len + b->len - LTREE_HDRSIZE;
 	r->numlevel = a->numlevel + b->numlevel;
 
-	memcpy(LTREE_FIRST(r), LTREE_FIRST(a), VARSIZE(a) - LTREE_HDRSIZE);
-	memcpy(((char *) LTREE_FIRST(r)) + VARSIZE(a) - LTREE_HDRSIZE,
-		   LTREE_FIRST(b),
-		   VARSIZE(b) - LTREE_HDRSIZE);
+	memcpy(LTREE_FIRST(r), LTREE_FIRST(a), a->len - LTREE_HDRSIZE);
+	memcpy(((char *) LTREE_FIRST(r)) + a->len - LTREE_HDRSIZE, LTREE_FIRST(b), b->len -
+		   LTREE_HDRSIZE);
 	return r;
 }
 
 Datum
 ltree_addltree(PG_FUNCTION_ARGS)
 {
-	ltree	   *a = PG_GETARG_LTREE_P(0);
-	ltree	   *b = PG_GETARG_LTREE_P(1);
+	ltree	   *a = PG_GETARG_LTREE(0);
+	ltree	   *b = PG_GETARG_LTREE(1);
 	ltree	   *r;
 
 	r = ltree_concat(a, b);
@@ -295,16 +300,20 @@ ltree_addltree(PG_FUNCTION_ARGS)
 Datum
 ltree_addtext(PG_FUNCTION_ARGS)
 {
-	ltree	   *a = PG_GETARG_LTREE_P(0);
-	text	   *b = PG_GETARG_TEXT_PP(1);
+	ltree	   *a = PG_GETARG_LTREE(0);
+	text	   *b = PG_GETARG_TEXT_P(1);
 	char	   *s;
 	ltree	   *r,
 			   *tmp;
 
-	s = text_to_cstring(b);
+	s = (char *) palloc(VARSIZE(b) - VARHDRSZ + 1);
+	memcpy(s, VARDATA(b), VARSIZE(b) - VARHDRSZ);
+	s[VARSIZE(b) - VARHDRSZ] = '\0';
 
-	tmp = (ltree *) DatumGetPointer(DirectFunctionCall1(ltree_in,
-														PointerGetDatum(s)));
+	tmp = (ltree *) DatumGetPointer(DirectFunctionCall1(
+														ltree_in,
+														PointerGetDatum(s)
+														));
 
 	pfree(s);
 
@@ -320,8 +329,8 @@ ltree_addtext(PG_FUNCTION_ARGS)
 Datum
 ltree_index(PG_FUNCTION_ARGS)
 {
-	ltree	   *a = PG_GETARG_LTREE_P(0);
-	ltree	   *b = PG_GETARG_LTREE_P(1);
+	ltree	   *a = PG_GETARG_LTREE(0);
+	ltree	   *b = PG_GETARG_LTREE(1);
 	int			start = (fcinfo->nargs == 3) ? PG_GETARG_INT32(2) : 0;
 	int			i,
 				j;
@@ -354,7 +363,7 @@ ltree_index(PG_FUNCTION_ARGS)
 			bptr = LTREE_FIRST(b);
 			for (j = 0; j < b->numlevel; j++)
 			{
-				if (!(aptr->len == bptr->len && memcmp(aptr->name, bptr->name, aptr->len) == 0))
+				if (!(aptr->len == bptr->len && strncmp(aptr->name, bptr->name, aptr->len) == 0))
 					break;
 				aptr = LEVEL_NEXT(aptr);
 				bptr = LEVEL_NEXT(bptr);
@@ -380,16 +389,20 @@ ltree_index(PG_FUNCTION_ARGS)
 Datum
 ltree_textadd(PG_FUNCTION_ARGS)
 {
-	ltree	   *a = PG_GETARG_LTREE_P(1);
-	text	   *b = PG_GETARG_TEXT_PP(0);
+	ltree	   *a = PG_GETARG_LTREE(1);
+	text	   *b = PG_GETARG_TEXT_P(0);
 	char	   *s;
 	ltree	   *r,
 			   *tmp;
 
-	s = text_to_cstring(b);
+	s = (char *) palloc(VARSIZE(b) - VARHDRSZ + 1);
+	memcpy(s, VARDATA(b), VARSIZE(b) - VARHDRSZ);
+	s[VARSIZE(b) - VARHDRSZ] = '\0';
 
-	tmp = (ltree *) DatumGetPointer(DirectFunctionCall1(ltree_in,
-														PointerGetDatum(s)));
+	tmp = (ltree *) DatumGetPointer(DirectFunctionCall1(
+														ltree_in,
+														PointerGetDatum(s)
+														));
 
 	pfree(s);
 
@@ -403,7 +416,7 @@ ltree_textadd(PG_FUNCTION_ARGS)
 }
 
 ltree *
-lca_inner(ltree **a, int len)
+lca_inner(ltree ** a, int len)
 {
 	int			tmp,
 				num = ((*a)->numlevel) ? (*a)->numlevel - 1 : 0;
@@ -432,7 +445,7 @@ lca_inner(ltree **a, int len)
 			num = 0;
 			for (i = 0; i < Min(tmp, (*ptr)->numlevel - 1); i++)
 			{
-				if (l1->len == l2->len && memcmp(l1->name, l2->name, l1->len) == 0)
+				if (l1->len == l2->len && strncmp(l1->name, l2->name, l1->len) == 0)
 					num = i + 1;
 				else
 					break;
@@ -450,8 +463,8 @@ lca_inner(ltree **a, int len)
 		l1 = LEVEL_NEXT(l1);
 	}
 
-	res = (ltree *) palloc0(reslen);
-	SET_VARSIZE(res, reslen);
+	res = (ltree *) palloc(reslen);
+	res->len = reslen;
 	res->numlevel = num;
 
 	l1 = LTREE_FIRST(*a);
@@ -476,7 +489,7 @@ lca(PG_FUNCTION_ARGS)
 
 	a = (ltree **) palloc(sizeof(ltree *) * fcinfo->nargs);
 	for (i = 0; i < fcinfo->nargs; i++)
-		a[i] = PG_GETARG_LTREE_P(i);
+		a[i] = PG_GETARG_LTREE(i);
 	res = lca_inner(a, (int) fcinfo->nargs);
 	for (i = 0; i < fcinfo->nargs; i++)
 		PG_FREE_IF_COPY(a[i], i);
@@ -491,14 +504,17 @@ lca(PG_FUNCTION_ARGS)
 Datum
 text2ltree(PG_FUNCTION_ARGS)
 {
-	text	   *in = PG_GETARG_TEXT_PP(0);
-	char	   *s;
+	text	   *in = PG_GETARG_TEXT_P(0);
+	char	   *s = (char *) palloc(VARSIZE(in) - VARHDRSZ + 1);
 	ltree	   *out;
 
-	s = text_to_cstring(in);
+	memcpy(s, VARDATA(in), VARSIZE(in) - VARHDRSZ);
+	s[VARSIZE(in) - VARHDRSZ] = '\0';
 
-	out = (ltree *) DatumGetPointer(DirectFunctionCall1(ltree_in,
-														PointerGetDatum(s)));
+	out = (ltree *) DatumGetPointer(DirectFunctionCall1(
+														ltree_in,
+														PointerGetDatum(s)
+														));
 	pfree(s);
 	PG_FREE_IF_COPY(in, 0);
 	PG_RETURN_POINTER(out);
@@ -508,13 +524,13 @@ text2ltree(PG_FUNCTION_ARGS)
 Datum
 ltree2text(PG_FUNCTION_ARGS)
 {
-	ltree	   *in = PG_GETARG_LTREE_P(0);
+	ltree	   *in = PG_GETARG_LTREE(0);
 	char	   *ptr;
 	int			i;
 	ltree_level *curlevel;
 	text	   *out;
 
-	out = (text *) palloc(VARSIZE(in) + VARHDRSZ);
+	out = (text *) palloc(in->len + VARHDRSZ);
 	ptr = VARDATA(out);
 	curlevel = LTREE_FIRST(in);
 	for (i = 0; i < in->numlevel; i++)
@@ -529,120 +545,8 @@ ltree2text(PG_FUNCTION_ARGS)
 		curlevel = LEVEL_NEXT(curlevel);
 	}
 
-	SET_VARSIZE(out, ptr - ((char *) out));
+	VARATT_SIZEP(out) = VARHDRSZ + (ptr - VARDATA(out));
 	PG_FREE_IF_COPY(in, 0);
 
 	PG_RETURN_POINTER(out);
-}
-
-
-#define DEFAULT_PARENT_SEL 0.001
-
-/*
- *	ltreeparentsel - Selectivity of parent relationship for ltree data types.
- */
-Datum
-ltreeparentsel(PG_FUNCTION_ARGS)
-{
-	PlannerInfo *root = (PlannerInfo *) PG_GETARG_POINTER(0);
-	Oid			operator = PG_GETARG_OID(1);
-	List	   *args = (List *) PG_GETARG_POINTER(2);
-	int			varRelid = PG_GETARG_INT32(3);
-	VariableStatData vardata;
-	Node	   *other;
-	bool		varonleft;
-	double		selec;
-
-	/*
-	 * If expression is not variable <@ something or something <@ variable,
-	 * then punt and return a default estimate.
-	 */
-	if (!get_restriction_variable(root, args, varRelid,
-								  &vardata, &other, &varonleft))
-		PG_RETURN_FLOAT8(DEFAULT_PARENT_SEL);
-
-	/*
-	 * If the something is a NULL constant, assume operator is strict and
-	 * return zero, ie, operator will never return TRUE.
-	 */
-	if (IsA(other, Const) &&
-		((Const *) other)->constisnull)
-	{
-		ReleaseVariableStats(vardata);
-		PG_RETURN_FLOAT8(0.0);
-	}
-
-	if (IsA(other, Const))
-	{
-		/* Variable is being compared to a known non-null constant */
-		Datum		constval = ((Const *) other)->constvalue;
-		FmgrInfo	contproc;
-		double		mcvsum;
-		double		mcvsel;
-		double		nullfrac;
-		int			hist_size;
-
-		fmgr_info(get_opcode(operator), &contproc);
-
-		/*
-		 * Is the constant "<@" to any of the column's most common values?
-		 */
-		mcvsel = mcv_selectivity(&vardata, &contproc, constval, varonleft,
-								 &mcvsum);
-
-		/*
-		 * If the histogram is large enough, see what fraction of it the
-		 * constant is "<@" to, and assume that's representative of the
-		 * non-MCV population.  Otherwise use the default selectivity for the
-		 * non-MCV population.
-		 */
-		selec = histogram_selectivity(&vardata, &contproc,
-									  constval, varonleft,
-									  10, 1, &hist_size);
-		if (selec < 0)
-		{
-			/* Nope, fall back on default */
-			selec = DEFAULT_PARENT_SEL;
-		}
-		else if (hist_size < 100)
-		{
-			/*
-			 * For histogram sizes from 10 to 100, we combine the histogram
-			 * and default selectivities, putting increasingly more trust in
-			 * the histogram for larger sizes.
-			 */
-			double		hist_weight = hist_size / 100.0;
-
-			selec = selec * hist_weight +
-				DEFAULT_PARENT_SEL * (1.0 - hist_weight);
-		}
-
-		/* In any case, don't believe extremely small or large estimates. */
-		if (selec < 0.0001)
-			selec = 0.0001;
-		else if (selec > 0.9999)
-			selec = 0.9999;
-
-		if (HeapTupleIsValid(vardata.statsTuple))
-			nullfrac = ((Form_pg_statistic) GETSTRUCT(vardata.statsTuple))->stanullfrac;
-		else
-			nullfrac = 0.0;
-
-		/*
-		 * Now merge the results from the MCV and histogram calculations,
-		 * realizing that the histogram covers only the non-null values that
-		 * are not listed in MCV.
-		 */
-		selec *= 1.0 - nullfrac - mcvsum;
-		selec += mcvsel;
-	}
-	else
-		selec = DEFAULT_PARENT_SEL;
-
-	ReleaseVariableStats(vardata);
-
-	/* result should be in range, but make sure... */
-	CLAMP_PROBABILITY(selec);
-
-	PG_RETURN_FLOAT8((float8) selec);
 }

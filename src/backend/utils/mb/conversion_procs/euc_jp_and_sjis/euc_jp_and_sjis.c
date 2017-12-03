@@ -2,11 +2,11 @@
  *
  *	  EUC_JP, SJIS and MULE_INTERNAL
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/utils/mb/conversion_procs/euc_jp_and_sjis/euc_jp_and_sjis.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/mb/conversion_procs/euc_jp_and_sjis/euc_jp_and_sjis.c,v 1.13.2.2 2006/05/21 20:05:48 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -27,7 +27,7 @@
  */
 #include "sjis.map"
 
-PG_MODULE_MAGIC;
+#define ENCODING_GROWTH_RATE 4
 
 PG_FUNCTION_INFO_V1(euc_jp_to_sjis);
 PG_FUNCTION_INFO_V1(sjis_to_euc_jp);
@@ -35,6 +35,13 @@ PG_FUNCTION_INFO_V1(euc_jp_to_mic);
 PG_FUNCTION_INFO_V1(mic_to_euc_jp);
 PG_FUNCTION_INFO_V1(sjis_to_mic);
 PG_FUNCTION_INFO_V1(mic_to_sjis);
+
+extern Datum euc_jp_to_sjis(PG_FUNCTION_ARGS);
+extern Datum sjis_to_euc_jp(PG_FUNCTION_ARGS);
+extern Datum euc_jp_to_mic(PG_FUNCTION_ARGS);
+extern Datum mic_to_euc_jp(PG_FUNCTION_ARGS);
+extern Datum sjis_to_mic(PG_FUNCTION_ARGS);
+extern Datum mic_to_sjis(PG_FUNCTION_ARGS);
 
 /* ----------
  * conv_proc(
@@ -61,7 +68,9 @@ euc_jp_to_sjis(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_EUC_JP, PG_SJIS);
+	Assert(PG_GETARG_INT32(0) == PG_EUC_JP);
+	Assert(PG_GETARG_INT32(1) == PG_SJIS);
+	Assert(len >= 0);
 
 	euc_jp2sjis(src, dest, len);
 
@@ -75,7 +84,9 @@ sjis_to_euc_jp(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_SJIS, PG_EUC_JP);
+	Assert(PG_GETARG_INT32(0) == PG_SJIS);
+	Assert(PG_GETARG_INT32(1) == PG_EUC_JP);
+	Assert(len >= 0);
 
 	sjis2euc_jp(src, dest, len);
 
@@ -89,7 +100,9 @@ euc_jp_to_mic(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_EUC_JP, PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(0) == PG_EUC_JP);
+	Assert(PG_GETARG_INT32(1) == PG_MULE_INTERNAL);
+	Assert(len >= 0);
 
 	euc_jp2mic(src, dest, len);
 
@@ -103,7 +116,9 @@ mic_to_euc_jp(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_MULE_INTERNAL, PG_EUC_JP);
+	Assert(PG_GETARG_INT32(0) == PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(1) == PG_EUC_JP);
+	Assert(len >= 0);
 
 	mic2euc_jp(src, dest, len);
 
@@ -117,7 +132,9 @@ sjis_to_mic(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_SJIS, PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(0) == PG_SJIS);
+	Assert(PG_GETARG_INT32(1) == PG_MULE_INTERNAL);
+	Assert(len >= 0);
 
 	sjis2mic(src, dest, len);
 
@@ -131,7 +148,9 @@ mic_to_sjis(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_MULE_INTERNAL, PG_SJIS);
+	Assert(PG_GETARG_INT32(0) == PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(1) == PG_SJIS);
+	Assert(len >= 0);
 
 	mic2sjis(src, dest, len);
 

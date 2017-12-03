@@ -1,4 +1,10 @@
-CREATE EXTENSION tablefunc;
+--
+-- first, define the functions.  Turn off echoing so that expected file
+-- does not depend on contents of tablefunc.sql.
+--
+\set ECHO none
+\i tablefunc.sql
+\set ECHO all
 
 --
 -- normal_rand()
@@ -38,7 +44,7 @@ CREATE FUNCTION crosstab_out(text,
 	OUT rowid text, OUT att1 text, OUT att2 text, OUT att3 text)
 RETURNS setof record
 AS '$libdir/tablefunc','crosstab'
-LANGUAGE C STABLE STRICT;
+LANGUAGE 'C' STABLE STRICT;
 
 SELECT * FROM crosstab_out('SELECT rowid, attribute, val FROM ct where rowclass = ''group1'' ORDER BY 1,2;');
 
@@ -55,11 +61,6 @@ insert into cth values(DEFAULT,'test2','02 March 2003','temperature','53');
 insert into cth values(DEFAULT,'test2','02 March 2003','test_result','FAIL');
 insert into cth values(DEFAULT,'test2','02 March 2003','test_startdate','01 March 2003');
 insert into cth values(DEFAULT,'test2','02 March 2003','volts','3.1234');
--- next group tests for NULL rowids
-insert into cth values(DEFAULT,NULL,'25 October 2007','temperature','57');
-insert into cth values(DEFAULT,NULL,'25 October 2007','test_result','PASS');
-insert into cth values(DEFAULT,NULL,'25 October 2007','test_startdate','24 October 2007');
-insert into cth values(DEFAULT,NULL,'25 October 2007','volts','1.41234');
 
 -- return attributes as plain text
 SELECT * FROM crosstab(
@@ -118,7 +119,7 @@ create type my_crosstab_result as (
 CREATE FUNCTION crosstab_named(text, text)
 RETURNS setof my_crosstab_result
 AS '$libdir/tablefunc','crosstab_hash'
-LANGUAGE C STABLE STRICT;
+LANGUAGE 'C' STABLE STRICT;
 
 SELECT * FROM crosstab_named(
   'SELECT rowid, rowdt, attribute, val FROM cth ORDER BY 1',
@@ -132,7 +133,7 @@ CREATE FUNCTION crosstab_out(text, text,
   OUT test_startdate timestamp, OUT volts float8)
 RETURNS setof record
 AS '$libdir/tablefunc','crosstab_hash'
-LANGUAGE C STABLE STRICT;
+LANGUAGE 'C' STABLE STRICT;
 
 SELECT * FROM crosstab_out(
   'SELECT rowid, rowdt, attribute, val FROM cth ORDER BY 1',
@@ -179,22 +180,6 @@ SELECT * FROM connectby('connectby_int', 'keyid', 'parent_keyid', '2', 0, '~') A
 -- infinite recursion failure avoided by depth limit
 SELECT * FROM connectby('connectby_int', 'keyid', 'parent_keyid', '2', 4, '~') AS t(keyid int, parent_keyid int, level int, branch text);
 
--- should fail as first two columns must have the same type
-SELECT * FROM connectby('connectby_int', 'keyid', 'parent_keyid', '2', 0, '~') AS t(keyid text, parent_keyid int, level int, branch text);
-
--- should fail as key field datatype should match return datatype
-SELECT * FROM connectby('connectby_int', 'keyid', 'parent_keyid', '2', 0, '~') AS t(keyid float8, parent_keyid float8, level int, branch text);
-
--- tests for values using custom queries
--- query with one column - failed
-SELECT * FROM connectby('connectby_int', '1; --', 'parent_keyid', '2', 0) AS t(keyid int, parent_keyid int, level int);
--- query with two columns first value as NULL
-SELECT * FROM connectby('connectby_int', 'NULL::int, 1::int; --', 'parent_keyid', '2', 0) AS t(keyid int, parent_keyid int, level int);
--- query with two columns second value as NULL
-SELECT * FROM connectby('connectby_int', '1::int, NULL::int; --', 'parent_keyid', '2', 0) AS t(keyid int, parent_keyid int, level int);
--- query with two columns, both values as NULL
-SELECT * FROM connectby('connectby_int', 'NULL::int, NULL::int; --', 'parent_keyid', '2', 0) AS t(keyid int, parent_keyid int, level int);
-
 -- test for falsely detected recursion
 DROP TABLE connectby_int;
 CREATE TABLE connectby_int(keyid int, parent_keyid int);
@@ -204,3 +189,4 @@ INSERT INTO connectby_int VALUES(111,11);
 INSERT INTO connectby_int VALUES(1,111);
 -- this should not fail due to recursion detection
 SELECT * FROM connectby('connectby_int', 'keyid', 'parent_keyid', '11', 0, '-') AS t(keyid int, parent_keyid int, level int, branch text);
+

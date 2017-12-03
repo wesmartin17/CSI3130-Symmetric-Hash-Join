@@ -4,10 +4,10 @@
  *
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/executor/nodeBitmapHeapscan.h
+ * $PostgreSQL: pgsql/src/include/executor/nodeBitmapHeapscan.h,v 1.1 2005/04/19 22:35:17 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -15,18 +15,11 @@
 #define NODEBITMAPHEAPSCAN_H
 
 #include "nodes/execnodes.h"
-#include "access/parallel.h"
 
-extern BitmapHeapScanState *ExecInitBitmapHeapScan(BitmapHeapScan *node, EState *estate, int eflags);
+extern int	ExecCountSlotsBitmapHeapScan(BitmapHeapScan *node);
+extern BitmapHeapScanState *ExecInitBitmapHeapScan(BitmapHeapScan *node, EState *estate);
+extern TupleTableSlot *ExecBitmapHeapScan(BitmapHeapScanState *node);
 extern void ExecEndBitmapHeapScan(BitmapHeapScanState *node);
-extern void ExecReScanBitmapHeapScan(BitmapHeapScanState *node);
-extern void ExecBitmapHeapEstimate(BitmapHeapScanState *node,
-					   ParallelContext *pcxt);
-extern void ExecBitmapHeapInitializeDSM(BitmapHeapScanState *node,
-							ParallelContext *pcxt);
-extern void ExecBitmapHeapReInitializeDSM(BitmapHeapScanState *node,
-							  ParallelContext *pcxt);
-extern void ExecBitmapHeapInitializeWorker(BitmapHeapScanState *node,
-							   ParallelWorkerContext *pwcxt);
+extern void ExecBitmapHeapReScan(BitmapHeapScanState *node, ExprContext *exprCtxt);
 
-#endif							/* NODEBITMAPHEAPSCAN_H */
+#endif   /* NODEBITMAPHEAPSCAN_H */

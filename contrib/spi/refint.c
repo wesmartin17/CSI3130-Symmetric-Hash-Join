@@ -1,34 +1,30 @@
 /*
- * contrib/spi/refint.c
- *
- *
  * refint.c --	set of functions to define referential integrity
  *		constraints using general triggers.
  */
-#include "postgres.h"
 
+#include "executor/spi.h"		/* this is what you need to work with SPI */
+#include "commands/trigger.h"	/* -"- and triggers */
 #include <ctype.h>
 
-#include "commands/trigger.h"
-#include "executor/spi.h"
-#include "utils/builtins.h"
-#include "utils/rel.h"
 
-PG_MODULE_MAGIC;
+extern Datum check_primary_key(PG_FUNCTION_ARGS);
+extern Datum check_foreign_key(PG_FUNCTION_ARGS);
+
 
 typedef struct
 {
 	char	   *ident;
 	int			nplans;
-	SPIPlanPtr *splan;
-} EPlan;
+	void	  **splan;
+}	EPlan;
 
 static EPlan *FPlans = NULL;
 static int	nFPlans = 0;
 static EPlan *PPlans = NULL;
 static int	nPPlans = 0;
 
-static EPlan *find_plan(char *ident, EPlan **eplan, int *nplans);
+static EPlan *find_plan(char *ident, EPlan ** eplan, int *nplans);
 
 /*
  * check_primary_key () -- check that key in tuple being inserted/updated
@@ -76,9 +72,9 @@ check_primary_key(PG_FUNCTION_ARGS)
 		elog(ERROR, "check_primary_key: not fired by trigger manager");
 
 	/* Should be called for ROW trigger */
-	if (!TRIGGER_FIRED_FOR_ROW(trigdata->tg_event))
+	if (TRIGGER_FIRED_FOR_STATEMENT(trigdata->tg_event))
 		/* internal error */
-		elog(ERROR, "check_primary_key: must be fired for row");
+		elog(ERROR, "check_primary_key: can't process STATEMENT events");
 
 	/* If INSERTion then must check Tuple to being inserted */
 	if (TRIGGER_FIRED_BY_INSERT(trigdata->tg_event))
@@ -87,9 +83,9 @@ check_primary_key(PG_FUNCTION_ARGS)
 	/* Not should be called for DELETE */
 	else if (TRIGGER_FIRED_BY_DELETE(trigdata->tg_event))
 		/* internal error */
-		elog(ERROR, "check_primary_key: cannot process DELETE events");
+		elog(ERROR, "check_primary_key: can't process DELETE events");
 
-	/* If UPDATE, then must check new Tuple, not old one */
+	/* If UPDATion the must check new Tuple, not old one */
 	else
 		tuple = trigdata->tg_newtuple;
 
@@ -135,7 +131,7 @@ check_primary_key(PG_FUNCTION_ARGS)
 		int			fnumber = SPI_fnumber(tupdesc, args[i]);
 
 		/* Bad guys may give us un-existing column in CREATE TRIGGER */
-		if (fnumber <= 0)
+		if (fnumber < 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_UNDEFINED_COLUMN),
 					 errmsg("there is no attribute \"%s\" in relation \"%s\"",
@@ -164,7 +160,7 @@ check_primary_key(PG_FUNCTION_ARGS)
 	 */
 	if (plan->nplans <= 0)
 	{
-		SPIPlanPtr	pplan;
+		void	   *pplan;
 		char		sql[8192];
 
 		/*
@@ -175,23 +171,24 @@ check_primary_key(PG_FUNCTION_ARGS)
 		for (i = 0; i < nkeys; i++)
 		{
 			snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), "%s = $%d %s",
-					 args[i + nkeys + 1], i + 1, (i < nkeys - 1) ? "and " : "");
+				  args[i + nkeys + 1], i + 1, (i < nkeys - 1) ? "and " : "");
 		}
 
 		/* Prepare plan for query */
 		pplan = SPI_prepare(sql, nkeys, argtypes);
 		if (pplan == NULL)
 			/* internal error */
-			elog(ERROR, "check_primary_key: SPI_prepare returned %s", SPI_result_code_string(SPI_result));
+			elog(ERROR, "check_primary_key: SPI_prepare returned %d", SPI_result);
 
 		/*
 		 * Remember that SPI_prepare places plan in current memory context -
-		 * so, we have to save plan in Top memory context for later use.
+		 * so, we have to save plan in Top memory context for latter use.
 		 */
-		if (SPI_keepplan(pplan))
+		pplan = SPI_saveplan(pplan);
+		if (pplan == NULL)
 			/* internal error */
-			elog(ERROR, "check_primary_key: SPI_keepplan failed");
-		plan->splan = (SPIPlanPtr *) malloc(sizeof(SPIPlanPtr));
+			elog(ERROR, "check_primary_key: SPI_saveplan returned %d", SPI_result);
+		plan->splan = (void **) malloc(sizeof(void *));
 		*(plan->splan) = pplan;
 		plan->nplans = 1;
 	}
@@ -248,7 +245,7 @@ check_foreign_key(PG_FUNCTION_ARGS)
 	Datum	   *kvals;			/* key values */
 	char	   *relname;		/* referencing relation name */
 	Relation	rel;			/* triggered relation */
-	HeapTuple	trigtuple = NULL;	/* tuple to being changed */
+	HeapTuple	trigtuple = NULL;		/* tuple to being changed */
 	HeapTuple	newtuple = NULL;	/* tuple to return */
 	TupleDesc	tupdesc;		/* tuple description */
 	EPlan	   *plan;			/* prepared plan(s) */
@@ -275,14 +272,14 @@ check_foreign_key(PG_FUNCTION_ARGS)
 		elog(ERROR, "check_foreign_key: not fired by trigger manager");
 
 	/* Should be called for ROW trigger */
-	if (!TRIGGER_FIRED_FOR_ROW(trigdata->tg_event))
+	if (TRIGGER_FIRED_FOR_STATEMENT(trigdata->tg_event))
 		/* internal error */
-		elog(ERROR, "check_foreign_key: must be fired for row");
+		elog(ERROR, "check_foreign_key: can't process STATEMENT events");
 
 	/* Not should be called for INSERT */
 	if (TRIGGER_FIRED_BY_INSERT(trigdata->tg_event))
 		/* internal error */
-		elog(ERROR, "check_foreign_key: cannot process INSERT events");
+		elog(ERROR, "check_foreign_key: can't process INSERT events");
 
 	/* Have to check tg_trigtuple - tuple being deleted */
 	trigtuple = trigdata->tg_trigtuple;
@@ -362,7 +359,7 @@ check_foreign_key(PG_FUNCTION_ARGS)
 		int			fnumber = SPI_fnumber(tupdesc, args[i]);
 
 		/* Bad guys may give us un-existing column in CREATE TRIGGER */
-		if (fnumber <= 0)
+		if (fnumber < 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_UNDEFINED_COLUMN),
 					 errmsg("there is no attribute \"%s\" in relation \"%s\"",
@@ -395,7 +392,7 @@ check_foreign_key(PG_FUNCTION_ARGS)
 			/* this shouldn't happen! SPI_ERROR_NOOUTFUNC ? */
 			if (oldval == NULL)
 				/* internal error */
-				elog(ERROR, "check_foreign_key: SPI_getvalue returned %s", SPI_result_code_string(SPI_result));
+				elog(ERROR, "check_foreign_key: SPI_getvalue returned %d", SPI_result);
 			newval = SPI_getvalue(newtuple, tupdesc, fnumber);
 			if (newval == NULL || strcmp(oldval, newval) != 0)
 				isequal = false;
@@ -413,11 +410,11 @@ check_foreign_key(PG_FUNCTION_ARGS)
 	 */
 	if (plan->nplans <= 0)
 	{
-		SPIPlanPtr	pplan;
+		void	   *pplan;
 		char		sql[8192];
 		char	  **args2 = args;
 
-		plan->splan = (SPIPlanPtr *) malloc(nrefs * sizeof(SPIPlanPtr));
+		plan->splan = (void **) malloc(nrefs * sizeof(void *));
 
 		for (r = 0; r < nrefs; r++)
 		{
@@ -469,7 +466,6 @@ check_foreign_key(PG_FUNCTION_ARGS)
 						char	   *type;
 
 						fn = SPI_fnumber(tupdesc, args_temp[k - 1]);
-						Assert(fn > 0); /* already checked above */
 						nv = SPI_getvalue(newtuple, tupdesc, fn);
 						type = SPI_gettype(tupdesc, fn);
 
@@ -529,15 +525,17 @@ check_foreign_key(PG_FUNCTION_ARGS)
 			pplan = SPI_prepare(sql, nkeys, argtypes);
 			if (pplan == NULL)
 				/* internal error */
-				elog(ERROR, "check_foreign_key: SPI_prepare returned %s", SPI_result_code_string(SPI_result));
+				elog(ERROR, "check_foreign_key: SPI_prepare returned %d", SPI_result);
 
 			/*
 			 * Remember that SPI_prepare places plan in current memory context
-			 * - so, we have to save plan in Top memory context for later use.
+			 * - so, we have to save plan in Top memory context for latter
+			 * use.
 			 */
-			if (SPI_keepplan(pplan))
+			pplan = SPI_saveplan(pplan);
+			if (pplan == NULL)
 				/* internal error */
-				elog(ERROR, "check_foreign_key: SPI_keepplan failed");
+				elog(ERROR, "check_foreign_key: SPI_saveplan returned %d", SPI_result);
 
 			plan->splan[r] = pplan;
 
@@ -594,7 +592,7 @@ check_foreign_key(PG_FUNCTION_ARGS)
 		else
 		{
 #ifdef REFINT_VERBOSE
-			elog(NOTICE, "%s: " UINT64_FORMAT " tuple(s) of %s are %s",
+			elog(NOTICE, "%s: %d tuple(s) of %s are %s",
 				 trigger->tgname, SPI_processed, relname,
 				 (action == 'c') ? "deleted" : "set to null");
 #endif
@@ -608,7 +606,7 @@ check_foreign_key(PG_FUNCTION_ARGS)
 }
 
 static EPlan *
-find_plan(char *ident, EPlan **eplan, int *nplans)
+find_plan(char *ident, EPlan ** eplan, int *nplans)
 {
 	EPlan	   *newp;
 	int			i;
@@ -631,10 +629,11 @@ find_plan(char *ident, EPlan **eplan, int *nplans)
 		(*nplans) = i = 0;
 	}
 
-	newp->ident = strdup(ident);
+	newp->ident = (char *) malloc(strlen(ident) + 1);
+	strcpy(newp->ident, ident);
 	newp->nplans = 0;
 	newp->splan = NULL;
 	(*nplans)++;
 
-	return newp;
+	return (newp);
 }

@@ -4,10 +4,10 @@
 --    sample queries to the system catalogs
 --
 --
--- Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+-- Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
 -- Portions Copyright (c) 1994, Regents of the University of California
 --
--- src/tutorial/syscat.source
+-- $PostgreSQL: pgsql/src/tutorial/syscat.source,v 1.15 2005/08/15 02:40:36 tgl Exp $
 --
 ---------------------------------------------------------------------------
 
@@ -15,11 +15,7 @@
 -- Sets the schema search path to pg_catalog first, so that we do not
 -- need to qualify every system object
 --
-SET search_path TO pg_catalog;
-
--- The LIKE pattern language requires underscores to be escaped, so make
--- sure the backslashes are not misinterpreted.
-SET standard_conforming_strings TO on;
+SET SEARCH_PATH TO pg_catalog;
 
 --
 -- lists the names of all database owners and the name of their database(s)
@@ -36,7 +32,7 @@ SELECT n.nspname, c.relname
   FROM pg_class c, pg_namespace n
   WHERE c.relnamespace=n.oid
     and c.relkind = 'r'                   -- not indices, views, etc
-    and n.nspname not like 'pg\_%'       -- not catalogs
+    and n.nspname not like 'pg\\_%'       -- not catalogs
     and n.nspname != 'information_schema' -- not information_schema
   ORDER BY nspname, relname;
 
@@ -46,8 +42,8 @@ SELECT n.nspname, c.relname
 -- column reference)
 --
 SELECT n.nspname AS schema_name,
-       bc.relname AS class_name,
-       ic.relname AS index_name,
+       bc.relname AS class_name, 
+       ic.relname AS index_name, 
        a.attname
   FROM pg_namespace n,
        pg_class bc,             -- base class
@@ -68,11 +64,11 @@ SELECT n.nspname AS schema_name,
 -- classes
 --
 SELECT n.nspname, c.relname, a.attname, format_type(t.oid, null) as typname
-  FROM pg_namespace n, pg_class c,
+  FROM pg_namespace n, pg_class c, 
        pg_attribute a, pg_type t
   WHERE n.oid = c.relnamespace
     and c.relkind = 'r'     -- no indices
-    and n.nspname not like 'pg\_%' -- no catalogs
+    and n.nspname not like 'pg\\_%' -- no catalogs
     and n.nspname != 'information_schema' -- no information_schema
     and a.attnum > 0        -- no system att's
     and not a.attisdropped   -- no dropped columns
@@ -90,7 +86,7 @@ SELECT n.nspname, r.rolname, format_type(t.oid, null) as typname
     and t.typnamespace = n.oid
     and t.typrelid = 0   -- no complex types
     and t.typelem = 0    -- no arrays
-    and n.nspname not like 'pg\_%' -- no built-in types
+    and n.nspname not like 'pg\\_%' -- no built-in types
     and n.nspname != 'information_schema' -- no information_schema
   ORDER BY nspname, rolname, typname;
 
@@ -98,10 +94,10 @@ SELECT n.nspname, r.rolname, format_type(t.oid, null) as typname
 --
 -- lists all left unary operators
 --
-SELECT n.nspname, o.oprname AS left_unary,
+SELECT n.nspname, o.oprname AS left_unary, 
        format_type(right_type.oid, null) AS operand,
        format_type(result.oid, null) AS return_type
-  FROM pg_namespace n, pg_operator o,
+  FROM pg_namespace n, pg_operator o, 
        pg_type right_type, pg_type result
   WHERE o.oprnamespace = n.oid
     and o.oprkind = 'l'           -- left unary
@@ -113,10 +109,10 @@ SELECT n.nspname, o.oprname AS left_unary,
 --
 -- lists all right unary operators
 --
-SELECT n.nspname, o.oprname AS right_unary,
+SELECT n.nspname, o.oprname AS right_unary, 
        format_type(left_type.oid, null) AS operand,
        format_type(result.oid, null) AS return_type
-  FROM pg_namespace n, pg_operator o,
+  FROM pg_namespace n, pg_operator o, 
        pg_type left_type, pg_type result
   WHERE o.oprnamespace = n.oid
     and o.oprkind = 'r'          -- right unary
@@ -131,7 +127,7 @@ SELECT n.nspname, o.oprname AS binary_op,
        format_type(left_type.oid, null) AS left_opr,
        format_type(right_type.oid, null) AS right_opr,
        format_type(result.oid, null) AS return_type
-  FROM pg_namespace n, pg_operator o, pg_type left_type,
+  FROM pg_namespace n, pg_operator o, pg_type left_type, 
        pg_type right_type, pg_type result
   WHERE o.oprnamespace = n.oid
     and o.oprkind = 'b'         -- binary
@@ -146,12 +142,12 @@ SELECT n.nspname, o.oprname AS binary_op,
 -- C functions
 --
 SELECT n.nspname, p.proname, p.pronargs, format_type(t.oid, null) as return_type
-  FROM pg_namespace n, pg_proc p,
+  FROM pg_namespace n, pg_proc p, 
        pg_language l, pg_type t
   WHERE p.pronamespace = n.oid
-    and n.nspname not like 'pg\_%' -- no catalogs
+    and n.nspname not like 'pg\\_%' -- no catalogs
     and n.nspname != 'information_schema' -- no information_schema
-    and p.prolang = l.oid
+    and p.prolang = l.oid 
     and p.prorettype = t.oid
     and l.lanname = 'c'
   ORDER BY nspname, proname, pronargs, return_type;
@@ -160,7 +156,7 @@ SELECT n.nspname, p.proname, p.pronargs, format_type(t.oid, null) as return_type
 -- lists all aggregate functions and the types to which they can be applied
 --
 SELECT n.nspname, p.proname, format_type(t.oid, null) as typname
-  FROM pg_namespace n, pg_aggregate a,
+  FROM pg_namespace n, pg_aggregate a, 
        pg_proc p, pg_type t
   WHERE p.pronamespace = n.oid
     and a.aggfnoid = p.oid
@@ -169,21 +165,21 @@ SELECT n.nspname, p.proname, format_type(t.oid, null) as typname
 
 
 --
--- lists all the operator families that can be used with each access method
--- as well as the operators that can be used with the respective operator
--- families
+-- lists all the operator classes that can be used with each access method
+-- as well as the operators that cn be used with the respective operator
+-- classes
 --
-SELECT am.amname, n.nspname, opf.opfname, opr.oprname
-  FROM pg_namespace n, pg_am am, pg_opfamily opf,
+SELECT n.nspname, am.amname, opc.opcname, opr.oprname
+  FROM pg_namespace n, pg_am am, pg_opclass opc, 
        pg_amop amop, pg_operator opr
-  WHERE opf.opfnamespace = n.oid
-    and opf.opfmethod = am.oid
-    and amop.amopfamily = opf.oid
+  WHERE opc.opcnamespace = n.oid
+    and opc.opcamid = am.oid
+    and amop.amopclaid = opc.oid
     and amop.amopopr = opr.oid
-  ORDER BY nspname, amname, opfname, oprname;
+  ORDER BY nspname, amname, opcname, oprname;
 
 --
--- Reset the search path and standard_conforming_strings to their defaults
+-- Reset the search path
 --
-RESET search_path;
-RESET standard_conforming_strings;
+RESET SEARCH_PATH;
+

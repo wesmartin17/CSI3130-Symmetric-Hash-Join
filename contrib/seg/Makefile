@@ -1,20 +1,17 @@
-# contrib/seg/Makefile
+# $PostgreSQL: pgsql/contrib/seg/Makefile,v 1.14 2005/10/18 01:30:48 tgl Exp $
 
 MODULE_big = seg
-OBJS = seg.o segparse.o $(WIN32RES)
-
-EXTENSION = seg
-DATA = seg--1.1.sql seg--1.1--1.2.sql seg--1.2--1.3.sql \
-	seg--1.0--1.1.sql seg--unpackaged--1.0.sql
-PGFILEDESC = "seg - line segment data type"
-
+OBJS = seg.o segparse.o
+DATA_built = seg.sql
+DOCS = README.seg
 REGRESS = seg
 
-EXTRA_CLEAN = y.tab.c y.tab.h
+EXTRA_CLEAN = segparse.c segparse.h segscan.c y.tab.c y.tab.h
+
+PG_CPPFLAGS = -I.
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/seg
@@ -23,11 +20,23 @@ include $(top_builddir)/src/Makefile.global
 include $(top_srcdir)/contrib/contrib-global.mk
 endif
 
-
 # segscan is compiled as part of segparse
 segparse.o: segscan.c
 
-distprep: segparse.c segscan.c
+segparse.c: segparse.h ;
 
-maintainer-clean:
-	rm -f segparse.c segscan.c
+segparse.h: segparse.y
+ifdef YACC
+	$(YACC) -d $(YFLAGS) -p seg_yy $<
+	mv -f y.tab.c segparse.c
+	mv -f y.tab.h segparse.h
+else
+	@$(missing) bison $< $@
+endif
+
+segscan.c: segscan.l
+ifdef FLEX
+	$(FLEX) $(FLEXFLAGS) -o'$@' $<
+else
+	@$(missing) flex $< $@
+endif

@@ -1,7 +1,7 @@
 /*
  * regerror - error-code expansion
  *
- * Copyright (c) 1998, 1999 Henry Spencer.  All rights reserved.
+ * Copyright (c) 1998, 1999 Henry Spencer.	All rights reserved.
  *
  * Development of this software was funded, in part, by Cray Research Inc.,
  * UUNET Communications Services Inc., Sun Microsystems Inc., and Scriptics
@@ -27,26 +27,26 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * src/backend/regex/regerror.c
+ * $PostgreSQL: pgsql/src/backend/regex/regerror.c,v 1.27 2003/11/29 19:51:55 pgsql Exp $
  *
  */
 
 #include "regex/regguts.h"
 
 /* unknown-error explanation */
-static const char unk[] = "*** unknown regex error code 0x%x ***";
+static char unk[] = "*** unknown regex error code 0x%x ***";
 
 /* struct to map among codes, code names, and explanations */
-static const struct rerr
+static struct rerr
 {
 	int			code;
-	const char *name;
-	const char *explain;
-}			rerrs[] =
+	char	   *name;
+	char	   *explain;
+}	rerrs[] =
 
 {
 	/* the actual table is built from regex.h */
-#include "regex/regerrs.h"		/* pgrminclude ignore */
+#include "regex/regerrs.h"
 	{
 		-1, "", "oops"
 	},							/* explanation special-cased in code */
@@ -62,9 +62,9 @@ pg_regerror(int errcode,		/* error code, or REG_ATOI or REG_ITOA */
 			char *errbuf,		/* result buffer (unless errbuf_size==0) */
 			size_t errbuf_size) /* available space in errbuf, can be 0 */
 {
-	const struct rerr *r;
-	const char *msg;
-	char		convbuf[sizeof(unk) + 50];	/* 50 = plenty for int */
+	struct rerr *r;
+	char	   *msg;
+	char		convbuf[sizeof(unk) + 50];		/* 50 = plenty for int */
 	size_t		len;
 	int			icode;
 
@@ -78,7 +78,7 @@ pg_regerror(int errcode,		/* error code, or REG_ATOI or REG_ITOA */
 			msg = convbuf;
 			break;
 		case REG_ITOA:			/* convert number to name */
-			icode = atoi(errbuf);	/* not our problem if this fails */
+			icode = atoi(errbuf);		/* not our problem if this fails */
 			for (r = rerrs; r->code >= 0; r++)
 				if (r->code == icode)
 					break;
@@ -111,7 +111,7 @@ pg_regerror(int errcode,		/* error code, or REG_ATOI or REG_ITOA */
 			strcpy(errbuf, msg);
 		else
 		{						/* truncate to fit */
-			memcpy(errbuf, msg, errbuf_size - 1);
+			strncpy(errbuf, msg, errbuf_size - 1);
 			errbuf[errbuf_size - 1] = '\0';
 		}
 	}

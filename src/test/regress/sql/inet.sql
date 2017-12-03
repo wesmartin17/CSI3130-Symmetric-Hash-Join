@@ -49,20 +49,15 @@ SELECT '' AS six, c AS cidr, i AS inet FROM INET_TBL
   WHERE c = i;
 
 SELECT '' AS ten, i, c,
-  i < c AS lt, i <= c AS le, i = c AS eq,
+  i < c AS lt, i <= c AS le, i = c AS eq, 
   i >= c AS ge, i > c AS gt, i <> c AS ne,
   i << c AS sb, i <<= c AS sbe,
-  i >> c AS sup, i >>= c AS spe,
-  i && c AS ovr
+  i >> c AS sup, i >>= c AS spe
   FROM INET_TBL;
-
-SELECT max(i) AS max, min(i) AS min FROM INET_TBL;
-SELECT max(c) AS max, min(c) AS min FROM INET_TBL;
 
 -- check the conversion to/from text and set_netmask
 SELECT '' AS ten, set_masklen(inet(text(i)), 24) FROM INET_TBL;
-
--- check that btree index works correctly
+-- check that index works correctly
 CREATE INDEX inet_idx1 ON inet_tbl(i);
 SET enable_seqscan TO off;
 SELECT * FROM inet_tbl WHERE i<<'192.168.1.0/24'::cidr;
@@ -70,79 +65,3 @@ SELECT * FROM inet_tbl WHERE i<<='192.168.1.0/24'::cidr;
 SET enable_seqscan TO on;
 DROP INDEX inet_idx1;
 
--- check that gist index works correctly
-CREATE INDEX inet_idx2 ON inet_tbl using gist (i inet_ops);
-SET enable_seqscan TO off;
-SELECT * FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i <<= '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i && '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i >>= '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i >> '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i < '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i <= '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i = '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i >= '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i > '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i <> '192.168.1.0/24'::cidr ORDER BY i;
-
--- test index-only scans
-EXPLAIN (COSTS OFF)
-SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
-SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
-
-SET enable_seqscan TO on;
-DROP INDEX inet_idx2;
-
--- check that spgist index works correctly
-CREATE INDEX inet_idx3 ON inet_tbl using spgist (i);
-SET enable_seqscan TO off;
-SELECT * FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i <<= '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i && '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i >>= '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i >> '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i < '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i <= '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i = '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i >= '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i > '192.168.1.0/24'::cidr ORDER BY i;
-SELECT * FROM inet_tbl WHERE i <> '192.168.1.0/24'::cidr ORDER BY i;
-
--- test index-only scans
-EXPLAIN (COSTS OFF)
-SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
-SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
-
-SET enable_seqscan TO on;
-DROP INDEX inet_idx3;
-
--- simple tests of inet boolean and arithmetic operators
-SELECT i, ~i AS "~i" FROM inet_tbl;
-SELECT i, c, i & c AS "and" FROM inet_tbl;
-SELECT i, c, i | c AS "or" FROM inet_tbl;
-SELECT i, i + 500 AS "i+500" FROM inet_tbl;
-SELECT i, i - 500 AS "i-500" FROM inet_tbl;
-SELECT i, c, i - c AS "minus" FROM inet_tbl;
-SELECT '127.0.0.1'::inet + 257;
-SELECT ('127.0.0.1'::inet + 257) - 257;
-SELECT '127::1'::inet + 257;
-SELECT ('127::1'::inet + 257) - 257;
-SELECT '127.0.0.2'::inet  - ('127.0.0.2'::inet + 500);
-SELECT '127.0.0.2'::inet  - ('127.0.0.2'::inet - 500);
-SELECT '127::2'::inet  - ('127::2'::inet + 500);
-SELECT '127::2'::inet  - ('127::2'::inet - 500);
--- these should give overflow errors:
-SELECT '127.0.0.1'::inet + 10000000000;
-SELECT '127.0.0.1'::inet - 10000000000;
-SELECT '126::1'::inet - '127::2'::inet;
-SELECT '127::1'::inet - '126::2'::inet;
--- but not these
-SELECT '127::1'::inet + 10000000000;
-SELECT '127::1'::inet - '127::2'::inet;
-
--- insert one more row with addressed from different families
-INSERT INTO INET_TBL (c, i) VALUES ('10', '10::/8');
--- now, this one should fail
-SELECT inet_merge(c, i) FROM INET_TBL;
--- fix it by inet_same_family() condition
-SELECT inet_merge(c, i) FROM INET_TBL WHERE inet_same_family(c, i);

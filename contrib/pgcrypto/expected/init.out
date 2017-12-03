@@ -1,9 +1,7 @@
 --
 -- init pgcrypto
 --
-CREATE EXTENSION pgcrypto;
--- ensure consistent test output regardless of the default bytea format
-SET bytea_output TO escape;
+\set ECHO none
 -- check for encoding fn's
 SELECT encode('foo', 'hex');
  encode 

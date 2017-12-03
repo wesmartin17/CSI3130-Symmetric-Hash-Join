@@ -3,11 +3,11 @@
  * encode.c
  *	  Various data encoding/decoding things.
  *
- * Copyright (c) 2001-2017, PostgreSQL Global Development Group
+ * Copyright (c) 2001-2005, PostgreSQL Global Development Group
  *
  *
  * IDENTIFICATION
- *	  src/backend/utils/adt/encode.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/adt/encode.c,v 1.16 2005/10/15 02:49:28 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -26,7 +26,7 @@ struct pg_encoding
 	unsigned	(*decode) (const char *data, unsigned dlen, char *res);
 };
 
-static const struct pg_encoding *pg_find_encoding(const char *name);
+static struct pg_encoding *pg_find_encoding(const char *name);
 
 /*
  * SQL functions.
@@ -35,18 +35,18 @@ static const struct pg_encoding *pg_find_encoding(const char *name);
 Datum
 binary_encode(PG_FUNCTION_ARGS)
 {
-	bytea	   *data = PG_GETARG_BYTEA_PP(0);
+	bytea	   *data = PG_GETARG_BYTEA_P(0);
 	Datum		name = PG_GETARG_DATUM(1);
 	text	   *result;
 	char	   *namebuf;
 	int			datalen,
 				resultlen,
 				res;
-	const struct pg_encoding *enc;
+	struct pg_encoding *enc;
 
-	datalen = VARSIZE_ANY_EXHDR(data);
+	datalen = VARSIZE(data) - VARHDRSZ;
 
-	namebuf = TextDatumGetCString(name);
+	namebuf = DatumGetCString(DirectFunctionCall1(textout, name));
 
 	enc = pg_find_encoding(namebuf);
 	if (enc == NULL)
@@ -54,16 +54,16 @@ binary_encode(PG_FUNCTION_ARGS)
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("unrecognized encoding: \"%s\"", namebuf)));
 
-	resultlen = enc->encode_len(VARDATA_ANY(data), datalen);
+	resultlen = enc->encode_len(VARDATA(data), datalen);
 	result = palloc(VARHDRSZ + resultlen);
 
-	res = enc->encode(VARDATA_ANY(data), datalen, VARDATA(result));
+	res = enc->encode(VARDATA(data), datalen, VARDATA(result));
 
 	/* Make this FATAL 'cause we've trodden on memory ... */
 	if (res > resultlen)
 		elog(FATAL, "overflow - encode estimate too small");
 
-	SET_VARSIZE(result, VARHDRSZ + res);
+	VARATT_SIZEP(result) = VARHDRSZ + res;
 
 	PG_RETURN_TEXT_P(result);
 }
@@ -71,18 +71,18 @@ binary_encode(PG_FUNCTION_ARGS)
 Datum
 binary_decode(PG_FUNCTION_ARGS)
 {
-	text	   *data = PG_GETARG_TEXT_PP(0);
+	text	   *data = PG_GETARG_TEXT_P(0);
 	Datum		name = PG_GETARG_DATUM(1);
 	bytea	   *result;
 	char	   *namebuf;
 	int			datalen,
 				resultlen,
 				res;
-	const struct pg_encoding *enc;
+	struct pg_encoding *enc;
 
-	datalen = VARSIZE_ANY_EXHDR(data);
+	datalen = VARSIZE(data) - VARHDRSZ;
 
-	namebuf = TextDatumGetCString(name);
+	namebuf = DatumGetCString(DirectFunctionCall1(textout, name));
 
 	enc = pg_find_encoding(namebuf);
 	if (enc == NULL)
@@ -90,16 +90,16 @@ binary_decode(PG_FUNCTION_ARGS)
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("unrecognized encoding: \"%s\"", namebuf)));
 
-	resultlen = enc->decode_len(VARDATA_ANY(data), datalen);
+	resultlen = enc->decode_len(VARDATA(data), datalen);
 	result = palloc(VARHDRSZ + resultlen);
 
-	res = enc->decode(VARDATA_ANY(data), datalen, VARDATA(result));
+	res = enc->decode(VARDATA(data), datalen, VARDATA(result));
 
 	/* Make this FATAL 'cause we've trodden on memory ... */
 	if (res > resultlen)
 		elog(FATAL, "overflow - decode estimate too small");
 
-	SET_VARSIZE(result, VARHDRSZ + res);
+	VARATT_SIZEP(result) = VARHDRSZ + res;
 
 	PG_RETURN_BYTEA_P(result);
 }
@@ -109,7 +109,7 @@ binary_decode(PG_FUNCTION_ARGS)
  * HEX
  */
 
-static const char hextbl[] = "0123456789abcdef";
+static const char *hextbl = "0123456789abcdef";
 
 static const int8 hexlookup[128] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -122,7 +122,7 @@ static const int8 hexlookup[128] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 };
 
-unsigned
+static unsigned
 hex_encode(const char *src, unsigned len, char *dst)
 {
 	const char *end = src + len;
@@ -136,7 +136,7 @@ hex_encode(const char *src, unsigned len, char *dst)
 	return len * 2;
 }
 
-static inline char
+static char
 get_hex(char c)
 {
 	int			res = -1;
@@ -152,14 +152,14 @@ get_hex(char c)
 	return (char) res;
 }
 
-unsigned
+static unsigned
 hex_decode(const char *src, unsigned len, char *dst)
 {
 	const char *s,
 			   *srcend;
 	char		v1,
 				v2,
-			   *p;
+			   *p = dst;
 
 	srcend = src + len;
 	s = src;
@@ -175,7 +175,7 @@ hex_decode(const char *src, unsigned len, char *dst)
 		if (s >= srcend)
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-					 errmsg("invalid hexadecimal data: odd number of digits")));
+				  errmsg("invalid hexadecimal data: odd number of digits")));
 
 		v2 = get_hex(*s++);
 		*p++ = v1 | v2;
@@ -292,7 +292,7 @@ b64_decode(const char *src, unsigned len, char *dst)
 				else
 					ereport(ERROR,
 							(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-							 errmsg("unexpected \"=\" while decoding base64 sequence")));
+							 errmsg("unexpected \"=\"")));
 			}
 			b = 0;
 		}
@@ -304,7 +304,7 @@ b64_decode(const char *src, unsigned len, char *dst)
 			if (b < 0)
 				ereport(ERROR,
 						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-						 errmsg("invalid symbol \"%c\" while decoding base64 sequence", (int) c)));
+						 errmsg("invalid symbol")));
 		}
 		/* add it to buffer */
 		buf = (buf << 6) + b;
@@ -324,8 +324,7 @@ b64_decode(const char *src, unsigned len, char *dst)
 	if (pos != 0)
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("invalid base64 end sequence"),
-				 errhint("Input data is missing padding, is truncated, or is otherwise corrupted.")));
+				 errmsg("invalid end sequence")));
 
 	return p - dst;
 }
@@ -349,13 +348,10 @@ b64_dec_len(const char *src, unsigned srclen)
  * Minimally escape bytea to text.
  * De-escape text to bytea.
  *
- * We must escape zero bytes and high-bit-set bytes to avoid generating
- * text that might be invalid in the current encoding, or that might
- * change to something else if passed through an encoding conversion
- * (leading to failing to de-escape to the original bytea value).
- * Also of course backslash itself has to be escaped.
+ * Only two characters are escaped:
+ * \0 (null) and \\ (backslash)
  *
- * De-escaping processes \\ and any \### octal
+ * De-escapes \\ and any \### octal
  */
 
 #define VAL(CH)			((CH) - '0')
@@ -370,18 +366,16 @@ esc_encode(const char *src, unsigned srclen, char *dst)
 
 	while (src < end)
 	{
-		unsigned char c = (unsigned char) *src;
-
-		if (c == '\0' || IS_HIGHBIT_SET(c))
+		if (*src == '\0')
 		{
 			rp[0] = '\\';
-			rp[1] = DIG(c >> 6);
-			rp[2] = DIG((c >> 3) & 7);
-			rp[3] = DIG(c & 7);
+			rp[1] = '0';
+			rp[2] = '0';
+			rp[3] = '0';
 			rp += 4;
 			len += 4;
 		}
-		else if (c == '\\')
+		else if (*src == '\\')
 		{
 			rp[0] = '\\';
 			rp[1] = '\\';
@@ -390,7 +384,7 @@ esc_encode(const char *src, unsigned srclen, char *dst)
 		}
 		else
 		{
-			*rp++ = c;
+			*rp++ = *src;
 			len++;
 		}
 
@@ -439,7 +433,7 @@ esc_decode(const char *src, unsigned srclen, char *dst)
 			 */
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-					 errmsg("invalid input syntax for type %s", "bytea")));
+					 errmsg("invalid input syntax for type bytea")));
 		}
 
 		len++;
@@ -456,7 +450,7 @@ esc_enc_len(const char *src, unsigned srclen)
 
 	while (src < end)
 	{
-		if (*src == '\0' || IS_HIGHBIT_SET(*src))
+		if (*src == '\0')
 			len += 4;
 		else if (*src == '\\')
 			len += 2;
@@ -504,7 +498,7 @@ esc_dec_len(const char *src, unsigned srclen)
 			 */
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-					 errmsg("invalid input syntax for type %s", "bytea")));
+					 errmsg("invalid input syntax for type bytea")));
 		}
 
 		len++;
@@ -516,11 +510,11 @@ esc_dec_len(const char *src, unsigned srclen)
  * Common
  */
 
-static const struct
+static struct
 {
 	const char *name;
 	struct pg_encoding enc;
-}			enclist[] =
+}	enclist[] =
 
 {
 	{
@@ -549,7 +543,7 @@ static const struct
 	}
 };
 
-static const struct pg_encoding *
+static struct pg_encoding *
 pg_find_encoding(const char *name)
 {
 	int			i;

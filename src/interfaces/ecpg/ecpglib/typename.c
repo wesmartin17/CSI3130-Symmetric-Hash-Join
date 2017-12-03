@@ -1,12 +1,12 @@
-/* src/interfaces/ecpg/ecpglib/typename.c */
+/* $PostgreSQL: pgsql/src/interfaces/ecpg/ecpglib/typename.c,v 1.10 2003/11/29 19:52:08 pgsql Exp $ */
 
 #define POSTGRES_ECPG_INTERNAL
 #include "postgres_fe.h"
 
+#include <stdlib.h>
 #include "ecpgtype.h"
 #include "ecpglib.h"
 #include "extern.h"
-#include "sqltypes.h"
 #include "sql3types.h"
 #include "pg_type.h"
 
@@ -14,12 +14,11 @@
  * This function is used to generate the correct type names.
  */
 const char *
-ecpg_type_name(enum ECPGttype typ)
+ECPGtype_name(enum ECPGttype typ)
 {
 	switch (typ)
 	{
 		case ECPGt_char:
-		case ECPGt_string:
 			return "char";
 		case ECPGt_unsigned_char:
 			return "unsigned char";
@@ -64,30 +63,30 @@ ecpg_type_name(enum ECPGttype typ)
 		default:
 			abort();
 	}
-	return "";					/* keep MSC compiler happy */
+	return NULL;
 }
 
-int
-ecpg_dynamic_type(Oid type)
+unsigned int
+ECPGDynamicType(Oid type)
 {
 	switch (type)
 	{
 		case BOOLOID:
 			return SQL3_BOOLEAN;	/* bool */
 		case INT2OID:
-			return SQL3_SMALLINT;	/* int2 */
+			return SQL3_SMALLINT;		/* int2 */
 		case INT4OID:
 			return SQL3_INTEGER;	/* int4 */
 		case TEXTOID:
-			return SQL3_CHARACTER;	/* text */
+			return SQL3_CHARACTER;		/* text */
 		case FLOAT4OID:
 			return SQL3_REAL;	/* float4 */
 		case FLOAT8OID:
-			return SQL3_DOUBLE_PRECISION;	/* float8 */
+			return SQL3_DOUBLE_PRECISION;		/* float8 */
 		case BPCHAROID:
-			return SQL3_CHARACTER;	/* bpchar */
+			return SQL3_CHARACTER;		/* bpchar */
 		case VARCHAROID:
-			return SQL3_CHARACTER_VARYING;	/* varchar */
+			return SQL3_CHARACTER_VARYING;		/* varchar */
 		case DATEOID:
 			return SQL3_DATE_TIME_TIMESTAMP;	/* date */
 		case TIMEOID:
@@ -97,46 +96,6 @@ ecpg_dynamic_type(Oid type)
 		case NUMERICOID:
 			return SQL3_NUMERIC;	/* numeric */
 		default:
-			return 0;
-	}
-}
-
-int
-sqlda_dynamic_type(Oid type, enum COMPAT_MODE compat)
-{
-	switch (type)
-	{
-		case CHAROID:
-		case VARCHAROID:
-		case BPCHAROID:
-		case TEXTOID:
-			return ECPGt_char;
-		case INT2OID:
-			return ECPGt_short;
-		case INT4OID:
-			return ECPGt_int;
-		case FLOAT8OID:
-			return ECPGt_double;
-		case FLOAT4OID:
-			return ECPGt_float;
-		case NUMERICOID:
-			return INFORMIX_MODE(compat) ? ECPGt_decimal : ECPGt_numeric;
-		case DATEOID:
-			return ECPGt_date;
-		case TIMESTAMPOID:
-		case TIMESTAMPTZOID:
-			return ECPGt_timestamp;
-		case INTERVALOID:
-			return ECPGt_interval;
-		case INT8OID:
-#ifdef HAVE_LONG_LONG_INT_64
-			return ECPGt_long_long;
-#endif
-#ifdef HAVE_LONG_INT_64
-			return ECPGt_long;
-#endif
-			/* Unhandled types always return a string */
-		default:
-			return ECPGt_char;
+			return -type;
 	}
 }

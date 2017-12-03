@@ -1,19 +1,20 @@
-# contrib/xml2/Makefile
+# This makefile will build the new XML and XSLT routines.
 
 MODULE_big = pgxml
-OBJS = xpath.o xslt_proc.o $(WIN32RES)
 
-EXTENSION = xml2
-DATA = xml2--1.1.sql xml2--1.0--1.1.sql xml2--unpackaged--1.0.sql
-PGFILEDESC = "xml2 - XPath querying and XSLT"
+# Remove xslt_proc.o from the following line if you don't have libxslt
+OBJS = xpath.o xslt_proc.o
 
-REGRESS = xml2
+# Remove -lxslt from the following line if you don't have libxslt.
+SHLIB_LINK = -lxslt -lxml2
 
-SHLIB_LINK += $(filter -lxslt, $(LIBS)) -lxml2
+DATA_built = pgxml.sql
+DOCS = README.xml2
+
+override CFLAGS += $(shell xml2-config --cflags)
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/xml2
@@ -21,3 +22,4 @@ top_builddir = ../..
 include $(top_builddir)/src/Makefile.global
 include $(top_srcdir)/contrib/contrib-global.mk
 endif
+

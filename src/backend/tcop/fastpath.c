@@ -3,12 +3,12 @@
  * fastpath.c
  *	  routines to handle function requests from the frontend
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/tcop/fastpath.c
+ *	  $PostgreSQL: pgsql/src/backend/tcop/fastpath.c,v 1.83.2.1 2005/11/22 18:23:20 momjian Exp $
  *
  * NOTES
  *	  This cruft is the server side of PQfn.
@@ -17,21 +17,19 @@
  */
 #include "postgres.h"
 
-#include "access/htup_details.h"
-#include "access/xact.h"
-#include "catalog/objectaccess.h"
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "catalog/pg_proc.h"
 #include "libpq/libpq.h"
 #include "libpq/pqformat.h"
-#include "mb/pg_wchar.h"
 #include "miscadmin.h"
-#include "port/pg_bswap.h"
+#include "mb/pg_wchar.h"
 #include "tcop/fastpath.h"
-#include "tcop/tcopprot.h"
 #include "utils/acl.h"
 #include "utils/lsyscache.h"
-#include "utils/snapmgr.h"
 #include "utils/syscache.h"
+#include "utils/tqual.h"
 
 
 /*
@@ -42,8 +40,8 @@
  * each fastpath call as a separate transaction command, and so the
  * cached data could never actually have been reused.  If it had worked
  * as intended, it would have had problems anyway with dangling references
- * in the FmgrInfo struct.  So, forget about caching and just repeat the
- * syscache fetches on each usage.  They're not *that* expensive.
+ * in the FmgrInfo struct.	So, forget about caching and just repeat the
+ * syscache fetches on each usage.	They're not *that* expensive.
  */
 struct fp_info
 {
@@ -52,13 +50,12 @@ struct fp_info
 	Oid			namespace;		/* other stuff from pg_proc */
 	Oid			rettype;
 	Oid			argtypes[FUNC_MAX_ARGS];
-	char		fname[NAMEDATALEN]; /* function name for logging */
 };
 
 
-static int16 parse_fcall_arguments(StringInfo msgBuf, struct fp_info *fip,
+static int16 parse_fcall_arguments(StringInfo msgBuf, struct fp_info * fip,
 					  FunctionCallInfo fcinfo);
-static int16 parse_fcall_arguments_20(StringInfo msgBuf, struct fp_info *fip,
+static int16 parse_fcall_arguments_20(StringInfo msgBuf, struct fp_info * fip,
 						 FunctionCallInfo fcinfo);
 
 
@@ -73,7 +70,7 @@ static int16 parse_fcall_arguments_20(StringInfo msgBuf, struct fp_info *fip,
  * The caller should already have initialized buf to empty.
  * ----------------
  */
-int
+static int
 GetOldFunctionMessage(StringInfo buf)
 {
 	int32		ibuf;
@@ -90,7 +87,7 @@ GetOldFunctionMessage(StringInfo buf)
 	if (pq_getbytes((char *) &ibuf, 4))
 		return EOF;
 	appendBinaryStringInfo(buf, (char *) &ibuf, 4);
-	nargs = pg_ntoh32(ibuf);
+	nargs = ntohl(ibuf);
 	/* For each argument ... */
 	while (nargs-- > 0)
 	{
@@ -100,14 +97,14 @@ GetOldFunctionMessage(StringInfo buf)
 		if (pq_getbytes((char *) &ibuf, 4))
 			return EOF;
 		appendBinaryStringInfo(buf, (char *) &ibuf, 4);
-		argsize = pg_ntoh32(ibuf);
+		argsize = ntohl(ibuf);
 		if (argsize < -1)
 		{
 			/* FATAL here since no hope of regaining message sync */
 			ereport(FATAL,
 					(errcode(ERRCODE_PROTOCOL_VIOLATION),
-					 errmsg("invalid argument size %d in function call message",
-							argsize)));
+				  errmsg("invalid argument size %d in function call message",
+						 argsize)));
 		}
 		/* and arg contents */
 		if (argsize > 0)
@@ -143,7 +140,7 @@ SendFunctionResult(Datum retval, bool isnull, Oid rettype, int16 format)
 	if (isnull)
 	{
 		if (newstyle)
-			pq_sendint32(&buf, -1);
+			pq_sendint(&buf, -1, 4);
 	}
 	else
 	{
@@ -157,7 +154,8 @@ SendFunctionResult(Datum retval, bool isnull, Oid rettype, int16 format)
 			char	   *outputstr;
 
 			getTypeOutputInfo(rettype, &typoutput, &typisvarlena);
-			outputstr = OidOutputFunctionCall(typoutput, retval);
+			outputstr = DatumGetCString(OidFunctionCall1(typoutput,
+														 retval));
 			pq_sendcountedtext(&buf, outputstr, strlen(outputstr), false);
 			pfree(outputstr);
 		}
@@ -168,8 +166,10 @@ SendFunctionResult(Datum retval, bool isnull, Oid rettype, int16 format)
 			bytea	   *outputbytes;
 
 			getTypeBinaryOutputInfo(rettype, &typsend, &typisvarlena);
-			outputbytes = OidSendFunctionCall(typsend, retval);
-			pq_sendint32(&buf, VARSIZE(outputbytes) - VARHDRSZ);
+			outputbytes = DatumGetByteaP(OidFunctionCall1(typsend,
+														  retval));
+			/* We assume the result will not have been toasted */
+			pq_sendint(&buf, VARSIZE(outputbytes) - VARHDRSZ, 4);
 			pq_sendbytes(&buf, VARDATA(outputbytes),
 						 VARSIZE(outputbytes) - VARHDRSZ);
 			pfree(outputbytes);
@@ -193,7 +193,7 @@ SendFunctionResult(Datum retval, bool isnull, Oid rettype, int16 format)
  * function 'func_id'.
  */
 static void
-fetch_fp_info(Oid func_id, struct fp_info *fip)
+fetch_fp_info(Oid func_id, struct fp_info * fip)
 {
 	HeapTuple	func_htp;
 	Form_pg_proc pp;
@@ -203,7 +203,7 @@ fetch_fp_info(Oid func_id, struct fp_info *fip)
 
 	/*
 	 * Since the validity of this structure is determined by whether the
-	 * funcid is OK, we clear the funcid here.  It must not be set to the
+	 * funcid is OK, we clear the funcid here.	It must not be set to the
 	 * correct value until we are about to return with a good struct fp_info,
 	 * since we can be interrupted (i.e., with an ereport(ERROR, ...)) at any
 	 * time.  [No longer really an issue since we don't save the struct
@@ -214,7 +214,9 @@ fetch_fp_info(Oid func_id, struct fp_info *fip)
 
 	fmgr_info(func_id, &fip->flinfo);
 
-	func_htp = SearchSysCache1(PROCOID, ObjectIdGetDatum(func_id));
+	func_htp = SearchSysCache(PROCOID,
+							  ObjectIdGetDatum(func_id),
+							  0, 0, 0);
 	if (!HeapTupleIsValid(func_htp))
 		ereport(ERROR,
 				(errcode(ERRCODE_UNDEFINED_FUNCTION),
@@ -229,7 +231,6 @@ fetch_fp_info(Oid func_id, struct fp_info *fip)
 	fip->namespace = pp->pronamespace;
 	fip->rettype = pp->prorettype;
 	memcpy(fip->argtypes, pp->proargtypes.values, pp->pronargs * sizeof(Oid));
-	strlcpy(fip->fname, NameStr(pp->proname), NAMEDATALEN);
 
 	ReleaseSysCache(func_htp);
 
@@ -247,15 +248,24 @@ fetch_fp_info(Oid func_id, struct fp_info *fip)
  * This corresponds to the libpq protocol symbol "F".
  *
  * INPUT:
- *		postgres.c has already read the message body and will pass it in
- *		msgBuf.
+ *		In protocol version 3, postgres.c has already read the message body
+ *		and will pass it in msgBuf.
+ *		In old protocol, the passed msgBuf is empty and we must read the
+ *		message here.
+ *
+ * RETURNS:
+ *		0 if successful completion, EOF if frontend connection lost.
+ *
+ * Note: All ordinary errors result in ereport(ERROR,...).	However,
+ * if we lose the frontend connection there is no one to ereport to,
+ * and no use in proceeding...
  *
  * Note: palloc()s done here and in the called function do not need to be
  * cleaned up explicitly.  We are called from PostgresMain() in the
  * MessageContext memory context, which will be automatically reset when
  * control returns to PostgresMain.
  */
-void
+int
 HandleFunctionRequest(StringInfo msgBuf)
 {
 	Oid			fid;
@@ -266,12 +276,25 @@ HandleFunctionRequest(StringInfo msgBuf)
 	struct fp_info my_fp;
 	struct fp_info *fip;
 	bool		callit;
-	bool		was_logged = false;
-	char		msec_str[32];
 
 	/*
-	 * We only accept COMMIT/ABORT if we are in an aborted transaction, and
-	 * COMMIT/ABORT cannot be executed through the fastpath interface.
+	 * Read message contents if not already done.
+	 */
+	if (PG_PROTOCOL_MAJOR(FrontendProtocol) < 3)
+	{
+		if (GetOldFunctionMessage(msgBuf))
+		{
+			ereport(COMMERROR,
+					(errcode(ERRCODE_PROTOCOL_VIOLATION),
+					 errmsg("unexpected EOF on client connection")));
+			return EOF;
+		}
+	}
+
+	/*
+	 * Now that we've eaten the input message, check to see if we actually
+	 * want to do the function call or not.  It's now safe to ereport(); we
+	 * won't lose sync with the frontend.
 	 */
 	if (IsAbortedTransactionBlockState())
 		ereport(ERROR,
@@ -280,18 +303,12 @@ HandleFunctionRequest(StringInfo msgBuf)
 						"commands ignored until end of transaction block")));
 
 	/*
-	 * Now that we know we are in a valid transaction, set snapshot in case
-	 * needed by function itself or one of the datatype I/O routines.
-	 */
-	PushActiveSnapshot(GetTransactionSnapshot());
-
-	/*
 	 * Begin parsing the buffer contents.
 	 */
 	if (PG_PROTOCOL_MAJOR(FrontendProtocol) < 3)
 		(void) pq_getmsgstring(msgBuf); /* dummy string */
 
-	fid = (Oid) pq_getmsgint(msgBuf, 4);	/* function oid */
+	fid = (Oid) pq_getmsgint(msgBuf, 4);		/* function oid */
 
 	/*
 	 * There used to be a lame attempt at caching lookup info here. Now we
@@ -299,15 +316,6 @@ HandleFunctionRequest(StringInfo msgBuf)
 	 */
 	fip = &my_fp;
 	fetch_fp_info(fid, fip);
-
-	/* Log as soon as we have the function OID and name */
-	if (log_statement == LOGSTMT_ALL)
-	{
-		ereport(LOG,
-				(errmsg("fastpath function call: \"%s\" (OID %u)",
-						fip->fname, fid)));
-		was_logged = true;
-	}
 
 	/*
 	 * Check permission to access and call function.  Since we didn't go
@@ -317,22 +325,16 @@ HandleFunctionRequest(StringInfo msgBuf)
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error(aclresult, ACL_KIND_NAMESPACE,
 					   get_namespace_name(fip->namespace));
-	InvokeNamespaceSearchHook(fip->namespace, true);
 
 	aclresult = pg_proc_aclcheck(fid, GetUserId(), ACL_EXECUTE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error(aclresult, ACL_KIND_PROC,
 					   get_func_name(fid));
-	InvokeFunctionExecuteHook(fid);
 
 	/*
 	 * Prepare function call info block and insert arguments.
-	 *
-	 * Note: for now we pass collation = InvalidOid, so collation-sensitive
-	 * functions can't be called this way.  Perhaps we should pass
-	 * DEFAULT_COLLATION_OID, instead?
 	 */
-	InitFunctionCallInfoData(fcinfo, &fip->flinfo, 0, InvalidOid, NULL, NULL);
+	InitFunctionCallInfoData(fcinfo, &fip->flinfo, 0, NULL, NULL);
 
 	if (PG_PROTOCOL_MAJOR(FrontendProtocol) >= 3)
 		rformat = parse_fcall_arguments(msgBuf, fip, &fcinfo);
@@ -371,29 +373,9 @@ HandleFunctionRequest(StringInfo msgBuf)
 		retval = (Datum) 0;
 	}
 
-	/* ensure we do at least one CHECK_FOR_INTERRUPTS per function call */
-	CHECK_FOR_INTERRUPTS();
-
 	SendFunctionResult(retval, fcinfo.isnull, fip->rettype, rformat);
 
-	/* We no longer need the snapshot */
-	PopActiveSnapshot();
-
-	/*
-	 * Emit duration logging if appropriate.
-	 */
-	switch (check_log_duration(msec_str, was_logged))
-	{
-		case 1:
-			ereport(LOG,
-					(errmsg("duration: %s ms", msec_str)));
-			break;
-		case 2:
-			ereport(LOG,
-					(errmsg("duration: %s ms  fastpath function call: \"%s\" (OID %u)",
-							msec_str, fip->fname, fid)));
-			break;
-	}
+	return 0;
 }
 
 /*
@@ -403,7 +385,7 @@ HandleFunctionRequest(StringInfo msgBuf)
  * is returned.
  */
 static int16
-parse_fcall_arguments(StringInfo msgBuf, struct fp_info *fip,
+parse_fcall_arguments(StringInfo msgBuf, struct fp_info * fip,
 					  FunctionCallInfo fcinfo)
 {
 	int			nargs;
@@ -451,22 +433,23 @@ parse_fcall_arguments(StringInfo msgBuf, struct fp_info *fip,
 		if (argsize == -1)
 		{
 			fcinfo->argnull[i] = true;
+			continue;
 		}
-		else
-		{
-			fcinfo->argnull[i] = false;
-			if (argsize < 0)
-				ereport(ERROR,
-						(errcode(ERRCODE_PROTOCOL_VIOLATION),
-						 errmsg("invalid argument size %d in function call message",
-								argsize)));
+		fcinfo->argnull[i] = false;
+		if (argsize < 0)
+			ereport(ERROR,
+					(errcode(ERRCODE_PROTOCOL_VIOLATION),
+				  errmsg("invalid argument size %d in function call message",
+						 argsize)));
 
-			/* Reset abuf to empty, and insert raw data into it */
-			resetStringInfo(&abuf);
-			appendBinaryStringInfo(&abuf,
-								   pq_getmsgbytes(msgBuf, argsize),
-								   argsize);
-		}
+		/* Reset abuf to empty, and insert raw data into it */
+		abuf.len = 0;
+		abuf.data[0] = '\0';
+		abuf.cursor = 0;
+
+		appendBinaryStringInfo(&abuf,
+							   pq_getmsgbytes(msgBuf, argsize),
+							   argsize);
 
 		if (numAFormats > 1)
 			aformat = aformats[i];
@@ -485,44 +468,39 @@ parse_fcall_arguments(StringInfo msgBuf, struct fp_info *fip,
 
 			/*
 			 * Since stringinfo.c keeps a trailing null in place even for
-			 * binary data, the contents of abuf are a valid C string.  We
+			 * binary data, the contents of abuf are a valid C string.	We
 			 * have to do encoding conversion before calling the typinput
 			 * routine, though.
 			 */
-			if (argsize == -1)
-				pstring = NULL;
-			else
-				pstring = pg_client_to_server(abuf.data, argsize);
-
-			fcinfo->arg[i] = OidInputFunctionCall(typinput, pstring,
-												  typioparam, -1);
+			pstring = pg_client_to_server(abuf.data, argsize);
+			fcinfo->arg[i] =
+				OidFunctionCall3(typinput,
+								 CStringGetDatum(pstring),
+								 ObjectIdGetDatum(typioparam),
+								 Int32GetDatum(-1));
 			/* Free result of encoding conversion, if any */
-			if (pstring && pstring != abuf.data)
+			if (pstring != abuf.data)
 				pfree(pstring);
 		}
 		else if (aformat == 1)
 		{
 			Oid			typreceive;
 			Oid			typioparam;
-			StringInfo	bufptr;
 
 			/* Call the argument type's binary input converter */
 			getTypeBinaryInputInfo(fip->argtypes[i], &typreceive, &typioparam);
 
-			if (argsize == -1)
-				bufptr = NULL;
-			else
-				bufptr = &abuf;
-
-			fcinfo->arg[i] = OidReceiveFunctionCall(typreceive, bufptr,
-													typioparam, -1);
+			fcinfo->arg[i] = OidFunctionCall3(typreceive,
+											  PointerGetDatum(&abuf),
+											  ObjectIdGetDatum(typioparam),
+											  Int32GetDatum(-1));
 
 			/* Trouble if it didn't eat the whole buffer */
-			if (argsize != -1 && abuf.cursor != abuf.len)
+			if (abuf.cursor != abuf.len)
 				ereport(ERROR,
 						(errcode(ERRCODE_INVALID_BINARY_REPRESENTATION),
-						 errmsg("incorrect binary data format in function argument %d",
-								i + 1)));
+				errmsg("incorrect binary data format in function argument %d",
+					   i + 1)));
 		}
 		else
 			ereport(ERROR,
@@ -541,7 +519,7 @@ parse_fcall_arguments(StringInfo msgBuf, struct fp_info *fip,
  * is returned.
  */
 static int16
-parse_fcall_arguments_20(StringInfo msgBuf, struct fp_info *fip,
+parse_fcall_arguments_20(StringInfo msgBuf, struct fp_info * fip,
 						 FunctionCallInfo fcinfo)
 {
 	int			nargs;
@@ -574,38 +552,42 @@ parse_fcall_arguments_20(StringInfo msgBuf, struct fp_info *fip,
 		Oid			typreceive;
 		Oid			typioparam;
 
-		getTypeBinaryInputInfo(fip->argtypes[i], &typreceive, &typioparam);
-
 		argsize = pq_getmsgint(msgBuf, 4);
 		if (argsize == -1)
 		{
 			fcinfo->argnull[i] = true;
-			fcinfo->arg[i] = OidReceiveFunctionCall(typreceive, NULL,
-													typioparam, -1);
 			continue;
 		}
 		fcinfo->argnull[i] = false;
 		if (argsize < 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_PROTOCOL_VIOLATION),
-					 errmsg("invalid argument size %d in function call message",
-							argsize)));
+				  errmsg("invalid argument size %d in function call message",
+						 argsize)));
 
 		/* Reset abuf to empty, and insert raw data into it */
-		resetStringInfo(&abuf);
+		abuf.len = 0;
+		abuf.data[0] = '\0';
+		abuf.cursor = 0;
+
 		appendBinaryStringInfo(&abuf,
 							   pq_getmsgbytes(msgBuf, argsize),
 							   argsize);
 
-		fcinfo->arg[i] = OidReceiveFunctionCall(typreceive, &abuf,
-												typioparam, -1);
+		/* Call the argument type's binary input converter */
+		getTypeBinaryInputInfo(fip->argtypes[i], &typreceive, &typioparam);
+
+		fcinfo->arg[i] = OidFunctionCall3(typreceive,
+										  PointerGetDatum(&abuf),
+										  ObjectIdGetDatum(typioparam),
+										  Int32GetDatum(-1));
 
 		/* Trouble if it didn't eat the whole buffer */
 		if (abuf.cursor != abuf.len)
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_BINARY_REPRESENTATION),
-					 errmsg("incorrect binary data format in function argument %d",
-							i + 1)));
+			   errmsg("incorrect binary data format in function argument %d",
+					  i + 1)));
 	}
 
 	/* Desired result format is always binary in protocol 2.0 */

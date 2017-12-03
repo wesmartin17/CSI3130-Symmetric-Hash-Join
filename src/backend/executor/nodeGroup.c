@@ -3,7 +3,7 @@
  * nodeGroup.c
  *	  Routines to handle group nodes (used for queries with GROUP BY clause).
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -15,16 +15,16 @@
  *	  locate group boundaries.
  *
  * IDENTIFICATION
- *	  src/backend/executor/nodeGroup.c
+ *	  $PostgreSQL: pgsql/src/backend/executor/nodeGroup.c,v 1.62 2005/10/15 02:49:17 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 
 #include "postgres.h"
 
+#include "access/heapam.h"
 #include "executor/executor.h"
 #include "executor/nodeGroup.h"
-#include "miscadmin.h"
 
 
 /*
@@ -32,17 +32,14 @@
  *
  *		Return one tuple for each group of matching input tuples.
  */
-static TupleTableSlot *
-ExecGroup(PlanState *pstate)
+TupleTableSlot *
+ExecGroup(GroupState *node)
 {
-	GroupState *node = castNode(GroupState, pstate);
 	ExprContext *econtext;
 	int			numCols;
 	AttrNumber *grpColIdx;
 	TupleTableSlot *firsttupleslot;
 	TupleTableSlot *outerslot;
-
-	CHECK_FOR_INTERRUPTS();
 
 	/*
 	 * get state info from node
@@ -73,31 +70,24 @@ ExecGroup(PlanState *pstate)
 		if (TupIsNull(outerslot))
 		{
 			/* empty input, so return nothing */
-			node->grp_done = true;
+			node->grp_done = TRUE;
 			return NULL;
 		}
-		/* Copy tuple into firsttupleslot */
+		/* Copy tuple, set up as input for qual test and projection */
 		ExecCopySlot(firsttupleslot, outerslot);
-
-		/*
-		 * Set it up as input for qual test and projection.  The expressions
-		 * will access the input tuple as varno OUTER.
-		 */
-		econtext->ecxt_outertuple = firsttupleslot;
+		econtext->ecxt_scantuple = firsttupleslot;
 
 		/*
 		 * Check the qual (HAVING clause); if the group does not match, ignore
 		 * it and fall into scan loop.
 		 */
-		if (ExecQual(node->ss.ps.qual, econtext))
+		if (ExecQual(node->ss.ps.qual, econtext, false))
 		{
 			/*
 			 * Form and return a projection tuple using the first input tuple.
 			 */
-			return ExecProject(node->ss.ps.ps_ProjInfo);
+			return ExecProject(node->ss.ps.ps_ProjInfo, NULL);
 		}
-		else
-			InstrCountFiltered1(node, 1);
 	}
 
 	/*
@@ -116,7 +106,7 @@ ExecGroup(PlanState *pstate)
 			if (TupIsNull(outerslot))
 			{
 				/* no more groups, so we're done */
-				node->grp_done = true;
+				node->grp_done = TRUE;
 				return NULL;
 			}
 
@@ -137,22 +127,23 @@ ExecGroup(PlanState *pstate)
 		 */
 		/* Copy tuple, set up as input for qual test and projection */
 		ExecCopySlot(firsttupleslot, outerslot);
-		econtext->ecxt_outertuple = firsttupleslot;
+		econtext->ecxt_scantuple = firsttupleslot;
 
 		/*
 		 * Check the qual (HAVING clause); if the group does not match, ignore
 		 * it and loop back to scan the rest of the group.
 		 */
-		if (ExecQual(node->ss.ps.qual, econtext))
+		if (ExecQual(node->ss.ps.qual, econtext, false))
 		{
 			/*
 			 * Form and return a projection tuple using the first input tuple.
 			 */
-			return ExecProject(node->ss.ps.ps_ProjInfo);
+			return ExecProject(node->ss.ps.ps_ProjInfo, NULL);
 		}
-		else
-			InstrCountFiltered1(node, 1);
 	}
+
+	/* NOTREACHED */
+	return NULL;
 }
 
 /* -----------------
@@ -163,12 +154,9 @@ ExecGroup(PlanState *pstate)
  * -----------------
  */
 GroupState *
-ExecInitGroup(Group *node, EState *estate, int eflags)
+ExecInitGroup(Group *node, EState *estate)
 {
 	GroupState *grpstate;
-
-	/* check for unsupported flags */
-	Assert(!(eflags & (EXEC_FLAG_BACKWARD | EXEC_FLAG_MARK)));
 
 	/*
 	 * create state structure
@@ -176,13 +164,14 @@ ExecInitGroup(Group *node, EState *estate, int eflags)
 	grpstate = makeNode(GroupState);
 	grpstate->ss.ps.plan = (Plan *) node;
 	grpstate->ss.ps.state = estate;
-	grpstate->ss.ps.ExecProcNode = ExecGroup;
-	grpstate->grp_done = false;
+	grpstate->grp_done = FALSE;
 
 	/*
 	 * create expression context
 	 */
 	ExecAssignExprContext(estate, &grpstate->ss.ps);
+
+#define GROUP_NSLOTS 2
 
 	/*
 	 * tuple table initialization
@@ -193,13 +182,17 @@ ExecInitGroup(Group *node, EState *estate, int eflags)
 	/*
 	 * initialize child expressions
 	 */
-	grpstate->ss.ps.qual =
-		ExecInitQual(node->plan.qual, (PlanState *) grpstate);
+	grpstate->ss.ps.targetlist = (List *)
+		ExecInitExpr((Expr *) node->plan.targetlist,
+					 (PlanState *) grpstate);
+	grpstate->ss.ps.qual = (List *)
+		ExecInitExpr((Expr *) node->plan.qual,
+					 (PlanState *) grpstate);
 
 	/*
 	 * initialize child nodes
 	 */
-	outerPlanState(grpstate) = ExecInitNode(outerPlan(node), estate, eflags);
+	outerPlanState(grpstate) = ExecInitNode(outerPlan(node), estate);
 
 	/*
 	 * initialize tuple type.
@@ -210,16 +203,23 @@ ExecInitGroup(Group *node, EState *estate, int eflags)
 	 * Initialize result tuple type and projection info.
 	 */
 	ExecAssignResultTypeFromTL(&grpstate->ss.ps);
-	ExecAssignProjectionInfo(&grpstate->ss.ps, NULL);
+	ExecAssignProjectionInfo(&grpstate->ss.ps);
 
 	/*
 	 * Precompute fmgr lookup data for inner loop
 	 */
 	grpstate->eqfunctions =
-		execTuplesMatchPrepare(node->numCols,
-							   node->grpOperators);
+		execTuplesMatchPrepare(ExecGetScanType(&grpstate->ss),
+							   node->numCols,
+							   node->grpColIdx);
 
 	return grpstate;
+}
+
+int
+ExecCountSlotsGroup(Group *node)
+{
+	return ExecCountSlotsNode(outerPlan(node)) + GROUP_NSLOTS;
 }
 
 /* ------------------------
@@ -242,18 +242,13 @@ ExecEndGroup(GroupState *node)
 }
 
 void
-ExecReScanGroup(GroupState *node)
+ExecReScanGroup(GroupState *node, ExprContext *exprCtxt)
 {
-	PlanState  *outerPlan = outerPlanState(node);
-
-	node->grp_done = false;
+	node->grp_done = FALSE;
 	/* must clear first tuple */
 	ExecClearTuple(node->ss.ss_ScanTupleSlot);
 
-	/*
-	 * if chgParam of subnode is not null then plan will be re-scanned by
-	 * first ExecProcNode.
-	 */
-	if (outerPlan->chgParam == NULL)
-		ExecReScan(outerPlan);
+	if (((PlanState *) node)->lefttree &&
+		((PlanState *) node)->lefttree->chgParam == NULL)
+		ExecReScan(((PlanState *) node)->lefttree, exprCtxt);
 }

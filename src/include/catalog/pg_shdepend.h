@@ -5,13 +5,13 @@
  *	  along with the relation's initial contents.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/catalog/pg_shdepend.h
+ * $PostgreSQL: pgsql/src/include/catalog/pg_shdepend.h,v 1.2.2.1 2005/11/22 18:23:27 momjian Exp $
  *
  * NOTES
- *	  the genbki.pl script reads this file and generates .bki
+ *	  the genbki.sh script reads this file and generates .bki
  *	  information from the DATA() statements.
  *
  *-------------------------------------------------------------------------
@@ -19,7 +19,12 @@
 #ifndef PG_SHDEPEND_H
 #define PG_SHDEPEND_H
 
-#include "catalog/genbki.h"
+/* ----------------
+ *		postgres.h contains the system type definitions and the
+ *		CATALOG(), BKI_BOOTSTRAP and DATA() sugar words so this file
+ *		can be read by both genbki.sh and the C compiler.
+ * ----------------
+ */
 
 /* ----------------
  *		pg_shdepend definition.  cpp turns this into
@@ -27,24 +32,21 @@
  * ----------------
  */
 #define SharedDependRelationId	1214
-
 CATALOG(pg_shdepend,1214) BKI_SHARED_RELATION BKI_WITHOUT_OIDS
 {
 	/*
 	 * Identification of the dependent (referencing) object.
 	 *
-	 * These fields are all zeroes for a DEPENDENCY_PIN entry.  Also, dbid can
+	 * These fields are all zeroes for a DEPENDENCY_PIN entry.	Also, dbid can
 	 * be zero to denote a shared object.
 	 */
 	Oid			dbid;			/* OID of database containing object */
 	Oid			classid;		/* OID of table containing object */
 	Oid			objid;			/* OID of object itself */
-	int32		objsubid;		/* column number, or 0 if not used */
 
 	/*
 	 * Identification of the independent (referenced) object.  This is always
-	 * a shared object, so we need no database ID field.  We don't bother with
-	 * a sub-object ID either.
+	 * a shared object, so we need no database ID field.
 	 */
 	Oid			refclassid;		/* OID of table containing object */
 	Oid			refobjid;		/* OID of object itself */
@@ -67,14 +69,13 @@ typedef FormData_pg_shdepend *Form_pg_shdepend;
  *		compiler constants for pg_shdepend
  * ----------------
  */
-#define Natts_pg_shdepend			7
+#define Natts_pg_shdepend			6
 #define Anum_pg_shdepend_dbid		1
 #define Anum_pg_shdepend_classid	2
 #define Anum_pg_shdepend_objid		3
-#define Anum_pg_shdepend_objsubid	4
-#define Anum_pg_shdepend_refclassid 5
-#define Anum_pg_shdepend_refobjid	6
-#define Anum_pg_shdepend_deptype	7
+#define Anum_pg_shdepend_refclassid 4
+#define Anum_pg_shdepend_refobjid	5
+#define Anum_pg_shdepend_deptype	6
 
 
 /*
@@ -87,4 +88,4 @@ typedef FormData_pg_shdepend *Form_pg_shdepend;
  * are explicitly stored in pg_shdepend.
  */
 
-#endif							/* PG_SHDEPEND_H */
+#endif   /* PG_SHDEPEND_H */

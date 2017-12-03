@@ -1,21 +1,24 @@
 /*
  * Encoding names and routines for work with it. All
- * in this file is shared between FE and BE.
+ * in this file is shared bedween FE and BE.
  *
- * src/backend/utils/mb/encnames.c
+ * $PostgreSQL: pgsql/src/backend/utils/mb/encnames.c,v 1.26.2.1 2006/02/12 22:32:56 tgl Exp $
  */
 #ifdef FRONTEND
 #include "postgres_fe.h"
+#define Assert(condition)
 #else
 #include "postgres.h"
+#include "miscadmin.h"
 #include "utils/builtins.h"
 #endif
 
-#include <ctype.h>
+#ifndef WIN32_CLIENT_ONLY
 #include <unistd.h>
+#endif
 
 #include "mb/pg_wchar.h"
-
+#include <ctype.h>
 
 /* ----------
  * All encoding names, sorted:		 *** A L P H A B E T I C ***
@@ -29,13 +32,7 @@
  * Karel Zak, Aug 2001
  * ----------
  */
-typedef struct pg_encname
-{
-	const char *name;
-	pg_enc		encoding;
-} pg_encname;
-
-static const pg_encname pg_encname_tbl[] =
+pg_encname	pg_encname_tbl[] =
 {
 	{
 		"abc", PG_WIN1258
@@ -50,10 +47,6 @@ static const pg_encname pg_encname_tbl[] =
 		"euccn", PG_EUC_CN
 	},							/* EUC-CN; Extended Unix Code for simplified
 								 * Chinese */
-	{
-		"eucjis2004", PG_EUC_JIS_2004
-	},							/* EUC-JIS-2004; Extended UNIX Code fixed
-								 * Width for Japanese, standard JIS X 0213 */
 	{
 		"eucjp", PG_EUC_JP
 	},							/* EUC-JP; Extended UNIX Code fixed Width for
@@ -128,9 +121,6 @@ static const pg_encname pg_encname_tbl[] =
 		"koi8r", PG_KOI8R
 	},							/* KOI8-R; RFC1489 */
 	{
-		"koi8u", PG_KOI8U
-	},							/* KOI8-U; RFC2319 */
-	{
 		"latin1", PG_LATIN1
 	},							/* alias for ISO-8859-1 */
 	{
@@ -169,11 +159,6 @@ static const pg_encname pg_encname_tbl[] =
 	{
 		"shiftjis", PG_SJIS
 	},							/* Shift_JIS; JIS X 0202-1991 */
-
-	{
-		"shiftjis2004", PG_SHIFT_JIS_2004
-	},							/* SHIFT-JIS-2004; Shift JIS for Japanese,
-								 * standard JIS X 0213 */
 	{
 		"sjis", PG_SJIS
 	},							/* alias for Shift_JIS */
@@ -212,20 +197,8 @@ static const pg_encname pg_encname_tbl[] =
 		"win1252", PG_WIN1252
 	},							/* alias for Windows-1252 */
 	{
-		"win1253", PG_WIN1253
-	},							/* alias for Windows-1253 */
-	{
-		"win1254", PG_WIN1254
-	},							/* alias for Windows-1254 */
-	{
-		"win1255", PG_WIN1255
-	},							/* alias for Windows-1255 */
-	{
 		"win1256", PG_WIN1256
 	},							/* alias for Windows-1256 */
-	{
-		"win1257", PG_WIN1257
-	},							/* alias for Windows-1257 */
 	{
 		"win1258", PG_WIN1258
 	},							/* alias for Windows-1258 */
@@ -257,20 +230,8 @@ static const pg_encname pg_encname_tbl[] =
 		"windows1252", PG_WIN1252
 	},							/* Windows-1252; Microsoft */
 	{
-		"windows1253", PG_WIN1253
-	},							/* Windows-1253; Microsoft */
-	{
-		"windows1254", PG_WIN1254
-	},							/* Windows-1254; Microsoft */
-	{
-		"windows1255", PG_WIN1255
-	},							/* Windows-1255; Microsoft */
-	{
 		"windows1256", PG_WIN1256
 	},							/* Windows-1256; Microsoft */
-	{
-		"windows1257", PG_WIN1257
-	},							/* Windows-1257; Microsoft */
 	{
 		"windows1258", PG_WIN1258
 	},							/* Windows-1258; Microsoft */
@@ -291,193 +252,128 @@ static const pg_encname pg_encname_tbl[] =
 	},							/* alias for UHC */
 	{
 		"windows950", PG_BIG5
-	}							/* alias for BIG5 */
+	},							/* alias for BIG5 */
+	{
+		NULL, 0
+	}							/* last */
 };
+
+unsigned int pg_encname_tbl_sz = \
+sizeof(pg_encname_tbl) / sizeof(pg_encname_tbl[0]) - 1;
 
 /* ----------
  * These are "official" encoding names.
- * XXX must be sorted by the same order as enum pg_enc (in mb/pg_wchar.h)
+ * XXX must be sorted by the same order as pg_enc type (see mb/pg_wchar.h)
  * ----------
  */
-#ifndef WIN32
-#define DEF_ENC2NAME(name, codepage) { #name, PG_##name }
-#else
-#define DEF_ENC2NAME(name, codepage) { #name, PG_##name, codepage }
-#endif
-const pg_enc2name pg_enc2name_tbl[] =
+pg_enc2name pg_enc2name_tbl[] =
 {
-	DEF_ENC2NAME(SQL_ASCII, 0),
-	DEF_ENC2NAME(EUC_JP, 20932),
-	DEF_ENC2NAME(EUC_CN, 20936),
-	DEF_ENC2NAME(EUC_KR, 51949),
-	DEF_ENC2NAME(EUC_TW, 0),
-	DEF_ENC2NAME(EUC_JIS_2004, 20932),
-	DEF_ENC2NAME(UTF8, 65001),
-	DEF_ENC2NAME(MULE_INTERNAL, 0),
-	DEF_ENC2NAME(LATIN1, 28591),
-	DEF_ENC2NAME(LATIN2, 28592),
-	DEF_ENC2NAME(LATIN3, 28593),
-	DEF_ENC2NAME(LATIN4, 28594),
-	DEF_ENC2NAME(LATIN5, 28599),
-	DEF_ENC2NAME(LATIN6, 0),
-	DEF_ENC2NAME(LATIN7, 0),
-	DEF_ENC2NAME(LATIN8, 0),
-	DEF_ENC2NAME(LATIN9, 28605),
-	DEF_ENC2NAME(LATIN10, 0),
-	DEF_ENC2NAME(WIN1256, 1256),
-	DEF_ENC2NAME(WIN1258, 1258),
-	DEF_ENC2NAME(WIN866, 866),
-	DEF_ENC2NAME(WIN874, 874),
-	DEF_ENC2NAME(KOI8R, 20866),
-	DEF_ENC2NAME(WIN1251, 1251),
-	DEF_ENC2NAME(WIN1252, 1252),
-	DEF_ENC2NAME(ISO_8859_5, 28595),
-	DEF_ENC2NAME(ISO_8859_6, 28596),
-	DEF_ENC2NAME(ISO_8859_7, 28597),
-	DEF_ENC2NAME(ISO_8859_8, 28598),
-	DEF_ENC2NAME(WIN1250, 1250),
-	DEF_ENC2NAME(WIN1253, 1253),
-	DEF_ENC2NAME(WIN1254, 1254),
-	DEF_ENC2NAME(WIN1255, 1255),
-	DEF_ENC2NAME(WIN1257, 1257),
-	DEF_ENC2NAME(KOI8U, 21866),
-	DEF_ENC2NAME(SJIS, 932),
-	DEF_ENC2NAME(BIG5, 950),
-	DEF_ENC2NAME(GBK, 936),
-	DEF_ENC2NAME(UHC, 949),
-	DEF_ENC2NAME(GB18030, 54936),
-	DEF_ENC2NAME(JOHAB, 0),
-	DEF_ENC2NAME(SHIFT_JIS_2004, 932)
+	{
+		"SQL_ASCII", PG_SQL_ASCII
+	},
+	{
+		"EUC_JP", PG_EUC_JP
+	},
+	{
+		"EUC_CN", PG_EUC_CN
+	},
+	{
+		"EUC_KR", PG_EUC_KR
+	},
+	{
+		"EUC_TW", PG_EUC_TW
+	},
+	{
+		"JOHAB", PG_JOHAB
+	},
+	{
+		"UTF8", PG_UTF8
+	},
+	{
+		"MULE_INTERNAL", PG_MULE_INTERNAL
+	},
+	{
+		"LATIN1", PG_LATIN1
+	},
+	{
+		"LATIN2", PG_LATIN2
+	},
+	{
+		"LATIN3", PG_LATIN3
+	},
+	{
+		"LATIN4", PG_LATIN4
+	},
+	{
+		"LATIN5", PG_LATIN5
+	},
+	{
+		"LATIN6", PG_LATIN6
+	},
+	{
+		"LATIN7", PG_LATIN7
+	},
+	{
+		"LATIN8", PG_LATIN8
+	},
+	{
+		"LATIN9", PG_LATIN9
+	},
+	{
+		"LATIN10", PG_LATIN10
+	},
+	{
+		"WIN1256", PG_WIN1256
+	},
+	{
+		"WIN1258", PG_WIN1258
+	},
+	{
+		"WIN866", PG_WIN866
+	},
+	{
+		"WIN874", PG_WIN874
+	},
+	{
+		"KOI8", PG_KOI8R
+	},
+	{
+		"WIN1251", PG_WIN1251
+	},
+	{
+		"WIN1252", PG_WIN1252
+	},
+	{
+		"ISO_8859_5", PG_ISO_8859_5
+	},
+	{
+		"ISO_8859_6", PG_ISO_8859_6
+	},
+	{
+		"ISO_8859_7", PG_ISO_8859_7
+	},
+	{
+		"ISO_8859_8", PG_ISO_8859_8
+	},
+	{
+		"WIN1250", PG_WIN1250
+	},
+	{
+		"SJIS", PG_SJIS
+	},
+	{
+		"BIG5", PG_BIG5
+	},
+	{
+		"GBK", PG_GBK
+	},
+	{
+		"UHC", PG_UHC
+	},
+	{
+		"GB18030", PG_GB18030
+	}
 };
-
-/* ----------
- * These are encoding names for gettext.
- *
- * This covers all encodings except MULE_INTERNAL, which is alien to gettext.
- * ----------
- */
-const pg_enc2gettext pg_enc2gettext_tbl[] =
-{
-	{PG_SQL_ASCII, "US-ASCII"},
-	{PG_UTF8, "UTF-8"},
-	{PG_LATIN1, "LATIN1"},
-	{PG_LATIN2, "LATIN2"},
-	{PG_LATIN3, "LATIN3"},
-	{PG_LATIN4, "LATIN4"},
-	{PG_ISO_8859_5, "ISO-8859-5"},
-	{PG_ISO_8859_6, "ISO_8859-6"},
-	{PG_ISO_8859_7, "ISO-8859-7"},
-	{PG_ISO_8859_8, "ISO-8859-8"},
-	{PG_LATIN5, "LATIN5"},
-	{PG_LATIN6, "LATIN6"},
-	{PG_LATIN7, "LATIN7"},
-	{PG_LATIN8, "LATIN8"},
-	{PG_LATIN9, "LATIN-9"},
-	{PG_LATIN10, "LATIN10"},
-	{PG_KOI8R, "KOI8-R"},
-	{PG_KOI8U, "KOI8-U"},
-	{PG_WIN1250, "CP1250"},
-	{PG_WIN1251, "CP1251"},
-	{PG_WIN1252, "CP1252"},
-	{PG_WIN1253, "CP1253"},
-	{PG_WIN1254, "CP1254"},
-	{PG_WIN1255, "CP1255"},
-	{PG_WIN1256, "CP1256"},
-	{PG_WIN1257, "CP1257"},
-	{PG_WIN1258, "CP1258"},
-	{PG_WIN866, "CP866"},
-	{PG_WIN874, "CP874"},
-	{PG_EUC_CN, "EUC-CN"},
-	{PG_EUC_JP, "EUC-JP"},
-	{PG_EUC_KR, "EUC-KR"},
-	{PG_EUC_TW, "EUC-TW"},
-	{PG_EUC_JIS_2004, "EUC-JP"},
-	{PG_SJIS, "SHIFT-JIS"},
-	{PG_BIG5, "BIG5"},
-	{PG_GBK, "GBK"},
-	{PG_UHC, "UHC"},
-	{PG_GB18030, "GB18030"},
-	{PG_JOHAB, "JOHAB"},
-	{PG_SHIFT_JIS_2004, "SHIFT_JISX0213"},
-	{0, NULL}
-};
-
-
-#ifndef FRONTEND
-
-/*
- * Table of encoding names for ICU
- *
- * Reference: <https://ssl.icu-project.org/icu-bin/convexp>
- *
- * NULL entries are not supported by ICU, or their mapping is unclear.
- */
-static const char *const pg_enc2icu_tbl[] =
-{
-	NULL,						/* PG_SQL_ASCII */
-	"EUC-JP",					/* PG_EUC_JP */
-	"EUC-CN",					/* PG_EUC_CN */
-	"EUC-KR",					/* PG_EUC_KR */
-	"EUC-TW",					/* PG_EUC_TW */
-	NULL,						/* PG_EUC_JIS_2004 */
-	"UTF-8",					/* PG_UTF8 */
-	NULL,						/* PG_MULE_INTERNAL */
-	"ISO-8859-1",				/* PG_LATIN1 */
-	"ISO-8859-2",				/* PG_LATIN2 */
-	"ISO-8859-3",				/* PG_LATIN3 */
-	"ISO-8859-4",				/* PG_LATIN4 */
-	"ISO-8859-9",				/* PG_LATIN5 */
-	"ISO-8859-10",				/* PG_LATIN6 */
-	"ISO-8859-13",				/* PG_LATIN7 */
-	"ISO-8859-14",				/* PG_LATIN8 */
-	"ISO-8859-15",				/* PG_LATIN9 */
-	NULL,						/* PG_LATIN10 */
-	"CP1256",					/* PG_WIN1256 */
-	"CP1258",					/* PG_WIN1258 */
-	"CP866",					/* PG_WIN866 */
-	NULL,						/* PG_WIN874 */
-	"KOI8-R",					/* PG_KOI8R */
-	"CP1251",					/* PG_WIN1251 */
-	"CP1252",					/* PG_WIN1252 */
-	"ISO-8859-5",				/* PG_ISO_8859_5 */
-	"ISO-8859-6",				/* PG_ISO_8859_6 */
-	"ISO-8859-7",				/* PG_ISO_8859_7 */
-	"ISO-8859-8",				/* PG_ISO_8859_8 */
-	"CP1250",					/* PG_WIN1250 */
-	"CP1253",					/* PG_WIN1253 */
-	"CP1254",					/* PG_WIN1254 */
-	"CP1255",					/* PG_WIN1255 */
-	"CP1257",					/* PG_WIN1257 */
-	"KOI8-U",					/* PG_KOI8U */
-};
-
-bool
-is_encoding_supported_by_icu(int encoding)
-{
-	return (pg_enc2icu_tbl[encoding] != NULL);
-}
-
-const char *
-get_encoding_name_for_icu(int encoding)
-{
-	const char *icu_encoding_name;
-
-	StaticAssertStmt(lengthof(pg_enc2icu_tbl) == PG_ENCODING_BE_LAST + 1,
-					 "pg_enc2icu_tbl incomplete");
-
-	icu_encoding_name = pg_enc2icu_tbl[encoding];
-
-	if (!icu_encoding_name)
-		ereport(ERROR,
-				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("encoding \"%s\" not supported by ICU",
-						pg_encoding_to_char(encoding))));
-
-	return icu_encoding_name;
-}
-
-#endif							/* not FRONTEND */
-
 
 /* ----------
  * Encoding checks, for error returns -1 else encoding id
@@ -511,21 +407,15 @@ pg_valid_server_encoding(const char *name)
 	return enc;
 }
 
-int
-pg_valid_server_encoding_id(int encoding)
-{
-	return PG_VALID_BE_ENCODING(encoding);
-}
-
 /* ----------
  * Remove irrelevant chars from encoding name
  * ----------
  */
 static char *
-clean_encoding_name(const char *key, char *newkey)
+clean_encoding_name(char *key, char *newkey)
 {
-	const char *p;
-	char	   *np;
+	char	   *p,
+			   *np;
 
 	for (p = key, np = newkey; *p != '\0'; p++)
 	{
@@ -543,15 +433,13 @@ clean_encoding_name(const char *key, char *newkey)
 
 /* ----------
  * Search encoding by encoding name
- *
- * Returns encoding ID, or -1 for error
  * ----------
  */
-int
-pg_char_to_encoding(const char *name)
+pg_encname *
+pg_char_to_encname_struct(const char *name)
 {
-	unsigned int nel = lengthof(pg_encname_tbl);
-	const pg_encname *base = pg_encname_tbl,
+	unsigned int nel = pg_encname_tbl_sz;
+	pg_encname *base = pg_encname_tbl,
 			   *last = base + nel - 1,
 			   *position;
 	int			result;
@@ -559,20 +447,20 @@ pg_char_to_encoding(const char *name)
 			   *key;
 
 	if (name == NULL || *name == '\0')
-		return -1;
+		return NULL;
 
 	if (strlen(name) >= NAMEDATALEN)
 	{
 #ifdef FRONTEND
 		fprintf(stderr, "encoding name too long\n");
-		return -1;
+		return NULL;
 #else
 		ereport(ERROR,
 				(errcode(ERRCODE_NAME_TOO_LONG),
 				 errmsg("encoding name too long")));
 #endif
 	}
-	key = clean_encoding_name(name, buff);
+	key = clean_encoding_name((char *) name, buff);
 
 	while (last >= base)
 	{
@@ -583,14 +471,29 @@ pg_char_to_encoding(const char *name)
 		{
 			result = strcmp(key, position->name);
 			if (result == 0)
-				return position->encoding;
+				return position;
 		}
 		if (result < 0)
 			last = position - 1;
 		else
 			base = position + 1;
 	}
-	return -1;
+	return NULL;
+}
+
+/*
+ * Returns encoding or -1 for error
+ */
+int
+pg_char_to_encoding(const char *s)
+{
+	pg_encname *p = NULL;
+
+	if (!s)
+		return (-1);
+
+	p = pg_char_to_encname_struct(s);
+	return p ? p->encoding : -1;
 }
 
 #ifndef FRONTEND
@@ -608,7 +511,7 @@ pg_encoding_to_char(int encoding)
 {
 	if (PG_VALID_ENCODING(encoding))
 	{
-		const pg_enc2name *p = &pg_enc2name_tbl[encoding];
+		pg_enc2name *p = &pg_enc2name_tbl[encoding];
 
 		Assert(encoding == p->encoding);
 		return p->name;

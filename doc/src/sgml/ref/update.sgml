@@ -1,16 +1,11 @@
 <!--
-doc/src/sgml/ref/update.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/update.sgml,v 1.33.2.2 2006/03/08 22:59:17 tgl Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-update">
- <indexterm zone="sql-update">
-  <primary>UPDATE</primary>
- </indexterm>
-
+<refentry id="SQL-UPDATE">
  <refmeta>
-  <refentrytitle>UPDATE</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="SQL-UPDATE-TITLE">UPDATE</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -19,17 +14,15 @@ PostgreSQL documentation
   <refpurpose>update rows of a table</refpurpose>
  </refnamediv>
 
+ <indexterm zone="sql-update">
+  <primary>UPDATE</primary>
+ </indexterm>
+
  <refsynopsisdiv>
 <synopsis>
-[ WITH [ RECURSIVE ] <replaceable class="parameter">with_query</replaceable> [, ...] ]
-UPDATE [ ONLY ] <replaceable class="parameter">table_name</replaceable> [ * ] [ [ AS ] <replaceable class="parameter">alias</replaceable> ]
-    SET { <replaceable class="parameter">column_name</replaceable> = { <replaceable class="parameter">expression</replaceable> | DEFAULT } |
-          ( <replaceable class="parameter">column_name</replaceable> [, ...] ) = [ ROW ] ( { <replaceable class="parameter">expression</replaceable> | DEFAULT } [, ...] ) |
-          ( <replaceable class="parameter">column_name</replaceable> [, ...] ) = ( <replaceable class="parameter">sub-SELECT</replaceable> )
-        } [, ...]
-    [ FROM <replaceable class="parameter">from_list</replaceable> ]
-    [ WHERE <replaceable class="parameter">condition</replaceable> | WHERE CURRENT OF <replaceable class="parameter">cursor_name</replaceable> ]
-    [ RETURNING * | <replaceable class="parameter">output_expression</replaceable> [ [ AS ] <replaceable class="parameter">output_name</replaceable> ] [, ...] ]
+UPDATE [ ONLY ] <replaceable class="PARAMETER">table</replaceable> SET <replaceable class="PARAMETER">column</replaceable> = { <replaceable class="PARAMETER">expression</replaceable> | DEFAULT } [, ...]
+    [ FROM <replaceable class="PARAMETER">fromlist</replaceable> ]
+    [ WHERE <replaceable class="PARAMETER">condition</replaceable> ]
 </synopsis>
  </refsynopsisdiv>
 
@@ -44,6 +37,13 @@ UPDATE [ ONLY ] <replaceable class="parameter">table_name</replaceable> [ * ] [ 
   </para>
 
   <para>
+   By default, <command>UPDATE</command> will update rows in the
+   specified table and all its subtables. If you wish to only update
+   the specific table mentioned, you must use the <literal>ONLY</>
+   clause.
+  </para>
+
+  <para>
    There are two ways to modify a table using information contained in
    other tables in the database: using sub-selects, or specifying
    additional tables in the <literal>FROM</literal> clause. Which
@@ -52,21 +52,10 @@ UPDATE [ ONLY ] <replaceable class="parameter">table_name</replaceable> [ * ] [ 
   </para>
 
   <para>
-   The optional <literal>RETURNING</literal> clause causes <command>UPDATE</command>
-   to compute and return value(s) based on each row actually updated.
-   Any expression using the table's columns, and/or columns of other
-   tables mentioned in <literal>FROM</literal>, can be computed.
-   The new (post-update) values of the table's columns are used.
-   The syntax of the <literal>RETURNING</literal> list is identical to that of the
-   output list of <command>SELECT</command>.
-  </para>
-
-  <para>
-   You must have the <literal>UPDATE</literal> privilege on the table,
-   or at least on the column(s) that are listed to be updated.
-   You must also have the <literal>SELECT</literal>
-   privilege on any column whose values are read in the
-   <replaceable class="parameter">expressions</replaceable> or
+   You must have the <literal>UPDATE</literal> privilege on the table
+   to update it, as well as the <literal>SELECT</literal>
+   privilege to any table whose values are read in the
+   <replaceable class="parameter">expression</replaceable>s or
    <replaceable class="parameter">condition</replaceable>.
   </para>
  </refsect1>
@@ -76,63 +65,31 @@ UPDATE [ ONLY ] <replaceable class="parameter">table_name</replaceable> [ * ] [ 
 
   <variablelist>
    <varlistentry>
-    <term><replaceable class="parameter">with_query</replaceable></term>
-    <listitem>
-     <para>
-      The <literal>WITH</literal> clause allows you to specify one or more
-      subqueries that can be referenced by name in the <command>UPDATE</command>
-      query. See <xref linkend="queries-with"/> and <xref linkend="sql-select"/>
-      for details.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">table_name</replaceable></term>
+    <term><replaceable class="PARAMETER">table</replaceable></term>
     <listitem>
      <para>
       The name (optionally schema-qualified) of the table to update.
-      If <literal>ONLY</literal> is specified before the table name, matching rows
-      are updated in the named table only.  If <literal>ONLY</literal> is not
-      specified, matching rows are also updated in any tables inheriting from
-      the named table.  Optionally, <literal>*</literal> can be specified after the
-      table name to explicitly indicate that descendant tables are included.
      </para>
     </listitem>
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">alias</replaceable></term>
+    <term><replaceable class="PARAMETER">column</replaceable></term>
     <listitem>
      <para>
-      A substitute name for the target table. When an alias is
-      provided, it completely hides the actual name of the table.  For
-      example, given <literal>UPDATE foo AS f</literal>, the remainder of the
-      <command>UPDATE</command> statement must refer to this table as
-      <literal>f</literal> not <literal>foo</literal>.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">column_name</replaceable></term>
-    <listitem>
-     <para>
-      The name of a column in the table named by <replaceable
-      class="parameter">table_name</replaceable>.
+      The name of a column in <replaceable
+      class="PARAMETER">table</replaceable>.
       The column name can be qualified with a subfield name or array
-      subscript, if needed.  Do not include the table's name in the
-      specification of a target column &mdash; for example,
-      <literal>UPDATE table_name SET table_name.col = 1</literal> is invalid.
+      subscript, if needed.
      </para>
     </listitem>
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">expression</replaceable></term>
+    <term><replaceable class="PARAMETER">expression</replaceable></term>
     <listitem>
      <para>
-      An expression to assign to the column.  The expression can use the
+      An expression to assign to the column.  The expression may use the
       old values of this and other columns in the table.
      </para>
     </listitem>
@@ -149,82 +106,28 @@ UPDATE [ ONLY ] <replaceable class="parameter">table_name</replaceable> [ * ] [ 
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">sub-SELECT</replaceable></term>
-    <listitem>
-     <para>
-      A <literal>SELECT</literal> sub-query that produces as many output columns
-      as are listed in the parenthesized column list preceding it.  The
-      sub-query must yield no more than one row when executed.  If it
-      yields one row, its column values are assigned to the target columns;
-      if it yields no rows, NULL values are assigned to the target columns.
-      The sub-query can refer to old values of the current row of the table
-      being updated.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">from_list</replaceable></term>
+    <term><replaceable class="PARAMETER">fromlist</replaceable></term>
     <listitem>
      <para>
       A list of table expressions, allowing columns from other tables
-      to appear in the <literal>WHERE</literal> condition and the update
+      to appear in the <literal>WHERE</> condition and the update
       expressions. This is similar to the list of tables that can be
       specified in the <xref linkend="sql-from"
-      endterm="sql-from-title"/> of a <command>SELECT</command>
+      endterm="sql-from-title"> of a <command>SELECT</command>
       statement.  Note that the target table must not appear in the
-      <replaceable>from_list</replaceable>, unless you intend a self-join (in which
-      case it must appear with an alias in the <replaceable>from_list</replaceable>).
+      <replaceable>fromlist</>, unless you intend a self-join (in which
+      case it must appear with an alias in the <replaceable>fromlist</>).
      </para>
     </listitem>
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">condition</replaceable></term>
+    <term><replaceable class="PARAMETER">condition</replaceable></term>
     <listitem>
      <para>
       An expression that returns a value of type <type>boolean</type>.
-      Only rows for which this expression returns <literal>true</literal>
+      Only rows for which this expression returns <literal>true</>
       will be updated.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">cursor_name</replaceable></term>
-    <listitem>
-     <para>
-      The name of the cursor to use in a <literal>WHERE CURRENT OF</literal>
-      condition.  The row to be updated is the one most recently fetched
-      from this cursor.  The cursor must be a non-grouping
-      query on the <command>UPDATE</command>'s target table.
-      Note that <literal>WHERE CURRENT OF</literal> cannot be
-      specified together with a Boolean condition.  See
-      <xref linkend="sql-declare"/>
-      for more information about using cursors with
-      <literal>WHERE CURRENT OF</literal>.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">output_expression</replaceable></term>
-    <listitem>
-     <para>
-      An expression to be computed and returned by the <command>UPDATE</command>
-      command after each row is updated.  The expression can use any
-      column names of the table named by <replaceable class="parameter">table_name</replaceable>
-      or table(s) listed in <literal>FROM</literal>.
-      Write <literal>*</literal> to return all columns.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">output_name</replaceable></term>
-    <listitem>
-     <para>
-      A name to use for a returned column.
      </para>
     </listitem>
    </varlistentry>
@@ -235,26 +138,16 @@ UPDATE [ ONLY ] <replaceable class="parameter">table_name</replaceable> [ * ] [ 
   <title>Outputs</title>
 
   <para>
-   On successful completion, an <command>UPDATE</command> command returns a command
+   On successful completion, an <command>UPDATE</> command returns a command
    tag of the form
 <screen>
 UPDATE <replaceable class="parameter">count</replaceable>
 </screen>
    The <replaceable class="parameter">count</replaceable> is the number
-   of rows updated, including matched rows whose values did not change.
-   Note that the number may be less than the number of rows that matched
-   the <replaceable class="parameter">condition</replaceable> when
-   updates were suppressed by a <literal>BEFORE UPDATE</literal> trigger.  If
-   <replaceable class="parameter">count</replaceable> is 0, no rows were
-   updated by the query (this is not considered an error).
-  </para>
-
-  <para>
-   If the <command>UPDATE</command> command contains a <literal>RETURNING</literal>
-   clause, the result will be similar to that of a <command>SELECT</command>
-   statement containing the columns and values defined in the
-   <literal>RETURNING</literal> list, computed over the row(s) updated by the
-   command.
+   of rows updated.  If <replaceable class="parameter">count</replaceable> is
+   0, no rows matched the <replaceable
+   class="parameter">condition</replaceable> (this is not considered
+   an error).
   </para>
  </refsect1>
 
@@ -262,11 +155,11 @@ UPDATE <replaceable class="parameter">count</replaceable>
   <title>Notes</title>
 
   <para>
-   When a <literal>FROM</literal> clause is present, what essentially happens
+   When a <literal>FROM</> clause is present, what essentially happens
    is that the target table is joined to the tables mentioned in the
-   <replaceable>from_list</replaceable>, and each output row of the join
+   <replaceable>fromlist</replaceable>, and each output row of the join
    represents an update operation for the target table.  When using
-   <literal>FROM</literal> you should ensure that the join
+   <literal>FROM</> you should ensure that the join
    produces at most one output row for each row to be modified.  In
    other words, a target row shouldn't join to more than one row from
    the other table(s).  If it does, then only one of the join rows
@@ -279,22 +172,14 @@ UPDATE <replaceable class="parameter">count</replaceable>
    sub-selects is safer, though often harder to read and slower than
    using a join.
   </para>
-
-  <para>
-   In the case of a partitioned table, updating a row might cause it to no
-   longer satisfy the partition constraint.  Since there is no provision to
-   move the row to the partition appropriate to the new value of its
-   partitioning key, an error will occur in this case.  This can also happen
-   when updating a partition directly.
-  </para>
  </refsect1>
 
  <refsect1>
   <title>Examples</title>
 
   <para>
-   Change the word <literal>Drama</literal> to <literal>Dramatic</literal> in the
-   column <structfield>kind</structfield> of the table <structname>films</structname>:
+   Change the word <literal>Drama</> to <literal>Dramatic</> in the
+   column <structfield>kind</> of the table <structname>films</structname>:
 
 <programlisting>
 UPDATE films SET kind = 'Dramatic' WHERE kind = 'Drama';
@@ -307,24 +192,6 @@ UPDATE films SET kind = 'Dramatic' WHERE kind = 'Drama';
 
 <programlisting>
 UPDATE weather SET temp_lo = temp_lo+1, temp_hi = temp_lo+15, prcp = DEFAULT
-  WHERE city = 'San Francisco' AND date = '2003-07-03';
-</programlisting>
-  </para>
-
-  <para>
-   Perform the same operation and return the updated entries:
-
-<programlisting>
-UPDATE weather SET temp_lo = temp_lo+1, temp_hi = temp_lo+15, prcp = DEFAULT
-  WHERE city = 'San Francisco' AND date = '2003-07-03'
-  RETURNING temp_lo, temp_hi, prcp;
-</programlisting>
-  </para>
-
-  <para>
-   Use the alternative column-list syntax to do the same update:
-<programlisting>
-UPDATE weather SET (temp_lo, temp_hi, prcp) = (temp_lo+1, temp_lo+15, DEFAULT)
   WHERE city = 'San Francisco' AND date = '2003-07-03';
 </programlisting>
   </para>
@@ -350,41 +217,9 @@ UPDATE employees SET sales_count = sales_count + 1 WHERE id =
   </para>
 
   <para>
-   Update contact names in an accounts table to match the currently assigned
-   salesmen:
-<programlisting>
-UPDATE accounts SET (contact_first_name, contact_last_name) =
-    (SELECT first_name, last_name FROM salesmen
-     WHERE salesmen.id = accounts.sales_id);
-</programlisting>
-   A similar result could be accomplished with a join:
-<programlisting>
-UPDATE accounts SET contact_first_name = first_name,
-                    contact_last_name = last_name
-  FROM salesmen WHERE salesmen.id = accounts.sales_id;
-</programlisting>
-   However, the second query may give unexpected results
-   if <structname>salesmen</structname>.<structfield>id</structfield> is not a unique key, whereas
-   the first query is guaranteed to raise an error if there are multiple
-   <structfield>id</structfield> matches.  Also, if there is no match for a particular
-   <structname>accounts</structname>.<structfield>sales_id</structfield> entry, the first query
-   will set the corresponding name fields to NULL, whereas the second query
-   will not update that row at all.
-  </para>
-
-  <para>
-   Update statistics in a summary table to match the current data:
-<programlisting>
-UPDATE summary s SET (sum_x, sum_y, avg_x, avg_y) =
-    (SELECT sum(x), sum(y), avg(x), avg(y) FROM data d
-     WHERE d.group_id = s.group_id);
-</programlisting>
-  </para>
-
-  <para>
    Attempt to insert a new stock item along with the quantity of stock. If
    the item already exists, instead update the stock count of the existing
-   item. To do this without failing the entire transaction, use savepoints:
+   item. To do this without failing the entire transaction, use savepoints.
 <programlisting>
 BEGIN;
 -- other operations
@@ -398,14 +233,6 @@ UPDATE wines SET stock = stock + 24 WHERE winename = 'Chateau Lafite 2003';
 COMMIT;
 </programlisting>
   </para>
-
-  <para>
-   Change the <structfield>kind</structfield> column of the table
-   <structname>films</structname> in the row on which the cursor
-   <literal>c_films</literal> is currently positioned:
-<programlisting>
-UPDATE films SET kind = 'Dramatic' WHERE CURRENT OF c_films;
-</programlisting></para>
  </refsect1>
 
  <refsect1>
@@ -413,27 +240,33 @@ UPDATE films SET kind = 'Dramatic' WHERE CURRENT OF c_films;
 
   <para>
    This command conforms to the <acronym>SQL</acronym> standard, except
-   that the <literal>FROM</literal> and <literal>RETURNING</literal> clauses
-   are <productname>PostgreSQL</productname> extensions, as is the ability
-   to use <literal>WITH</literal> with <command>UPDATE</command>.
+   that the <literal>FROM</literal> clause is a
+   <productname>PostgreSQL</productname> extension.
   </para>
 
   <para>
-   Some other database systems offer a <literal>FROM</literal> option in which
-   the target table is supposed to be listed again within <literal>FROM</literal>.
+   Some other database systems offer a <literal>FROM</> option in which
+   the target table is supposed to be listed again within <literal>FROM</>.
    That is not how <productname>PostgreSQL</productname> interprets
-   <literal>FROM</literal>.  Be careful when porting applications that use this
+   <literal>FROM</>.  Be careful when porting applications that use this
    extension.
-  </para>
-
-  <para>
-   According to the standard, the source value for a parenthesized sub-list of
-   target column names can be any row-valued expression yielding the correct
-   number of columns.  <productname>PostgreSQL</productname> only allows the
-   source value to be a <link linkend="sql-syntax-row-constructors">row
-   constructor</link> or a sub-<literal>SELECT</literal>.  An individual column's
-   updated value can be specified as <literal>DEFAULT</literal> in the
-   row-constructor case, but not inside a sub-<literal>SELECT</literal>.
   </para>
  </refsect1>
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

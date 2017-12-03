@@ -1,9 +1,9 @@
 /*
  * psql - the PostgreSQL interactive terminal
  *
- * Copyright (c) 2000-2017, PostgreSQL Global Development Group
+ * Copyright (c) 2000-2005, PostgreSQL Global Development Group
  *
- * src/bin/psql/stringutils.h
+ * $PostgreSQL: pgsql/src/bin/psql/stringutils.h,v 1.22 2005/01/01 05:43:08 momjian Exp $
  */
 #ifndef STRINGUTILS_H
 #define STRINGUTILS_H
@@ -15,13 +15,7 @@ extern char *strtokx(const char *s,
 		const char *delim,
 		const char *quote,
 		char escape,
-		bool e_strings,
 		bool del_quotes,
 		int encoding);
 
-extern void strip_quotes(char *source, char quote, char escape, int encoding);
-
-extern char *quote_if_needed(const char *source, const char *entails_quote,
-				char quote, char escape, int encoding);
-
-#endif							/* STRINGUTILS_H */
+#endif   /* STRINGUTILS_H */

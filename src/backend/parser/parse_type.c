@@ -3,144 +3,106 @@
  * parse_type.c
  *		handle type operations for parser
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/parser/parse_type.c
+ *	  $PostgreSQL: pgsql/src/backend/parser/parse_type.c,v 1.77 2005/10/15 02:49:22 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
-#include "access/htup_details.h"
 #include "catalog/namespace.h"
 #include "catalog/pg_type.h"
 #include "lib/stringinfo.h"
+#include "miscadmin.h"
 #include "nodes/makefuncs.h"
+#include "nodes/parsenodes.h"
 #include "parser/parser.h"
+#include "parser/parse_expr.h"
 #include "parser/parse_type.h"
-#include "utils/array.h"
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
 #include "utils/syscache.h"
 
 
-static int32 typenameTypeMod(ParseState *pstate, const TypeName *typeName,
-				Type typ);
-
-
 /*
  * LookupTypeName
- *		Given a TypeName object, lookup the pg_type syscache entry of the type.
- *		Returns NULL if no such type can be found.  If the type is found,
- *		the typmod value represented in the TypeName struct is computed and
- *		stored into *typmod_p.
+ *		Given a TypeName object, get the OID of the referenced type.
+ *		Returns InvalidOid if no such type can be found.
  *
- * NB: on success, the caller must ReleaseSysCache the type tuple when done
- * with it.
- *
- * NB: direct callers of this function MUST check typisdefined before assuming
- * that the type is fully valid.  Most code should go through typenameType
- * or typenameTypeId instead.
- *
- * typmod_p can be passed as NULL if the caller does not care to know the
- * typmod value, but the typmod decoration (if any) will be validated anyway,
- * except in the case where the type is not found.  Note that if the type is
- * found but is a shell, and there is typmod decoration, an error will be
- * thrown --- this is intentional.
- *
- * pstate is only used for error location info, and may be NULL.
+ * NB: even if the returned OID is not InvalidOid, the type might be
+ * just a shell.  Caller should check typisdefined before using the type.
  */
-Type
-LookupTypeName(ParseState *pstate, const TypeName *typeName,
-			   int32 *typmod_p, bool missing_ok)
+Oid
+LookupTypeName(const TypeName *typename)
 {
-	Oid			typoid;
-	HeapTuple	tup;
-	int32		typmod;
+	Oid			restype;
 
-	if (typeName->names == NIL)
-	{
-		/* We have the OID already if it's an internally generated TypeName */
-		typoid = typeName->typeOid;
-	}
-	else if (typeName->pct_type)
+	/* Easy if it's an internally generated TypeName */
+	if (typename->names == NIL)
+		return typename->typeid;
+
+	if (typename->pct_type)
 	{
 		/* Handle %TYPE reference to type of an existing field */
-		RangeVar   *rel = makeRangeVar(NULL, NULL, typeName->location);
+		RangeVar   *rel = makeRangeVar(NULL, NULL);
 		char	   *field = NULL;
 		Oid			relid;
 		AttrNumber	attnum;
 
 		/* deconstruct the name list */
-		switch (list_length(typeName->names))
+		switch (list_length(typename->names))
 		{
 			case 1:
 				ereport(ERROR,
 						(errcode(ERRCODE_SYNTAX_ERROR),
-						 errmsg("improper %%TYPE reference (too few dotted names): %s",
-								NameListToString(typeName->names)),
-						 parser_errposition(pstate, typeName->location)));
+				errmsg("improper %%TYPE reference (too few dotted names): %s",
+					   NameListToString(typename->names))));
 				break;
 			case 2:
-				rel->relname = strVal(linitial(typeName->names));
-				field = strVal(lsecond(typeName->names));
+				rel->relname = strVal(linitial(typename->names));
+				field = strVal(lsecond(typename->names));
 				break;
 			case 3:
-				rel->schemaname = strVal(linitial(typeName->names));
-				rel->relname = strVal(lsecond(typeName->names));
-				field = strVal(lthird(typeName->names));
+				rel->schemaname = strVal(linitial(typename->names));
+				rel->relname = strVal(lsecond(typename->names));
+				field = strVal(lthird(typename->names));
 				break;
 			case 4:
-				rel->catalogname = strVal(linitial(typeName->names));
-				rel->schemaname = strVal(lsecond(typeName->names));
-				rel->relname = strVal(lthird(typeName->names));
-				field = strVal(lfourth(typeName->names));
+				rel->catalogname = strVal(linitial(typename->names));
+				rel->schemaname = strVal(lsecond(typename->names));
+				rel->relname = strVal(lthird(typename->names));
+				field = strVal(lfourth(typename->names));
 				break;
 			default:
 				ereport(ERROR,
 						(errcode(ERRCODE_SYNTAX_ERROR),
 						 errmsg("improper %%TYPE reference (too many dotted names): %s",
-								NameListToString(typeName->names)),
-						 parser_errposition(pstate, typeName->location)));
+								NameListToString(typename->names))));
 				break;
 		}
 
-		/*
-		 * Look up the field.
-		 *
-		 * XXX: As no lock is taken here, this might fail in the presence of
-		 * concurrent DDL.  But taking a lock would carry a performance
-		 * penalty and would also require a permissions check.
-		 */
-		relid = RangeVarGetRelid(rel, NoLock, missing_ok);
+		/* look up the field */
+		relid = RangeVarGetRelid(rel, false);
 		attnum = get_attnum(relid, field);
 		if (attnum == InvalidAttrNumber)
-		{
-			if (missing_ok)
-				typoid = InvalidOid;
-			else
-				ereport(ERROR,
-						(errcode(ERRCODE_UNDEFINED_COLUMN),
-						 errmsg("column \"%s\" of relation \"%s\" does not exist",
-								field, rel->relname),
-						 parser_errposition(pstate, typeName->location)));
-		}
-		else
-		{
-			typoid = get_atttype(relid, attnum);
+			ereport(ERROR,
+					(errcode(ERRCODE_UNDEFINED_COLUMN),
+					 errmsg("column \"%s\" of relation \"%s\" does not exist",
+							field, rel->relname)));
+		restype = get_atttype(relid, attnum);
 
-			/* this construct should never have an array indicator */
-			Assert(typeName->arrayBounds == NIL);
+		/* this construct should never have an array indicator */
+		Assert(typename->arrayBounds == NIL);
 
-			/* emit nuisance notice (intentionally not errposition'd) */
-			ereport(NOTICE,
-					(errmsg("type reference %s converted to %s",
-							TypeNameToString(typeName),
-							format_type_be(typoid))));
-		}
+		/* emit nuisance notice */
+		ereport(NOTICE,
+				(errmsg("type reference %s converted to %s",
+						TypeNameToString(typename),
+						format_type_be(restype))));
 	}
 	else
 	{
@@ -149,303 +111,31 @@ LookupTypeName(ParseState *pstate, const TypeName *typeName,
 		char	   *typname;
 
 		/* deconstruct the name list */
-		DeconstructQualifiedName(typeName->names, &schemaname, &typname);
+		DeconstructQualifiedName(typename->names, &schemaname, &typname);
+
+		/* If an array reference, look up the array type instead */
+		if (typename->arrayBounds != NIL)
+			typname = makeArrayTypeName(typname);
 
 		if (schemaname)
 		{
 			/* Look in specific schema only */
 			Oid			namespaceId;
-			ParseCallbackState pcbstate;
 
-			setup_parser_errposition_callback(&pcbstate, pstate, typeName->location);
-
-			namespaceId = LookupExplicitNamespace(schemaname, missing_ok);
-			if (OidIsValid(namespaceId))
-				typoid = GetSysCacheOid2(TYPENAMENSP,
-										 PointerGetDatum(typname),
-										 ObjectIdGetDatum(namespaceId));
-			else
-				typoid = InvalidOid;
-
-			cancel_parser_errposition_callback(&pcbstate);
+			namespaceId = LookupExplicitNamespace(schemaname);
+			restype = GetSysCacheOid(TYPENAMENSP,
+									 PointerGetDatum(typname),
+									 ObjectIdGetDatum(namespaceId),
+									 0, 0);
 		}
 		else
 		{
 			/* Unqualified type name, so search the search path */
-			typoid = TypenameGetTypid(typname);
-		}
-
-		/* If an array reference, return the array type instead */
-		if (typeName->arrayBounds != NIL)
-			typoid = get_array_type(typoid);
-	}
-
-	if (!OidIsValid(typoid))
-	{
-		if (typmod_p)
-			*typmod_p = -1;
-		return NULL;
-	}
-
-	tup = SearchSysCache1(TYPEOID, ObjectIdGetDatum(typoid));
-	if (!HeapTupleIsValid(tup)) /* should not happen */
-		elog(ERROR, "cache lookup failed for type %u", typoid);
-
-	typmod = typenameTypeMod(pstate, typeName, (Type) tup);
-
-	if (typmod_p)
-		*typmod_p = typmod;
-
-	return (Type) tup;
-}
-
-/*
- * LookupTypeNameOid
- *		Given a TypeName object, lookup the pg_type syscache entry of the type.
- *		Returns InvalidOid if no such type can be found.  If the type is found,
- *		return its Oid.
- *
- * NB: direct callers of this function need to be aware that the type OID
- * returned may correspond to a shell type.  Most code should go through
- * typenameTypeId instead.
- *
- * pstate is only used for error location info, and may be NULL.
- */
-Oid
-LookupTypeNameOid(ParseState *pstate, const TypeName *typeName, bool missing_ok)
-{
-	Oid			typoid;
-	Type		tup;
-
-	tup = LookupTypeName(pstate, typeName, NULL, missing_ok);
-	if (tup == NULL)
-	{
-		if (!missing_ok)
-			ereport(ERROR,
-					(errcode(ERRCODE_UNDEFINED_OBJECT),
-					 errmsg("type \"%s\" does not exist",
-							TypeNameToString(typeName)),
-					 parser_errposition(pstate, typeName->location)));
-
-		return InvalidOid;
-	}
-
-	typoid = HeapTupleGetOid(tup);
-	ReleaseSysCache(tup);
-
-	return typoid;
-}
-
-/*
- * typenameType - given a TypeName, return a Type structure and typmod
- *
- * This is equivalent to LookupTypeName, except that this will report
- * a suitable error message if the type cannot be found or is not defined.
- * Callers of this can therefore assume the result is a fully valid type.
- */
-Type
-typenameType(ParseState *pstate, const TypeName *typeName, int32 *typmod_p)
-{
-	Type		tup;
-
-	tup = LookupTypeName(pstate, typeName, typmod_p, false);
-	if (tup == NULL)
-		ereport(ERROR,
-				(errcode(ERRCODE_UNDEFINED_OBJECT),
-				 errmsg("type \"%s\" does not exist",
-						TypeNameToString(typeName)),
-				 parser_errposition(pstate, typeName->location)));
-	if (!((Form_pg_type) GETSTRUCT(tup))->typisdefined)
-		ereport(ERROR,
-				(errcode(ERRCODE_UNDEFINED_OBJECT),
-				 errmsg("type \"%s\" is only a shell",
-						TypeNameToString(typeName)),
-				 parser_errposition(pstate, typeName->location)));
-	return tup;
-}
-
-/*
- * typenameTypeId - given a TypeName, return the type's OID
- *
- * This is similar to typenameType, but we only hand back the type OID
- * not the syscache entry.
- */
-Oid
-typenameTypeId(ParseState *pstate, const TypeName *typeName)
-{
-	Oid			typoid;
-	Type		tup;
-
-	tup = typenameType(pstate, typeName, NULL);
-	typoid = HeapTupleGetOid(tup);
-	ReleaseSysCache(tup);
-
-	return typoid;
-}
-
-/*
- * typenameTypeIdAndMod - given a TypeName, return the type's OID and typmod
- *
- * This is equivalent to typenameType, but we only hand back the type OID
- * and typmod, not the syscache entry.
- */
-void
-typenameTypeIdAndMod(ParseState *pstate, const TypeName *typeName,
-					 Oid *typeid_p, int32 *typmod_p)
-{
-	Type		tup;
-
-	tup = typenameType(pstate, typeName, typmod_p);
-	*typeid_p = HeapTupleGetOid(tup);
-	ReleaseSysCache(tup);
-}
-
-/*
- * typenameTypeMod - given a TypeName, return the internal typmod value
- *
- * This will throw an error if the TypeName includes type modifiers that are
- * illegal for the data type.
- *
- * The actual type OID represented by the TypeName must already have been
- * looked up, and is passed as "typ".
- *
- * pstate is only used for error location info, and may be NULL.
- */
-static int32
-typenameTypeMod(ParseState *pstate, const TypeName *typeName, Type typ)
-{
-	int32		result;
-	Oid			typmodin;
-	Datum	   *datums;
-	int			n;
-	ListCell   *l;
-	ArrayType  *arrtypmod;
-	ParseCallbackState pcbstate;
-
-	/* Return prespecified typmod if no typmod expressions */
-	if (typeName->typmods == NIL)
-		return typeName->typemod;
-
-	/*
-	 * Else, type had better accept typmods.  We give a special error message
-	 * for the shell-type case, since a shell couldn't possibly have a
-	 * typmodin function.
-	 */
-	if (!((Form_pg_type) GETSTRUCT(typ))->typisdefined)
-		ereport(ERROR,
-				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("type modifier cannot be specified for shell type \"%s\"",
-						TypeNameToString(typeName)),
-				 parser_errposition(pstate, typeName->location)));
-
-	typmodin = ((Form_pg_type) GETSTRUCT(typ))->typmodin;
-
-	if (typmodin == InvalidOid)
-		ereport(ERROR,
-				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("type modifier is not allowed for type \"%s\"",
-						TypeNameToString(typeName)),
-				 parser_errposition(pstate, typeName->location)));
-
-	/*
-	 * Convert the list of raw-grammar-output expressions to a cstring array.
-	 * Currently, we allow simple numeric constants, string literals, and
-	 * identifiers; possibly this list could be extended.
-	 */
-	datums = (Datum *) palloc(list_length(typeName->typmods) * sizeof(Datum));
-	n = 0;
-	foreach(l, typeName->typmods)
-	{
-		Node	   *tm = (Node *) lfirst(l);
-		char	   *cstr = NULL;
-
-		if (IsA(tm, A_Const))
-		{
-			A_Const    *ac = (A_Const *) tm;
-
-			if (IsA(&ac->val, Integer))
-			{
-				cstr = psprintf("%ld", (long) ac->val.val.ival);
-			}
-			else if (IsA(&ac->val, Float) ||
-					 IsA(&ac->val, String))
-			{
-				/* we can just use the str field directly. */
-				cstr = ac->val.val.str;
-			}
-		}
-		else if (IsA(tm, ColumnRef))
-		{
-			ColumnRef  *cr = (ColumnRef *) tm;
-
-			if (list_length(cr->fields) == 1 &&
-				IsA(linitial(cr->fields), String))
-				cstr = strVal(linitial(cr->fields));
-		}
-		if (!cstr)
-			ereport(ERROR,
-					(errcode(ERRCODE_SYNTAX_ERROR),
-					 errmsg("type modifiers must be simple constants or identifiers"),
-					 parser_errposition(pstate, typeName->location)));
-		datums[n++] = CStringGetDatum(cstr);
-	}
-
-	/* hardwired knowledge about cstring's representation details here */
-	arrtypmod = construct_array(datums, n, CSTRINGOID,
-								-2, false, 'c');
-
-	/* arrange to report location if type's typmodin function fails */
-	setup_parser_errposition_callback(&pcbstate, pstate, typeName->location);
-
-	result = DatumGetInt32(OidFunctionCall1(typmodin,
-											PointerGetDatum(arrtypmod)));
-
-	cancel_parser_errposition_callback(&pcbstate);
-
-	pfree(datums);
-	pfree(arrtypmod);
-
-	return result;
-}
-
-/*
- * appendTypeNameToBuffer
- *		Append a string representing the name of a TypeName to a StringInfo.
- *		This is the shared guts of TypeNameToString and TypeNameListToString.
- *
- * NB: this must work on TypeNames that do not describe any actual type;
- * it is mostly used for reporting lookup errors.
- */
-static void
-appendTypeNameToBuffer(const TypeName *typeName, StringInfo string)
-{
-	if (typeName->names != NIL)
-	{
-		/* Emit possibly-qualified name as-is */
-		ListCell   *l;
-
-		foreach(l, typeName->names)
-		{
-			if (l != list_head(typeName->names))
-				appendStringInfoChar(string, '.');
-			appendStringInfoString(string, strVal(lfirst(l)));
+			restype = TypenameGetTypid(typname);
 		}
 	}
-	else
-	{
-		/* Look up internally-specified type */
-		appendStringInfoString(string, format_type_be(typeName->typeOid));
-	}
 
-	/*
-	 * Add decoration as needed, but only for fields considered by
-	 * LookupTypeName
-	 */
-	if (typeName->pct_type)
-		appendStringInfoString(string, "%TYPE");
-
-	if (typeName->arrayBounds != NIL)
-		appendStringInfoString(string, "[]");
+	return restype;
 }
 
 /*
@@ -456,101 +146,97 @@ appendTypeNameToBuffer(const TypeName *typeName, StringInfo string)
  * it is mostly used for reporting lookup errors.
  */
 char *
-TypeNameToString(const TypeName *typeName)
+TypeNameToString(const TypeName *typename)
 {
 	StringInfoData string;
 
 	initStringInfo(&string);
-	appendTypeNameToBuffer(typeName, &string);
-	return string.data;
-}
 
-/*
- * TypeNameListToString
- *		Produce a string representing the name(s) of a List of TypeNames
- */
-char *
-TypeNameListToString(List *typenames)
-{
-	StringInfoData string;
-	ListCell   *l;
-
-	initStringInfo(&string);
-	foreach(l, typenames)
+	if (typename->names != NIL)
 	{
-		TypeName   *typeName = lfirst_node(TypeName, l);
+		/* Emit possibly-qualified name as-is */
+		ListCell   *l;
 
-		if (l != list_head(typenames))
-			appendStringInfoChar(&string, ',');
-		appendTypeNameToBuffer(typeName, &string);
-	}
-	return string.data;
-}
-
-/*
- * LookupCollation
- *
- * Look up collation by name, return OID, with support for error location.
- */
-Oid
-LookupCollation(ParseState *pstate, List *collnames, int location)
-{
-	Oid			colloid;
-	ParseCallbackState pcbstate;
-
-	if (pstate)
-		setup_parser_errposition_callback(&pcbstate, pstate, location);
-
-	colloid = get_collation_oid(collnames, false);
-
-	if (pstate)
-		cancel_parser_errposition_callback(&pcbstate);
-
-	return colloid;
-}
-
-/*
- * GetColumnDefCollation
- *
- * Get the collation to be used for a column being defined, given the
- * ColumnDef node and the previously-determined column type OID.
- *
- * pstate is only used for error location purposes, and can be NULL.
- */
-Oid
-GetColumnDefCollation(ParseState *pstate, ColumnDef *coldef, Oid typeOid)
-{
-	Oid			result;
-	Oid			typcollation = get_typcollation(typeOid);
-	int			location = coldef->location;
-
-	if (coldef->collClause)
-	{
-		/* We have a raw COLLATE clause, so look up the collation */
-		location = coldef->collClause->location;
-		result = LookupCollation(pstate, coldef->collClause->collname,
-								 location);
-	}
-	else if (OidIsValid(coldef->collOid))
-	{
-		/* Precooked collation spec, use that */
-		result = coldef->collOid;
+		foreach(l, typename->names)
+		{
+			if (l != list_head(typename->names))
+				appendStringInfoChar(&string, '.');
+			appendStringInfoString(&string, strVal(lfirst(l)));
+		}
 	}
 	else
 	{
-		/* Use the type's default collation if any */
-		result = typcollation;
+		/* Look up internally-specified type */
+		appendStringInfoString(&string, format_type_be(typename->typeid));
 	}
 
-	/* Complain if COLLATE is applied to an uncollatable type */
-	if (OidIsValid(result) && !OidIsValid(typcollation))
-		ereport(ERROR,
-				(errcode(ERRCODE_DATATYPE_MISMATCH),
-				 errmsg("collations are not supported by type %s",
-						format_type_be(typeOid)),
-				 parser_errposition(pstate, location)));
+	/*
+	 * Add decoration as needed, but only for fields considered by
+	 * LookupTypeName
+	 */
+	if (typename->pct_type)
+		appendStringInfoString(&string, "%TYPE");
 
-	return result;
+	if (typename->arrayBounds != NIL)
+		appendStringInfoString(&string, "[]");
+
+	return string.data;
+}
+
+/*
+ * typenameTypeId - given a TypeName, return the type's OID
+ *
+ * This is equivalent to LookupTypeName, except that this will report
+ * a suitable error message if the type cannot be found or is not defined.
+ */
+Oid
+typenameTypeId(const TypeName *typename)
+{
+	Oid			typoid;
+
+	typoid = LookupTypeName(typename);
+	if (!OidIsValid(typoid))
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_OBJECT),
+				 errmsg("type \"%s\" does not exist",
+						TypeNameToString(typename))));
+	if (!get_typisdefined(typoid))
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_OBJECT),
+				 errmsg("type \"%s\" is only a shell",
+						TypeNameToString(typename))));
+	return typoid;
+}
+
+/*
+ * typenameType - given a TypeName, return a Type structure
+ *
+ * This is equivalent to typenameTypeId + syscache fetch of Type tuple.
+ * NB: caller must ReleaseSysCache the type tuple when done with it.
+ */
+Type
+typenameType(const TypeName *typename)
+{
+	Oid			typoid;
+	HeapTuple	tup;
+
+	typoid = LookupTypeName(typename);
+	if (!OidIsValid(typoid))
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_OBJECT),
+				 errmsg("type \"%s\" does not exist",
+						TypeNameToString(typename))));
+	tup = SearchSysCache(TYPEOID,
+						 ObjectIdGetDatum(typoid),
+						 0, 0, 0);
+	if (!HeapTupleIsValid(tup)) /* should not happen */
+		elog(ERROR, "cache lookup failed for type %u", typoid);
+	if (!((Form_pg_type) GETSTRUCT(tup))->typisdefined)
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_OBJECT),
+				 errmsg("type \"%s\" is only a shell",
+						TypeNameToString(typename))));
+	return (Type) tup;
 }
 
 /* return a Type structure, given a type id */
@@ -560,7 +246,9 @@ typeidType(Oid id)
 {
 	HeapTuple	tup;
 
-	tup = SearchSysCache1(TYPEOID, ObjectIdGetDatum(id));
+	tup = SearchSysCache(TYPEOID,
+						 ObjectIdGetDatum(id),
+						 0, 0, 0);
 	if (!HeapTupleIsValid(tup))
 		elog(ERROR, "cache lookup failed for type %u", id);
 	return (Type) tup;
@@ -585,7 +273,7 @@ typeLen(Type t)
 	return typ->typlen;
 }
 
-/* given type (as type struct), return its 'byval' attribute */
+/* given type (as type struct), return the value of its 'byval' attribute.*/
 bool
 typeByVal(Type t)
 {
@@ -595,7 +283,17 @@ typeByVal(Type t)
 	return typ->typbyval;
 }
 
-/* given type (as type struct), return the type's name */
+/* given type (as type struct), return the value of its 'typtype' attribute.*/
+char
+typeTypType(Type t)
+{
+	Form_pg_type typ;
+
+	typ = (Form_pg_type) GETSTRUCT(t);
+	return typ->typtype;
+}
+
+/* given type (as type struct), return the name of type */
 char *
 typeTypeName(Type t)
 {
@@ -606,45 +304,35 @@ typeTypeName(Type t)
 	return pstrdup(NameStr(typ->typname));
 }
 
-/* given type (as type struct), return its 'typrelid' attribute */
 Oid
 typeTypeRelid(Type typ)
 {
 	Form_pg_type typtup;
 
 	typtup = (Form_pg_type) GETSTRUCT(typ);
+
 	return typtup->typrelid;
-}
-
-/* given type (as type struct), return its 'typcollation' attribute */
-Oid
-typeTypeCollation(Type typ)
-{
-	Form_pg_type typtup;
-
-	typtup = (Form_pg_type) GETSTRUCT(typ);
-	return typtup->typcollation;
 }
 
 /*
  * Given a type structure and a string, returns the internal representation
- * of that string.  The "string" can be NULL to perform conversion of a NULL
- * (which might result in failure, if the input function rejects NULLs).
+ * of that string
  */
 Datum
 stringTypeDatum(Type tp, char *string, int32 atttypmod)
 {
-	Form_pg_type typform = (Form_pg_type) GETSTRUCT(tp);
-	Oid			typinput = typform->typinput;
-	Oid			typioparam = getTypeIOParam(tp);
+	Oid			typinput;
+	Oid			typioparam;
 
-	return OidInputFunctionCall(typinput, string, typioparam, atttypmod);
+	typinput = ((Form_pg_type) GETSTRUCT(tp))->typinput;
+	typioparam = getTypeIOParam(tp);
+	return OidFunctionCall3(typinput,
+							CStringGetDatum(string),
+							ObjectIdGetDatum(typioparam),
+							Int32GetDatum(atttypmod));
 }
 
-/*
- * Given a typeid, return the type's typrelid (associated relation), if any.
- * Returns InvalidOid if type is not a composite type.
- */
+/* given a typeid, return the type's typrelid (associated relation, if any) */
 Oid
 typeidTypeRelid(Oid type_id)
 {
@@ -652,42 +340,13 @@ typeidTypeRelid(Oid type_id)
 	Form_pg_type type;
 	Oid			result;
 
-	typeTuple = SearchSysCache1(TYPEOID, ObjectIdGetDatum(type_id));
+	typeTuple = SearchSysCache(TYPEOID,
+							   ObjectIdGetDatum(type_id),
+							   0, 0, 0);
 	if (!HeapTupleIsValid(typeTuple))
 		elog(ERROR, "cache lookup failed for type %u", type_id);
+
 	type = (Form_pg_type) GETSTRUCT(typeTuple);
-	result = type->typrelid;
-	ReleaseSysCache(typeTuple);
-	return result;
-}
-
-/*
- * Given a typeid, return the type's typrelid (associated relation), if any.
- * Returns InvalidOid if type is not a composite type or a domain over one.
- * This is the same as typeidTypeRelid(getBaseType(type_id)), but faster.
- */
-Oid
-typeOrDomainTypeRelid(Oid type_id)
-{
-	HeapTuple	typeTuple;
-	Form_pg_type type;
-	Oid			result;
-
-	for (;;)
-	{
-		typeTuple = SearchSysCache1(TYPEOID, ObjectIdGetDatum(type_id));
-		if (!HeapTupleIsValid(typeTuple))
-			elog(ERROR, "cache lookup failed for type %u", type_id);
-		type = (Form_pg_type) GETSTRUCT(typeTuple);
-		if (type->typtype != TYPTYPE_DOMAIN)
-		{
-			/* Not a domain, so done looking through domains */
-			break;
-		}
-		/* It is a domain, so examine the base type instead */
-		type_id = type->typbasetype;
-		ReleaseSysCache(typeTuple);
-	}
 	result = type->typrelid;
 	ReleaseSysCache(typeTuple);
 	return result;
@@ -705,7 +364,7 @@ pts_error_callback(void *arg)
 
 	/*
 	 * Currently we just suppress any syntax error position report, rather
-	 * than transforming to an "internal query" error.  It's unlikely that a
+	 * than transforming to an "internal query" error.	It's unlikely that a
 	 * type name is complex enough to need positioning.
 	 */
 	errposition(0);
@@ -714,18 +373,17 @@ pts_error_callback(void *arg)
 /*
  * Given a string that is supposed to be a SQL-compatible type declaration,
  * such as "int4" or "integer" or "character varying(32)", parse
- * the string and return the result as a TypeName.
- * If the string cannot be parsed as a type, an error is raised.
+ * the string and convert it to a type OID and type modifier.
  */
-TypeName *
-typeStringToTypeName(const char *str)
+void
+parseTypeString(const char *str, Oid *type_id, int32 *typmod)
 {
 	StringInfoData buf;
 	List	   *raw_parsetree_list;
 	SelectStmt *stmt;
 	ResTarget  *restarget;
 	TypeCast   *typecast;
-	TypeName   *typeName;
+	TypeName   *typename;
 	ErrorContextCallback ptserrcontext;
 
 	/* make sure we give useful error for empty input */
@@ -753,22 +411,19 @@ typeStringToTypeName(const char *str)
 	 */
 	if (list_length(raw_parsetree_list) != 1)
 		goto fail;
-	stmt = (SelectStmt *) linitial_node(RawStmt, raw_parsetree_list)->stmt;
+	stmt = (SelectStmt *) linitial(raw_parsetree_list);
 	if (stmt == NULL ||
 		!IsA(stmt, SelectStmt) ||
 		stmt->distinctClause != NIL ||
-		stmt->intoClause != NULL ||
+		stmt->into != NULL ||
 		stmt->fromClause != NIL ||
 		stmt->whereClause != NULL ||
 		stmt->groupClause != NIL ||
 		stmt->havingClause != NULL ||
-		stmt->windowClause != NIL ||
-		stmt->valuesLists != NIL ||
 		stmt->sortClause != NIL ||
 		stmt->limitOffset != NULL ||
 		stmt->limitCount != NULL ||
-		stmt->lockingClause != NIL ||
-		stmt->withClause != NULL ||
+		stmt->lockingClause != NULL ||
 		stmt->op != SETOP_NONE)
 		goto fail;
 	if (list_length(stmt->targetList) != 1)
@@ -785,60 +440,22 @@ typeStringToTypeName(const char *str)
 		typecast->arg == NULL ||
 		!IsA(typecast->arg, A_Const))
 		goto fail;
+	typename = typecast->typename;
+	if (typename == NULL ||
+		!IsA(typename, TypeName))
+		goto fail;
+	if (typename->setof)
+		goto fail;
 
-	typeName = typecast->typeName;
-	if (typeName == NULL ||
-		!IsA(typeName, TypeName))
-		goto fail;
-	if (typeName->setof)
-		goto fail;
+	*type_id = typenameTypeId(typename);
+	*typmod = typename->typmod;
 
 	pfree(buf.data);
 
-	return typeName;
+	return;
 
 fail:
 	ereport(ERROR,
 			(errcode(ERRCODE_SYNTAX_ERROR),
 			 errmsg("invalid type name \"%s\"", str)));
-	return NULL;				/* keep compiler quiet */
-}
-
-/*
- * Given a string that is supposed to be a SQL-compatible type declaration,
- * such as "int4" or "integer" or "character varying(32)", parse
- * the string and convert it to a type OID and type modifier.
- * If missing_ok is true, InvalidOid is returned rather than raising an error
- * when the type name is not found.
- */
-void
-parseTypeString(const char *str, Oid *typeid_p, int32 *typmod_p, bool missing_ok)
-{
-	TypeName   *typeName;
-	Type		tup;
-
-	typeName = typeStringToTypeName(str);
-
-	tup = LookupTypeName(NULL, typeName, typmod_p, missing_ok);
-	if (tup == NULL)
-	{
-		if (!missing_ok)
-			ereport(ERROR,
-					(errcode(ERRCODE_UNDEFINED_OBJECT),
-					 errmsg("type \"%s\" does not exist",
-							TypeNameToString(typeName)),
-					 parser_errposition(NULL, typeName->location)));
-		*typeid_p = InvalidOid;
-	}
-	else
-	{
-		if (!((Form_pg_type) GETSTRUCT(tup))->typisdefined)
-			ereport(ERROR,
-					(errcode(ERRCODE_UNDEFINED_OBJECT),
-					 errmsg("type \"%s\" is only a shell",
-							TypeNameToString(typeName)),
-					 parser_errposition(NULL, typeName->location)));
-		*typeid_p = HeapTupleGetOid(tup);
-		ReleaseSysCache(tup);
-	}
 }

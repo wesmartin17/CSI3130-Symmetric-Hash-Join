@@ -4,12 +4,12 @@
  * bootscanner.l
  *	  a lexical scanner for the bootstrap parser
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/bootstrap/bootscanner.l
+ *	  $PostgreSQL: pgsql/src/backend/bootstrap/bootscanner.l,v 1.40 2005/06/29 22:51:54 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -18,6 +18,7 @@
 #include "access/attnum.h"
 #include "access/htup.h"
 #include "access/itup.h"
+#include "access/skey.h"
 #include "access/tupdesc.h"
 #include "bootstrap/bootstrap.h"
 #include "catalog/pg_am.h"
@@ -36,19 +37,12 @@
 #include "utils/rel.h"
 
 /* Not needed now that this file is compiled as part of bootparse. */
-/* #include "bootparse.h" */
+/* #include "bootstrap_tokens.h" */
 
-/* LCOV_EXCL_START */
 
 /* Avoid exit() on fatal scanner errors (a bit ugly -- see yy_fatal_error) */
 #undef fprintf
-#define fprintf(file, fmt, msg)  fprintf_to_ereport(fmt, msg)
-
-static void
-fprintf_to_ereport(const char *fmt, const char *msg)
-{
-	ereport(ERROR, (errmsg_internal("%s", msg)));
-}
+#define fprintf(file, fmt, msg)  ereport(ERROR, (errmsg_internal("%s", msg)))
 
 
 static int	yyline = 1;			/* line number for error reporting */
@@ -58,40 +52,37 @@ static int	yyline = 1;			/* line number for error reporting */
 %option 8bit
 %option never-interactive
 %option nodefault
-%option noinput
 %option nounput
 %option noyywrap
-%option warn
-%option prefix="boot_yy"
 
 
 D		[0-9]
 oct		\\{D}{D}{D}
+Exp		[Ee][-+]?{D}+
 id		([A-Za-z0-9_]|{oct}|\-)+
 sid		\"([^\"])*\"
 arrayid [A-Za-z0-9_]+\[{D}*\]
 
 %%
 
-open			{ return OPEN; }
+open			{ return(OPEN); }
 
-close			{ return XCLOSE; }
+close			{ return(XCLOSE); }
 
-create			{ return XCREATE; }
+create			{ return(XCREATE); }
 
-OID				{ return OBJ_ID; }
-bootstrap		{ return XBOOTSTRAP; }
-"shared_relation"	{ return XSHARED_RELATION; }
-"without_oids"	{ return XWITHOUT_OIDS; }
-"rowtype_oid"	{ return XROWTYPE_OID; }
-_null_			{ return NULLVAL; }
+OID				{ return(OBJ_ID); }
+bootstrap		{ return(XBOOTSTRAP); }
+"shared_relation"	{ return(XSHARED_RELATION); }
+"without_oids"	{ return(XWITHOUT_OIDS); }
+_null_			{ return(NULLVAL); }
 
-insert			{ return INSERT_TUPLE; }
+insert			{ return(INSERT_TUPLE); }
 
-","				{ return COMMA; }
-"="				{ return EQUALS; }
-"("				{ return LPAREN; }
-")"				{ return RPAREN; }
+","				{ return(COMMA); }
+"="				{ return(EQUALS); }
+"("				{ return(LPAREN); }
+")"				{ return(RPAREN); }
 
 [\n]			{ yyline++; }
 [\t]			;
@@ -100,32 +91,40 @@ insert			{ return INSERT_TUPLE; }
 ^\#[^\n]* ; /* drop everything after "#" for comments */
 
 
-"declare"		{ return XDECLARE; }
-"build"			{ return XBUILD; }
-"indices"		{ return INDICES; }
-"unique"		{ return UNIQUE; }
-"index"			{ return INDEX; }
-"on"			{ return ON; }
-"using"			{ return USING; }
-"toast"			{ return XTOAST; }
-"FORCE"			{ return XFORCE; }
-"NOT"			{ return XNOT; }
-"NULL"			{ return XNULL; }
+"declare"		{ return(XDECLARE); }
+"build"			{ return(XBUILD); }
+"indices"		{ return(INDICES); }
+"unique"		{ return(UNIQUE); }
+"index"			{ return(INDEX); }
+"on"			{ return(ON); }
+"using"			{ return(USING); }
 
 {arrayid}		{
-					yylval.str = MapArrayTypeName(yytext);
-					return ID;
+					yylval.ival = EnterString(MapArrayTypeName((char*)yytext));
+					return(ID);
 				}
 {id}			{
-					yylval.str = scanstr(yytext);
-					return ID;
+					char   *newid = scanstr((char*)yytext);
+					yylval.ival = EnterString(newid);
+					pfree(newid);
+					return(ID);
 				}
 {sid}			{
+					char   *newid;
 					yytext[strlen(yytext)-1] = '\0'; /* strip off quotes */
-					yylval.str = scanstr(yytext+1);
+					newid = scanstr((char*)yytext+1);
+					yylval.ival = EnterString(newid);
+					pfree(newid);
 					yytext[strlen(yytext)] = '"'; /* restore quotes */
-					return ID;
+					return(ID);
 				}
+
+(-)?{D}+"."{D}*({Exp})? |
+(-)?{D}*"."{D}+({Exp})? |
+(-)?{D}+{Exp}			{
+							yylval.ival = EnterString((char*)yytext);
+							return(CONST_P);
+						}
 
 .				{
 					elog(ERROR, "syntax error at line %d: unexpected character \"%s\"", yyline, yytext);
@@ -134,8 +133,6 @@ insert			{ return INSERT_TUPLE; }
 
 
 %%
-
-/* LCOV_EXCL_STOP */
 
 void
 yyerror(const char *message)

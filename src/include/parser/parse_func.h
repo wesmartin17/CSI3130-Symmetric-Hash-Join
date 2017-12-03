@@ -4,10 +4,10 @@
  *
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/parser/parse_func.h
+ * $PostgreSQL: pgsql/src/include/parser/parse_func.h,v 1.53 2004/12/31 22:03:38 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -18,6 +18,18 @@
 #include "parser/parse_node.h"
 
 
+/*
+ *	This structure is used to explore the inheritance hierarchy above
+ *	nodes in the type tree in order to disambiguate among polymorphic
+ *	functions.
+ */
+typedef struct _InhPaths
+{
+	int			nsupers;		/* number of superclasses */
+	Oid			self;			/* this class */
+	Oid		   *supervec;		/* vector of superclasses */
+} InhPaths;
+
 /* Result codes for func_get_detail */
 typedef enum
 {
@@ -25,21 +37,18 @@ typedef enum
 	FUNCDETAIL_MULTIPLE,		/* too many matching functions */
 	FUNCDETAIL_NORMAL,			/* found a matching regular function */
 	FUNCDETAIL_AGGREGATE,		/* found a matching aggregate function */
-	FUNCDETAIL_WINDOWFUNC,		/* found a matching window function */
 	FUNCDETAIL_COERCION			/* it's a type coercion request */
 } FuncDetailCode;
 
 
-extern Node *ParseFuncOrColumn(ParseState *pstate, List *funcname, List *fargs,
-				  Node *last_srf, FuncCall *fn, int location);
+extern Node *ParseFuncOrColumn(ParseState *pstate,
+				  List *funcname, List *fargs,
+				  bool agg_star, bool agg_distinct, bool is_column);
 
-extern FuncDetailCode func_get_detail(List *funcname,
-				List *fargs, List *fargnames,
+extern FuncDetailCode func_get_detail(List *funcname, List *fargs,
 				int nargs, Oid *argtypes,
-				bool expand_variadic, bool expand_defaults,
 				Oid *funcid, Oid *rettype,
-				bool *retset, int *nvargs, Oid *vatype,
-				Oid **true_typeids, List **argdefaults);
+				bool *retset, Oid **true_typeids);
 
 extern int func_match_argtypes(int nargs,
 					Oid *input_typeids,
@@ -50,24 +59,23 @@ extern FuncCandidateList func_select_candidate(int nargs,
 					  Oid *input_typeids,
 					  FuncCandidateList candidates);
 
+extern bool typeInheritsFrom(Oid subclassTypeId, Oid superclassTypeId);
+
 extern void make_fn_arguments(ParseState *pstate,
 				  List *fargs,
 				  Oid *actual_arg_types,
 				  Oid *declared_arg_types);
 
-extern const char *funcname_signature_string(const char *funcname, int nargs,
-						  List *argnames, const Oid *argtypes);
-extern const char *func_signature_string(List *funcname, int nargs,
-					  List *argnames, const Oid *argtypes);
+extern const char *funcname_signature_string(const char *funcname,
+						  int nargs, const Oid *argtypes);
+extern const char *func_signature_string(List *funcname,
+					  int nargs, const Oid *argtypes);
+
+extern Oid	find_aggregate_func(List *aggname, Oid basetype, bool noError);
 
 extern Oid LookupFuncName(List *funcname, int nargs, const Oid *argtypes,
 			   bool noError);
-extern Oid LookupFuncWithArgs(ObjectWithArgs *func,
-				   bool noError);
-extern Oid LookupAggWithArgs(ObjectWithArgs *agg,
-				  bool noError);
+extern Oid LookupFuncNameTypeNames(List *funcname, List *argtypes,
+						bool noError);
 
-extern void check_srf_call_placement(ParseState *pstate, Node *last_srf,
-						 int location);
-
-#endif							/* PARSE_FUNC_H */
+#endif   /* PARSE_FUNC_H */

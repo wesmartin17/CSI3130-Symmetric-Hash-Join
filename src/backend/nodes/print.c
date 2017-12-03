@@ -3,12 +3,12 @@
  * print.c
  *	  various print routines (used mostly for debugging)
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/nodes/print.c
+ *	  $PostgreSQL: pgsql/src/backend/nodes/print.c,v 1.77 2005/10/15 02:49:19 momjian Exp $
  *
  * HISTORY
  *	  AUTHOR			DATE			MAJOR EVENT
@@ -25,14 +25,16 @@
 #include "optimizer/clauses.h"
 #include "parser/parsetree.h"
 #include "utils/lsyscache.h"
+#include "utils/syscache.h"
 
+static char *plannode_type(Plan *p);
 
 /*
  * print
  *	  print contents of Node to stdout
  */
 void
-print(const void *obj)
+print(void *obj)
 {
 	char	   *s;
 	char	   *f;
@@ -50,7 +52,7 @@ print(const void *obj)
  *	  pretty-print contents of Node to stdout
  */
 void
-pprint(const void *obj)
+pprint(void *obj)
 {
 	char	   *s;
 	char	   *f;
@@ -68,7 +70,7 @@ pprint(const void *obj)
  *	  send pretty-printed contents of Node to postmaster log
  */
 void
-elog_node_display(int lev, const char *title, const void *obj, bool pretty)
+elog_node_display(int lev, const char *title, void *obj, bool pretty)
 {
 	char	   *s;
 	char	   *f;
@@ -81,7 +83,7 @@ elog_node_display(int lev, const char *title, const void *obj, bool pretty)
 	pfree(s);
 	ereport(lev,
 			(errmsg_internal("%s:", title),
-			 errdetail_internal("%s", f)));
+			 errdetail("%s", f)));
 	pfree(f);
 }
 
@@ -250,9 +252,9 @@ pretty_format_node_dump(const char *dump)
  *	  print contents of range table
  */
 void
-print_rt(const List *rtable)
+print_rt(List *rtable)
 {
-	const ListCell *l;
+	ListCell   *l;
 	int			i = 1;
 
 	printf("resno\trefname  \trelid\tinFromCl\n");
@@ -264,35 +266,23 @@ print_rt(const List *rtable)
 		switch (rte->rtekind)
 		{
 			case RTE_RELATION:
-				printf("%d\t%s\t%u\t%c",
-					   i, rte->eref->aliasname, rte->relid, rte->relkind);
+				printf("%d\t%s\t%u",
+					   i, rte->eref->aliasname, rte->relid);
 				break;
 			case RTE_SUBQUERY:
 				printf("%d\t%s\t[subquery]",
-					   i, rte->eref->aliasname);
-				break;
-			case RTE_JOIN:
-				printf("%d\t%s\t[join]",
 					   i, rte->eref->aliasname);
 				break;
 			case RTE_FUNCTION:
 				printf("%d\t%s\t[rangefunction]",
 					   i, rte->eref->aliasname);
 				break;
-			case RTE_TABLEFUNC:
-				printf("%d\t%s\t[table function]",
+			case RTE_JOIN:
+				printf("%d\t%s\t[join]",
 					   i, rte->eref->aliasname);
 				break;
-			case RTE_VALUES:
-				printf("%d\t%s\t[values list]",
-					   i, rte->eref->aliasname);
-				break;
-			case RTE_CTE:
-				printf("%d\t%s\t[cte]",
-					   i, rte->eref->aliasname);
-				break;
-			case RTE_NAMEDTUPLESTORE:
-				printf("%d\t%s\t[tuplestore]",
+			case RTE_SPECIAL:
+				printf("%d\t%s\t[special]",
 					   i, rte->eref->aliasname);
 				break;
 			default:
@@ -313,7 +303,7 @@ print_rt(const List *rtable)
  *	  print an expression
  */
 void
-print_expr(const Node *expr, const List *rtable)
+print_expr(Node *expr, List *rtable)
 {
 	if (expr == NULL)
 	{
@@ -323,22 +313,18 @@ print_expr(const Node *expr, const List *rtable)
 
 	if (IsA(expr, Var))
 	{
-		const Var  *var = (const Var *) expr;
+		Var		   *var = (Var *) expr;
 		char	   *relname,
 				   *attname;
 
 		switch (var->varno)
 		{
-			case INNER_VAR:
+			case INNER:
 				relname = "INNER";
 				attname = "?";
 				break;
-			case OUTER_VAR:
+			case OUTER:
 				relname = "OUTER";
-				attname = "?";
-				break;
-			case INDEX_VAR:
-				relname = "INDEX";
 				attname = "?";
 				break;
 			default:
@@ -357,7 +343,7 @@ print_expr(const Node *expr, const List *rtable)
 	}
 	else if (IsA(expr, Const))
 	{
-		const Const *c = (const Const *) expr;
+		Const	   *c = (Const *) expr;
 		Oid			typoutput;
 		bool		typIsVarlena;
 		char	   *outputstr;
@@ -371,32 +357,33 @@ print_expr(const Node *expr, const List *rtable)
 		getTypeOutputInfo(c->consttype,
 						  &typoutput, &typIsVarlena);
 
-		outputstr = OidOutputFunctionCall(typoutput, c->constvalue);
+		outputstr = DatumGetCString(OidFunctionCall1(typoutput,
+													 c->constvalue));
 		printf("%s", outputstr);
 		pfree(outputstr);
 	}
 	else if (IsA(expr, OpExpr))
 	{
-		const OpExpr *e = (const OpExpr *) expr;
+		OpExpr	   *e = (OpExpr *) expr;
 		char	   *opname;
 
 		opname = get_opname(e->opno);
 		if (list_length(e->args) > 1)
 		{
-			print_expr(get_leftop((const Expr *) e), rtable);
+			print_expr(get_leftop((Expr *) e), rtable);
 			printf(" %s ", ((opname != NULL) ? opname : "(invalid operator)"));
-			print_expr(get_rightop((const Expr *) e), rtable);
+			print_expr(get_rightop((Expr *) e), rtable);
 		}
 		else
 		{
 			/* we print prefix and postfix ops the same... */
 			printf("%s ", ((opname != NULL) ? opname : "(invalid operator)"));
-			print_expr(get_leftop((const Expr *) e), rtable);
+			print_expr(get_leftop((Expr *) e), rtable);
 		}
 	}
 	else if (IsA(expr, FuncExpr))
 	{
-		const FuncExpr *e = (const FuncExpr *) expr;
+		FuncExpr   *e = (FuncExpr *) expr;
 		char	   *funcname;
 		ListCell   *l;
 
@@ -416,36 +403,27 @@ print_expr(const Node *expr, const List *rtable)
 
 /*
  * print_pathkeys -
- *	  pathkeys list of PathKeys
+ *	  pathkeys list of list of PathKeyItems
  */
 void
-print_pathkeys(const List *pathkeys, const List *rtable)
+print_pathkeys(List *pathkeys, List *rtable)
 {
-	const ListCell *i;
+	ListCell   *i;
 
 	printf("(");
 	foreach(i, pathkeys)
 	{
-		PathKey    *pathkey = (PathKey *) lfirst(i);
-		EquivalenceClass *eclass;
+		List	   *pathkey = (List *) lfirst(i);
 		ListCell   *k;
-		bool		first = true;
-
-		eclass = pathkey->pk_eclass;
-		/* chase up, in case pathkey is non-canonical */
-		while (eclass->ec_merged)
-			eclass = eclass->ec_merged;
 
 		printf("(");
-		foreach(k, eclass->ec_members)
+		foreach(k, pathkey)
 		{
-			EquivalenceMember *mem = (EquivalenceMember *) lfirst(k);
+			PathKeyItem *item = (PathKeyItem *) lfirst(k);
 
-			if (first)
-				first = false;
-			else
+			print_expr(item->key, rtable);
+			if (lnext(k))
 				printf(", ");
-			print_expr((Node *) mem->em_expr, rtable);
 		}
 		printf(")");
 		if (lnext(i))
@@ -459,9 +437,9 @@ print_pathkeys(const List *pathkeys, const List *rtable)
  *	  print targetlist in a more legible way.
  */
 void
-print_tl(const List *tlist, const List *rtable)
+print_tl(List *tlist, List *rtable)
 {
-	const ListCell *tl;
+	ListCell   *tl;
 
 	printf("(\n");
 	foreach(tl, tlist)
@@ -499,4 +477,163 @@ print_slot(TupleTableSlot *slot)
 	}
 
 	debugtup(slot, NULL);
+}
+
+static char *
+plannode_type(Plan *p)
+{
+	switch (nodeTag(p))
+	{
+		case T_Plan:
+			return "PLAN";
+		case T_Result:
+			return "RESULT";
+		case T_Append:
+			return "APPEND";
+		case T_BitmapAnd:
+			return "BITMAPAND";
+		case T_BitmapOr:
+			return "BITMAPOR";
+		case T_Scan:
+			return "SCAN";
+		case T_SeqScan:
+			return "SEQSCAN";
+		case T_IndexScan:
+			return "INDEXSCAN";
+		case T_BitmapIndexScan:
+			return "BITMAPINDEXSCAN";
+		case T_BitmapHeapScan:
+			return "BITMAPHEAPSCAN";
+		case T_TidScan:
+			return "TIDSCAN";
+		case T_SubqueryScan:
+			return "SUBQUERYSCAN";
+		case T_FunctionScan:
+			return "FUNCTIONSCAN";
+		case T_Join:
+			return "JOIN";
+		case T_NestLoop:
+			return "NESTLOOP";
+		case T_MergeJoin:
+			return "MERGEJOIN";
+		case T_HashJoin:
+			return "HASHJOIN";
+		case T_Material:
+			return "MATERIAL";
+		case T_Sort:
+			return "SORT";
+		case T_Agg:
+			return "AGG";
+		case T_Unique:
+			return "UNIQUE";
+		case T_SetOp:
+			return "SETOP";
+		case T_Limit:
+			return "LIMIT";
+		case T_Hash:
+			return "HASH";
+		case T_Group:
+			return "GROUP";
+		default:
+			return "UNKNOWN";
+	}
+}
+
+/*
+ * Recursively prints a simple text description of the plan tree
+ */
+void
+print_plan_recursive(Plan *p, Query *parsetree, int indentLevel, char *label)
+{
+	int			i;
+	char		extraInfo[NAMEDATALEN + 100];
+
+	if (!p)
+		return;
+	for (i = 0; i < indentLevel; i++)
+		printf(" ");
+	printf("%s%s :c=%.2f..%.2f :r=%.0f :w=%d ", label, plannode_type(p),
+		   p->startup_cost, p->total_cost,
+		   p->plan_rows, p->plan_width);
+	if (IsA(p, Scan) ||
+		IsA(p, SeqScan) ||
+		IsA(p, BitmapHeapScan))
+	{
+		RangeTblEntry *rte;
+
+		rte = rt_fetch(((Scan *) p)->scanrelid, parsetree->rtable);
+		StrNCpy(extraInfo, rte->eref->aliasname, NAMEDATALEN);
+	}
+	else if (IsA(p, IndexScan))
+	{
+		RangeTblEntry *rte;
+
+		rte = rt_fetch(((IndexScan *) p)->scan.scanrelid, parsetree->rtable);
+		StrNCpy(extraInfo, rte->eref->aliasname, NAMEDATALEN);
+	}
+	else if (IsA(p, FunctionScan))
+	{
+		RangeTblEntry *rte;
+
+		rte = rt_fetch(((FunctionScan *) p)->scan.scanrelid, parsetree->rtable);
+		StrNCpy(extraInfo, rte->eref->aliasname, NAMEDATALEN);
+	}
+	else
+		extraInfo[0] = '\0';
+	if (extraInfo[0] != '\0')
+		printf(" ( %s )\n", extraInfo);
+	else
+		printf("\n");
+	print_plan_recursive(p->lefttree, parsetree, indentLevel + 3, "l: ");
+	print_plan_recursive(p->righttree, parsetree, indentLevel + 3, "r: ");
+
+	if (IsA(p, Append))
+	{
+		ListCell   *l;
+		Append	   *appendplan = (Append *) p;
+
+		foreach(l, appendplan->appendplans)
+		{
+			Plan	   *subnode = (Plan *) lfirst(l);
+
+			print_plan_recursive(subnode, parsetree, indentLevel + 3, "a: ");
+		}
+	}
+
+	if (IsA(p, BitmapAnd))
+	{
+		ListCell   *l;
+		BitmapAnd  *bitmapandplan = (BitmapAnd *) p;
+
+		foreach(l, bitmapandplan->bitmapplans)
+		{
+			Plan	   *subnode = (Plan *) lfirst(l);
+
+			print_plan_recursive(subnode, parsetree, indentLevel + 3, "a: ");
+		}
+	}
+
+	if (IsA(p, BitmapOr))
+	{
+		ListCell   *l;
+		BitmapOr   *bitmaporplan = (BitmapOr *) p;
+
+		foreach(l, bitmaporplan->bitmapplans)
+		{
+			Plan	   *subnode = (Plan *) lfirst(l);
+
+			print_plan_recursive(subnode, parsetree, indentLevel + 3, "a: ");
+		}
+	}
+}
+
+/*
+ * print_plan
+ *
+ * prints just the plan node types
+ */
+void
+print_plan(Plan *p, Query *parsetree)
+{
+	print_plan_recursive(p, parsetree, 0, "");
 }

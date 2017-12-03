@@ -1,25 +1,19 @@
-# contrib/dblink/Makefile
+# $PostgreSQL: pgsql/contrib/dblink/Makefile,v 1.10 2005/09/27 17:13:01 tgl Exp $
 
 MODULE_big = dblink
-OBJS	= dblink.o $(WIN32RES)
 PG_CPPFLAGS = -I$(libpq_srcdir)
+OBJS	= dblink.o
 SHLIB_LINK = $(libpq)
 
-EXTENSION = dblink
-DATA = dblink--1.2.sql dblink--1.1--1.2.sql dblink--1.0--1.1.sql \
-	dblink--unpackaged--1.0.sql
-PGFILEDESC = "dblink - connect to other PostgreSQL databases"
+DATA_built = dblink.sql 
+DOCS = README.dblink
+REGRESS = dblink
 
-REGRESS = paths dblink
-REGRESS_OPTS = --dlpath=$(top_builddir)/src/test/regress
-EXTRA_CLEAN = sql/paths.sql expected/paths.out
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
-SHLIB_PREREQS = submake-libpq
 subdir = contrib/dblink
 top_builddir = ../..
 include $(top_builddir)/src/Makefile.global

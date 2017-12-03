@@ -1,8 +1,3 @@
-/*
- * contrib/btree_gist/btree_macaddr.c
- */
-#include "postgres.h"
-
 #include "btree_gist.h"
 #include "btree_utils_num.h"
 #include "utils/builtins.h"
@@ -12,63 +7,66 @@ typedef struct
 {
 	macaddr		lower;
 	macaddr		upper;
-	char		pad[4];			/* make struct size = sizeof(gbtreekey16) */
-} macKEY;
+}	macKEY;
 
 /*
 ** OID ops
 */
 PG_FUNCTION_INFO_V1(gbt_macad_compress);
-PG_FUNCTION_INFO_V1(gbt_macad_fetch);
 PG_FUNCTION_INFO_V1(gbt_macad_union);
 PG_FUNCTION_INFO_V1(gbt_macad_picksplit);
 PG_FUNCTION_INFO_V1(gbt_macad_consistent);
 PG_FUNCTION_INFO_V1(gbt_macad_penalty);
 PG_FUNCTION_INFO_V1(gbt_macad_same);
 
+Datum		gbt_macad_compress(PG_FUNCTION_ARGS);
+Datum		gbt_macad_union(PG_FUNCTION_ARGS);
+Datum		gbt_macad_picksplit(PG_FUNCTION_ARGS);
+Datum		gbt_macad_consistent(PG_FUNCTION_ARGS);
+Datum		gbt_macad_penalty(PG_FUNCTION_ARGS);
+Datum		gbt_macad_same(PG_FUNCTION_ARGS);
+
 
 static bool
-gbt_macadgt(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_macadgt(const void *a, const void *b)
 {
 	return DatumGetBool(DirectFunctionCall2(macaddr_gt, PointerGetDatum(a), PointerGetDatum(b)));
 }
 static bool
-gbt_macadge(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_macadge(const void *a, const void *b)
 {
 	return DatumGetBool(DirectFunctionCall2(macaddr_ge, PointerGetDatum(a), PointerGetDatum(b)));
 }
 
 static bool
-gbt_macadeq(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_macadeq(const void *a, const void *b)
 {
 	return DatumGetBool(DirectFunctionCall2(macaddr_eq, PointerGetDatum(a), PointerGetDatum(b)));
 }
 
 static bool
-gbt_macadle(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_macadle(const void *a, const void *b)
 {
 	return DatumGetBool(DirectFunctionCall2(macaddr_le, PointerGetDatum(a), PointerGetDatum(b)));
 }
 
 static bool
-gbt_macadlt(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_macadlt(const void *a, const void *b)
 {
 	return DatumGetBool(DirectFunctionCall2(macaddr_lt, PointerGetDatum(a), PointerGetDatum(b)));
 }
 
 
 static int
-gbt_macadkey_cmp(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_macadkey_cmp(const void *a, const void *b)
 {
-	macKEY	   *ia = (macKEY *) (((const Nsrt *) a)->t);
-	macKEY	   *ib = (macKEY *) (((const Nsrt *) b)->t);
-	int			res;
-
-	res = DatumGetInt32(DirectFunctionCall2(macaddr_cmp, MacaddrPGetDatum(&ia->lower), MacaddrPGetDatum(&ib->lower)));
-	if (res == 0)
-		return DatumGetInt32(DirectFunctionCall2(macaddr_cmp, MacaddrPGetDatum(&ia->upper), MacaddrPGetDatum(&ib->upper)));
-
-	return res;
+	return DatumGetInt32(
+						 DirectFunctionCall2(
+											 macaddr_cmp,
+										PointerGetDatum(&((Nsrt *) a)->t[0]),
+										 PointerGetDatum(&((Nsrt *) b)->t[0])
+											 )
+		);
 }
 
 
@@ -76,14 +74,12 @@ static const gbtree_ninfo tinfo =
 {
 	gbt_t_macad,
 	sizeof(macaddr),
-	16,							/* sizeof(gbtreekey16) */
 	gbt_macadgt,
 	gbt_macadge,
 	gbt_macadeq,
 	gbt_macadle,
 	gbt_macadlt,
-	gbt_macadkey_cmp,
-	NULL
+	gbt_macadkey_cmp
 };
 
 
@@ -111,38 +107,27 @@ Datum
 gbt_macad_compress(PG_FUNCTION_ARGS)
 {
 	GISTENTRY  *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
+	GISTENTRY  *retval = NULL;
 
-	PG_RETURN_POINTER(gbt_num_compress(entry, &tinfo));
+	PG_RETURN_POINTER(gbt_num_compress(retval, entry, &tinfo));
 }
 
-Datum
-gbt_macad_fetch(PG_FUNCTION_ARGS)
-{
-	GISTENTRY  *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
-
-	PG_RETURN_POINTER(gbt_num_fetch(entry, &tinfo));
-}
 
 Datum
 gbt_macad_consistent(PG_FUNCTION_ARGS)
 {
+
 	GISTENTRY  *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
 	macaddr    *query = (macaddr *) PG_GETARG_POINTER(1);
-	StrategyNumber strategy = (StrategyNumber) PG_GETARG_UINT16(2);
-
-	/* Oid		subtype = PG_GETARG_OID(3); */
-	bool	   *recheck = (bool *) PG_GETARG_POINTER(4);
 	macKEY	   *kkk = (macKEY *) DatumGetPointer(entry->key);
 	GBT_NUMKEY_R key;
+	StrategyNumber strategy = (StrategyNumber) PG_GETARG_UINT16(2);
 
-	/* All cases served by this function are exact */
-	*recheck = false;
-
-	key.lower = (GBT_NUMKEY *) &kkk->lower;
-	key.upper = (GBT_NUMKEY *) &kkk->upper;
+	key.lower = (GBT_NUMKEY *) & kkk->lower;
+	key.upper = (GBT_NUMKEY *) & kkk->upper;
 
 	PG_RETURN_BOOL(
-				   gbt_num_consistent(&key, (void *) query, &strategy, GIST_LEAF(entry), &tinfo, fcinfo->flinfo)
+				   gbt_num_consistent(&key, (void *) query, &strategy, GIST_LEAF(entry), &tinfo)
 		);
 }
 
@@ -151,10 +136,10 @@ Datum
 gbt_macad_union(PG_FUNCTION_ARGS)
 {
 	GistEntryVector *entryvec = (GistEntryVector *) PG_GETARG_POINTER(0);
-	void	   *out = palloc0(sizeof(macKEY));
+	void	   *out = palloc(sizeof(macKEY));
 
 	*(int *) PG_GETARG_POINTER(1) = sizeof(macKEY);
-	PG_RETURN_POINTER(gbt_num_union((void *) out, entryvec, &tinfo, fcinfo->flinfo));
+	PG_RETURN_POINTER(gbt_num_union((void *) out, entryvec, &tinfo));
 }
 
 
@@ -182,9 +167,9 @@ Datum
 gbt_macad_picksplit(PG_FUNCTION_ARGS)
 {
 	PG_RETURN_POINTER(gbt_num_picksplit(
-										(GistEntryVector *) PG_GETARG_POINTER(0),
-										(GIST_SPLITVEC *) PG_GETARG_POINTER(1),
-										&tinfo, fcinfo->flinfo
+									(GistEntryVector *) PG_GETARG_POINTER(0),
+									  (GIST_SPLITVEC *) PG_GETARG_POINTER(1),
+										&tinfo
 										));
 }
 
@@ -195,6 +180,6 @@ gbt_macad_same(PG_FUNCTION_ARGS)
 	macKEY	   *b2 = (macKEY *) PG_GETARG_POINTER(1);
 	bool	   *result = (bool *) PG_GETARG_POINTER(2);
 
-	*result = gbt_num_same((void *) b1, (void *) b2, &tinfo, fcinfo->flinfo);
+	*result = gbt_num_same((void *) b1, (void *) b2, &tinfo);
 	PG_RETURN_POINTER(result);
 }

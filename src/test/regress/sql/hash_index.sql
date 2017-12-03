@@ -80,15 +80,15 @@ SELECT h.seqno AS i1492, h.random AS i1
    FROM hash_i4_heap h
    WHERE h.random = 1;
 
-UPDATE hash_i4_heap
-   SET seqno = 20000
+UPDATE hash_i4_heap 
+   SET seqno = 20000 
    WHERE hash_i4_heap.random = 1492795354;
 
-SELECT h.seqno AS i20000
+SELECT h.seqno AS i20000 
    FROM hash_i4_heap h
    WHERE h.random = 1492795354;
 
-UPDATE hash_name_heap
+UPDATE hash_name_heap 
    SET random = '0123456789abcdef'::name
    WHERE hash_name_heap.seqno = 6543;
 
@@ -101,13 +101,13 @@ UPDATE hash_name_heap
    WHERE hash_name_heap.random = '76652222'::name;
 
 --
--- this is the row we just replaced; index scan should return zero rows
+-- this is the row we just replaced; index scan should return zero rows 
 --
 SELECT h.seqno AS emptyset
    FROM hash_name_heap h
    WHERE h.random = '76652222'::name;
 
-UPDATE hash_txt_heap
+UPDATE hash_txt_heap 
    SET random = '0123456789abcdefghijklmnop'::text
    WHERE hash_txt_heap.seqno = 4002;
 
@@ -127,11 +127,11 @@ UPDATE hash_f8_heap
    SET random = '-1234.1234'::float8
    WHERE hash_f8_heap.seqno = 8906;
 
-SELECT h.seqno AS i8096, h.random AS f1234_1234
+SELECT h.seqno AS i8096, h.random AS f1234_1234 
    FROM hash_f8_heap h
    WHERE h.random = '-1234.1234'::float8;
 
-UPDATE hash_f8_heap
+UPDATE hash_f8_heap 
    SET seqno = 20000
    WHERE hash_f8_heap.random = '488912369'::float8;
 
@@ -152,53 +152,3 @@ SELECT h.seqno AS f20000
 -- SELECT count(*) AS i988 FROM hash_ovfl_heap
 --  WHERE x = 1000;
 
---
--- Cause some overflow insert and splits.
---
-CREATE TABLE hash_split_heap (keycol INT);
-INSERT INTO hash_split_heap SELECT 1 FROM generate_series(1, 500) a;
-CREATE INDEX hash_split_index on hash_split_heap USING HASH (keycol);
-INSERT INTO hash_split_heap SELECT 1 FROM generate_series(1, 5000) a;
-
--- Let's do a backward scan.
-BEGIN;
-SET enable_seqscan = OFF;
-SET enable_bitmapscan = OFF;
-
-DECLARE c CURSOR FOR SELECT * from hash_split_heap WHERE keycol = 1;
-MOVE FORWARD ALL FROM c;
-MOVE BACKWARD 10000 FROM c;
-MOVE BACKWARD ALL FROM c;
-CLOSE c;
-END;
-
--- DELETE, INSERT, VACUUM.
-DELETE FROM hash_split_heap WHERE keycol = 1;
-INSERT INTO hash_split_heap SELECT a/2 FROM generate_series(1, 25000) a;
-
-VACUUM hash_split_heap;
-
--- Rebuild the index using a different fillfactor
-ALTER INDEX hash_split_index SET (fillfactor = 10);
-REINDEX INDEX hash_split_index;
-
--- Clean up.
-DROP TABLE hash_split_heap;
-
--- Index on temp table.
-CREATE TEMP TABLE hash_temp_heap (x int, y int);
-INSERT INTO hash_temp_heap VALUES (1,1);
-CREATE INDEX hash_idx ON hash_temp_heap USING hash (x);
-DROP TABLE hash_temp_heap CASCADE;
-
--- Float4 type.
-CREATE TABLE hash_heap_float4 (x float4, y int);
-INSERT INTO hash_heap_float4 VALUES (1.1,1);
-CREATE INDEX hash_idx ON hash_heap_float4 USING hash (x);
-DROP TABLE hash_heap_float4 CASCADE;
-
--- Test out-of-range fillfactor values
-CREATE INDEX hash_f8_index2 ON hash_f8_heap USING hash (random float8_ops)
-	WITH (fillfactor=9);
-CREATE INDEX hash_f8_index2 ON hash_f8_heap USING hash (random float8_ops)
-	WITH (fillfactor=101);

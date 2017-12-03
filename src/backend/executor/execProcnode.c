@@ -7,27 +7,32 @@
  *	 ExecProcNode, or ExecEndNode on its subnodes and do the appropriate
  *	 processing.
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/executor/execProcnode.c
+ *	  $PostgreSQL: pgsql/src/backend/executor/execProcnode.c,v 1.51 2005/10/15 02:49:16 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 /*
+ *	 INTERFACE ROUTINES
+ *		ExecCountSlotsNode -	count tuple slots needed by plan tree
+ *		ExecInitNode	-		initialize a plan node and its subplans
+ *		ExecProcNode	-		get a tuple by executing the plan node
+ *		ExecEndNode		-		shut down a plan node and its subplans
+ *
  *	 NOTES
  *		This used to be three files.  It is now all combined into
- *		one file so that it is easier to keep the dispatch routines
- *		in sync when new nodes are added.
+ *		one file so that it is easier to keep ExecInitNode, ExecProcNode,
+ *		and ExecEndNode in sync when new nodes are added.
  *
  *	 EXAMPLE
- *		Suppose we want the age of the manager of the shoe department and
- *		the number of employees in that department.  So we have the query:
+ *		suppose we want the age of the manager of the shoe department and
+ *		the number of employees in that department.  so we have the query:
  *
- *				select DEPT.no_emps, EMP.age
- *				from DEPT, EMP
+ *				retrieve (DEPT.no_emps, EMP.age)
  *				where EMP.name = DEPT.mgr and
  *					  DEPT.name = "shoe"
  *
@@ -40,18 +45,18 @@
  *					DEPT		  EMP
  *				(name = "shoe")
  *
- *		ExecutorStart() is called first.
+ *		ExecStart() is called first.
  *		It calls InitPlan() which calls ExecInitNode() on
  *		the root of the plan -- the nest loop node.
  *
  *	  * ExecInitNode() notices that it is looking at a nest loop and
  *		as the code below demonstrates, it calls ExecInitNestLoop().
  *		Eventually this calls ExecInitNode() on the right and left subplans
- *		and so forth until the entire plan is initialized.  The result
+ *		and so forth until the entire plan is initialized.	The result
  *		of ExecInitNode() is a plan state tree built with the same structure
  *		as the underlying plan tree.
  *
- *	  * Then when ExecutorRun() is called, it calls ExecutePlan() which calls
+ *	  * Then when ExecRun() is called, it calls ExecutePlan() which calls
  *		ExecProcNode() repeatedly on the top node of the plan state tree.
  *		Each time this happens, ExecProcNode() will end up calling
  *		ExecNestLoop(), which calls ExecProcNode() on its subplans.
@@ -61,82 +66,60 @@
  *		form the tuples it returns.
  *
  *	  * Eventually ExecSeqScan() stops returning tuples and the nest
- *		loop join ends.  Lastly, ExecutorEnd() calls ExecEndNode() which
+ *		loop join ends.  Lastly, ExecEnd() calls ExecEndNode() which
  *		calls ExecEndNestLoop() which in turn calls ExecEndNode() on
  *		its subplans which result in ExecEndSeqScan().
  *
  *		This should show how the executor works by having
  *		ExecInitNode(), ExecProcNode() and ExecEndNode() dispatch
- *		their work to the appropriate node support routines which may
+ *		their work to the appopriate node support routines which may
  *		in turn call these routines themselves on their subplans.
  */
 #include "postgres.h"
 
 #include "executor/executor.h"
+#include "executor/instrument.h"
 #include "executor/nodeAgg.h"
 #include "executor/nodeAppend.h"
 #include "executor/nodeBitmapAnd.h"
 #include "executor/nodeBitmapHeapscan.h"
 #include "executor/nodeBitmapIndexscan.h"
 #include "executor/nodeBitmapOr.h"
-#include "executor/nodeCtescan.h"
-#include "executor/nodeCustom.h"
-#include "executor/nodeForeignscan.h"
 #include "executor/nodeFunctionscan.h"
-#include "executor/nodeGather.h"
-#include "executor/nodeGatherMerge.h"
 #include "executor/nodeGroup.h"
 #include "executor/nodeHash.h"
 #include "executor/nodeHashjoin.h"
-#include "executor/nodeIndexonlyscan.h"
 #include "executor/nodeIndexscan.h"
 #include "executor/nodeLimit.h"
-#include "executor/nodeLockRows.h"
 #include "executor/nodeMaterial.h"
-#include "executor/nodeMergeAppend.h"
 #include "executor/nodeMergejoin.h"
-#include "executor/nodeModifyTable.h"
-#include "executor/nodeNamedtuplestorescan.h"
 #include "executor/nodeNestloop.h"
-#include "executor/nodeProjectSet.h"
-#include "executor/nodeRecursiveunion.h"
 #include "executor/nodeResult.h"
-#include "executor/nodeSamplescan.h"
 #include "executor/nodeSeqscan.h"
 #include "executor/nodeSetOp.h"
 #include "executor/nodeSort.h"
 #include "executor/nodeSubplan.h"
 #include "executor/nodeSubqueryscan.h"
-#include "executor/nodeTableFuncscan.h"
 #include "executor/nodeTidscan.h"
 #include "executor/nodeUnique.h"
-#include "executor/nodeValuesscan.h"
-#include "executor/nodeWindowAgg.h"
-#include "executor/nodeWorktablescan.h"
-#include "nodes/nodeFuncs.h"
 #include "miscadmin.h"
-
-
-static TupleTableSlot *ExecProcNodeFirst(PlanState *node);
-static TupleTableSlot *ExecProcNodeInstr(PlanState *node);
-
+#include "tcop/tcopprot.h"
 
 /* ------------------------------------------------------------------------
  *		ExecInitNode
  *
- *		Recursively initializes all the nodes in the plan tree rooted
+ *		Recursively initializes all the nodes in the plan rooted
  *		at 'node'.
  *
- *		Inputs:
- *		  'node' is the current node of the plan produced by the query planner
- *		  'estate' is the shared execution state for the plan tree
- *		  'eflags' is a bitwise OR of flag bits described in executor.h
+ *		Initial States:
+ *		  'node' is the plan produced by the query planner
+ *		  'estate' is the shared execution state for the query tree
  *
  *		Returns a PlanState node corresponding to the given Plan node.
  * ------------------------------------------------------------------------
  */
 PlanState *
-ExecInitNode(Plan *node, EState *estate, int eflags)
+ExecInitNode(Plan *node, EState *estate)
 {
 	PlanState  *result;
 	List	   *subps;
@@ -148,220 +131,106 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 	if (node == NULL)
 		return NULL;
 
-	/*
-	 * Make sure there's enough stack available. Need to check here, in
-	 * addition to ExecProcNode() (via ExecProcNodeFirst()), to ensure the
-	 * stack isn't overrun while initializing the node tree.
-	 */
-	check_stack_depth();
-
 	switch (nodeTag(node))
 	{
 			/*
 			 * control nodes
 			 */
 		case T_Result:
-			result = (PlanState *) ExecInitResult((Result *) node,
-												  estate, eflags);
-			break;
-
-		case T_ProjectSet:
-			result = (PlanState *) ExecInitProjectSet((ProjectSet *) node,
-													  estate, eflags);
-			break;
-
-		case T_ModifyTable:
-			result = (PlanState *) ExecInitModifyTable((ModifyTable *) node,
-													   estate, eflags);
+			result = (PlanState *) ExecInitResult((Result *) node, estate);
 			break;
 
 		case T_Append:
-			result = (PlanState *) ExecInitAppend((Append *) node,
-												  estate, eflags);
-			break;
-
-		case T_MergeAppend:
-			result = (PlanState *) ExecInitMergeAppend((MergeAppend *) node,
-													   estate, eflags);
-			break;
-
-		case T_RecursiveUnion:
-			result = (PlanState *) ExecInitRecursiveUnion((RecursiveUnion *) node,
-														  estate, eflags);
+			result = (PlanState *) ExecInitAppend((Append *) node, estate);
 			break;
 
 		case T_BitmapAnd:
-			result = (PlanState *) ExecInitBitmapAnd((BitmapAnd *) node,
-													 estate, eflags);
+			result = (PlanState *) ExecInitBitmapAnd((BitmapAnd *) node, estate);
 			break;
 
 		case T_BitmapOr:
-			result = (PlanState *) ExecInitBitmapOr((BitmapOr *) node,
-													estate, eflags);
+			result = (PlanState *) ExecInitBitmapOr((BitmapOr *) node, estate);
 			break;
 
 			/*
 			 * scan nodes
 			 */
 		case T_SeqScan:
-			result = (PlanState *) ExecInitSeqScan((SeqScan *) node,
-												   estate, eflags);
-			break;
-
-		case T_SampleScan:
-			result = (PlanState *) ExecInitSampleScan((SampleScan *) node,
-													  estate, eflags);
+			result = (PlanState *) ExecInitSeqScan((SeqScan *) node, estate);
 			break;
 
 		case T_IndexScan:
-			result = (PlanState *) ExecInitIndexScan((IndexScan *) node,
-													 estate, eflags);
-			break;
-
-		case T_IndexOnlyScan:
-			result = (PlanState *) ExecInitIndexOnlyScan((IndexOnlyScan *) node,
-														 estate, eflags);
+			result = (PlanState *) ExecInitIndexScan((IndexScan *) node, estate);
 			break;
 
 		case T_BitmapIndexScan:
-			result = (PlanState *) ExecInitBitmapIndexScan((BitmapIndexScan *) node,
-														   estate, eflags);
+			result = (PlanState *) ExecInitBitmapIndexScan((BitmapIndexScan *) node, estate);
 			break;
 
 		case T_BitmapHeapScan:
-			result = (PlanState *) ExecInitBitmapHeapScan((BitmapHeapScan *) node,
-														  estate, eflags);
+			result = (PlanState *) ExecInitBitmapHeapScan((BitmapHeapScan *) node, estate);
 			break;
 
 		case T_TidScan:
-			result = (PlanState *) ExecInitTidScan((TidScan *) node,
-												   estate, eflags);
+			result = (PlanState *) ExecInitTidScan((TidScan *) node, estate);
 			break;
 
 		case T_SubqueryScan:
-			result = (PlanState *) ExecInitSubqueryScan((SubqueryScan *) node,
-														estate, eflags);
+			result = (PlanState *) ExecInitSubqueryScan((SubqueryScan *) node, estate);
 			break;
 
 		case T_FunctionScan:
-			result = (PlanState *) ExecInitFunctionScan((FunctionScan *) node,
-														estate, eflags);
-			break;
-
-		case T_TableFuncScan:
-			result = (PlanState *) ExecInitTableFuncScan((TableFuncScan *) node,
-														 estate, eflags);
-			break;
-
-		case T_ValuesScan:
-			result = (PlanState *) ExecInitValuesScan((ValuesScan *) node,
-													  estate, eflags);
-			break;
-
-		case T_CteScan:
-			result = (PlanState *) ExecInitCteScan((CteScan *) node,
-												   estate, eflags);
-			break;
-
-		case T_NamedTuplestoreScan:
-			result = (PlanState *) ExecInitNamedTuplestoreScan((NamedTuplestoreScan *) node,
-															   estate, eflags);
-			break;
-
-		case T_WorkTableScan:
-			result = (PlanState *) ExecInitWorkTableScan((WorkTableScan *) node,
-														 estate, eflags);
-			break;
-
-		case T_ForeignScan:
-			result = (PlanState *) ExecInitForeignScan((ForeignScan *) node,
-													   estate, eflags);
-			break;
-
-		case T_CustomScan:
-			result = (PlanState *) ExecInitCustomScan((CustomScan *) node,
-													  estate, eflags);
+			result = (PlanState *) ExecInitFunctionScan((FunctionScan *) node, estate);
 			break;
 
 			/*
 			 * join nodes
 			 */
 		case T_NestLoop:
-			result = (PlanState *) ExecInitNestLoop((NestLoop *) node,
-													estate, eflags);
+			result = (PlanState *) ExecInitNestLoop((NestLoop *) node, estate);
 			break;
 
 		case T_MergeJoin:
-			result = (PlanState *) ExecInitMergeJoin((MergeJoin *) node,
-													 estate, eflags);
+			result = (PlanState *) ExecInitMergeJoin((MergeJoin *) node, estate);
 			break;
 
 		case T_HashJoin:
-			result = (PlanState *) ExecInitHashJoin((HashJoin *) node,
-													estate, eflags);
+			result = (PlanState *) ExecInitHashJoin((HashJoin *) node, estate);
 			break;
 
 			/*
 			 * materialization nodes
 			 */
 		case T_Material:
-			result = (PlanState *) ExecInitMaterial((Material *) node,
-													estate, eflags);
+			result = (PlanState *) ExecInitMaterial((Material *) node, estate);
 			break;
 
 		case T_Sort:
-			result = (PlanState *) ExecInitSort((Sort *) node,
-												estate, eflags);
+			result = (PlanState *) ExecInitSort((Sort *) node, estate);
 			break;
 
 		case T_Group:
-			result = (PlanState *) ExecInitGroup((Group *) node,
-												 estate, eflags);
+			result = (PlanState *) ExecInitGroup((Group *) node, estate);
 			break;
 
 		case T_Agg:
-			result = (PlanState *) ExecInitAgg((Agg *) node,
-											   estate, eflags);
-			break;
-
-		case T_WindowAgg:
-			result = (PlanState *) ExecInitWindowAgg((WindowAgg *) node,
-													 estate, eflags);
+			result = (PlanState *) ExecInitAgg((Agg *) node, estate);
 			break;
 
 		case T_Unique:
-			result = (PlanState *) ExecInitUnique((Unique *) node,
-												  estate, eflags);
-			break;
-
-		case T_Gather:
-			result = (PlanState *) ExecInitGather((Gather *) node,
-												  estate, eflags);
-			break;
-
-		case T_GatherMerge:
-			result = (PlanState *) ExecInitGatherMerge((GatherMerge *) node,
-													   estate, eflags);
+			result = (PlanState *) ExecInitUnique((Unique *) node, estate);
 			break;
 
 		case T_Hash:
-			result = (PlanState *) ExecInitHash((Hash *) node,
-												estate, eflags);
+			result = (PlanState *) ExecInitHash((Hash *) node, estate);
 			break;
 
 		case T_SetOp:
-			result = (PlanState *) ExecInitSetOp((SetOp *) node,
-												 estate, eflags);
-			break;
-
-		case T_LockRows:
-			result = (PlanState *) ExecInitLockRows((LockRows *) node,
-													estate, eflags);
+			result = (PlanState *) ExecInitSetOp((SetOp *) node, estate);
 			break;
 
 		case T_Limit:
-			result = (PlanState *) ExecInitLimit((Limit *) node,
-												 estate, eflags);
+			result = (PlanState *) ExecInitLimit((Limit *) node, estate);
 			break;
 
 		default:
@@ -369,13 +238,6 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 			result = NULL;		/* keep compiler quiet */
 			break;
 	}
-
-	/*
-	 * Add a wrapper around the ExecProcNode callback that checks stack depth
-	 * during the first execution.
-	 */
-	result->ExecProcNodeReal = result->ExecProcNode;
-	result->ExecProcNode = ExecProcNodeFirst;
 
 	/*
 	 * Initialize any initPlans present in this node.  The planner put them in
@@ -388,64 +250,157 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 		SubPlanState *sstate;
 
 		Assert(IsA(subplan, SubPlan));
-		sstate = ExecInitSubPlan(subplan, result);
+		sstate = ExecInitExprInitPlan(subplan, result);
+		ExecInitSubPlan(sstate, estate);
 		subps = lappend(subps, sstate);
 	}
 	result->initPlan = subps;
 
+	/*
+	 * Initialize any subPlans present in this node.  These were found by
+	 * ExecInitExpr during initialization of the PlanState.  Note we must do
+	 * this after initializing initPlans, in case their arguments contain
+	 * subPlans (is that actually possible? perhaps not).
+	 */
+	foreach(l, result->subPlan)
+	{
+		SubPlanState *sstate = (SubPlanState *) lfirst(l);
+
+		Assert(IsA(sstate, SubPlanState));
+		ExecInitSubPlan(sstate, estate);
+	}
+
 	/* Set up instrumentation for this node if requested */
 	if (estate->es_instrument)
-		result->instrument = InstrAlloc(1, estate->es_instrument);
+		result->instrument = InstrAlloc(1);
 
 	return result;
 }
 
 
-/*
- * ExecProcNode wrapper that performs some one-time checks, before calling
- * the relevant node method (possibly via an instrumentation wrapper).
+/* ----------------------------------------------------------------
+ *		ExecProcNode
+ *
+ *		Execute the given node to return a(nother) tuple.
+ * ----------------------------------------------------------------
  */
-static TupleTableSlot *
-ExecProcNodeFirst(PlanState *node)
-{
-	/*
-	 * Perform stack depth check during the first execution of the node.  We
-	 * only do so the first time round because it turns out to not be cheap on
-	 * some common architectures (eg. x86).  This relies on the assumption
-	 * that ExecProcNode calls for a given plan node will always be made at
-	 * roughly the same stack depth.
-	 */
-	check_stack_depth();
-
-	/*
-	 * If instrumentation is required, change the wrapper to one that just
-	 * does instrumentation.  Otherwise we can dispense with all wrappers and
-	 * have ExecProcNode() directly call the relevant function from now on.
-	 */
-	if (node->instrument)
-		node->ExecProcNode = ExecProcNodeInstr;
-	else
-		node->ExecProcNode = node->ExecProcNodeReal;
-
-	return node->ExecProcNode(node);
-}
-
-
-/*
- * ExecProcNode wrapper that performs instrumentation calls.  By keeping
- * this a separate function, we avoid overhead in the normal case where
- * no instrumentation is wanted.
- */
-static TupleTableSlot *
-ExecProcNodeInstr(PlanState *node)
+TupleTableSlot *
+ExecProcNode(PlanState *node)
 {
 	TupleTableSlot *result;
 
-	InstrStartNode(node->instrument);
+	CHECK_FOR_INTERRUPTS();
 
-	result = node->ExecProcNodeReal(node);
+	if (node->chgParam != NULL) /* something changed */
+		ExecReScan(node, NULL); /* let ReScan handle this */
 
-	InstrStopNode(node->instrument, TupIsNull(result) ? 0.0 : 1.0);
+	if (node->instrument)
+		InstrStartNode(node->instrument);
+
+	switch (nodeTag(node))
+	{
+			/*
+			 * control nodes
+			 */
+		case T_ResultState:
+			result = ExecResult((ResultState *) node);
+			break;
+
+		case T_AppendState:
+			result = ExecAppend((AppendState *) node);
+			break;
+
+			/* BitmapAndState does not yield tuples */
+
+			/* BitmapOrState does not yield tuples */
+
+			/*
+			 * scan nodes
+			 */
+		case T_SeqScanState:
+			result = ExecSeqScan((SeqScanState *) node);
+			break;
+
+		case T_IndexScanState:
+			result = ExecIndexScan((IndexScanState *) node);
+			break;
+
+			/* BitmapIndexScanState does not yield tuples */
+
+		case T_BitmapHeapScanState:
+			result = ExecBitmapHeapScan((BitmapHeapScanState *) node);
+			break;
+
+		case T_TidScanState:
+			result = ExecTidScan((TidScanState *) node);
+			break;
+
+		case T_SubqueryScanState:
+			result = ExecSubqueryScan((SubqueryScanState *) node);
+			break;
+
+		case T_FunctionScanState:
+			result = ExecFunctionScan((FunctionScanState *) node);
+			break;
+
+			/*
+			 * join nodes
+			 */
+		case T_NestLoopState:
+			result = ExecNestLoop((NestLoopState *) node);
+			break;
+
+		case T_MergeJoinState:
+			result = ExecMergeJoin((MergeJoinState *) node);
+			break;
+
+		case T_HashJoinState:
+			result = ExecHashJoin((HashJoinState *) node);
+			break;
+
+			/*
+			 * materialization nodes
+			 */
+		case T_MaterialState:
+			result = ExecMaterial((MaterialState *) node);
+			break;
+
+		case T_SortState:
+			result = ExecSort((SortState *) node);
+			break;
+
+		case T_GroupState:
+			result = ExecGroup((GroupState *) node);
+			break;
+
+		case T_AggState:
+			result = ExecAgg((AggState *) node);
+			break;
+
+		case T_UniqueState:
+			result = ExecUnique((UniqueState *) node);
+			break;
+
+		case T_HashState:
+			result = ExecHash((HashState *) node);
+			break;
+
+		case T_SetOpState:
+			result = ExecSetOp((SetOpState *) node);
+			break;
+
+		case T_LimitState:
+			result = ExecLimit((LimitState *) node);
+			break;
+
+		default:
+			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(node));
+			result = NULL;
+			break;
+	}
+
+	if (node->instrument)
+		InstrStopNode(node->instrument, !TupIsNull(result));
 
 	return result;
 }
@@ -469,12 +424,10 @@ MultiExecProcNode(PlanState *node)
 {
 	Node	   *result;
 
-	check_stack_depth();
-
 	CHECK_FOR_INTERRUPTS();
 
 	if (node->chgParam != NULL) /* something changed */
-		ExecReScan(node);		/* let ReScan handle this */
+		ExecReScan(node, NULL); /* let ReScan handle this */
 
 	switch (nodeTag(node))
 	{
@@ -508,32 +461,133 @@ MultiExecProcNode(PlanState *node)
 }
 
 
+/*
+ * ExecCountSlotsNode - count up the number of tuple table slots needed
+ *
+ * Note that this scans a Plan tree, not a PlanState tree, because we
+ * haven't built the PlanState tree yet ...
+ */
+int
+ExecCountSlotsNode(Plan *node)
+{
+	if (node == NULL)
+		return 0;
+
+	switch (nodeTag(node))
+	{
+			/*
+			 * control nodes
+			 */
+		case T_Result:
+			return ExecCountSlotsResult((Result *) node);
+
+		case T_Append:
+			return ExecCountSlotsAppend((Append *) node);
+
+		case T_BitmapAnd:
+			return ExecCountSlotsBitmapAnd((BitmapAnd *) node);
+
+		case T_BitmapOr:
+			return ExecCountSlotsBitmapOr((BitmapOr *) node);
+
+			/*
+			 * scan nodes
+			 */
+		case T_SeqScan:
+			return ExecCountSlotsSeqScan((SeqScan *) node);
+
+		case T_IndexScan:
+			return ExecCountSlotsIndexScan((IndexScan *) node);
+
+		case T_BitmapIndexScan:
+			return ExecCountSlotsBitmapIndexScan((BitmapIndexScan *) node);
+
+		case T_BitmapHeapScan:
+			return ExecCountSlotsBitmapHeapScan((BitmapHeapScan *) node);
+
+		case T_TidScan:
+			return ExecCountSlotsTidScan((TidScan *) node);
+
+		case T_SubqueryScan:
+			return ExecCountSlotsSubqueryScan((SubqueryScan *) node);
+
+		case T_FunctionScan:
+			return ExecCountSlotsFunctionScan((FunctionScan *) node);
+
+			/*
+			 * join nodes
+			 */
+		case T_NestLoop:
+			return ExecCountSlotsNestLoop((NestLoop *) node);
+
+		case T_MergeJoin:
+			return ExecCountSlotsMergeJoin((MergeJoin *) node);
+
+		case T_HashJoin:
+			return ExecCountSlotsHashJoin((HashJoin *) node);
+
+			/*
+			 * materialization nodes
+			 */
+		case T_Material:
+			return ExecCountSlotsMaterial((Material *) node);
+
+		case T_Sort:
+			return ExecCountSlotsSort((Sort *) node);
+
+		case T_Group:
+			return ExecCountSlotsGroup((Group *) node);
+
+		case T_Agg:
+			return ExecCountSlotsAgg((Agg *) node);
+
+		case T_Unique:
+			return ExecCountSlotsUnique((Unique *) node);
+
+		case T_Hash:
+			return ExecCountSlotsHash((Hash *) node);
+
+		case T_SetOp:
+			return ExecCountSlotsSetOp((SetOp *) node);
+
+		case T_Limit:
+			return ExecCountSlotsLimit((Limit *) node);
+
+		default:
+			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(node));
+			break;
+	}
+
+	return 0;
+}
+
 /* ----------------------------------------------------------------
  *		ExecEndNode
  *
  *		Recursively cleans up all the nodes in the plan rooted
  *		at 'node'.
  *
- *		After this operation, the query plan will not be able to be
- *		processed any further.  This should be called only after
+ *		After this operation, the query plan will not be able to
+ *		processed any further.	This should be called only after
  *		the query plan has been fully executed.
  * ----------------------------------------------------------------
  */
 void
 ExecEndNode(PlanState *node)
 {
+	ListCell   *subp;
+
 	/*
 	 * do nothing when we get to the end of a leaf on tree.
 	 */
 	if (node == NULL)
 		return;
 
-	/*
-	 * Make sure there's enough stack available. Need to check here, in
-	 * addition to ExecProcNode() (via ExecProcNodeFirst()), because it's not
-	 * guaranteed that ExecProcNode() is reached for all nodes.
-	 */
-	check_stack_depth();
+	/* Clean up initPlans and subPlans */
+	foreach(subp, node->initPlan)
+		ExecEndSubPlan((SubPlanState *) lfirst(subp));
+	foreach(subp, node->subPlan)
+		ExecEndSubPlan((SubPlanState *) lfirst(subp));
 
 	if (node->chgParam != NULL)
 	{
@@ -550,24 +604,8 @@ ExecEndNode(PlanState *node)
 			ExecEndResult((ResultState *) node);
 			break;
 
-		case T_ProjectSetState:
-			ExecEndProjectSet((ProjectSetState *) node);
-			break;
-
-		case T_ModifyTableState:
-			ExecEndModifyTable((ModifyTableState *) node);
-			break;
-
 		case T_AppendState:
 			ExecEndAppend((AppendState *) node);
-			break;
-
-		case T_MergeAppendState:
-			ExecEndMergeAppend((MergeAppendState *) node);
-			break;
-
-		case T_RecursiveUnionState:
-			ExecEndRecursiveUnion((RecursiveUnionState *) node);
 			break;
 
 		case T_BitmapAndState:
@@ -585,24 +623,8 @@ ExecEndNode(PlanState *node)
 			ExecEndSeqScan((SeqScanState *) node);
 			break;
 
-		case T_SampleScanState:
-			ExecEndSampleScan((SampleScanState *) node);
-			break;
-
-		case T_GatherState:
-			ExecEndGather((GatherState *) node);
-			break;
-
-		case T_GatherMergeState:
-			ExecEndGatherMerge((GatherMergeState *) node);
-			break;
-
 		case T_IndexScanState:
 			ExecEndIndexScan((IndexScanState *) node);
-			break;
-
-		case T_IndexOnlyScanState:
-			ExecEndIndexOnlyScan((IndexOnlyScanState *) node);
 			break;
 
 		case T_BitmapIndexScanState:
@@ -623,34 +645,6 @@ ExecEndNode(PlanState *node)
 
 		case T_FunctionScanState:
 			ExecEndFunctionScan((FunctionScanState *) node);
-			break;
-
-		case T_TableFuncScanState:
-			ExecEndTableFuncScan((TableFuncScanState *) node);
-			break;
-
-		case T_ValuesScanState:
-			ExecEndValuesScan((ValuesScanState *) node);
-			break;
-
-		case T_CteScanState:
-			ExecEndCteScan((CteScanState *) node);
-			break;
-
-		case T_NamedTuplestoreScanState:
-			ExecEndNamedTuplestoreScan((NamedTuplestoreScanState *) node);
-			break;
-
-		case T_WorkTableScanState:
-			ExecEndWorkTableScan((WorkTableScanState *) node);
-			break;
-
-		case T_ForeignScanState:
-			ExecEndForeignScan((ForeignScanState *) node);
-			break;
-
-		case T_CustomScanState:
-			ExecEndCustomScan((CustomScanState *) node);
 			break;
 
 			/*
@@ -687,10 +681,6 @@ ExecEndNode(PlanState *node)
 			ExecEndAgg((AggState *) node);
 			break;
 
-		case T_WindowAggState:
-			ExecEndWindowAgg((WindowAggState *) node);
-			break;
-
 		case T_UniqueState:
 			ExecEndUnique((UniqueState *) node);
 			break;
@@ -703,10 +693,6 @@ ExecEndNode(PlanState *node)
 			ExecEndSetOp((SetOpState *) node);
 			break;
 
-		case T_LockRowsState:
-			ExecEndLockRows((LockRowsState *) node);
-			break;
-
 		case T_LimitState:
 			ExecEndLimit((LimitState *) node);
 			break;
@@ -715,166 +701,4 @@ ExecEndNode(PlanState *node)
 			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(node));
 			break;
 	}
-}
-
-/*
- * ExecShutdownNode
- *
- * Give execution nodes a chance to stop asynchronous resource consumption
- * and release any resources still held.  Currently, this is only used for
- * parallel query, but we might want to extend it to other cases also (e.g.
- * FDW).  We might also want to call it sooner, as soon as it's evident that
- * no more rows will be needed (e.g. when a Limit is filled) rather than only
- * at the end of ExecutorRun.
- */
-bool
-ExecShutdownNode(PlanState *node)
-{
-	if (node == NULL)
-		return false;
-
-	check_stack_depth();
-
-	planstate_tree_walker(node, ExecShutdownNode, NULL);
-
-	switch (nodeTag(node))
-	{
-		case T_GatherState:
-			ExecShutdownGather((GatherState *) node);
-			break;
-		case T_ForeignScanState:
-			ExecShutdownForeignScan((ForeignScanState *) node);
-			break;
-		case T_CustomScanState:
-			ExecShutdownCustomScan((CustomScanState *) node);
-			break;
-		case T_GatherMergeState:
-			ExecShutdownGatherMerge((GatherMergeState *) node);
-			break;
-		default:
-			break;
-	}
-
-	return false;
-}
-
-/*
- * ExecSetTupleBound
- *
- * Set a tuple bound for a planstate node.  This lets child plan nodes
- * optimize based on the knowledge that the maximum number of tuples that
- * their parent will demand is limited.  The tuple bound for a node may
- * only be changed between scans (i.e., after node initialization or just
- * before an ExecReScan call).
- *
- * Any negative tuples_needed value means "no limit", which should be the
- * default assumption when this is not called at all for a particular node.
- *
- * Note: if this is called repeatedly on a plan tree, the exact same set
- * of nodes must be updated with the new limit each time; be careful that
- * only unchanging conditions are tested here.
- */
-void
-ExecSetTupleBound(int64 tuples_needed, PlanState *child_node)
-{
-	/*
-	 * Since this function recurses, in principle we should check stack depth
-	 * here.  In practice, it's probably pointless since the earlier node
-	 * initialization tree traversal would surely have consumed more stack.
-	 */
-
-	if (IsA(child_node, SortState))
-	{
-		/*
-		 * If it is a Sort node, notify it that it can use bounded sort.
-		 *
-		 * Note: it is the responsibility of nodeSort.c to react properly to
-		 * changes of these parameters.  If we ever redesign this, it'd be a
-		 * good idea to integrate this signaling with the parameter-change
-		 * mechanism.
-		 */
-		SortState  *sortState = (SortState *) child_node;
-
-		if (tuples_needed < 0)
-		{
-			/* make sure flag gets reset if needed upon rescan */
-			sortState->bounded = false;
-		}
-		else
-		{
-			sortState->bounded = true;
-			sortState->bound = tuples_needed;
-		}
-	}
-	else if (IsA(child_node, MergeAppendState))
-	{
-		/*
-		 * If it is a MergeAppend, we can apply the bound to any nodes that
-		 * are children of the MergeAppend, since the MergeAppend surely need
-		 * read no more than that many tuples from any one input.
-		 */
-		MergeAppendState *maState = (MergeAppendState *) child_node;
-		int			i;
-
-		for (i = 0; i < maState->ms_nplans; i++)
-			ExecSetTupleBound(tuples_needed, maState->mergeplans[i]);
-	}
-	else if (IsA(child_node, ResultState))
-	{
-		/*
-		 * Similarly, for a projecting Result, we can apply the bound to its
-		 * child node.
-		 *
-		 * If Result supported qual checking, we'd have to punt on seeing a
-		 * qual.  Note that having a resconstantqual is not a showstopper: if
-		 * that condition succeeds it affects nothing, while if it fails, no
-		 * rows will be demanded from the Result child anyway.
-		 */
-		if (outerPlanState(child_node))
-			ExecSetTupleBound(tuples_needed, outerPlanState(child_node));
-	}
-	else if (IsA(child_node, SubqueryScanState))
-	{
-		/*
-		 * We can also descend through SubqueryScan, but only if it has no
-		 * qual (otherwise it might discard rows).
-		 */
-		SubqueryScanState *subqueryState = (SubqueryScanState *) child_node;
-
-		if (subqueryState->ss.ps.qual == NULL)
-			ExecSetTupleBound(tuples_needed, subqueryState->subplan);
-	}
-	else if (IsA(child_node, GatherState))
-	{
-		/*
-		 * A Gather node can propagate the bound to its workers.  As with
-		 * MergeAppend, no one worker could possibly need to return more
-		 * tuples than the Gather itself needs to.
-		 *
-		 * Note: As with Sort, the Gather node is responsible for reacting
-		 * properly to changes to this parameter.
-		 */
-		GatherState *gstate = (GatherState *) child_node;
-
-		gstate->tuples_needed = tuples_needed;
-
-		/* Also pass down the bound to our own copy of the child plan */
-		ExecSetTupleBound(tuples_needed, outerPlanState(child_node));
-	}
-	else if (IsA(child_node, GatherMergeState))
-	{
-		/* Same comments as for Gather */
-		GatherMergeState *gstate = (GatherMergeState *) child_node;
-
-		gstate->tuples_needed = tuples_needed;
-
-		ExecSetTupleBound(tuples_needed, outerPlanState(child_node));
-	}
-
-	/*
-	 * In principle we could descend through any plan node type that is
-	 * certain not to discard or combine input rows; but on seeing a node that
-	 * can do that, we can't propagate the bound any further.  For the moment
-	 * it's unclear that any other cases are worth checking here.
-	 */
 }

@@ -2,41 +2,37 @@
 #
 # Makefile for src/bin/pg_controldata
 #
-# Copyright (c) 1998-2017, PostgreSQL Global Development Group
+# Copyright (c) 1998-2005, PostgreSQL Global Development Group
 #
-# src/bin/pg_controldata/Makefile
+# $PostgreSQL: pgsql/src/bin/pg_controldata/Makefile,v 1.12 2005/01/01 20:44:22 tgl Exp $
 #
 #-------------------------------------------------------------------------
 
 PGFILEDESC = "pg_controldata - reads the data from pg_control"
-PGAPPICON=win32
-
 subdir = src/bin/pg_controldata
 top_builddir = ../../..
 include $(top_builddir)/src/Makefile.global
 
-OBJS= pg_controldata.o $(WIN32RES)
+override CPPFLAGS += -DFRONTEND
 
-all: pg_controldata
+OBJS= pg_controldata.o pg_crc.o $(WIN32RES)
 
-pg_controldata: $(OBJS) | submake-libpgport
-	$(CC) $(CFLAGS) $^ $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -o $@$(X)
+all: submake-libpgport pg_controldata
+
+pg_controldata: $(OBJS)
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) $(LIBS) -o $@$(X)
+
+pg_crc.c: $(top_srcdir)/src/backend/utils/hash/pg_crc.c
+	rm -f $@ && $(LN_S) $< .
 
 install: all installdirs
-	$(INSTALL_PROGRAM) pg_controldata$(X) '$(DESTDIR)$(bindir)/pg_controldata$(X)'
+	$(INSTALL_PROGRAM) pg_controldata$(X) $(DESTDIR)$(bindir)/pg_controldata$(X)
 
 installdirs:
-	$(MKDIR_P) '$(DESTDIR)$(bindir)'
+	$(mkinstalldirs) $(DESTDIR)$(bindir)
 
 uninstall:
-	rm -f '$(DESTDIR)$(bindir)/pg_controldata$(X)'
+	rm -f $(DESTDIR)$(bindir)/pg_controldata$(X)
 
 clean distclean maintainer-clean:
-	rm -f pg_controldata$(X) $(OBJS)
-	rm -rf tmp_check
-
-check:
-	$(prove_check)
-
-installcheck:
-	$(prove_installcheck)
+	rm -f pg_controldata$(X) $(OBJS) pg_crc.c

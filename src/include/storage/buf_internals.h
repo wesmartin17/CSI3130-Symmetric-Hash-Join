@@ -5,10 +5,10 @@
  *	  strategy.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/storage/buf_internals.h
+ * $PostgreSQL: pgsql/src/include/storage/buf_internals.h,v 1.81.2.2 2005/11/22 18:23:28 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -16,38 +16,11 @@
 #define BUFMGR_INTERNALS_H
 
 #include "storage/buf.h"
-#include "storage/bufmgr.h"
-#include "storage/latch.h"
 #include "storage/lwlock.h"
 #include "storage/shmem.h"
-#include "storage/smgr.h"
-#include "port/atomics.h"
 #include "storage/spin.h"
-#include "utils/relcache.h"
+#include "utils/rel.h"
 
-
-/*
- * Buffer state is a single 32-bit variable where following data is combined.
- *
- * - 18 bits refcount
- * - 4 bits usage count
- * - 10 bits of flags
- *
- * Combining these values allows to perform some operations without locking
- * the buffer header, by modifying them together with a CAS loop.
- *
- * The definition of buffer state components is below.
- */
-#define BUF_REFCOUNT_ONE 1
-#define BUF_REFCOUNT_MASK ((1U << 18) - 1)
-#define BUF_USAGECOUNT_MASK 0x003C0000U
-#define BUF_USAGECOUNT_ONE (1U << 18)
-#define BUF_USAGECOUNT_SHIFT 18
-#define BUF_FLAG_MASK 0xFFC00000U
-
-/* Get refcount and usagecount from buffer state */
-#define BUF_STATE_GET_REFCOUNT(state) ((state) & BUF_REFCOUNT_MASK)
-#define BUF_STATE_GET_USAGECOUNT(state) (((state) & BUF_USAGECOUNT_MASK) >> BUF_USAGECOUNT_SHIFT)
 
 /*
  * Flags for buffer descriptors
@@ -55,17 +28,16 @@
  * Note: TAG_VALID essentially means that there is a buffer hashtable
  * entry associated with the buffer's tag.
  */
-#define BM_LOCKED				(1U << 22)	/* buffer header is locked */
-#define BM_DIRTY				(1U << 23)	/* data needs writing */
-#define BM_VALID				(1U << 24)	/* data is valid */
-#define BM_TAG_VALID			(1U << 25)	/* tag is assigned */
-#define BM_IO_IN_PROGRESS		(1U << 26)	/* read or write in progress */
-#define BM_IO_ERROR				(1U << 27)	/* previous I/O failed */
-#define BM_JUST_DIRTIED			(1U << 28)	/* dirtied since write started */
-#define BM_PIN_COUNT_WAITER		(1U << 29)	/* have waiter for sole pin */
-#define BM_CHECKPOINT_NEEDED	(1U << 30)	/* must write for checkpoint */
-#define BM_PERMANENT			(1U << 31)	/* permanent buffer (not unlogged,
-											 * or init fork) */
+#define BM_DIRTY				(1 << 0)		/* data needs writing */
+#define BM_VALID				(1 << 1)		/* data is valid */
+#define BM_TAG_VALID			(1 << 2)		/* tag is assigned */
+#define BM_IO_IN_PROGRESS		(1 << 3)		/* read or write in progress */
+#define BM_IO_ERROR				(1 << 4)		/* previous I/O failed */
+#define BM_JUST_DIRTIED			(1 << 5)		/* dirtied since write started */
+#define BM_PIN_COUNT_WAITER		(1 << 6)		/* have waiter for sole pin */
+
+typedef bits16 BufFlags;
+
 /*
  * The maximum allowed value of usage_count represents a tradeoff between
  * accuracy and speed of the clock-sweep buffer management algorithm.  A
@@ -91,7 +63,6 @@
 typedef struct buftag
 {
 	RelFileNode rnode;			/* physical relation identifier */
-	ForkNumber	forkNum;
 	BlockNumber blockNum;		/* blknum relative to begin of reln */
 } BufferTag;
 
@@ -100,134 +71,64 @@ typedef struct buftag
 	(a).rnode.spcNode = InvalidOid, \
 	(a).rnode.dbNode = InvalidOid, \
 	(a).rnode.relNode = InvalidOid, \
-	(a).forkNum = InvalidForkNumber, \
 	(a).blockNum = InvalidBlockNumber \
 )
 
-#define INIT_BUFFERTAG(a,xx_rnode,xx_forkNum,xx_blockNum) \
+#define INIT_BUFFERTAG(a,xx_reln,xx_blockNum) \
 ( \
-	(a).rnode = (xx_rnode), \
-	(a).forkNum = (xx_forkNum), \
+	(a).rnode = (xx_reln)->rd_node, \
 	(a).blockNum = (xx_blockNum) \
 )
 
 #define BUFFERTAGS_EQUAL(a,b) \
 ( \
 	RelFileNodeEquals((a).rnode, (b).rnode) && \
-	(a).blockNum == (b).blockNum && \
-	(a).forkNum == (b).forkNum \
+	(a).blockNum == (b).blockNum \
 )
-
-/*
- * The shared buffer mapping table is partitioned to reduce contention.
- * To determine which partition lock a given tag requires, compute the tag's
- * hash code with BufTableHashCode(), then apply BufMappingPartitionLock().
- * NB: NUM_BUFFER_PARTITIONS must be a power of 2!
- */
-#define BufTableHashPartition(hashcode) \
-	((hashcode) % NUM_BUFFER_PARTITIONS)
-#define BufMappingPartitionLock(hashcode) \
-	(&MainLWLockArray[BUFFER_MAPPING_LWLOCK_OFFSET + \
-		BufTableHashPartition(hashcode)].lock)
-#define BufMappingPartitionLockByIndex(i) \
-	(&MainLWLockArray[BUFFER_MAPPING_LWLOCK_OFFSET + (i)].lock)
 
 /*
  *	BufferDesc -- shared descriptor/state data for a single shared buffer.
  *
- * Note: Buffer header lock (BM_LOCKED flag) must be held to examine or change
- * the tag, state or wait_backend_pid fields.  In general, buffer header lock
- * is a spinlock which is combined with flags, refcount and usagecount into
- * single atomic variable.  This layout allow us to do some operations in a
- * single atomic operation, without actually acquiring and releasing spinlock;
- * for instance, increase or decrease refcount.  buf_id field never changes
- * after initialization, so does not need locking.  freeNext is protected by
- * the buffer_strategy_lock not buffer header lock.  The LWLock can take care
- * of itself.  The buffer header lock is *not* used to control access to the
- * data in the buffer!
- *
- * It's assumed that nobody changes the state field while buffer header lock
- * is held.  Thus buffer header lock holder can do complex updates of the
- * state variable in single write, simultaneously with lock release (cleaning
- * BM_LOCKED flag).  On the other hand, updating of state without holding
- * buffer header lock is restricted to CAS, which insure that BM_LOCKED flag
- * is not set.  Atomic increment/decrement, OR/AND etc. are not allowed.
+ * Note: buf_hdr_lock must be held to examine or change the tag, flags,
+ * usage_count, refcount, or wait_backend_pid fields.  buf_id field never
+ * changes after initialization, so does not need locking.	freeNext is
+ * protected by the BufFreelistLock not buf_hdr_lock.  The LWLocks can take
+ * care of themselves.	The buf_hdr_lock is *not* used to control access to
+ * the data in the buffer!
  *
  * An exception is that if we have the buffer pinned, its tag can't change
- * underneath us, so we can examine the tag without locking the buffer header.
+ * underneath us, so we can examine the tag without locking the spinlock.
  * Also, in places we do one-time reads of the flags without bothering to
- * lock the buffer header; this is generally for situations where we don't
- * expect the flag bit being tested to be changing.
+ * lock the spinlock; this is generally for situations where we don't expect
+ * the flag bit being tested to be changing.
  *
  * We can't physically remove items from a disk page if another backend has
  * the buffer pinned.  Hence, a backend may need to wait for all other pins
- * to go away.  This is signaled by storing its own PID into
+ * to go away.	This is signaled by storing its own PID into
  * wait_backend_pid and setting flag bit BM_PIN_COUNT_WAITER.  At present,
  * there can be only one such waiter per buffer.
  *
- * We use this same struct for local buffer headers, but the locks are not
- * used and not all of the flag bits are useful either. To avoid unnecessary
- * overhead, manipulations of the state field should be done without actual
- * atomic operations (i.e. only pg_atomic_read_u32() and
- * pg_atomic_unlocked_write_u32()).
- *
- * Be careful to avoid increasing the size of the struct when adding or
- * reordering members.  Keeping it below 64 bytes (the most common CPU
- * cache line size) is fairly important for performance.
+ * We use this same struct for local buffer headers, but the lock fields
+ * are not used and not all of the flag bits are useful either.
  */
-typedef struct BufferDesc
+typedef struct sbufdesc
 {
 	BufferTag	tag;			/* ID of page contained in buffer */
+	BufFlags	flags;			/* see bit definitions above */
+	uint16		usage_count;	/* usage counter for clock sweep code */
+	unsigned	refcount;		/* # of backends holding pins on buffer */
+	int			wait_backend_pid;		/* backend PID of pin-count waiter */
+
+	slock_t		buf_hdr_lock;	/* protects the above fields */
+
 	int			buf_id;			/* buffer's index number (from 0) */
-
-	/* state of the tag, containing flags, refcount and usagecount */
-	pg_atomic_uint32 state;
-
-	int			wait_backend_pid;	/* backend PID of pin-count waiter */
 	int			freeNext;		/* link in freelist chain */
 
-	LWLock		content_lock;	/* to lock access to buffer contents */
+	LWLockId	io_in_progress_lock;	/* to wait for I/O to complete */
+	LWLockId	content_lock;	/* to lock access to buffer contents */
 } BufferDesc;
 
-/*
- * Concurrent access to buffer headers has proven to be more efficient if
- * they're cache line aligned. So we force the start of the BufferDescriptors
- * array to be on a cache line boundary and force the elements to be cache
- * line sized.
- *
- * XXX: As this is primarily matters in highly concurrent workloads which
- * probably all are 64bit these days, and the space wastage would be a bit
- * more noticeable on 32bit systems, we don't force the stride to be cache
- * line sized on those. If somebody does actual performance testing, we can
- * reevaluate.
- *
- * Note that local buffer descriptors aren't forced to be aligned - as there's
- * no concurrent access to those it's unlikely to be beneficial.
- *
- * We use 64bit as the cache line size here, because that's the most common
- * size. Making it bigger would be a waste of memory. Even if running on a
- * platform with either 32 or 128 byte line sizes, it's good to align to
- * boundaries and avoid false sharing.
- */
-#define BUFFERDESC_PAD_TO_SIZE	(SIZEOF_VOID_P == 8 ? 64 : 1)
-
-typedef union BufferDescPadded
-{
-	BufferDesc	bufferdesc;
-	char		pad[BUFFERDESC_PAD_TO_SIZE];
-} BufferDescPadded;
-
-#define GetBufferDescriptor(id) (&BufferDescriptors[(id)].bufferdesc)
-#define GetLocalBufferDescriptor(id) (&LocalBufferDescriptors[(id)])
-
 #define BufferDescriptorGetBuffer(bdesc) ((bdesc)->buf_id + 1)
-
-#define BufferDescriptorGetIOLock(bdesc) \
-	(&(BufferIOLWLockArray[(bdesc)->buf_id]).lock)
-#define BufferDescriptorGetContentLock(bdesc) \
-	((LWLock*) (&(bdesc)->content_lock))
-
-extern PGDLLIMPORT LWLockMinimallyPadded *BufferIOLWLockArray;
 
 /*
  * The freeNext field is either the index of the next freelist entry,
@@ -237,105 +138,68 @@ extern PGDLLIMPORT LWLockMinimallyPadded *BufferIOLWLockArray;
 #define FREENEXT_NOT_IN_LIST	(-2)
 
 /*
- * Functions for acquiring/releasing a shared buffer header's spinlock.  Do
- * not apply these to local buffers!
+ * Macros for acquiring/releasing a buffer header's spinlock.  The
+ * NoHoldoff cases may be used when we know that we hold some LWLock
+ * and therefore interrupts are already held off.  Do not apply these
+ * to local buffers!
+ *
+ * Note: as a general coding rule, if you are using these then you probably
+ * want to be using a volatile-qualified pointer to the buffer header, to
+ * ensure that the compiler doesn't rearrange accesses to the header to
+ * occur before or after the spinlock is acquired/released.
  */
-extern uint32 LockBufHdr(BufferDesc *desc);
-#define UnlockBufHdr(desc, s)	\
-	do {	\
-		pg_write_barrier(); \
-		pg_atomic_write_u32(&(desc)->state, (s) & (~BM_LOCKED)); \
-	} while (0)
+#define LockBufHdr(bufHdr)	\
+	SpinLockAcquire(&(bufHdr)->buf_hdr_lock)
+#define UnlockBufHdr(bufHdr)  \
+	SpinLockRelease(&(bufHdr)->buf_hdr_lock)
+#define LockBufHdr_NoHoldoff(bufHdr)  \
+	SpinLockAcquire_NoHoldoff(&(bufHdr)->buf_hdr_lock)
+#define UnlockBufHdr_NoHoldoff(bufHdr)	\
+	SpinLockRelease_NoHoldoff(&(bufHdr)->buf_hdr_lock)
 
-
-/*
- * The PendingWriteback & WritebackContext structure are used to keep
- * information about pending flush requests to be issued to the OS.
- */
-typedef struct PendingWriteback
-{
-	/* could store different types of pending flushes here */
-	BufferTag	tag;
-} PendingWriteback;
-
-/* struct forward declared in bufmgr.h */
-typedef struct WritebackContext
-{
-	/* pointer to the max number of writeback requests to coalesce */
-	int		   *max_pending;
-
-	/* current number of pending writeback requests */
-	int			nr_pending;
-
-	/* pending requests */
-	PendingWriteback pending_writebacks[WRITEBACK_MAX_PENDING_FLUSHES];
-} WritebackContext;
 
 /* in buf_init.c */
-extern PGDLLIMPORT BufferDescPadded *BufferDescriptors;
-extern PGDLLIMPORT WritebackContext BackendWritebackContext;
+extern BufferDesc *BufferDescriptors;
 
 /* in localbuf.c */
 extern BufferDesc *LocalBufferDescriptors;
 
-/* in bufmgr.c */
+/* in freelist.c */
+extern bool strategy_hint_vacuum;
+
+/* event counters in buf_init.c */
+extern long int ReadBufferCount;
+extern long int ReadLocalBufferCount;
+extern long int BufferHitCount;
+extern long int LocalBufferHitCount;
+extern long int BufferFlushCount;
+extern long int LocalBufferFlushCount;
+
 
 /*
- * Structure to sort buffers per file on checkpoints.
- *
- * This structure is allocated per buffer in shared memory, so it should be
- * kept as small as possible.
+ * Internal routines: only called by bufmgr
  */
-typedef struct CkptSortItem
-{
-	Oid			tsId;
-	Oid			relNode;
-	ForkNumber	forkNum;
-	BlockNumber blockNum;
-	int			buf_id;
-} CkptSortItem;
-
-extern CkptSortItem *CkptBufferIds;
-
-/*
- * Internal buffer management routines
- */
-/* bufmgr.c */
-extern void WritebackContextInit(WritebackContext *context, int *max_pending);
-extern void IssuePendingWritebacks(WritebackContext *context);
-extern void ScheduleBufferTagForWriteback(WritebackContext *context, BufferTag *tag);
 
 /* freelist.c */
-extern BufferDesc *StrategyGetBuffer(BufferAccessStrategy strategy,
-				  uint32 *buf_state);
-extern void StrategyFreeBuffer(BufferDesc *buf);
-extern bool StrategyRejectBuffer(BufferAccessStrategy strategy,
-					 BufferDesc *buf);
-
-extern int	StrategySyncStart(uint32 *complete_passes, uint32 *num_buf_alloc);
-extern void StrategyNotifyBgWriter(int bgwprocno);
-
+extern volatile BufferDesc *StrategyGetBuffer(void);
+extern void StrategyFreeBuffer(volatile BufferDesc *buf, bool at_head);
+extern int	StrategySyncStart(void);
 extern Size StrategyShmemSize(void);
 extern void StrategyInitialize(bool init);
-extern bool have_free_buffer(void);
 
 /* buf_table.c */
 extern Size BufTableShmemSize(int size);
 extern void InitBufTable(int size);
-extern uint32 BufTableHashCode(BufferTag *tagPtr);
-extern int	BufTableLookup(BufferTag *tagPtr, uint32 hashcode);
-extern int	BufTableInsert(BufferTag *tagPtr, uint32 hashcode, int buf_id);
-extern void BufTableDelete(BufferTag *tagPtr, uint32 hashcode);
+extern int	BufTableLookup(BufferTag *tagPtr);
+extern int	BufTableInsert(BufferTag *tagPtr, int buf_id);
+extern void BufTableDelete(BufferTag *tagPtr);
 
 /* localbuf.c */
-extern void LocalPrefetchBuffer(SMgrRelation smgr, ForkNumber forkNum,
-					BlockNumber blockNum);
-extern BufferDesc *LocalBufferAlloc(SMgrRelation smgr, ForkNumber forkNum,
-				 BlockNumber blockNum, bool *foundPtr);
-extern void MarkLocalBufferDirty(Buffer buffer);
-extern void DropRelFileNodeLocalBuffers(RelFileNode rnode, ForkNumber forkNum,
+extern BufferDesc *LocalBufferAlloc(Relation reln, BlockNumber blockNum,
+				 bool *foundPtr);
+extern void WriteLocalBuffer(Buffer buffer, bool release);
+extern void DropRelFileNodeLocalBuffers(RelFileNode rnode,
 							BlockNumber firstDelBlock);
-extern void DropRelFileNodeAllLocalBuffers(RelFileNode rnode);
 extern void AtEOXact_LocalBuffers(bool isCommit);
 
-#endif							/* BUFMGR_INTERNALS_H */
+#endif   /* BUFMGR_INTERNALS_H */

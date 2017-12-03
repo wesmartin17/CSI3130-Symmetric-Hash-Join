@@ -1,39 +1,31 @@
 <!--
-doc/src/sgml/ref/alter_aggregate.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/alter_aggregate.sgml,v 1.7 2005/10/13 22:44:51 tgl Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-alteraggregate">
- <indexterm zone="sql-alteraggregate">
-  <primary>ALTER AGGREGATE</primary>
- </indexterm>
-
+<refentry id="SQL-ALTERAGGREGATE">
  <refmeta>
-  <refentrytitle>ALTER AGGREGATE</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="SQL-ALTERAGGREGATE-TITLE">ALTER AGGREGATE</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
  <refnamediv>
   <refname>ALTER AGGREGATE</refname>
   <refpurpose>change the definition of an aggregate function</refpurpose>
- </refnamediv>
+ </refnamediv>  
+  
+ <indexterm zone="sql-alteraggregate">
+  <primary>ALTER AGGREGATE</primary>
+ </indexterm>
 
  <refsynopsisdiv>
 <synopsis>
-ALTER AGGREGATE <replaceable>name</replaceable> ( <replaceable>aggregate_signature</replaceable> ) RENAME TO <replaceable>new_name</replaceable>
-ALTER AGGREGATE <replaceable>name</replaceable> ( <replaceable>aggregate_signature</replaceable> )
-                OWNER TO { <replaceable>new_owner</replaceable> | CURRENT_USER | SESSION_USER }
-ALTER AGGREGATE <replaceable>name</replaceable> ( <replaceable>aggregate_signature</replaceable> ) SET SCHEMA <replaceable>new_schema</replaceable>
-
-<phrase>where <replaceable>aggregate_signature</replaceable> is:</phrase>
-
-* |
-[ <replaceable>argmode</replaceable> ] [ <replaceable>argname</replaceable> ] <replaceable>argtype</replaceable> [ , ... ] |
-[ [ <replaceable>argmode</replaceable> ] [ <replaceable>argname</replaceable> ] <replaceable>argtype</replaceable> [ , ... ] ] ORDER BY [ <replaceable>argmode</replaceable> ] [ <replaceable>argname</replaceable> ] <replaceable>argtype</replaceable> [ , ... ]
+ALTER AGGREGATE <replaceable>name</replaceable> ( <replaceable>type</replaceable> ) RENAME TO <replaceable>new_name</replaceable>
+ALTER AGGREGATE <replaceable>name</replaceable> ( <replaceable>type</replaceable> ) OWNER TO <replaceable>new_owner</replaceable>
+ALTER AGGREGATE <replaceable>name</replaceable> ( <replaceable>type</replaceable> ) SET SCHEMA <replaceable>new_schema</replaceable>
 </synopsis>
  </refsynopsisdiv>
-
+  
  <refsect1>
   <title>Description</title>
 
@@ -43,7 +35,7 @@ ALTER AGGREGATE <replaceable>name</replaceable> ( <replaceable>aggregate_signatu
   </para>
 
   <para>
-   You must own the aggregate function to use <command>ALTER AGGREGATE</command>.
+   You must own the aggregate function to use <command>ALTER AGGREGATE</>.
    To change the schema of an aggregate function, you must also have
    <literal>CREATE</literal> privilege on the new schema.
    To alter the owner, you must also be a direct or indirect member of the new
@@ -54,7 +46,7 @@ ALTER AGGREGATE <replaceable>name</replaceable> ( <replaceable>aggregate_signatu
    aggregate function anyway.)
   </para>
  </refsect1>
-
+  
  <refsect1>
   <title>Parameters</title>
 
@@ -69,39 +61,11 @@ ALTER AGGREGATE <replaceable>name</replaceable> ( <replaceable>aggregate_signatu
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">argmode</replaceable></term>
-
+    <term><replaceable class="parameter">type</replaceable></term>
     <listitem>
      <para>
-      The mode of an argument: <literal>IN</literal> or <literal>VARIADIC</literal>.
-      If omitted, the default is <literal>IN</literal>.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">argname</replaceable></term>
-
-    <listitem>
-     <para>
-      The name of an argument.
-      Note that <command>ALTER AGGREGATE</command> does not actually pay
-      any attention to argument names, since only the argument data
-      types are needed to determine the aggregate function's identity.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">argtype</replaceable></term>
-    <listitem>
-     <para>
-      An input data type on which the aggregate function operates.
-      To reference a zero-argument aggregate function, write <literal>*</literal>
-      in place of the list of argument specifications.
-      To reference an ordered-set aggregate function, write
-      <literal>ORDER BY</literal> between the direct and aggregated argument
-      specifications.
+      The argument data type of the aggregate function, or
+      <literal>*</literal> if the function accepts any data type.
      </para>
     </listitem>
    </varlistentry>
@@ -136,21 +100,6 @@ ALTER AGGREGATE <replaceable>name</replaceable> ( <replaceable>aggregate_signatu
  </refsect1>
 
  <refsect1>
-  <title>Notes</title>
-
-   <para>
-    The recommended syntax for referencing an ordered-set aggregate
-    is to write <literal>ORDER BY</literal> between the direct and aggregated
-    argument specifications, in the same style as in
-    <xref linkend="sql-createaggregate"/>.  However, it will also work to
-    omit <literal>ORDER BY</literal> and just run the direct and aggregated
-    argument specifications into a single list.  In this abbreviated form,
-    if <literal>VARIADIC "any"</literal> was used in both the direct and
-    aggregated argument lists, write <literal>VARIADIC "any"</literal> only once.
-   </para>
- </refsect1>
-
- <refsect1>
   <title>Examples</title>
 
   <para>
@@ -170,16 +119,12 @@ ALTER AGGREGATE myavg(integer) OWNER TO joe;
   </para>
 
   <para>
-   To move the ordered-set aggregate <literal>mypercentile</literal> with
-   direct argument of type <type>float8</type> and aggregated argument
-   of type <type>integer</type> into schema <literal>myschema</literal>:
+   To move the aggregate function <literal>myavg</literal> for type
+   <type>integer</type> into schema <literal>myschema</literal>:
 <programlisting>
-ALTER AGGREGATE mypercentile(float8 ORDER BY integer) SET SCHEMA myschema;
+ALTER AGGREGATE myavg(integer) SET SCHEMA myschema;
 </programlisting>
-   This will work too:
-<programlisting>
-ALTER AGGREGATE mypercentile(float8, integer) SET SCHEMA myschema;
-</programlisting></para>
+  </para>
  </refsect1>
 
  <refsect1>
@@ -195,8 +140,25 @@ ALTER AGGREGATE mypercentile(float8, integer) SET SCHEMA myschema;
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-createaggregate"/></member>
-   <member><xref linkend="sql-dropaggregate"/></member>
+   <member><xref linkend="sql-createaggregate" endterm="sql-createaggregate-title"></member>
+   <member><xref linkend="sql-dropaggregate" endterm="sql-dropaggregate-title"></member>
   </simplelist>
  </refsect1>
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

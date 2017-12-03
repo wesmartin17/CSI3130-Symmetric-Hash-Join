@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/px-crypt.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/px-crypt.c,v 1.15 2005/10/15 02:49:06 momjian Exp $
  */
 
 #include "postgres.h"
@@ -34,7 +34,6 @@
 #include "px.h"
 #include "px-crypt.h"
 
-#include "utils/backend_random.h"
 
 static char *
 run_crypt_des(const char *psw, const char *salt,
@@ -43,7 +42,7 @@ run_crypt_des(const char *psw, const char *salt,
 	char	   *res;
 
 	res = px_crypt_des(psw, salt);
-	if (res == NULL || strlen(res) > len - 1)
+	if (strlen(res) > len - 1)
 		return NULL;
 	strcpy(buf, res);
 	return buf;
@@ -74,13 +73,12 @@ struct px_crypt_algo
 	char	   *id;
 	unsigned	id_len;
 	char	   *(*crypt) (const char *psw, const char *salt,
-						  char *buf, unsigned len);
+									  char *buf, unsigned len);
 };
 
 static const struct px_crypt_algo
 			px_crypt_list[] = {
 	{"$2a$", 4, run_crypt_bf},
-	{"$2x$", 4, run_crypt_bf},
 	{"$2$", 3, NULL},			/* N/A */
 	{"$1$", 3, run_crypt_md5},
 	{"_", 1, run_crypt_des},
@@ -97,7 +95,7 @@ px_crypt(const char *psw, const char *salt, char *buf, unsigned len)
 	{
 		if (!c->id_len)
 			break;
-		if (strncmp(salt, c->id, c->id_len) == 0)
+		if (!strncmp(salt, c->id, c->id_len))
 			break;
 	}
 
@@ -115,7 +113,7 @@ struct generator
 {
 	char	   *name;
 	char	   *(*gen) (unsigned long count, const char *input, int size,
-						char *output, int output_size);
+									char *output, int output_size);
 	int			input_len;
 	int			def_rounds;
 	int			min_rounds;
@@ -133,6 +131,7 @@ static struct generator gen_list[] = {
 int
 px_gen_salt(const char *salt_type, char *buf, int rounds)
 {
+	int			res;
 	struct generator *g;
 	char	   *p;
 	char		rbuf[16];
@@ -153,11 +152,12 @@ px_gen_salt(const char *salt_type, char *buf, int rounds)
 			return PXE_BAD_SALT_ROUNDS;
 	}
 
-	if (!pg_backend_random(rbuf, g->input_len))
-		return PXE_NO_RANDOM;
+	res = px_get_pseudo_random_bytes((uint8 *) rbuf, g->input_len);
+	if (res < 0)
+		return res;
 
 	p = g->gen(rounds, rbuf, g->input_len, buf, PX_MAX_SALT_LEN);
-	px_memset(rbuf, 0, sizeof(rbuf));
+	memset(rbuf, 0, sizeof(rbuf));
 
 	if (p == NULL)
 		return PXE_BAD_SALT_ROUNDS;

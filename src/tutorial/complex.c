@@ -1,7 +1,4 @@
-/*
- * src/tutorial/complex.c
- *
- ******************************************************************************
+/******************************************************************************
   This file contains routines that can be bound to a Postgres backend and
   called by the backend in the process of processing queries.  The calling
   format for these routines is dictated by Postgres architecture.
@@ -12,13 +9,29 @@
 #include "fmgr.h"
 #include "libpq/pqformat.h"		/* needed for send/recv functions */
 
-PG_MODULE_MAGIC;
 
 typedef struct Complex
 {
 	double		x;
 	double		y;
-}			Complex;
+}	Complex;
+
+/*
+ * Since we use V1 function calling convention, all these functions have
+ * the same signature as far as C is concerned.  We provide these prototypes
+ * just to forestall warnings when compiled with gcc -Wmissing-prototypes.
+ */
+Datum		complex_in(PG_FUNCTION_ARGS);
+Datum		complex_out(PG_FUNCTION_ARGS);
+Datum		complex_recv(PG_FUNCTION_ARGS);
+Datum		complex_send(PG_FUNCTION_ARGS);
+Datum		complex_add(PG_FUNCTION_ARGS);
+Datum		complex_abs_lt(PG_FUNCTION_ARGS);
+Datum		complex_abs_le(PG_FUNCTION_ARGS);
+Datum		complex_abs_eq(PG_FUNCTION_ARGS);
+Datum		complex_abs_ge(PG_FUNCTION_ARGS);
+Datum		complex_abs_gt(PG_FUNCTION_ARGS);
+Datum		complex_abs_cmp(PG_FUNCTION_ARGS);
 
 
 /*****************************************************************************
@@ -55,7 +68,8 @@ complex_out(PG_FUNCTION_ARGS)
 	Complex    *complex = (Complex *) PG_GETARG_POINTER(0);
 	char	   *result;
 
-	result = psprintf("(%g,%g)", complex->x, complex->y);
+	result = (char *) palloc(100);
+	snprintf(result, 100, "(%g,%g)", complex->x, complex->y);
 	PG_RETURN_CSTRING(result);
 }
 
@@ -121,7 +135,7 @@ complex_add(PG_FUNCTION_ARGS)
  * It's essential that the comparison operators and support function for a
  * B-tree index opclass always agree on the relative ordering of any two
  * data values.  Experience has shown that it's depressingly easy to write
- * unintentionally inconsistent functions.  One way to reduce the odds of
+ * unintentionally inconsistent functions.	One way to reduce the odds of
  * making a mistake is to make all the functions simple wrappers around
  * an internal three-way-comparison function, as we do here.
  *****************************************************************************/

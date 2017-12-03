@@ -1,20 +1,29 @@
-# contrib/pgcrypto/Makefile
+#
+# $PostgreSQL: pgsql/contrib/pgcrypto/Makefile,v 1.23 2005/09/27 17:13:08 tgl Exp $
+#
 
-INT_SRCS = md5.c sha1.c internal.c internal-sha2.c blf.c rijndael.c \
-		pgp-mpi-internal.c imath.c
+INT_SRCS = md5.c sha1.c sha2.c internal.c blf.c rijndael.c \
+		fortuna.c random.c pgp-mpi-internal.c
 INT_TESTS = sha2
 
 OSSL_SRCS = openssl.c pgp-mpi-openssl.c
-OSSL_TESTS = sha2 des 3des cast5
+OSSL_TESTS = des 3des cast5
 
+ZLIB_OFF_CFLAGS = -DDISABLE_ZLIB
 ZLIB_TST = pgp-compression
 ZLIB_OFF_TST = pgp-zlib-DISABLED
+PUBENC_ON = pgp-pubkey-decrypt pgp-pubkey-encrypt pgp-info
+PUBENC_OFF = pgp-pubkey-DISABLED
 
 CF_SRCS = $(if $(subst no,,$(with_openssl)), $(OSSL_SRCS), $(INT_SRCS))
 CF_TESTS = $(if $(subst no,,$(with_openssl)), $(OSSL_TESTS), $(INT_TESTS))
-CF_PGP_TESTS = $(if $(subst no,,$(with_zlib)), $(ZLIB_TST), $(ZLIB_OFF_TST))
+CF_CFLAGS = $(if $(subst yes,,$(with_zlib)), $(ZLIB_OFF_CFLAGS))
+CF_PGP_TESTS = $(if $(subst no,,$(with_zlib)), $(ZLIB_TST), $(ZLIB_OFF_TST)) \
+	$(if $(subst no,,$(with_openssl)), $(PUBENC_ON), $(PUBENC_OFF))
 
-SRCS		= pgcrypto.c px.c px-hmac.c px-crypt.c \
+PG_CPPFLAGS	= $(CF_CFLAGS)
+
+SRCS		= pgcrypto.c px.c px-hmac.c px-crypt.c misc.c \
 		crypt-gensalt.c crypt-blowfish.c crypt-des.c \
 		crypt-md5.c $(CF_SRCS) \
 		mbuf.c pgp.c pgp-armor.c pgp-cfb.c pgp-compress.c \
@@ -23,24 +32,19 @@ SRCS		= pgcrypto.c px.c px-hmac.c px-crypt.c \
 		pgp-pgsql.c
 
 MODULE_big	= pgcrypto
-OBJS		= $(SRCS:.c=.o) $(WIN32RES)
-
-EXTENSION = pgcrypto
-DATA = pgcrypto--1.3.sql pgcrypto--1.2--1.3.sql pgcrypto--1.1--1.2.sql \
-	pgcrypto--1.0--1.1.sql pgcrypto--unpackaged--1.0.sql
-PGFILEDESC = "pgcrypto - cryptographic functions"
+OBJS		= $(SRCS:.c=.o)
+DOCS		= README.pgcrypto
+DATA_built	= pgcrypto.sql
+EXTRA_CLEAN	= gen-rtab
 
 REGRESS = init md5 sha1 hmac-md5 hmac-sha1 blowfish rijndael \
 	$(CF_TESTS) \
 	crypt-des crypt-md5 crypt-blowfish crypt-xdes \
-	pgp-armor pgp-decrypt pgp-encrypt $(CF_PGP_TESTS) \
-	pgp-pubkey-decrypt pgp-pubkey-encrypt pgp-info
+	pgp-armor pgp-decrypt pgp-encrypt $(CF_PGP_TESTS)
 
-EXTRA_CLEAN = gen-rtab
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/pgcrypto
@@ -56,7 +60,7 @@ SHLIB_LINK += $(filter -lcrypto -lz, $(LIBS))
 ifeq ($(PORTNAME), win32)
 SHLIB_LINK += $(filter -leay32, $(LIBS))
 # those must be at the end
-SHLIB_LINK += -lws2_32
+SHLIB_LINK += -lwsock32 -lws2_32
 endif
 
 rijndael.o: rijndael.tbl

@@ -1,16 +1,11 @@
 <!--
-doc/src/sgml/ref/create_type.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_type.sgml,v 1.59 2005/11/01 21:09:50 tgl Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-createtype">
- <indexterm zone="sql-createtype">
-  <primary>CREATE TYPE</primary>
- </indexterm>
-
+<refentry id="SQL-CREATETYPE">
  <refmeta>
-  <refentrytitle>CREATE TYPE</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="sql-createtype-title">CREATE TYPE</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -19,44 +14,29 @@ PostgreSQL documentation
   <refpurpose>define a new data type</refpurpose>
  </refnamediv>
 
+ <indexterm zone="sql-createtype">
+  <primary>CREATE TYPE</primary>
+ </indexterm>
+
  <refsynopsisdiv>
 <synopsis>
 CREATE TYPE <replaceable class="parameter">name</replaceable> AS
-    ( [ <replaceable class="parameter">attribute_name</replaceable> <replaceable class="parameter">data_type</replaceable> [ COLLATE <replaceable>collation</replaceable> ] [, ... ] ] )
-
-CREATE TYPE <replaceable class="parameter">name</replaceable> AS ENUM
-    ( [ '<replaceable class="parameter">label</replaceable>' [, ... ] ] )
-
-CREATE TYPE <replaceable class="parameter">name</replaceable> AS RANGE (
-    SUBTYPE = <replaceable class="parameter">subtype</replaceable>
-    [ , SUBTYPE_OPCLASS = <replaceable class="parameter">subtype_operator_class</replaceable> ]
-    [ , COLLATION = <replaceable class="parameter">collation</replaceable> ]
-    [ , CANONICAL = <replaceable class="parameter">canonical_function</replaceable> ]
-    [ , SUBTYPE_DIFF = <replaceable class="parameter">subtype_diff_function</replaceable> ]
-)
+    ( <replaceable class="PARAMETER">attribute_name</replaceable> <replaceable class="PARAMETER">data_type</replaceable> [, ... ] )
 
 CREATE TYPE <replaceable class="parameter">name</replaceable> (
     INPUT = <replaceable class="parameter">input_function</replaceable>,
     OUTPUT = <replaceable class="parameter">output_function</replaceable>
     [ , RECEIVE = <replaceable class="parameter">receive_function</replaceable> ]
     [ , SEND = <replaceable class="parameter">send_function</replaceable> ]
-    [ , TYPMOD_IN = <replaceable class="parameter">type_modifier_input_function</replaceable> ]
-    [ , TYPMOD_OUT = <replaceable class="parameter">type_modifier_output_function</replaceable> ]
     [ , ANALYZE = <replaceable class="parameter">analyze_function</replaceable> ]
     [ , INTERNALLENGTH = { <replaceable class="parameter">internallength</replaceable> | VARIABLE } ]
     [ , PASSEDBYVALUE ]
     [ , ALIGNMENT = <replaceable class="parameter">alignment</replaceable> ]
     [ , STORAGE = <replaceable class="parameter">storage</replaceable> ]
-    [ , LIKE = <replaceable class="parameter">like_type</replaceable> ]
-    [ , CATEGORY = <replaceable class="parameter">category</replaceable> ]
-    [ , PREFERRED = <replaceable class="parameter">preferred</replaceable> ]
     [ , DEFAULT = <replaceable class="parameter">default</replaceable> ]
     [ , ELEMENT = <replaceable class="parameter">element</replaceable> ]
     [ , DELIMITER = <replaceable class="parameter">delimiter</replaceable> ]
-    [ , COLLATABLE = <replaceable class="parameter">collatable</replaceable> ]
 )
-
-CREATE TYPE <replaceable class="parameter">name</replaceable>
 </synopsis>
  </refsynopsisdiv>
 
@@ -78,18 +58,6 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
    table in the same schema.)
   </para>
 
-  <para>
-   There are five forms of <command>CREATE TYPE</command>, as shown in the
-   syntax synopsis above.  They respectively create a <firstterm>composite
-   type</firstterm>, an <firstterm>enum type</firstterm>, a <firstterm>range type</firstterm>, a
-   <firstterm>base type</firstterm>, or a <firstterm>shell type</firstterm>.  The first four
-   of these are discussed in turn below.  A shell type is simply a placeholder
-   for a type to be defined later; it is created by issuing <command>CREATE
-   TYPE</command> with no parameters except for the type name.  Shell types
-   are needed as forward references when creating range types and base types,
-   as discussed in those sections.
-  </para>
-
   <refsect2>
    <title>Composite Types</title>
 
@@ -97,103 +65,28 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
    The first form of <command>CREATE TYPE</command>
    creates a composite type.
    The composite type is specified by a list of attribute names and data types.
-   An attribute's collation can be specified too, if its data type is
-   collatable.  A composite type is essentially the same as the row type
+   This is essentially the same as the row type
    of a table, but using <command>CREATE TYPE</command> avoids the need to
    create an actual table when all that is wanted is to define a type.
-   A stand-alone composite type is useful, for example, as the argument or
-   return type of a function.
+   A stand-alone composite type is useful as the argument or return type of a
+   function.
   </para>
-
-  <para>
-   To be able to create a composite type, you must
-   have <literal>USAGE</literal> privilege on all attribute types.
-  </para>
-  </refsect2>
-
-  <refsect2 id="sql-createtype-enum">
-   <title>Enumerated Types</title>
-
-   <para>
-    The second form of <command>CREATE TYPE</command> creates an enumerated
-    (enum) type, as described in <xref linkend="datatype-enum"/>.
-    Enum types take a list of one or more quoted labels, each of which
-    must be less than <symbol>NAMEDATALEN</symbol> bytes long (64 bytes in a
-    standard <productname>PostgreSQL</productname> build).
-   </para>
-  </refsect2>
-
-  <refsect2 id="sql-createtype-range">
-   <title>Range Types</title>
-
-   <para>
-    The third form of <command>CREATE TYPE</command> creates a new
-    range type, as described in <xref linkend="rangetypes"/>.
-   </para>
-
-   <para>
-    The range type's <replaceable class="parameter">subtype</replaceable> can
-    be any type with an associated b-tree operator class (to determine the
-    ordering of values for the range type).  Normally the subtype's default
-    b-tree operator class is used to determine ordering; to use a non-default
-    operator class, specify its name with <replaceable
-    class="parameter">subtype_opclass</replaceable>.  If the subtype is
-    collatable, and you want to use a non-default collation in the range's
-    ordering, specify the desired collation with the <replaceable
-    class="parameter">collation</replaceable> option.
-   </para>
-
-   <para>
-    The optional <replaceable class="parameter">canonical</replaceable>
-    function must take one argument of the range type being defined, and
-    return a value of the same type.  This is used to convert range values
-    to a canonical form, when applicable.  See <xref
-    linkend="rangetypes-defining"/> for more information.  Creating a
-    <replaceable class="parameter">canonical</replaceable> function
-    is a bit tricky, since it must be defined before the range type can be
-    declared.  To do this, you must first create a shell type, which is a
-    placeholder type that has no properties except a name and an
-    owner.  This is done by issuing the command <literal>CREATE TYPE
-    <replaceable>name</replaceable></literal>, with no additional parameters.  Then
-    the function can be declared using the shell type as argument and result,
-    and finally the range type can be declared using the same name.  This
-    automatically replaces the shell type entry with a valid range type.
-   </para>
-
-   <para>
-    The optional <replaceable class="parameter">subtype_diff</replaceable>
-    function must take two values of the
-    <replaceable class="parameter">subtype</replaceable> type as argument,
-    and return a <type>double precision</type> value representing the
-    difference between the two given values.  While this is optional,
-    providing it allows much greater efficiency of GiST indexes on columns of
-    the range type.  See <xref linkend="rangetypes-defining"/> for more
-    information.
-   </para>
   </refsect2>
 
   <refsect2>
    <title>Base Types</title>
 
   <para>
-   The fourth form of <command>CREATE TYPE</command> creates a new base type
-   (scalar type).  To create a new base type, you must be a superuser.
-   (This restriction is made because an erroneous type definition could
-   confuse or even crash the server.)
-  </para>
-
-  <para>
-   The parameters can appear in any order, not only that
+   The second form of <command>CREATE TYPE</command> creates a new base type
+   (scalar type).  The parameters may appear in any order, not only that
    illustrated above, and most are optional.  You must register
    two or more functions (using <command>CREATE FUNCTION</command>) before
-   defining the type.  The support functions
+   defining the type.  The support functions 
    <replaceable class="parameter">input_function</replaceable> and
    <replaceable class="parameter">output_function</replaceable>
    are required, while the functions
    <replaceable class="parameter">receive_function</replaceable>,
-   <replaceable class="parameter">send_function</replaceable>,
-   <replaceable class="parameter">type_modifier_input_function</replaceable>,
-   <replaceable class="parameter">type_modifier_output_function</replaceable> and
+   <replaceable class="parameter">send_function</replaceable> and
    <replaceable class="parameter">analyze_function</replaceable>
    are optional.  Generally these functions have to be coded in C
    or another low-level language.
@@ -202,28 +95,22 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
   <para>
    The <replaceable class="parameter">input_function</replaceable>
    converts the type's external textual representation to the internal
-   representation used by the operators and functions defined for the type.
+   representation  used by the
+   operators and functions defined for the type.
    <replaceable class="parameter">output_function</replaceable>
-   performs the reverse transformation.  The input function can be
+   performs the reverse transformation.  The input function may be
    declared as taking one argument of type <type>cstring</type>,
    or as taking three arguments of types
    <type>cstring</type>, <type>oid</type>, <type>integer</type>.
    The first argument is the input text as a C string, the second
    argument is the type's own OID (except for array types, which instead
    receive their element type's OID),
-   and the third is the <literal>typmod</literal> of the destination column, if known
+   and the third is the <literal>typmod</> of the destination column, if known
    (-1 will be passed if not).
    The input function must return a value of the data type itself.
-   Usually, an input function should be declared STRICT; if it is not,
-   it will be called with a NULL first parameter when reading a NULL
-   input value.  The function must still return NULL in this case, unless
-   it raises an error.
-   (This case is mainly meant to support domain input functions, which
-   might need to reject NULL inputs.)
    The output function must be
    declared as taking one argument of the new data type.
    The output function must return type <type>cstring</type>.
-   Output functions are not invoked for NULL values.
   </para>
 
   <para>
@@ -237,19 +124,13 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
    representation is in the machine's native byte order.)  The receive
    function should perform adequate checking to ensure that the value is
    valid.
-   The receive function can be declared as taking one argument of type
+   The receive function may be declared as taking one argument of type
    <type>internal</type>, or as taking three arguments of types
    <type>internal</type>, <type>oid</type>, <type>integer</type>.
    The first argument is a pointer to a <type>StringInfo</type> buffer
    holding the received byte string; the optional arguments are the
    same as for the text input function.
    The receive function must return a value of the data type itself.
-   Usually, a receive function should be declared STRICT; if it is not,
-   it will be called with a NULL first parameter when reading a NULL
-   input value.  The function must still return NULL in this case, unless
-   it raises an error.
-   (This case is mainly meant to support domain receive functions, which
-   might need to reject NULL inputs.)
    Similarly, the optional
    <replaceable class="parameter">send_function</replaceable> converts
    from the internal representation to the external binary representation.
@@ -257,62 +138,34 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
    output.  The send function must be
    declared as taking one argument of the new data type.
    The send function must return type <type>bytea</type>.
-   Send functions are not invoked for NULL values.
   </para>
 
   <para>
    You should at this point be wondering how the input and output functions
-   can be declared to have results or arguments of the new type, when they
-   have to be created before the new type can be created.  The answer is that
-   the type should first be defined as a <firstterm>shell type</firstterm>, which is a
-   placeholder type that has no properties except a name and an owner.  This
-   is done by issuing the command <literal>CREATE TYPE
-   <replaceable>name</replaceable></literal>, with no additional parameters.  Then the
-   C I/O functions can be defined referencing the shell type.  Finally,
-   <command>CREATE TYPE</command> with a full definition replaces the shell entry
-   with a complete, valid type definition, after which the new type can be
-   used normally.
-  </para>
-
-  <para>
-   The optional
-   <replaceable class="parameter">type_modifier_input_function</replaceable>
-   and <replaceable class="parameter">type_modifier_output_function</replaceable>
-   are needed if the type supports modifiers, that is optional constraints
-   attached to a type declaration, such as <literal>char(5)</literal> or
-   <literal>numeric(30,2)</literal>.  <productname>PostgreSQL</productname> allows
-   user-defined types to take one or more simple constants or identifiers as
-   modifiers.  However, this information must be capable of being packed into a
-   single non-negative integer value for storage in the system catalogs.  The
-   <replaceable class="parameter">type_modifier_input_function</replaceable>
-   is passed the declared modifier(s) in the form of a <type>cstring</type>
-   array.  It must check the values for validity (throwing an error if they
-   are wrong), and if they are correct, return a single non-negative
-   <type>integer</type> value that will be stored as the column <quote>typmod</quote>.
-   Type modifiers will be rejected if the type does not have a
-   <replaceable class="parameter">type_modifier_input_function</replaceable>.
-   The <replaceable class="parameter">type_modifier_output_function</replaceable>
-   converts the internal integer typmod value back to the correct form for
-   user display.  It must return a <type>cstring</type> value that is the exact
-   string to append to the type name; for example <type>numeric</type>'s
-   function might return <literal>(30,2)</literal>.
-   It is allowed to omit the
-   <replaceable class="parameter">type_modifier_output_function</replaceable>,
-   in which case the default display format is just the stored typmod integer
-   value enclosed in parentheses.
+   can be declared to have results or arguments of the new type, when they have
+   to be created before the new type can be created.  The answer is that the
+   input function must be created first, then the output function (and
+   the binary I/O functions if wanted), and finally the data type.
+   <productname>PostgreSQL</productname> will first see the name of the new
+   data type as the return type of the input function.  It will create a
+   <quote>shell</> type, which is simply a placeholder entry in
+   the system catalog, and link the input function definition to the shell
+   type.  Similarly the other functions will be linked to the (now already
+   existing) shell type.  Finally, <command>CREATE TYPE</> replaces the
+   shell entry with a complete type definition, and the new type can be used.
   </para>
 
   <para>
    The optional <replaceable class="parameter">analyze_function</replaceable>
    performs type-specific statistics collection for columns of the data type.
-   By default, <command>ANALYZE</command> will attempt to gather statistics using
-   the type's <quote>equals</quote> and <quote>less-than</quote> operators, if there
+   By default, <command>ANALYZE</> will attempt to gather statistics using
+   the type's <quote>equals</> and <quote>less-than</> operators, if there
    is a default b-tree operator class for the type.  For non-scalar types
    this behavior is likely to be unsuitable, so it can be overridden by
    specifying a custom analysis function.  The analysis function must be
-   declared to take a single argument of type <type>internal</type>, and return
-   a <type>boolean</type> result.  The detailed API for analysis functions appears
-   in <filename>src/include/commands/vacuum.h</filename>.
+   declared to take a single argument of type <type>internal</>, and return
+   a <type>boolean</> result.  The detailed API for analysis functions appears
+   in <filename>src/include/commands/vacuum.h</>.
   </para>
 
   <para>
@@ -324,22 +177,20 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
    <replaceable class="parameter">internallength</replaceable>.
    Base data types can be fixed-length, in which case
    <replaceable class="parameter">internallength</replaceable> is a
-   positive integer, or variable-length, indicated by setting
+   positive integer, or variable  length, indicated by setting
    <replaceable class="parameter">internallength</replaceable>
    to <literal>VARIABLE</literal>.  (Internally, this is represented
-   by setting <literal>typlen</literal> to -1.)  The internal representation of all
+   by setting <literal>typlen</> to -1.)  The internal representation of all
    variable-length types must start with a 4-byte integer giving the total
-   length of this value of the type.  (Note that the length field is often
-   encoded, as described in <xref linkend="storage-toast"/>; it's unwise
-   to access it directly.)
+   length of this value of the type.
   </para>
 
   <para>
    The optional flag <literal>PASSEDBYVALUE</literal> indicates that
    values of this data type are passed by value, rather than by
-   reference.  Types passed by value must be fixed-length, and their internal
-   representation cannot be larger than the size of the <type>Datum</type> type
-   (4 bytes on some machines, 8 bytes on others).
+   reference.  You may not pass by value types whose internal
+   representation is larger than the size of the <type>Datum</> type
+   (4 bytes on most machines, 8 bytes on a few).
   </para>
 
   <para>
@@ -347,7 +198,7 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
    specifies the storage alignment required for the data type.  The
    allowed values equate to alignment on 1, 2, 4, or 8 byte boundaries.
    Note that variable-length types must have an alignment of at least
-   4, since they necessarily contain an <type>int4</type> as their first component.
+   4, since they necessarily contain an <type>int4</> as their first component.
   </para>
 
   <para>
@@ -363,70 +214,23 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
    main table, but the system will not try to compress it.
    <literal>main</literal> allows compression, but discourages moving
    the value out of the main table.  (Data items with this storage
-   strategy might still be moved out of the main table if there is no
+   strategy may still be moved out of the main table if there is no
    other way to make a row fit, but they will be kept in the main
    table preferentially over <literal>extended</literal> and
    <literal>external</literal> items.)
   </para>
 
   <para>
-   All <replaceable class="parameter">storage</replaceable> values other
-   than <literal>plain</literal> imply that the functions of the data type
-   can handle values that have been <firstterm>toasted</firstterm>, as described
-   in <xref linkend="storage-toast"/> and <xref linkend="xtypes-toast"/>.
-   The specific other value given merely determines the default TOAST
-   storage strategy for columns of a toastable data type; users can pick
-   other strategies for individual columns using <literal>ALTER TABLE
-   SET STORAGE</literal>.
-  </para>
-
-  <para>
-   The <replaceable class="parameter">like_type</replaceable> parameter
-   provides an alternative method for specifying the basic representation
-   properties of a data type: copy them from some existing type. The values of
-   <replaceable class="parameter">internallength</replaceable>,
-   <replaceable class="parameter">passedbyvalue</replaceable>,
-   <replaceable class="parameter">alignment</replaceable>, and
-   <replaceable class="parameter">storage</replaceable> are copied from the
-   named type.  (It is possible, though usually undesirable, to override
-   some of these values by specifying them along with the <literal>LIKE</literal>
-   clause.)  Specifying representation this way is especially useful when
-   the low-level implementation of the new type <quote>piggybacks</quote> on an
-   existing type in some fashion.
-  </para>
-
-  <para>
-   The <replaceable class="parameter">category</replaceable> and
-   <replaceable class="parameter">preferred</replaceable> parameters can be
-   used to help control which implicit cast will be applied in ambiguous
-   situations.  Each data type belongs to a category named by a single ASCII
-   character, and each type is either <quote>preferred</quote> or not within its
-   category.  The parser will prefer casting to preferred types (but only from
-   other types within the same category) when this rule is helpful in
-   resolving overloaded functions or operators.  For more details see <xref
-   linkend="typeconv"/>.  For types that have no implicit casts to or from any
-   other types, it is sufficient to leave these settings at the defaults.
-   However, for a group of related types that have implicit casts, it is often
-   helpful to mark them all as belonging to a category and select one or two
-   of the <quote>most general</quote> types as being preferred within the category.
-   The <replaceable class="parameter">category</replaceable> parameter is
-   especially useful when adding a user-defined type to an existing built-in
-   category, such as the numeric or string types.  However, it is also
-   possible to create new entirely-user-defined type categories.  Select any
-   ASCII character other than an upper-case letter to name such a category.
-  </para>
-
-  <para>
-   A default value can be specified, in case a user wants columns of the
+   A default value may be specified, in case a user wants columns of the
    data type to default to something other than the null value.
    Specify the default with the <literal>DEFAULT</literal> key word.
-   (Such a default can be overridden by an explicit <literal>DEFAULT</literal>
+   (Such a default may be overridden by an explicit <literal>DEFAULT</literal>
    clause attached to a particular column.)
   </para>
 
   <para>
    To indicate that a type is an array, specify the type of the array
-   elements using the <literal>ELEMENT</literal> key word.  For example, to
+   elements using the <literal>ELEMENT</> key word.  For example, to
    define an array of 4-byte integers (<type>int4</type>), specify
    <literal>ELEMENT = int4</literal>. More details about array types
    appear below.
@@ -441,57 +245,46 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
    with the array element type, not the array type itself.
   </para>
 
-  <para>
-   If the optional Boolean
-   parameter <replaceable class="parameter">collatable</replaceable>
-   is true, column definitions and expressions of the type may carry
-   collation information through use of
-   the <literal>COLLATE</literal> clause.  It is up to the
-   implementations of the functions operating on the type to actually
-   make use of the collation information; this does not happen
-   automatically merely by marking the type collatable.
-  </para>
   </refsect2>
 
   <refsect2>
    <title>Array Types</title>
 
    <para>
-    Whenever a user-defined type is created,
+    Whenever a user-defined base data type is created, 
     <productname>PostgreSQL</productname> automatically creates an
-    associated array type, whose name consists of the element type's
-    name prepended with an underscore, and truncated if necessary to keep
-    it less than <symbol>NAMEDATALEN</symbol> bytes long.  (If the name
-    so generated collides with an existing type name, the process is
-    repeated until a non-colliding name is found.)
-    This implicitly-created array type is variable length and uses the
-    built-in input and output functions <literal>array_in</literal> and
-    <literal>array_out</literal>.  The array type tracks any changes in its
-    element type's owner or schema, and is dropped if the element type is.
+    associated array type, whose name consists of the base type's
+    name prepended with an underscore.  The parser understands this
+    naming convention, and translates requests for columns of type
+    <literal>foo[]</> into requests for type <literal>_foo</>.
+    The implicitly-created array type is variable length and uses the
+    built-in input and output functions <literal>array_in</> and
+    <literal>array_out</>.
    </para>
 
    <para>
-    You might reasonably ask why there is an <option>ELEMENT</option>
+    You might reasonably ask why there is an <option>ELEMENT</>
     option, if the system makes the correct array type automatically.
-    The only case where it's useful to use <option>ELEMENT</option> is when you are
+    The only case where it's useful to use <option>ELEMENT</> is when you are
     making a fixed-length type that happens to be internally an array of a number of
     identical things, and you want to allow these things to be accessed
     directly by subscripting, in addition to whatever operations you plan
-    to provide for the type as a whole.  For example, type <type>point</type>
-    is represented as just two floating-point numbers, which can be accessed
-    using <literal>point[0]</literal> and <literal>point[1]</literal>.
+    to provide for the type as a whole.  For example, type <type>name</>
+    allows its constituent <type>char</> elements to be accessed this way.
+    A 2-D <type>point</> type could allow its two component numbers to be
+    accessed like <literal>point[0]</> and <literal>point[1]</>.
     Note that
     this facility only works for fixed-length types whose internal form
     is exactly a sequence of identical fixed-length fields.  A subscriptable
     variable-length type must have the generalized internal representation
-    used by <literal>array_in</literal> and <literal>array_out</literal>.
+    used by <literal>array_in</> and <literal>array_out</>.
     For historical reasons (i.e., this is clearly wrong but it's far too
     late to change it), subscripting of fixed-length array types starts from
     zero, rather than from one as for variable-length arrays.
    </para>
   </refsect2>
  </refsect1>
-
+  
  <refsect1>
   <title>Parameters</title>
 
@@ -520,63 +313,6 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
      <para>
       The name of an existing data type to become a column of the
       composite type.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">collation</replaceable></term>
-    <listitem>
-     <para>
-      The name of an existing collation to be associated with a column of
-      a composite type, or with a range type.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">label</replaceable></term>
-    <listitem>
-     <para>
-      A string literal representing the textual label associated with
-      one value of an enum type.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">subtype</replaceable></term>
-    <listitem>
-     <para>
-      The name of the element type that the range type will represent ranges
-      of.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">subtype_operator_class</replaceable></term>
-    <listitem>
-     <para>
-      The name of a b-tree operator class for the subtype.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">canonical_function</replaceable></term>
-    <listitem>
-     <para>
-      The name of the canonicalization function for the range type.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">subtype_diff_function</replaceable></term>
-    <listitem>
-     <para>
-      The name of a difference function for the subtype.
      </para>
     </listitem>
    </varlistentry>
@@ -617,26 +353,6 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
      <para>
       The name of a function that converts data from the type's
       internal form to its external binary form.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">type_modifier_input_function</replaceable></term>
-    <listitem>
-     <para>
-      The name of a function that converts an array of modifier(s) for the type
-      into internal form.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">type_modifier_output_function</replaceable></term>
-    <listitem>
-     <para>
-      The name of a function that converts the internal form of the type's
-      modifier(s) to external textual form.
      </para>
     </listitem>
    </varlistentry>
@@ -687,47 +403,6 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">like_type</replaceable></term>
-    <listitem>
-     <para>
-      The name of an existing data type that the new type will have the
-      same representation as.  The values of
-      <replaceable class="parameter">internallength</replaceable>,
-      <replaceable class="parameter">passedbyvalue</replaceable>,
-      <replaceable class="parameter">alignment</replaceable>, and
-      <replaceable class="parameter">storage</replaceable>
-      are copied from that type, unless overridden by explicit
-      specification elsewhere in this <command>CREATE TYPE</command> command.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">category</replaceable></term>
-    <listitem>
-     <para>
-      The category code (a single ASCII character) for this type.
-      The default is <literal>'U'</literal> for <quote>user-defined type</quote>.
-      Other standard category codes can be found in
-      <xref linkend="catalog-typcategory-table"/>.  You may also choose
-      other ASCII characters in order to create custom categories.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">preferred</replaceable></term>
-    <listitem>
-     <para>
-      True if this type is a preferred type within its type category,
-      else false.  The default is false.  Be very careful about creating
-      a new preferred type within an existing type category, as this
-      could cause surprising changes in behavior.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
     <term><replaceable class="parameter">default</replaceable></term>
     <listitem>
      <para>
@@ -756,84 +431,34 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
      </para>
     </listitem>
    </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">collatable</replaceable></term>
-    <listitem>
-     <para>
-      True if this type's operations can use collation information.
-      The default is false.
-     </para>
-    </listitem>
-   </varlistentry>
   </variablelist>
  </refsect1>
 
- <refsect1 id="sql-createtype-notes">
+ <refsect1 id="SQL-CREATETYPE-notes">
   <title>Notes</title>
 
   <para>
-   Because there are no restrictions on use of a data type once it's been
-   created, creating a base type or range type is tantamount to granting
-   public execute permission on the functions mentioned in the type definition.
-   This is usually
-   not an issue for the sorts of functions that are useful in a type
-   definition.  But you might want to think twice before designing a type
-   in a way that would require <quote>secret</quote> information to be used
-   while converting it to or from external form.
-  </para>
-
-  <para>
-   Before <productname>PostgreSQL</productname> version 8.3, the name of
-   a generated array type was always exactly the element type's name with one
-   underscore character (<literal>_</literal>) prepended.  (Type names were
-   therefore restricted in length to one less character than other names.)
-   While this is still usually the case, the array type name may vary from
-   this in case of maximum-length names or collisions with user type names
-   that begin with underscore.  Writing code that depends on this convention
-   is therefore deprecated.  Instead, use
-   <structname>pg_type</structname>.<structfield>typarray</structfield> to locate the array type
-   associated with a given type.
-  </para>
-
-  <para>
-   It may be advisable to avoid using type and table names that begin with
-   underscore.  While the server will change generated array type names to
-   avoid collisions with user-given names, there is still risk of confusion,
-   particularly with old client software that may assume that type names
-   beginning with underscores always represent arrays.
-  </para>
-
-  <para>
-   Before <productname>PostgreSQL</productname> version 8.2, the shell-type
-   creation syntax
-   <literal>CREATE TYPE <replaceable>name</replaceable></literal> did not exist.
-   The way to create a new base type was to create its input function first.
-   In this approach, <productname>PostgreSQL</productname> will first see
-   the name of the new data type as the return type of the input function.
-   The shell type is implicitly created in this situation, and then it
-   can be referenced in the definitions of the remaining I/O functions.
-   This approach still works, but is deprecated and might be disallowed in
-   some future release.  Also, to avoid accidentally cluttering
-   the catalogs with shell types as a result of simple typos in function
-   definitions, a shell type will only be made this way when the input
-   function is written in C.
+   User-defined type names cannot begin with the underscore character
+   (<literal>_</literal>) and can only be 62 characters
+   long (or in general <symbol>NAMEDATALEN</symbol> - 2, rather than
+   the <symbol>NAMEDATALEN</symbol> - 1 characters allowed for other
+   names).  Type names beginning with underscore are reserved for
+   internally-created array type names.
   </para>
 
   <para>
    In <productname>PostgreSQL</productname> versions before 7.3, it
-   was customary to avoid creating a shell type at all, by replacing the
+   was customary to avoid creating a shell type by replacing the
    functions' forward references to the type name with the placeholder
-   pseudo-type <type>opaque</type>.  The <type>cstring</type> arguments and
-   results also had to be declared as <type>opaque</type> before 7.3.  To
-   support loading of old dump files, <command>CREATE TYPE</command> will
-   accept I/O functions declared using <type>opaque</type>, but it will issue
-   a notice and change the function declarations to use the correct
+   pseudotype <type>opaque</>.  The <type>cstring</> arguments and
+   results also had to be declared as <type>opaque</> before 7.3.  To
+   support loading of old dump files, <command>CREATE TYPE</> will
+   accept functions declared using <type>opaque</>, but it will issue
+   a notice and change the function's declaration to use the correct
    types.
   </para>
-
  </refsect1>
-
+ 
  <refsect1>
   <title>Examples</title>
 
@@ -850,35 +475,9 @@ $$ LANGUAGE SQL;
   </para>
 
   <para>
-   This example creates an enumerated type and uses it in
-   a table definition:
-<programlisting>
-CREATE TYPE bug_status AS ENUM ('new', 'open', 'closed');
-
-CREATE TABLE bug (
-    id serial,
-    description text,
-    status bug_status
-);
-</programlisting>
-  </para>
-
-  <para>
-   This example creates a range type:
-<programlisting>
-CREATE TYPE float8_range AS RANGE (subtype = float8, subtype_diff = float8mi);
-</programlisting>
-  </para>
-
-  <para>
    This example creates the base data type <type>box</type> and then uses the
    type in a table definition:
 <programlisting>
-CREATE TYPE box;
-
-CREATE FUNCTION my_box_in_function(cstring) RETURNS box AS ... ;
-CREATE FUNCTION my_box_out_function(box) RETURNS cstring AS ... ;
-
 CREATE TYPE box (
     INTERNALLENGTH = 16,
     INPUT = my_box_in_function,
@@ -894,7 +493,7 @@ CREATE TABLE myboxes (
 
   <para>
    If the internal structure of <type>box</type> were an array of four
-   <type>float4</type> elements, we might instead use:
+   <type>float4</> elements, we might instead use
 <programlisting>
 CREATE TYPE box (
     INTERNALLENGTH = 16,
@@ -924,38 +523,47 @@ CREATE TABLE big_objs (
 
   <para>
    More examples, including suitable input and output functions, are
-   in <xref linkend="xtypes"/>.
+   in <xref linkend="xtypes">.
   </para>
  </refsect1>
 
- <refsect1 id="sql-createtype-compatibility">
+ <refsect1 id="SQL-CREATETYPE-compatibility">
   <title>Compatibility</title>
 
   <para>
-   The first form of the <command>CREATE TYPE</command> command, which
-   creates a composite type, conforms to the <acronym>SQL</acronym> standard.
-   The other forms are <productname>PostgreSQL</productname>
-   extensions.  The <command>CREATE TYPE</command> statement in
-   the <acronym>SQL</acronym> standard also defines other forms that are not
-   implemented in <productname>PostgreSQL</productname>.
-  </para>
-
-  <para>
-   The ability to create a composite type with zero attributes is
-   a <productname>PostgreSQL</productname>-specific deviation from the
-   standard (analogous to the same case in <command>CREATE TABLE</command>).
+   This <command>CREATE TYPE</command> command is a
+   <productname>PostgreSQL</productname> extension.  There is a
+   <command>CREATE TYPE</command> statement in the <acronym>SQL</> standard
+   that is rather different in detail.
   </para>
  </refsect1>
 
- <refsect1 id="sql-createtype-see-also">
+ <refsect1 id="SQL-CREATETYPE-see-also">
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-altertype"/></member>
-   <member><xref linkend="sql-createdomain"/></member>
-   <member><xref linkend="sql-createfunction"/></member>
-   <member><xref linkend="sql-droptype"/></member>
+   <member><xref linkend="sql-createfunction" endterm="sql-createfunction-title"></member>
+   <member><xref linkend="sql-droptype" endterm="sql-droptype-title"></member>
+   <member><xref linkend="sql-altertype" endterm="sql-altertype-title"></member>
   </simplelist>
  </refsect1>
 
 </refentry>
+
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

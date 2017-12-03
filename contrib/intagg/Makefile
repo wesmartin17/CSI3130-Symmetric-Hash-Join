@@ -1,11 +1,15 @@
-# contrib/intagg/Makefile
+#############################################
+# Makefile for integer aggregator
+# Copyright (C) 2001 Digital Music Network.
+# by Mark L. Woodward
+# $PostgreSQL: pgsql/contrib/intagg/Makefile,v 1.6 2005/09/27 17:13:03 tgl Exp $
 
-EXTENSION = intagg
-DATA = intagg--1.1.sql intagg--1.0--1.1.sql intagg--unpackaged--1.0.sql
+MODULES = int_aggregate
+DATA_built = int_aggregate.sql
+DOCS = README.int_aggregate
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/intagg

@@ -7,12 +7,12 @@
  * detection and resolution algorithms.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/storage/lmgr/deadlock.c
+ *	  $PostgreSQL: pgsql/src/backend/storage/lmgr/deadlock.c,v 1.36 2005/10/29 00:31:51 petere Exp $
  *
  *	Interface:
  *
@@ -25,29 +25,18 @@
  */
 #include "postgres.h"
 
+#include "catalog/pg_class.h"
+#include "lib/stringinfo.h"
 #include "miscadmin.h"
-#include "pg_trace.h"
-#include "pgstat.h"
-#include "storage/lmgr.h"
 #include "storage/proc.h"
 #include "utils/memutils.h"
 
 
-/*
- * One edge in the waits-for graph.
- *
- * waiter and blocker may or may not be members of a lock group, but if either
- * is, it will be the leader rather than any other member of the lock group.
- * The group leaders act as representatives of the whole group even though
- * those particular processes need not be waiting at all.  There will be at
- * least one member of the waiter's lock group on the wait queue for the given
- * lock, maybe more.
- */
+/* One edge in the waits-for graph */
 typedef struct
 {
-	PGPROC	   *waiter;			/* the leader of the waiting lock group */
-	PGPROC	   *blocker;		/* the leader of the group it is waiting for */
-	LOCK	   *lock;			/* the lock being waited for */
+	PGPROC	   *waiter;			/* the waiting process */
+	PGPROC	   *blocker;		/* the process it is waiting for */
 	int			pred;			/* workspace for TopoSort */
 	int			link;			/* workspace for TopoSort */
 } EDGE;
@@ -61,12 +50,12 @@ typedef struct
 } WAIT_ORDER;
 
 /*
- * Information saved about each edge in a detected deadlock cycle.  This
+ * Information saved about each edge in a detected deadlock cycle.	This
  * is used to print a diagnostic message upon failure.
  *
- * Note: because we want to examine this info after releasing the lock
- * manager's partition locks, we can't just store LOCK and PGPROC pointers;
- * we must extract out all the info we want to be able to print.
+ * Note: because we want to examine this info after releasing the LockMgrLock,
+ * we can't just store LOCK and PGPROC pointers; we must extract out all the
+ * info we want to be able to print.
  */
 typedef struct
 {
@@ -82,9 +71,6 @@ static bool FindLockCycle(PGPROC *checkProc,
 			  EDGE *softEdges, int *nSoftEdges);
 static bool FindLockCycleRecurse(PGPROC *checkProc, int depth,
 					 EDGE *softEdges, int *nSoftEdges);
-static bool FindLockCycleRecurseMember(PGPROC *checkProc,
-						   PGPROC *checkProcLeader,
-						   int depth, EDGE *softEdges, int *nSoftEdges);
 static bool ExpandConstraints(EDGE *constraints, int nConstraints);
 static bool TopoSort(LOCK *lock, EDGE *constraints, int nConstraints,
 		 PGPROC **ordering);
@@ -124,20 +110,16 @@ static int	maxPossibleConstraints;
 static DEADLOCK_INFO *deadlockDetails;
 static int	nDeadlockDetails;
 
-/* PGPROC pointer of any blocking autovacuum worker found */
-static PGPROC *blocking_autovacuum_proc = NULL;
-
 
 /*
  * InitDeadLockChecking -- initialize deadlock checker during backend startup
  *
  * This does per-backend initialization of the deadlock checker; primarily,
- * allocation of working memory for DeadLockCheck.  We do this per-backend
+ * allocation of working memory for DeadLockCheck.	We do this per-backend
  * since there's no percentage in making the kernel do copy-on-write
  * inheritance of workspace from the postmaster.  We want to allocate the
- * space at startup because (a) the deadlock checker might be invoked when
- * there's no free memory left, and (b) the checker is normally run inside a
- * signal handler, which is a very dangerous place to invoke palloc from.
+ * space at startup because the deadlock checker might be invoked when there's
+ * no free memory left.
  */
 void
 InitDeadLockChecking(void)
@@ -203,17 +185,24 @@ InitDeadLockChecking(void)
  *
  * This code looks for deadlocks involving the given process.  If any
  * are found, it tries to rearrange lock wait queues to resolve the
- * deadlock.  If resolution is impossible, return DS_HARD_DEADLOCK ---
- * the caller is then expected to abort the given proc's transaction.
+ * deadlock.  If resolution is impossible, return TRUE --- the caller
+ * is then expected to abort the given proc's transaction.
  *
- * Caller must already have locked all partitions of the lock tables.
+ * We can't block on user locks, so no sense testing for deadlock
+ * because there is no blocking, and no timer for the block.  So,
+ * only look at regular locks.
+ *
+ * We must have already locked the master lock before being called.
+ * NOTE: although the lockmethod structure appears to allow each lock
+ * table to have a different masterLock, all locks that can block had
+ * better use the same LWLock, else this code will not be adequately
+ * interlocked!
  *
  * On failure, deadlock details are recorded in deadlockDetails[] for
  * subsequent printing by DeadLockReport().  That activity is separate
- * because (a) we don't want to do it while holding all those LWLocks,
- * and (b) we are typically invoked inside a signal handler.
+ * because we don't want to do it while holding the master lock.
  */
-DeadLockState
+bool
 DeadLockCheck(PGPROC *proc)
 {
 	int			i,
@@ -224,9 +213,6 @@ DeadLockCheck(PGPROC *proc)
 	nPossibleConstraints = 0;
 	nWaitOrders = 0;
 
-	/* Initialize to not blocked by an autovacuum worker */
-	blocking_autovacuum_proc = NULL;
-
 	/* Search for deadlocks and possible fixes */
 	if (DeadLockCheckRecurse(proc))
 	{
@@ -236,13 +222,11 @@ DeadLockCheck(PGPROC *proc)
 		 */
 		int			nSoftEdges;
 
-		TRACE_POSTGRESQL_DEADLOCK_FOUND();
-
 		nWaitOrders = 0;
 		if (!FindLockCycle(proc, possibleConstraints, &nSoftEdges))
 			elog(FATAL, "deadlock seems to have disappeared");
 
-		return DS_HARD_DEADLOCK;	/* cannot find a non-deadlocked state */
+		return true;			/* cannot find a non-deadlocked state */
 	}
 
 	/* Apply any needed rearrangements of wait queues */
@@ -274,40 +258,17 @@ DeadLockCheck(PGPROC *proc)
 		/* See if any waiters for the lock can be woken up now */
 		ProcLockWakeup(GetLocksMethodTable(lock), lock);
 	}
-
-	/* Return code tells caller if we had to escape a deadlock or not */
-	if (nWaitOrders > 0)
-		return DS_SOFT_DEADLOCK;
-	else if (blocking_autovacuum_proc != NULL)
-		return DS_BLOCKED_BY_AUTOVACUUM;
-	else
-		return DS_NO_DEADLOCK;
-}
-
-/*
- * Return the PGPROC of the autovacuum that's blocking a process.
- *
- * We reset the saved pointer as soon as we pass it back.
- */
-PGPROC *
-GetBlockingAutoVacuumPgproc(void)
-{
-	PGPROC	   *ptr;
-
-	ptr = blocking_autovacuum_proc;
-	blocking_autovacuum_proc = NULL;
-
-	return ptr;
+	return false;
 }
 
 /*
  * DeadLockCheckRecurse -- recursively search for valid orderings
  *
  * curConstraints[] holds the current set of constraints being considered
- * by an outer level of recursion.  Add to this each possible solution
+ * by an outer level of recursion.	Add to this each possible solution
  * constraint for any cycle detected at this level.
  *
- * Returns true if no solution exists.  Returns false if a deadlock-free
+ * Returns TRUE if no solution exists.	Returns FALSE if a deadlock-free
  * state is attainable, in which case waitOrders[] shows the required
  * rearrangements of lock wait queues (if any).
  */
@@ -432,8 +393,8 @@ TestConfiguration(PGPROC *startProc)
  * FindLockCycle -- basic check for deadlock cycles
  *
  * Scan outward from the given proc to see if there is a cycle in the
- * waits-for graph that includes this proc.  Return true if a cycle
- * is found, else false.  If a cycle is found, we return a list of
+ * waits-for graph that includes this proc.  Return TRUE if a cycle
+ * is found, else FALSE.  If a cycle is found, we return a list of
  * the "soft edges", if any, included in the cycle.  These edges could
  * potentially be eliminated by rearranging wait queues.  We also fill
  * deadlockDetails[] with information about the detected cycle; this info
@@ -442,7 +403,7 @@ TestConfiguration(PGPROC *startProc)
  *
  * Since we need to be able to check hypothetical configurations that would
  * exist after wait queue rearrangement, the routine pays attention to the
- * table of hypothetical queue orders in waitOrders[].  These orders will
+ * table of hypothetical queue orders in waitOrders[].	These orders will
  * be believed in preference to the actual ordering seen in the locktable.
  */
 static bool
@@ -462,15 +423,17 @@ FindLockCycleRecurse(PGPROC *checkProc,
 					 EDGE *softEdges,	/* output argument */
 					 int *nSoftEdges)	/* output argument */
 {
+	PGPROC	   *proc;
+	LOCK	   *lock;
+	PROCLOCK   *proclock;
+	SHM_QUEUE  *procLocks;
+	LockMethod	lockMethodTable;
+	PROC_QUEUE *waitQueue;
+	int			queue_size;
+	int			conflictMask;
 	int			i;
-	dlist_iter	iter;
-
-	/*
-	 * If this process is a lock group member, check the leader instead. (Note
-	 * that we might be the leader, in which case this is a no-op.)
-	 */
-	if (checkProc->lockGroupLeader != NULL)
-		checkProc = checkProc->lockGroupLeader;
+	int			numLockModes,
+				lm;
 
 	/*
 	 * Have we already seen this proc?
@@ -504,63 +467,19 @@ FindLockCycleRecurse(PGPROC *checkProc,
 	visitedProcs[nVisitedProcs++] = checkProc;
 
 	/*
-	 * If the process is waiting, there is an outgoing waits-for edge to each
-	 * process that blocks it.
+	 * If the proc is not waiting, we have no outgoing waits-for edges.
 	 */
-	if (checkProc->links.next != NULL && checkProc->waitLock != NULL &&
-		FindLockCycleRecurseMember(checkProc, checkProc, depth, softEdges,
-								   nSoftEdges))
-		return true;
-
-	/*
-	 * If the process is not waiting, there could still be outgoing waits-for
-	 * edges if it is part of a lock group, because other members of the lock
-	 * group might be waiting even though this process is not.  (Given lock
-	 * groups {A1, A2} and {B1, B2}, if A1 waits for B1 and B2 waits for A2,
-	 * that is a deadlock even neither of B1 and A2 are waiting for anything.)
-	 */
-	dlist_foreach(iter, &checkProc->lockGroupMembers)
-	{
-		PGPROC	   *memberProc;
-
-		memberProc = dlist_container(PGPROC, lockGroupLink, iter.cur);
-
-		if (memberProc->links.next != NULL && memberProc->waitLock != NULL &&
-			memberProc != checkProc &&
-			FindLockCycleRecurseMember(memberProc, checkProc, depth, softEdges,
-									   nSoftEdges))
-			return true;
-	}
-
-	return false;
-}
-
-static bool
-FindLockCycleRecurseMember(PGPROC *checkProc,
-						   PGPROC *checkProcLeader,
-						   int depth,
-						   EDGE *softEdges, /* output argument */
-						   int *nSoftEdges) /* output argument */
-{
-	PGPROC	   *proc;
-	LOCK	   *lock = checkProc->waitLock;
-	PGXACT	   *pgxact;
-	PROCLOCK   *proclock;
-	SHM_QUEUE  *procLocks;
-	LockMethod	lockMethodTable;
-	PROC_QUEUE *waitQueue;
-	int			queue_size;
-	int			conflictMask;
-	int			i;
-	int			numLockModes,
-				lm;
-
+	if (checkProc->links.next == INVALID_OFFSET)
+		return false;
+	lock = checkProc->waitLock;
+	if (lock == NULL)
+		return false;
 	lockMethodTable = GetLocksMethodTable(lock);
 	numLockModes = lockMethodTable->numLockModes;
 	conflictMask = lockMethodTable->conflictTab[checkProc->waitLockMode];
 
 	/*
-	 * Scan for procs that already hold conflicting locks.  These are "hard"
+	 * Scan for procs that already hold conflicting locks.	These are "hard"
 	 * edges in the waits-for graph.
 	 */
 	procLocks = &(lock->procLocks);
@@ -570,14 +489,10 @@ FindLockCycleRecurseMember(PGPROC *checkProc,
 
 	while (proclock)
 	{
-		PGPROC	   *leader;
+		proc = (PGPROC *) MAKE_PTR(proclock->tag.proc);
 
-		proc = proclock->tag.myProc;
-		pgxact = &ProcGlobal->allPgXact[proc->pgprocno];
-		leader = proc->lockGroupLeader == NULL ? proc : proc->lockGroupLeader;
-
-		/* A proc never blocks itself or any other lock group member */
-		if (leader != checkProcLeader)
+		/* A proc never blocks itself */
+		if (proc != checkProc)
 		{
 			for (lm = 1; lm <= numLockModes; lm++)
 			{
@@ -597,34 +512,7 @@ FindLockCycleRecurseMember(PGPROC *checkProc,
 
 						return true;
 					}
-
-					/*
-					 * No deadlock here, but see if this proc is an autovacuum
-					 * that is directly hard-blocking our own proc.  If so,
-					 * report it so that the caller can send a cancel signal
-					 * to it, if appropriate.  If there's more than one such
-					 * proc, it's indeterminate which one will be reported.
-					 *
-					 * We don't touch autovacuums that are indirectly blocking
-					 * us; it's up to the direct blockee to take action.  This
-					 * rule simplifies understanding the behavior and ensures
-					 * that an autovacuum won't be canceled with less than
-					 * deadlock_timeout grace period.
-					 *
-					 * Note we read vacuumFlags without any locking.  This is
-					 * OK only for checking the PROC_IS_AUTOVACUUM flag,
-					 * because that flag is set at process start and never
-					 * reset.  There is logic elsewhere to avoid canceling an
-					 * autovacuum that is working to prevent XID wraparound
-					 * problems (which needs to read a different vacuumFlag
-					 * bit), but we don't do that here to avoid grabbing
-					 * ProcArrayLock.
-					 */
-					if (checkProc == MyProc &&
-						pgxact->vacuumFlags & PROC_IS_AUTOVACUUM)
-						blocking_autovacuum_proc = proc;
-
-					/* We're done looking at this proclock */
+					/* If no deadlock, we're done looking at this proclock */
 					break;
 				}
 			}
@@ -658,24 +546,14 @@ FindLockCycleRecurseMember(PGPROC *checkProc,
 
 		for (i = 0; i < queue_size; i++)
 		{
-			PGPROC	   *leader;
-
 			proc = procs[i];
-			leader = proc->lockGroupLeader == NULL ? proc :
-				proc->lockGroupLeader;
 
-			/*
-			 * TopoSort will always return an ordering with group members
-			 * adjacent to each other in the wait queue (see comments
-			 * therein). So, as soon as we reach a process in the same lock
-			 * group as checkProc, we know we've found all the conflicts that
-			 * precede any member of the lock group lead by checkProcLeader.
-			 */
-			if (leader == checkProcLeader)
+			/* Done when we reach the target proc */
+			if (proc == checkProc)
 				break;
 
 			/* Is there a conflict with this guy's request? */
-			if ((LOCKBIT_ON(proc->waitLockMode) & conflictMask) != 0)
+			if (((1 << proc->waitLockMode) & conflictMask) != 0)
 			{
 				/* This proc soft-blocks checkProc */
 				if (FindLockCycleRecurse(proc, depth + 1,
@@ -692,9 +570,8 @@ FindLockCycleRecurseMember(PGPROC *checkProc,
 					 * Add this edge to the list of soft edges in the cycle
 					 */
 					Assert(*nSoftEdges < MaxBackends);
-					softEdges[*nSoftEdges].waiter = checkProcLeader;
-					softEdges[*nSoftEdges].blocker = leader;
-					softEdges[*nSoftEdges].lock = lock;
+					softEdges[*nSoftEdges].waiter = checkProc;
+					softEdges[*nSoftEdges].blocker = proc;
 					(*nSoftEdges)++;
 					return true;
 				}
@@ -703,52 +580,20 @@ FindLockCycleRecurseMember(PGPROC *checkProc,
 	}
 	else
 	{
-		PGPROC	   *lastGroupMember = NULL;
-
 		/* Use the true lock wait queue order */
 		waitQueue = &(lock->waitProcs);
-
-		/*
-		 * Find the last member of the lock group that is present in the wait
-		 * queue.  Anything after this is not a soft lock conflict. If group
-		 * locking is not in use, then we know immediately which process we're
-		 * looking for, but otherwise we've got to search the wait queue to
-		 * find the last process actually present.
-		 */
-		if (checkProc->lockGroupLeader == NULL)
-			lastGroupMember = checkProc;
-		else
-		{
-			proc = (PGPROC *) waitQueue->links.next;
-			queue_size = waitQueue->size;
-			while (queue_size-- > 0)
-			{
-				if (proc->lockGroupLeader == checkProcLeader)
-					lastGroupMember = proc;
-				proc = (PGPROC *) proc->links.next;
-			}
-			Assert(lastGroupMember != NULL);
-		}
-
-		/*
-		 * OK, now rescan (or scan) the queue to identify the soft conflicts.
-		 */
 		queue_size = waitQueue->size;
-		proc = (PGPROC *) waitQueue->links.next;
+
+		proc = (PGPROC *) MAKE_PTR(waitQueue->links.next);
+
 		while (queue_size-- > 0)
 		{
-			PGPROC	   *leader;
-
-			leader = proc->lockGroupLeader == NULL ? proc :
-				proc->lockGroupLeader;
-
 			/* Done when we reach the target proc */
-			if (proc == lastGroupMember)
+			if (proc == checkProc)
 				break;
 
 			/* Is there a conflict with this guy's request? */
-			if ((LOCKBIT_ON(proc->waitLockMode) & conflictMask) != 0 &&
-				leader != checkProcLeader)
+			if (((1 << proc->waitLockMode) & conflictMask) != 0)
 			{
 				/* This proc soft-blocks checkProc */
 				if (FindLockCycleRecurse(proc, depth + 1,
@@ -765,15 +610,14 @@ FindLockCycleRecurseMember(PGPROC *checkProc,
 					 * Add this edge to the list of soft edges in the cycle
 					 */
 					Assert(*nSoftEdges < MaxBackends);
-					softEdges[*nSoftEdges].waiter = checkProcLeader;
-					softEdges[*nSoftEdges].blocker = leader;
-					softEdges[*nSoftEdges].lock = lock;
+					softEdges[*nSoftEdges].waiter = checkProc;
+					softEdges[*nSoftEdges].blocker = proc;
 					(*nSoftEdges)++;
 					return true;
 				}
 			}
 
-			proc = (PGPROC *) proc->links.next;
+			proc = (PGPROC *) MAKE_PTR(proc->links.next);
 		}
 	}
 
@@ -792,8 +636,8 @@ FindLockCycleRecurseMember(PGPROC *checkProc,
  * of nWaitOrders WAIT_ORDER structs in waitOrders[], with PGPROC array
  * workspace in waitOrderProcs[].
  *
- * Returns true if able to build an ordering that satisfies all the
- * constraints, false if not (there are contradictory constraints).
+ * Returns TRUE if able to build an ordering that satisfies all the
+ * constraints, FALSE if not (there are contradictory constraints).
  */
 static bool
 ExpandConstraints(EDGE *constraints,
@@ -806,13 +650,14 @@ ExpandConstraints(EDGE *constraints,
 	nWaitOrders = 0;
 
 	/*
-	 * Scan constraint list backwards.  This is because the last-added
+	 * Scan constraint list backwards.	This is because the last-added
 	 * constraint is the only one that could fail, and so we want to test it
 	 * for inconsistency first.
 	 */
 	for (i = nConstraints; --i >= 0;)
 	{
-		LOCK	   *lock = constraints[i].lock;
+		PGPROC	   *proc = constraints[i].waiter;
+		LOCK	   *lock = proc->waitLock;
 
 		/* Did we already make a list for this lock? */
 		for (j = nWaitOrders; --j >= 0;)
@@ -859,13 +704,13 @@ ExpandConstraints(EDGE *constraints,
  * The initial queue ordering is taken directly from the lock's wait queue.
  * The output is an array of PGPROC pointers, of length equal to the lock's
  * wait queue length (the caller is responsible for providing this space).
- * The partial order is specified by an array of EDGE structs.  Each EDGE
+ * The partial order is specified by an array of EDGE structs.	Each EDGE
  * is one that we need to reverse, therefore the "waiter" must appear before
  * the "blocker" in the output array.  The EDGE array may well contain
  * edges associated with other locks; these should be ignored.
  *
- * Returns true if able to build an ordering that satisfies all the
- * constraints, false if not (there are contradictory constraints).
+ * Returns TRUE if able to build an ordering that satisfies all the
+ * constraints, FALSE if not (there are contradictory constraints).
  */
 static bool
 TopoSort(LOCK *lock,
@@ -878,17 +723,15 @@ TopoSort(LOCK *lock,
 	PGPROC	   *proc;
 	int			i,
 				j,
-				jj,
 				k,
-				kk,
 				last;
 
 	/* First, fill topoProcs[] array with the procs in their current order */
-	proc = (PGPROC *) waitQueue->links.next;
+	proc = (PGPROC *) MAKE_PTR(waitQueue->links.next);
 	for (i = 0; i < queue_size; i++)
 	{
 		topoProcs[i] = proc;
-		proc = (PGPROC *) proc->links.next;
+		proc = (PGPROC *) MAKE_PTR(proc->links.next);
 	}
 
 	/*
@@ -900,95 +743,41 @@ TopoSort(LOCK *lock,
 	 * stores its list link in constraints[i].link (note any constraint will
 	 * be in just one list). The array index for the before-proc of the i'th
 	 * constraint is remembered in constraints[i].pred.
-	 *
-	 * Note that it's not necessarily the case that every constraint affects
-	 * this particular wait queue.  Prior to group locking, a process could be
-	 * waiting for at most one lock.  But a lock group can be waiting for
-	 * zero, one, or multiple locks.  Since topoProcs[] is an array of the
-	 * processes actually waiting, while constraints[] is an array of group
-	 * leaders, we've got to scan through topoProcs[] for each constraint,
-	 * checking whether both a waiter and a blocker for that group are
-	 * present.  If so, the constraint is relevant to this wait queue; if not,
-	 * it isn't.
 	 */
 	MemSet(beforeConstraints, 0, queue_size * sizeof(int));
 	MemSet(afterConstraints, 0, queue_size * sizeof(int));
 	for (i = 0; i < nConstraints; i++)
 	{
-		/*
-		 * Find a representative process that is on the lock queue and part of
-		 * the waiting lock group.  This may or may not be the leader, which
-		 * may or may not be waiting at all.  If there are any other processes
-		 * in the same lock group on the queue, set their number of
-		 * beforeConstraints to -1 to indicate that they should be emitted
-		 * with their groupmates rather than considered separately.
-		 */
 		proc = constraints[i].waiter;
-		Assert(proc != NULL);
-		jj = -1;
+		/* Ignore constraint if not for this lock */
+		if (proc->waitLock != lock)
+			continue;
+		/* Find the waiter proc in the array */
 		for (j = queue_size; --j >= 0;)
 		{
-			PGPROC	   *waiter = topoProcs[j];
-
-			if (waiter == proc || waiter->lockGroupLeader == proc)
-			{
-				Assert(waiter->waitLock == lock);
-				if (jj == -1)
-					jj = j;
-				else
-				{
-					Assert(beforeConstraints[j] <= 0);
-					beforeConstraints[j] = -1;
-				}
+			if (topoProcs[j] == proc)
 				break;
-			}
 		}
-
-		/* If no matching waiter, constraint is not relevant to this lock. */
-		if (jj < 0)
-			continue;
-
-		/*
-		 * Similarly, find a representative process that is on the lock queue
-		 * and waiting for the blocking lock group.  Again, this could be the
-		 * leader but does not need to be.
-		 */
+		Assert(j >= 0);			/* should have found a match */
+		/* Find the blocker proc in the array */
 		proc = constraints[i].blocker;
-		Assert(proc != NULL);
-		kk = -1;
 		for (k = queue_size; --k >= 0;)
 		{
-			PGPROC	   *blocker = topoProcs[k];
-
-			if (blocker == proc || blocker->lockGroupLeader == proc)
-			{
-				Assert(blocker->waitLock == lock);
-				if (kk == -1)
-					kk = k;
-				else
-				{
-					Assert(beforeConstraints[k] <= 0);
-					beforeConstraints[k] = -1;
-				}
-			}
+			if (topoProcs[k] == proc)
+				break;
 		}
-
-		/* If no matching blocker, constraint is not relevant to this lock. */
-		if (kk < 0)
-			continue;
-
-		beforeConstraints[jj]++;	/* waiter must come before */
+		Assert(k >= 0);			/* should have found a match */
+		beforeConstraints[j]++; /* waiter must come before */
 		/* add this constraint to list of after-constraints for blocker */
-		constraints[i].pred = jj;
-		constraints[i].link = afterConstraints[kk];
-		afterConstraints[kk] = i + 1;
+		constraints[i].pred = j;
+		constraints[i].link = afterConstraints[k];
+		afterConstraints[k] = i + 1;
 	}
-
 	/*--------------------
-	 * Now scan the topoProcs array backwards.  At each step, output the
-	 * last proc that has no remaining before-constraints plus any other
-	 * members of the same lock group; then decrease the beforeConstraints
-	 * count of each of the procs it was constrained against.
+	 * Now scan the topoProcs array backwards.	At each step, output the
+	 * last proc that has no remaining before-constraints, and decrease
+	 * the beforeConstraints count of each of the procs it was constrained
+	 * against.
 	 * i = index of ordering[] entry we want to output this time
 	 * j = search index for topoProcs[]
 	 * k = temp for scanning constraint list for proc j
@@ -996,11 +785,8 @@ TopoSort(LOCK *lock,
 	 *--------------------
 	 */
 	last = queue_size - 1;
-	for (i = queue_size - 1; i >= 0;)
+	for (i = queue_size; --i >= 0;)
 	{
-		int			c;
-		int			nmatches = 0;
-
 		/* Find next candidate to output */
 		while (topoProcs[last] == NULL)
 			last--;
@@ -1009,37 +795,12 @@ TopoSort(LOCK *lock,
 			if (topoProcs[j] != NULL && beforeConstraints[j] == 0)
 				break;
 		}
-
 		/* If no available candidate, topological sort fails */
 		if (j < 0)
 			return false;
-
-		/*
-		 * Output everything in the lock group.  There's no point in
-		 * outputting an ordering where members of the same lock group are not
-		 * consecutive on the wait queue: if some other waiter is between two
-		 * requests that belong to the same group, then either it conflicts
-		 * with both of them and is certainly not a solution; or it conflicts
-		 * with at most one of them and is thus isomorphic to an ordering
-		 * where the group members are consecutive.
-		 */
-		proc = topoProcs[j];
-		if (proc->lockGroupLeader != NULL)
-			proc = proc->lockGroupLeader;
-		Assert(proc != NULL);
-		for (c = 0; c <= last; ++c)
-		{
-			if (topoProcs[c] == proc || (topoProcs[c] != NULL &&
-										 topoProcs[c]->lockGroupLeader == proc))
-			{
-				ordering[i - nmatches] = topoProcs[c];
-				topoProcs[c] = NULL;
-				++nmatches;
-			}
-		}
-		Assert(nmatches > 0);
-		i -= nmatches;
-
+		/* Output candidate, and mark it done by zeroing topoProcs[] entry */
+		ordering[i] = topoProcs[j];
+		topoProcs[j] = NULL;
 		/* Update beforeConstraints counts of its predecessors */
 		for (k = afterConstraints[j]; k > 0; k = constraints[k - 1].link)
 			beforeConstraints[constraints[k - 1].pred]--;
@@ -1058,12 +819,12 @@ PrintLockQueue(LOCK *lock, const char *info)
 	PGPROC	   *proc;
 	int			i;
 
-	printf("%s lock %p queue ", info, lock);
-	proc = (PGPROC *) waitQueue->links.next;
+	printf("%s lock %lx queue ", info, MAKE_OFFSET(lock));
+	proc = (PGPROC *) MAKE_PTR(waitQueue->links.next);
 	for (i = 0; i < queue_size; i++)
 	{
 		printf(" %d", proc->pid);
-		proc = (PGPROC *) proc->links.next;
+		proc = (PGPROC *) MAKE_PTR(proc->links.next);
 	}
 	printf("\n");
 	fflush(stdout);
@@ -1071,21 +832,81 @@ PrintLockQueue(LOCK *lock, const char *info)
 #endif
 
 /*
+ * Append a description of a lockable object to buf.
+ *
+ * XXX probably this should be exported from lmgr.c or some such place.
+ */
+static void
+DescribeLockTag(StringInfo buf, const LOCKTAG *lock)
+{
+	switch (lock->locktag_type)
+	{
+		case LOCKTAG_RELATION:
+			appendStringInfo(buf,
+							 _("relation %u of database %u"),
+							 lock->locktag_field2,
+							 lock->locktag_field1);
+			break;
+		case LOCKTAG_RELATION_EXTEND:
+			appendStringInfo(buf,
+							 _("extension of relation %u of database %u"),
+							 lock->locktag_field2,
+							 lock->locktag_field1);
+			break;
+		case LOCKTAG_PAGE:
+			appendStringInfo(buf,
+							 _("page %u of relation %u of database %u"),
+							 lock->locktag_field3,
+							 lock->locktag_field2,
+							 lock->locktag_field1);
+			break;
+		case LOCKTAG_TUPLE:
+			appendStringInfo(buf,
+							 _("tuple (%u,%u) of relation %u of database %u"),
+							 lock->locktag_field3,
+							 lock->locktag_field4,
+							 lock->locktag_field2,
+							 lock->locktag_field1);
+			break;
+		case LOCKTAG_TRANSACTION:
+			appendStringInfo(buf,
+							 _("transaction %u"),
+							 lock->locktag_field1);
+			break;
+		case LOCKTAG_OBJECT:
+			appendStringInfo(buf,
+							 _("object %u of class %u of database %u"),
+							 lock->locktag_field3,
+							 lock->locktag_field2,
+							 lock->locktag_field1);
+			break;
+		case LOCKTAG_USERLOCK:
+			appendStringInfo(buf,
+							 _("user lock [%u,%u]"),
+							 lock->locktag_field1,
+							 lock->locktag_field2);
+			break;
+		default:
+			appendStringInfo(buf,
+							 _("unrecognized locktag type %d"),
+							 lock->locktag_type);
+			break;
+	}
+}
+
+/*
  * Report a detected deadlock, with available details.
  */
 void
 DeadLockReport(void)
 {
-	StringInfoData clientbuf;	/* errdetail for client */
-	StringInfoData logbuf;		/* errdetail for server log */
-	StringInfoData locktagbuf;
+	StringInfoData buf;
+	StringInfoData buf2;
 	int			i;
 
-	initStringInfo(&clientbuf);
-	initStringInfo(&logbuf);
-	initStringInfo(&locktagbuf);
+	initStringInfo(&buf);
+	initStringInfo(&buf2);
 
-	/* Generate the "waits for" lines sent to the client */
 	for (i = 0; i < nDeadlockDetails; i++)
 	{
 		DEADLOCK_INFO *info = &deadlockDetails[i];
@@ -1097,47 +918,26 @@ DeadLockReport(void)
 		else
 			nextpid = deadlockDetails[0].pid;
 
-		/* reset locktagbuf to hold next object description */
-		resetStringInfo(&locktagbuf);
-
-		DescribeLockTag(&locktagbuf, &info->locktag);
-
 		if (i > 0)
-			appendStringInfoChar(&clientbuf, '\n');
+			appendStringInfoChar(&buf, '\n');
 
-		appendStringInfo(&clientbuf,
-						 _("Process %d waits for %s on %s; blocked by process %d."),
+		/* reset buf2 to hold next object description */
+		buf2.len = 0;
+		buf2.data[0] = '\0';
+
+		DescribeLockTag(&buf2, &info->locktag);
+
+		appendStringInfo(&buf,
+				  _("Process %d waits for %s on %s; blocked by process %d."),
 						 info->pid,
-						 GetLockmodeName(info->locktag.locktag_lockmethodid,
-										 info->lockmode),
-						 locktagbuf.data,
+						 GetLockmodeName(info->lockmode),
+						 buf2.data,
 						 nextpid);
 	}
-
-	/* Duplicate all the above for the server ... */
-	appendStringInfoString(&logbuf, clientbuf.data);
-
-	/* ... and add info about query strings */
-	for (i = 0; i < nDeadlockDetails; i++)
-	{
-		DEADLOCK_INFO *info = &deadlockDetails[i];
-
-		appendStringInfoChar(&logbuf, '\n');
-
-		appendStringInfo(&logbuf,
-						 _("Process %d: %s"),
-						 info->pid,
-						 pgstat_get_backend_current_activity(info->pid, false));
-	}
-
-	pgstat_report_deadlock();
-
 	ereport(ERROR,
 			(errcode(ERRCODE_T_R_DEADLOCK_DETECTED),
 			 errmsg("deadlock detected"),
-			 errdetail_internal("%s", clientbuf.data),
-			 errdetail_log("%s", logbuf.data),
-			 errhint("See server log for query details.")));
+			 errdetail("%s", buf.data)));
 }
 
 /*

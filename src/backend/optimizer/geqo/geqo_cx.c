@@ -6,7 +6,7 @@
 *	 CX operator according to Oliver et al
 *	 (Proc 2nd Int'l Conf on GA's)
 *
-* src/backend/optimizer/geqo/geqo_cx.c
+* $PostgreSQL: pgsql/src/backend/optimizer/geqo/geqo_cx.c,v 1.10 2003/11/29 22:39:49 pgsql Exp $
 *
 *-------------------------------------------------------------------------
 */
@@ -38,16 +38,15 @@
 #include "optimizer/geqo_recombination.h"
 #include "optimizer/geqo_random.h"
 
-#if defined(CX)
 
 /* cx
  *
  *	 cycle crossover
  */
 int
-cx(PlannerInfo *root, Gene *tour1, Gene *tour2, Gene *offspring,
-   int num_gene, City * city_table)
+cx(Gene *tour1, Gene *tour2, Gene *offspring, int num_gene, City *city_table)
 {
+
 	int			i,
 				start_pos,
 				curr_pos;
@@ -63,7 +62,7 @@ cx(PlannerInfo *root, Gene *tour1, Gene *tour2, Gene *offspring,
 	}
 
 	/* choose random cycle starting position */
-	start_pos = geqo_randint(root, num_gene - 1, 0);
+	start_pos = geqo_randint(num_gene - 1, 0);
 
 	/* child inherits first city  */
 	offspring[start_pos] = tour1[start_pos];
@@ -120,5 +119,3 @@ cx(PlannerInfo *root, Gene *tour1, Gene *tour2, Gene *offspring,
 
 	return num_diffs;
 }
-
-#endif							/* defined(CX) */

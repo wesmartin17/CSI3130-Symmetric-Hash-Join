@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/internal.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/internal.c,v 1.23 2005/10/15 02:49:06 momjian Exp $
  */
 
 #include "postgres.h"
@@ -36,17 +36,19 @@
 #include "px.h"
 #include "md5.h"
 #include "sha1.h"
+#include "sha2.h"
 #include "blf.h"
 #include "rijndael.h"
+#include "fortuna.h"
 
 /*
  * System reseeds should be separated at least this much.
  */
-#define SYSTEM_RESEED_MIN			(20*60) /* 20 min */
+#define SYSTEM_RESEED_MIN			(20*60)		/* 20 min */
 /*
  * How often to roll dice.
  */
-#define SYSTEM_RESEED_CHECK_TIME	(10*60) /* 10 min */
+#define SYSTEM_RESEED_CHECK_TIME	(10*60)		/* 10 min */
 /*
  * The chance is x/256 that the reseed happens.
  */
@@ -73,25 +75,22 @@
 #define SHA1_BLOCK_SIZE 64
 #define MD5_BLOCK_SIZE 64
 
-static void init_md5(PX_MD *h);
-static void init_sha1(PX_MD *h);
-
-void		init_sha224(PX_MD *h);
-void		init_sha256(PX_MD *h);
-void		init_sha384(PX_MD *h);
-void		init_sha512(PX_MD *h);
+static void init_md5(PX_MD * h);
+static void init_sha1(PX_MD * h);
+static void init_sha256(PX_MD * h);
+static void init_sha384(PX_MD * h);
+static void init_sha512(PX_MD * h);
 
 struct int_digest
 {
 	char	   *name;
-	void		(*init) (PX_MD *h);
+	void		(*init) (PX_MD * h);
 };
 
 static const struct int_digest
 			int_digest_list[] = {
 	{"md5", init_md5},
 	{"sha1", init_sha1},
-	{"sha224", init_sha224},
 	{"sha256", init_sha256},
 	{"sha384", init_sha384},
 	{"sha512", init_sha512},
@@ -101,19 +100,19 @@ static const struct int_digest
 /* MD5 */
 
 static unsigned
-int_md5_len(PX_MD *h)
+int_md5_len(PX_MD * h)
 {
 	return MD5_DIGEST_LENGTH;
 }
 
 static unsigned
-int_md5_block_len(PX_MD *h)
+int_md5_block_len(PX_MD * h)
 {
 	return MD5_BLOCK_SIZE;
 }
 
 static void
-int_md5_update(PX_MD *h, const uint8 *data, unsigned dlen)
+int_md5_update(PX_MD * h, const uint8 *data, unsigned dlen)
 {
 	MD5_CTX    *ctx = (MD5_CTX *) h->p.ptr;
 
@@ -121,7 +120,7 @@ int_md5_update(PX_MD *h, const uint8 *data, unsigned dlen)
 }
 
 static void
-int_md5_reset(PX_MD *h)
+int_md5_reset(PX_MD * h)
 {
 	MD5_CTX    *ctx = (MD5_CTX *) h->p.ptr;
 
@@ -129,7 +128,7 @@ int_md5_reset(PX_MD *h)
 }
 
 static void
-int_md5_finish(PX_MD *h, uint8 *dst)
+int_md5_finish(PX_MD * h, uint8 *dst)
 {
 	MD5_CTX    *ctx = (MD5_CTX *) h->p.ptr;
 
@@ -137,11 +136,11 @@ int_md5_finish(PX_MD *h, uint8 *dst)
 }
 
 static void
-int_md5_free(PX_MD *h)
+int_md5_free(PX_MD * h)
 {
 	MD5_CTX    *ctx = (MD5_CTX *) h->p.ptr;
 
-	px_memset(ctx, 0, sizeof(*ctx));
+	memset(ctx, 0, sizeof(*ctx));
 	px_free(ctx);
 	px_free(h);
 }
@@ -149,19 +148,19 @@ int_md5_free(PX_MD *h)
 /* SHA1 */
 
 static unsigned
-int_sha1_len(PX_MD *h)
+int_sha1_len(PX_MD * h)
 {
 	return SHA1_DIGEST_LENGTH;
 }
 
 static unsigned
-int_sha1_block_len(PX_MD *h)
+int_sha1_block_len(PX_MD * h)
 {
 	return SHA1_BLOCK_SIZE;
 }
 
 static void
-int_sha1_update(PX_MD *h, const uint8 *data, unsigned dlen)
+int_sha1_update(PX_MD * h, const uint8 *data, unsigned dlen)
 {
 	SHA1_CTX   *ctx = (SHA1_CTX *) h->p.ptr;
 
@@ -169,7 +168,7 @@ int_sha1_update(PX_MD *h, const uint8 *data, unsigned dlen)
 }
 
 static void
-int_sha1_reset(PX_MD *h)
+int_sha1_reset(PX_MD * h)
 {
 	SHA1_CTX   *ctx = (SHA1_CTX *) h->p.ptr;
 
@@ -177,7 +176,7 @@ int_sha1_reset(PX_MD *h)
 }
 
 static void
-int_sha1_finish(PX_MD *h, uint8 *dst)
+int_sha1_finish(PX_MD * h, uint8 *dst)
 {
 	SHA1_CTX   *ctx = (SHA1_CTX *) h->p.ptr;
 
@@ -185,11 +184,155 @@ int_sha1_finish(PX_MD *h, uint8 *dst)
 }
 
 static void
-int_sha1_free(PX_MD *h)
+int_sha1_free(PX_MD * h)
 {
 	SHA1_CTX   *ctx = (SHA1_CTX *) h->p.ptr;
 
-	px_memset(ctx, 0, sizeof(*ctx));
+	memset(ctx, 0, sizeof(*ctx));
+	px_free(ctx);
+	px_free(h);
+}
+
+/* SHA256 */
+
+static unsigned
+int_sha256_len(PX_MD * h)
+{
+	return SHA256_DIGEST_LENGTH;
+}
+
+static unsigned
+int_sha256_block_len(PX_MD * h)
+{
+	return SHA256_BLOCK_LENGTH;
+}
+
+static void
+int_sha256_update(PX_MD * h, const uint8 *data, unsigned dlen)
+{
+	SHA256_CTX *ctx = (SHA256_CTX *) h->p.ptr;
+
+	SHA256_Update(ctx, data, dlen);
+}
+
+static void
+int_sha256_reset(PX_MD * h)
+{
+	SHA256_CTX *ctx = (SHA256_CTX *) h->p.ptr;
+
+	SHA256_Init(ctx);
+}
+
+static void
+int_sha256_finish(PX_MD * h, uint8 *dst)
+{
+	SHA256_CTX *ctx = (SHA256_CTX *) h->p.ptr;
+
+	SHA256_Final(dst, ctx);
+}
+
+static void
+int_sha256_free(PX_MD * h)
+{
+	SHA256_CTX *ctx = (SHA256_CTX *) h->p.ptr;
+
+	memset(ctx, 0, sizeof(*ctx));
+	px_free(ctx);
+	px_free(h);
+}
+
+/* SHA384 */
+
+static unsigned
+int_sha384_len(PX_MD * h)
+{
+	return SHA384_DIGEST_LENGTH;
+}
+
+static unsigned
+int_sha384_block_len(PX_MD * h)
+{
+	return SHA384_BLOCK_LENGTH;
+}
+
+static void
+int_sha384_update(PX_MD * h, const uint8 *data, unsigned dlen)
+{
+	SHA384_CTX *ctx = (SHA384_CTX *) h->p.ptr;
+
+	SHA384_Update(ctx, data, dlen);
+}
+
+static void
+int_sha384_reset(PX_MD * h)
+{
+	SHA384_CTX *ctx = (SHA384_CTX *) h->p.ptr;
+
+	SHA384_Init(ctx);
+}
+
+static void
+int_sha384_finish(PX_MD * h, uint8 *dst)
+{
+	SHA384_CTX *ctx = (SHA384_CTX *) h->p.ptr;
+
+	SHA384_Final(dst, ctx);
+}
+
+static void
+int_sha384_free(PX_MD * h)
+{
+	SHA384_CTX *ctx = (SHA384_CTX *) h->p.ptr;
+
+	memset(ctx, 0, sizeof(*ctx));
+	px_free(ctx);
+	px_free(h);
+}
+
+/* SHA512 */
+
+static unsigned
+int_sha512_len(PX_MD * h)
+{
+	return SHA512_DIGEST_LENGTH;
+}
+
+static unsigned
+int_sha512_block_len(PX_MD * h)
+{
+	return SHA512_BLOCK_LENGTH;
+}
+
+static void
+int_sha512_update(PX_MD * h, const uint8 *data, unsigned dlen)
+{
+	SHA512_CTX *ctx = (SHA512_CTX *) h->p.ptr;
+
+	SHA512_Update(ctx, data, dlen);
+}
+
+static void
+int_sha512_reset(PX_MD * h)
+{
+	SHA512_CTX *ctx = (SHA512_CTX *) h->p.ptr;
+
+	SHA512_Init(ctx);
+}
+
+static void
+int_sha512_finish(PX_MD * h, uint8 *dst)
+{
+	SHA512_CTX *ctx = (SHA512_CTX *) h->p.ptr;
+
+	SHA512_Final(dst, ctx);
+}
+
+static void
+int_sha512_free(PX_MD * h)
+{
+	SHA512_CTX *ctx = (SHA512_CTX *) h->p.ptr;
+
+	memset(ctx, 0, sizeof(*ctx));
 	px_free(ctx);
 	px_free(h);
 }
@@ -197,7 +340,7 @@ int_sha1_free(PX_MD *h)
 /* init functions */
 
 static void
-init_md5(PX_MD *md)
+init_md5(PX_MD * md)
 {
 	MD5_CTX    *ctx;
 
@@ -217,7 +360,7 @@ init_md5(PX_MD *md)
 }
 
 static void
-init_sha1(PX_MD *md)
+init_sha1(PX_MD * md)
 {
 	SHA1_CTX   *ctx;
 
@@ -236,6 +379,66 @@ init_sha1(PX_MD *md)
 	md->reset(md);
 }
 
+static void
+init_sha256(PX_MD * md)
+{
+	SHA256_CTX *ctx;
+
+	ctx = px_alloc(sizeof(*ctx));
+	memset(ctx, 0, sizeof(*ctx));
+
+	md->p.ptr = ctx;
+
+	md->result_size = int_sha256_len;
+	md->block_size = int_sha256_block_len;
+	md->reset = int_sha256_reset;
+	md->update = int_sha256_update;
+	md->finish = int_sha256_finish;
+	md->free = int_sha256_free;
+
+	md->reset(md);
+}
+
+static void
+init_sha384(PX_MD * md)
+{
+	SHA384_CTX *ctx;
+
+	ctx = px_alloc(sizeof(*ctx));
+	memset(ctx, 0, sizeof(*ctx));
+
+	md->p.ptr = ctx;
+
+	md->result_size = int_sha384_len;
+	md->block_size = int_sha384_block_len;
+	md->reset = int_sha384_reset;
+	md->update = int_sha384_update;
+	md->finish = int_sha384_finish;
+	md->free = int_sha384_free;
+
+	md->reset(md);
+}
+
+static void
+init_sha512(PX_MD * md)
+{
+	SHA512_CTX *ctx;
+
+	ctx = px_alloc(sizeof(*ctx));
+	memset(ctx, 0, sizeof(*ctx));
+
+	md->p.ptr = ctx;
+
+	md->result_size = int_sha512_len;
+	md->block_size = int_sha512_block_len;
+	md->reset = int_sha512_reset;
+	md->update = int_sha512_update;
+	md->finish = int_sha512_finish;
+	md->free = int_sha512_free;
+
+	md->reset(md);
+}
+
 /*
  * ciphers generally
  */
@@ -249,7 +452,7 @@ struct int_ctx
 	uint8		iv[INT_MAX_IV];
 	union
 	{
-		BlowfishContext bf;
+		blf_ctx		bf;
 		rijndael_ctx rj;
 	}			ctx;
 	unsigned	keylen;
@@ -258,13 +461,13 @@ struct int_ctx
 };
 
 static void
-intctx_free(PX_Cipher *c)
+intctx_free(PX_Cipher * c)
 {
 	struct int_ctx *cx = (struct int_ctx *) c->ptr;
 
 	if (cx)
 	{
-		px_memset(cx, 0, sizeof *cx);
+		memset(cx, 0, sizeof *cx);
 		px_free(cx);
 	}
 	px_free(c);
@@ -278,25 +481,25 @@ intctx_free(PX_Cipher *c)
 #define MODE_CBC 1
 
 static unsigned
-rj_block_size(PX_Cipher *c)
+rj_block_size(PX_Cipher * c)
 {
 	return 128 / 8;
 }
 
 static unsigned
-rj_key_size(PX_Cipher *c)
+rj_key_size(PX_Cipher * c)
 {
 	return 256 / 8;
 }
 
 static unsigned
-rj_iv_size(PX_Cipher *c)
+rj_iv_size(PX_Cipher * c)
 {
 	return 128 / 8;
 }
 
 static int
-rj_init(PX_Cipher *c, const uint8 *key, unsigned klen, const uint8 *iv)
+rj_init(PX_Cipher * c, const uint8 *key, unsigned klen, const uint8 *iv)
 {
 	struct int_ctx *cx = (struct int_ctx *) c->ptr;
 
@@ -318,14 +521,14 @@ rj_init(PX_Cipher *c, const uint8 *key, unsigned klen, const uint8 *iv)
 }
 
 static int
-rj_real_init(struct int_ctx *cx, int dir)
+rj_real_init(struct int_ctx * cx, int dir)
 {
 	aes_set_key(&cx->ctx.rj, cx->keybuf, cx->keylen * 8, dir);
 	return 0;
 }
 
 static int
-rj_encrypt(PX_Cipher *c, const uint8 *data, unsigned dlen, uint8 *res)
+rj_encrypt(PX_Cipher * c, const uint8 *data, unsigned dlen, uint8 *res)
 {
 	struct int_ctx *cx = (struct int_ctx *) c->ptr;
 
@@ -355,7 +558,7 @@ rj_encrypt(PX_Cipher *c, const uint8 *data, unsigned dlen, uint8 *res)
 }
 
 static int
-rj_decrypt(PX_Cipher *c, const uint8 *data, unsigned dlen, uint8 *res)
+rj_decrypt(PX_Cipher * c, const uint8 *data, unsigned dlen, uint8 *res)
 {
 	struct int_ctx *cx = (struct int_ctx *) c->ptr;
 
@@ -416,40 +619,39 @@ rj_load(int mode)
  */
 
 static unsigned
-bf_block_size(PX_Cipher *c)
+bf_block_size(PX_Cipher * c)
 {
 	return 8;
 }
 
 static unsigned
-bf_key_size(PX_Cipher *c)
+bf_key_size(PX_Cipher * c)
 {
-	return 448 / 8;
+	return BLF_MAXKEYLEN;
 }
 
 static unsigned
-bf_iv_size(PX_Cipher *c)
+bf_iv_size(PX_Cipher * c)
 {
 	return 8;
 }
 
 static int
-bf_init(PX_Cipher *c, const uint8 *key, unsigned klen, const uint8 *iv)
+bf_init(PX_Cipher * c, const uint8 *key, unsigned klen, const uint8 *iv)
 {
 	struct int_ctx *cx = (struct int_ctx *) c->ptr;
 
-	blowfish_setkey(&cx->ctx.bf, key, klen);
+	blf_key(&cx->ctx.bf, key, klen);
 	if (iv)
-		blowfish_setiv(&cx->ctx.bf, iv);
+		memcpy(cx->iv, iv, 8);
 
 	return 0;
 }
 
 static int
-bf_encrypt(PX_Cipher *c, const uint8 *data, unsigned dlen, uint8 *res)
+bf_encrypt(PX_Cipher * c, const uint8 *data, unsigned dlen, uint8 *res)
 {
 	struct int_ctx *cx = (struct int_ctx *) c->ptr;
-	BlowfishContext *bfctx = &cx->ctx.bf;
 
 	if (dlen == 0)
 		return 0;
@@ -461,20 +663,19 @@ bf_encrypt(PX_Cipher *c, const uint8 *data, unsigned dlen, uint8 *res)
 	switch (cx->mode)
 	{
 		case MODE_ECB:
-			blowfish_encrypt_ecb(res, dlen, bfctx);
+			blf_ecb_encrypt(&cx->ctx.bf, res, dlen);
 			break;
 		case MODE_CBC:
-			blowfish_encrypt_cbc(res, dlen, bfctx);
-			break;
+			blf_cbc_encrypt(&cx->ctx.bf, cx->iv, res, dlen);
+			memcpy(cx->iv, res + dlen - 8, 8);
 	}
 	return 0;
 }
 
 static int
-bf_decrypt(PX_Cipher *c, const uint8 *data, unsigned dlen, uint8 *res)
+bf_decrypt(PX_Cipher * c, const uint8 *data, unsigned dlen, uint8 *res)
 {
 	struct int_ctx *cx = (struct int_ctx *) c->ptr;
-	BlowfishContext *bfctx = &cx->ctx.bf;
 
 	if (dlen == 0)
 		return 0;
@@ -486,11 +687,11 @@ bf_decrypt(PX_Cipher *c, const uint8 *data, unsigned dlen, uint8 *res)
 	switch (cx->mode)
 	{
 		case MODE_ECB:
-			blowfish_decrypt_ecb(res, dlen, bfctx);
+			blf_ecb_decrypt(&cx->ctx.bf, res, dlen);
 			break;
 		case MODE_CBC:
-			blowfish_decrypt_cbc(res, dlen, bfctx);
-			break;
+			blf_cbc_decrypt(&cx->ctx.bf, cx->iv, res, dlen);
+			memcpy(cx->iv, data + dlen - 8, 8);
 	}
 	return 0;
 }
@@ -575,7 +776,7 @@ static const PX_Alias int_aliases[] = {
 /* PUBLIC FUNCTIONS */
 
 int
-px_find_digest(const char *name, PX_MD **res)
+px_find_digest(const char *name, PX_MD ** res)
 {
 	const struct int_digest *p;
 	PX_MD	   *h;
@@ -594,7 +795,7 @@ px_find_digest(const char *name, PX_MD **res)
 }
 
 int
-px_find_cipher(const char *name, PX_Cipher **res)
+px_find_cipher(const char *name, PX_Cipher ** res)
 {
 	int			i;
 	PX_Cipher  *c = NULL;
@@ -602,7 +803,7 @@ px_find_cipher(const char *name, PX_Cipher **res)
 	name = px_resolve_alias(int_aliases, name);
 
 	for (i = 0; int_ciphers[i].name; i++)
-		if (strcmp(int_ciphers[i].name, name) == 0)
+		if (!strcmp(int_ciphers[i].name, name))
 		{
 			c = int_ciphers[i].load();
 			break;
@@ -612,5 +813,82 @@ px_find_cipher(const char *name, PX_Cipher **res)
 		return PXE_NO_CIPHER;
 
 	*res = c;
+	return 0;
+}
+
+/*
+ * Randomness provider
+ */
+
+/*
+ * Use libc for all 'public' bytes.
+ *
+ * That way we don't expose bytes from Fortuna
+ * to the public, in case it has some bugs.
+ */
+int
+px_get_pseudo_random_bytes(uint8 *dst, unsigned count)
+{
+	int			i;
+
+	for (i = 0; i < count; i++)
+		*dst++ = random();
+	return i;
+}
+
+static time_t seed_time = 0;
+static time_t check_time = 0;
+
+static void
+system_reseed(void)
+{
+	uint8		buf[1024];
+	int			n;
+	time_t		t;
+	int			skip = 1;
+
+	t = time(NULL);
+
+	if (seed_time == 0)
+		skip = 0;
+	else if ((t - seed_time) < SYSTEM_RESEED_MIN)
+		skip = 1;
+	else if ((t - seed_time) > SYSTEM_RESEED_MAX)
+		skip = 0;
+	else if (!check_time || (t - check_time) > SYSTEM_RESEED_CHECK_TIME)
+	{
+		check_time = t;
+
+		/* roll dice */
+		px_get_random_bytes(buf, 1);
+		skip = buf[0] >= SYSTEM_RESEED_CHANCE;
+	}
+	/* clear 1 byte */
+	memset(buf, 0, sizeof(buf));
+
+	if (skip)
+		return;
+
+	n = px_acquire_system_randomness(buf);
+	if (n > 0)
+		fortuna_add_entropy(buf, n);
+
+	seed_time = t;
+	memset(buf, 0, sizeof(buf));
+}
+
+int
+px_get_random_bytes(uint8 *dst, unsigned count)
+{
+	system_reseed();
+	fortuna_get_bytes(count, dst);
+	return 0;
+}
+
+int
+px_add_entropy(const uint8 *data, unsigned count)
+{
+	system_reseed();
+	fortuna_add_entropy(data, count);
 	return 0;
 }

@@ -2,10 +2,10 @@
  *
  * subselect.h
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/optimizer/subselect.h
+ * $PostgreSQL: pgsql/src/include/optimizer/subselect.h,v 1.26 2005/10/15 02:49:45 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -15,29 +15,17 @@
 #include "nodes/plannodes.h"
 #include "nodes/relation.h"
 
-extern void SS_process_ctes(PlannerInfo *root);
-extern JoinExpr *convert_ANY_sublink_to_join(PlannerInfo *root,
-							SubLink *sublink,
-							Relids available_rels);
-extern JoinExpr *convert_EXISTS_sublink_to_join(PlannerInfo *root,
-							   SubLink *sublink,
-							   bool under_not,
-							   Relids available_rels);
-extern Node *SS_replace_correlation_vars(PlannerInfo *root, Node *expr);
-extern Node *SS_process_sublinks(PlannerInfo *root, Node *expr, bool isQual);
-extern void SS_identify_outer_params(PlannerInfo *root);
-extern void SS_charge_for_initplans(PlannerInfo *root, RelOptInfo *final_rel);
-extern void SS_attach_initplans(PlannerInfo *root, Plan *plan);
-extern void SS_finalize_plan(PlannerInfo *root, Plan *plan);
-extern Param *SS_make_initplan_output_param(PlannerInfo *root,
-							  Oid resulttype, int32 resulttypmod,
-							  Oid resultcollation);
-extern void SS_make_initplan_from_plan(PlannerInfo *root,
-						   PlannerInfo *subroot, Plan *plan,
-						   Param *prm);
-extern Param *assign_nestloop_param_var(PlannerInfo *root, Var *var);
-extern Param *assign_nestloop_param_placeholdervar(PlannerInfo *root,
-									 PlaceHolderVar *phv);
-extern int	SS_assign_special_param(PlannerInfo *root);
 
-#endif							/* SUBSELECT_H */
+extern Index PlannerQueryLevel; /* level of current query */
+extern List *PlannerInitPlan;	/* init subplans for current query */
+extern List *PlannerParamList;	/* to keep track of cross-level Params */
+extern int	PlannerPlanId;		/* to assign unique ID to subquery plans */
+
+extern Node *convert_IN_to_join(PlannerInfo *root, SubLink *sublink);
+extern Node *SS_replace_correlation_vars(Node *expr);
+extern Node *SS_process_sublinks(Node *expr, bool isQual);
+extern void SS_finalize_plan(Plan *plan, List *rtable);
+extern Param *SS_make_initplan_from_plan(PlannerInfo *root, Plan *plan,
+						   Oid resulttype, int32 resulttypmod);
+
+#endif   /* SUBSELECT_H */

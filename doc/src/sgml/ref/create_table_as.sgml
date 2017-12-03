@@ -1,16 +1,11 @@
 <!--
-doc/src/sgml/ref/create_table_as.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_table_as.sgml,v 1.31 2005/11/01 21:09:50 tgl Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-createtableas">
- <indexterm zone="sql-createtableas">
-  <primary>CREATE TABLE AS</primary>
- </indexterm>
-
+<refentry id="SQL-CREATETABLEAS">
  <refmeta>
-  <refentrytitle>CREATE TABLE AS</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="sql-createtableas-title">CREATE TABLE AS</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -19,25 +14,26 @@ PostgreSQL documentation
   <refpurpose>define a new table from the results of a query</refpurpose>
  </refnamediv>
 
+ <indexterm zone="sql-createtableas">
+  <primary>CREATE TABLE AS</primary>
+ </indexterm>
+
  <refsynopsisdiv>
 <synopsis>
-CREATE [ [ GLOBAL | LOCAL ] { TEMPORARY | TEMP } | UNLOGGED ] TABLE [ IF NOT EXISTS ] <replaceable>table_name</replaceable>
-    [ (<replaceable>column_name</replaceable> [, ...] ) ]
-    [ WITH ( <replaceable class="parameter">storage_parameter</replaceable> [= <replaceable class="parameter">value</replaceable>] [, ... ] ) | WITH OIDS | WITHOUT OIDS ]
-    [ ON COMMIT { PRESERVE ROWS | DELETE ROWS | DROP } ]
-    [ TABLESPACE <replaceable class="parameter">tablespace_name</replaceable> ]
+CREATE [ [ GLOBAL | LOCAL ] { TEMPORARY | TEMP } ] TABLE <replaceable>table_name</replaceable>
+    [ (<replaceable>column_name</replaceable> [, ...] ) ] [ [ WITH | WITHOUT ] OIDS ]
     AS <replaceable>query</replaceable>
-    [ WITH [ NO ] DATA ]
 </synopsis>
  </refsynopsisdiv>
-
+  
  <refsect1>
   <title>Description</title>
 
   <para>
    <command>CREATE TABLE AS</command> creates a table and fills it
-   with data computed by a <command>SELECT</command> command.
-   The table columns have the
+   with data computed by a <command>SELECT</command> command or an
+   <command>EXECUTE</command> that runs a prepared
+   <command>SELECT</command> command.  The table columns have the
    names and data types associated with the output columns of the
    <command>SELECT</command> (except that you can override the column
    names by giving an explicit list of new column names).
@@ -62,8 +58,9 @@ CREATE [ [ GLOBAL | LOCAL ] { TEMPORARY | TEMP } | UNLOGGED ] TABLE [ IF NOT EXI
     <term><literal>GLOBAL</literal> or <literal>LOCAL</literal></term>
     <listitem>
      <para>
-      Ignored for compatibility.  Use of these keywords is deprecated;
-      refer to <xref linkend="sql-createtable"/> for details.
+      Ignored for compatibility. Refer to <xref
+      linkend="sql-createtable" endterm="sql-createtable-title"> for
+      details.
      </para>
     </listitem>
    </varlistentry>
@@ -71,32 +68,11 @@ CREATE [ [ GLOBAL | LOCAL ] { TEMPORARY | TEMP } | UNLOGGED ] TABLE [ IF NOT EXI
 
   <variablelist>
    <varlistentry>
-    <term><literal>TEMPORARY</literal> or <literal>TEMP</literal></term>
+    <term><literal>TEMPORARY</> or <literal>TEMP</></term>
     <listitem>
      <para>
       If specified, the table is created as a temporary table.
-      Refer to <xref linkend="sql-createtable"/> for details.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><literal>UNLOGGED</literal></term>
-    <listitem>
-     <para>
-      If specified, the table is created as an unlogged table.
-      Refer to <xref linkend="sql-createtable"/> for details.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><literal>IF NOT EXISTS</literal></term>
-    <listitem>
-     <para>
-      Do not throw an error if a relation with the same name already exists.
-      A notice is issued in this case. Refer to <xref linkend="sql-createtable"/>
-      for details.
+      Refer to <xref linkend="sql-createtable" endterm="sql-createtable-title"> for details.
      </para>
     </listitem>
    </varlistentry>
@@ -115,24 +91,10 @@ CREATE [ [ GLOBAL | LOCAL ] { TEMPORARY | TEMP } | UNLOGGED ] TABLE [ IF NOT EXI
     <listitem>
      <para>
       The name of a column in the new table.  If column names are not
-      provided, they are taken from the output column names of the query.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><literal>WITH ( <replaceable class="parameter">storage_parameter</replaceable> [= <replaceable class="parameter">value</replaceable>] [, ... ] )</literal></term>
-    <listitem>
-     <para>
-      This clause specifies optional storage parameters for the new table;
-      see <xref linkend="sql-createtable-storage-parameters"
-      endterm="sql-createtable-storage-parameters-title"/> for more
-      information.  The <literal>WITH</literal> clause
-      can also include <literal>OIDS=TRUE</literal> (or just <literal>OIDS</literal>)
-      to specify that rows of the new table
-      should have OIDs (object identifiers) assigned to them, or
-      <literal>OIDS=FALSE</literal> to specify that the rows should not have OIDs.
-      See <xref linkend="sql-createtable"/> for more information.
+      provided, they are taken from the output column names of the
+      query.  If the table is created from an
+      <command>EXECUTE</command> command, a column name list cannot be
+      specified.
      </para>
     </listitem>
    </varlistentry>
@@ -140,97 +102,30 @@ CREATE [ [ GLOBAL | LOCAL ] { TEMPORARY | TEMP } | UNLOGGED ] TABLE [ IF NOT EXI
    <varlistentry>
     <term><literal>WITH OIDS</literal></term>
     <term><literal>WITHOUT OIDS</literal></term>
-    <listitem>
-     <para>
-      These are obsolescent syntaxes equivalent to <literal>WITH (OIDS)</literal>
-      and <literal>WITH (OIDS=FALSE)</literal>, respectively.  If you wish to give
-      both an <literal>OIDS</literal> setting and storage parameters, you must use
-      the <literal>WITH ( ... )</literal> syntax; see above.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><literal>ON COMMIT</literal></term>
-    <listitem>
-     <para>
-      The behavior of temporary tables at the end of a transaction
-      block can be controlled using <literal>ON COMMIT</literal>.
-      The three options are:
-
-      <variablelist>
-       <varlistentry>
-        <term><literal>PRESERVE ROWS</literal></term>
-        <listitem>
-         <para>
-          No special action is taken at the ends of transactions.
-          This is the default behavior.
-         </para>
-        </listitem>
-       </varlistentry>
-
-       <varlistentry>
-        <term><literal>DELETE ROWS</literal></term>
-        <listitem>
-         <para>
-          All rows in the temporary table will be deleted at the end
-          of each transaction block.  Essentially, an automatic <xref
-          linkend="sql-truncate"/> is done
-          at each commit.
-         </para>
-        </listitem>
-       </varlistentry>
-
-       <varlistentry>
-        <term><literal>DROP</literal></term>
-        <listitem>
-         <para>
-          The temporary table will be dropped at the end of the current
-          transaction block.
-         </para>
-        </listitem>
-       </varlistentry>
-      </variablelist></para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><literal>TABLESPACE <replaceable class="parameter">tablespace_name</replaceable></literal></term>
-    <listitem>
-     <para>
-      The <replaceable class="parameter">tablespace_name</replaceable> is the name
-      of the tablespace in which the new table is to be created.
-      If not specified,
-      <xref linkend="guc-default-tablespace"/> is consulted, or
-      <xref linkend="guc-temp-tablespaces"/> if the table is temporary.
-     </para>
-    </listitem>
+     <listitem>
+      <para>
+       This optional clause specifies whether the table created by
+       <command>CREATE TABLE AS</command> should include OIDs. If
+       neither form of this clause is specified, the value of the
+       <xref linkend="guc-default-with-oids"> configuration parameter is
+       used.
+      </para>
+     </listitem>
    </varlistentry>
 
    <varlistentry>
     <term><replaceable>query</replaceable></term>
     <listitem>
      <para>
-      A <xref linkend="sql-select"/>, <link
-      linkend="sql-table">TABLE</link>, or <xref linkend="sql-values"/>
-      command, or an <xref linkend="sql-execute"/> command that runs a
-      prepared <command>SELECT</command>, <command>TABLE</command>, or
-      <command>VALUES</command> query.
+      A query statement (that is, a <command>SELECT</command> command
+      or an <command>EXECUTE</command> command that runs a prepared
+      <command>SELECT</command> command).  Refer to <xref
+      linkend="sql-select" endterm="sql-select-title"> or <xref
+      linkend="sql-execute" endterm="sql-execute-title">,
+      respectively, for a description of the allowed syntax.
      </para>
     </listitem>
    </varlistentry>
-
-   <varlistentry>
-    <term><literal>WITH [ NO ] DATA</literal></term>
-    <listitem>
-     <para>
-      This clause specifies whether or not the data produced by the query
-      should be copied into the new table.  If not, only the table structure
-      is copied.  The default is to copy the data.
-     </para>
-    </listitem>
-   </varlistentry>
-
   </variablelist>
  </refsect1>
 
@@ -239,19 +134,27 @@ CREATE [ [ GLOBAL | LOCAL ] { TEMPORARY | TEMP } | UNLOGGED ] TABLE [ IF NOT EXI
 
   <para>
    This command is functionally similar to <xref
-   linkend="sql-selectinto"/>, but it is
+   linkend="sql-selectinto" endterm="sql-selectinto-title">, but it is
    preferred since it is less likely to be confused with other uses of
-   the <command>SELECT INTO</command> syntax. Furthermore, <command>CREATE
+   the <command>SELECT INTO</> syntax. Furthermore, <command>CREATE
    TABLE AS</command> offers a superset of the functionality offered
    by <command>SELECT INTO</command>.
   </para>
 
   <para>
-   The <command>CREATE TABLE AS</command> command allows the user to
+   Prior to <productname>PostgreSQL</productname> 8.0, <command>CREATE
+   TABLE AS</command> always included OIDs in the table it
+   created.  As of <productname>PostgreSQL</productname> 8.0,
+   the <command>CREATE TABLE AS</command> command allows the user to
    explicitly specify whether OIDs should be included. If the
    presence of OIDs is not explicitly specified,
-   the <xref linkend="guc-default-with-oids"/> configuration variable is
-   used.
+   the <xref linkend="guc-default-with-oids"> configuration variable is
+   used.  As of <productname>PostgreSQL</productname> 8.1,
+   this variable is false by default, so the default behavior is not
+   identical to pre-8.0 releases.  Applications that
+   require OIDs in the table created by <command>CREATE TABLE
+   AS</command> should explicitly specify <literal>WITH OIDS</literal>
+   to ensure proper behavior.
   </para>
  </refsect1>
 
@@ -267,28 +170,6 @@ CREATE TABLE films_recent AS
   SELECT * FROM films WHERE date_prod &gt;= '2002-01-01';
 </programlisting>
   </para>
-
-  <para>
-   To copy a table completely, the short form using
-   the <literal>TABLE</literal> command can also be used:
-
-<programlisting>
-CREATE TABLE films2 AS
-  TABLE films;
-</programlisting>
-  </para>
-
-  <para>
-   Create a new temporary table <literal>films_recent</literal>, consisting of
-   only recent entries from the table <literal>films</literal>, using a
-   prepared statement.  The new table has OIDs and will be dropped at commit:
-
-<programlisting>
-PREPARE recentfilms(date) AS
-  SELECT * FROM films WHERE date_prod &gt; $1;
-CREATE TEMP TABLE films_recent WITH (OIDS) ON COMMIT DROP AS
-  EXECUTE recentfilms('2002-01-01');
-</programlisting></para>
  </refsect1>
 
  <refsect1>
@@ -296,7 +177,7 @@ CREATE TEMP TABLE films_recent WITH (OIDS) ON COMMIT DROP AS
 
   <para>
    <command>CREATE TABLE AS</command> conforms to the <acronym>SQL</acronym>
-   standard.  The following are nonstandard extensions:
+   standard, with the following exceptions:
 
    <itemizedlist spacing="compact">
     <listitem>
@@ -309,47 +190,65 @@ CREATE TEMP TABLE films_recent WITH (OIDS) ON COMMIT DROP AS
 
     <listitem>
      <para>
-      In the standard, the <literal>WITH [ NO ] DATA</literal> clause
-      is required; in PostgreSQL it is optional.
+      The standard defines an <literal>ON COMMIT</literal> clause;
+      this is not currently implemented by <productname>PostgreSQL</>.
      </para>
     </listitem>
 
     <listitem>
-     <para><productname>PostgreSQL</productname> handles temporary tables in a way
+     <para>
+      The standard defines a <literal>WITH [ NO ] DATA</literal> clause;
+      this is not currently implemented by <productname>PostgreSQL</>.
+      The behavior provided by <productname>PostgreSQL</> is equivalent
+      to the standard's <literal>WITH DATA</literal> case.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      <literal>WITH/WITHOUT OIDS</> is a <productname>PostgreSQL</>
+      extension.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      <productname>PostgreSQL</> handles temporary tables in a way
       rather different from the standard; see
-      <xref linkend="sql-createtable"/>
+      <xref linkend="sql-createtable" endterm="sql-createtable-title">
       for details.
      </para>
     </listitem>
-
-    <listitem>
-     <para>
-      The <literal>WITH</literal> clause is a <productname>PostgreSQL</productname>
-      extension; neither storage parameters nor OIDs are in the standard.
-     </para>
-    </listitem>
-
-    <listitem>
-     <para>
-      The <productname>PostgreSQL</productname> concept of tablespaces is not
-      part of the standard.  Hence, the clause <literal>TABLESPACE</literal>
-      is an extension.
-     </para>
-    </listitem>
-   </itemizedlist></para>
+   </itemizedlist>
+  </para>
  </refsect1>
 
  <refsect1>
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-creatematerializedview"/></member>
-   <member><xref linkend="sql-createtable"/></member>
-   <member><xref linkend="sql-execute"/></member>
-   <member><xref linkend="sql-select"/></member>
-   <member><xref linkend="sql-selectinto"/></member>
-   <member><xref linkend="sql-values"/></member>
+   <member><xref linkend="sql-createtable" endterm="sql-createtable-title"></member>
+   <member><xref linkend="sql-execute" endterm="sql-execute-title"></member>
+   <member><xref linkend="sql-select" endterm="sql-select-title"></member>
+   <member><xref linkend="sql-selectinto" endterm="sql-selectinto-title"></member>
   </simplelist>
  </refsect1>
-
+ 
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

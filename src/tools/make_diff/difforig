@@ -1,7 +1,4 @@
-#!/bin/sh
-
-# src/tools/make_diff/difforig
-
+:
 if [ "$#" -eq 0 ]
 then	APATH="."
 else	APATH="$1"

@@ -4,7 +4,7 @@
  *
  * Tatsuo Ishii
  *
- * src/backend/utils/mb/iso.c
+ * $PostgreSQL: pgsql/src/backend/utils/mb/iso.c,v 1.4 2003/11/29 22:39:59 pgsql Exp $
  */
 
 #include <stdio.h>

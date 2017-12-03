@@ -1,4 +1,6 @@
-<!-- doc/src/sgml/problems.sgml -->
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/problems.sgml,v 2.24 2005/04/09 03:52:43 momjian Exp $
+-->
 
 <sect1 id="bug-reporting">
  <title>Bug Reporting Guidelines</title>
@@ -8,7 +10,7 @@
   hear about it. Your bug reports play an important part in making
   <productname>PostgreSQL</productname> more reliable because even the utmost
   care cannot guarantee that every part of
-  <productname>PostgreSQL</productname>
+  <productname>PostgreSQL</productname> 
   will work on every platform under every circumstance.
  </para>
 
@@ -78,7 +80,7 @@
     </listitem>
    </itemizedlist>
 
-   Here <quote>program</quote> refers to any executable, not only the backend process.
+   Here <quote>program</quote> refers to any executable, not only the backend server.
   </para>
 
   <para>
@@ -97,7 +99,7 @@
  </sect2>
 
  <sect2>
-  <title>What to Report</title>
+  <title>What to report</title>
 
   <para>
    The most important thing to remember about bug reporting is to state all
@@ -136,7 +138,7 @@
       file that can be run through the <application>psql</application>
       frontend that shows the problem. (Be sure to not have anything
       in your <filename>~/.psqlrc</filename> start-up file.)  An easy
-      way to create this file is to use <application>pg_dump</application>
+      start at this file is to use <application>pg_dump</application>
       to dump out the table declarations and data needed to set the
       scene, then add the problem query.  You are encouraged to
       minimize the size of your example, but this is not absolutely
@@ -145,7 +147,7 @@
      </para>
 
      <para>
-      If your application uses some other client interface, such as <application>PHP</application>, then
+      If your application uses some other client interface, such as <application>PHP</>, then
       please try to isolate the offending queries. We will probably not set up a
       web server to reproduce your problem. In any case remember to provide
       the exact input files; do not guess that the problem happens for
@@ -167,10 +169,10 @@
      <note>
       <para>
        If you are reporting an error message, please obtain the most verbose
-       form of the message.  In <application>psql</application>, say <literal>\set
-       VERBOSITY verbose</literal> beforehand.  If you are extracting the message
+       form of the message.  In <application>psql</>, say <literal>\set
+       VERBOSITY verbose</> beforehand.  If you are extracting the message
        from the server log, set the run-time parameter
-       <xref linkend="guc-log-error-verbosity"/> to <literal>verbose</literal> so that all
+       <xref linkend="guc-log-error-verbosity"> to <literal>verbose</> so that all
        details are logged.
       </para>
      </note>
@@ -223,22 +225,22 @@
       <literal>SELECT version();</literal> to
       find out the version of the server you are connected to.  Most executable
       programs also support a <option>--version</option> option; at least
-      <literal>postgres --version</literal> and <literal>psql --version</literal>
+      <literal>postmaster --version</literal> and <literal>psql --version</literal>
       should work.
       If the function or the options do not exist then your version is
       more than old enough to warrant an upgrade.
       If you run a prepackaged version, such as RPMs, say so, including any
-      subversion the package might have. If you are talking about a Git
-      snapshot, mention that, including the commit hash.
+      subversion the package may have. If you are talking about a CVS
+      snapshot, mention that, including its date and time.
      </para>
 
      <para>
       If your version is older than &version; we will almost certainly
       tell you to upgrade. There are many bug fixes and improvements
       in each new release, so it is quite possible that a bug you have
-      encountered in an older release of <productname>PostgreSQL</productname>
+      encountered in an older release of <productname>PostgreSQL</>
       has already been fixed. We can only provide limited support for
-      sites using older releases of <productname>PostgreSQL</productname>; if you
+      sites using older releases of <productname>PostgreSQL</>; if you
       require more than we can provide, consider acquiring a
       commercial support contract.
      </para>
@@ -252,7 +254,7 @@
       C library, processor, memory information, and so on. In most
       cases it is sufficient to report the vendor and version, but do
       not assume everyone knows what exactly <quote>Debian</quote>
-      contains or that everyone runs on i386s. If you have
+      contains or that everyone runs on Pentiums. If you have
       installation problems then information about the toolchain on
       your machine (compiler, <application>make</application>, and so
       on) is also necessary.
@@ -280,11 +282,11 @@
    When writing a bug report, please avoid confusing terminology.
    The software package in total is called <quote>PostgreSQL</quote>,
    sometimes <quote>Postgres</quote> for short. If you
-   are specifically talking about the backend process, mention that, do not
+   are specifically talking about the backend server, mention that, do not
    just say <quote>PostgreSQL crashes</quote>.  A crash of a single
-   backend process is quite different from crash of the parent
-   <quote>postgres</quote> process; please don't say <quote>the server
-   crashed</quote> when you mean a single backend process went down, nor vice versa.
+   backend server process is quite different from crash of the parent
+   <quote>postmaster</> process; please don't say <quote>the postmaster
+   crashed</> when you mean a single backend process went down, nor vice versa.
    Also, client programs such as the interactive frontend <quote><application>psql</application></quote>
    are completely separate from the backend.  Please try to be specific
    about whether the problem is on the client or server side.
@@ -292,7 +294,7 @@
  </sect2>
 
  <sect2>
-  <title>Where to Report Bugs</title>
+  <title>Where to report bugs</title>
 
   <para>
    In general, send bug reports to the bug report mailing list at
@@ -301,10 +303,10 @@
    message, perhaps parts of the error message.
   </para>
 
-  <para>
+  <para> 
    Another method is to fill in the bug report web-form available
    at the project's
-   <ulink url="https://www.postgresql.org/">web site</ulink>.
+   <ulink url="http://www.postgresql.org/">web site</ulink>.
    Entering a bug report this way causes it to be mailed to the
    <email>pgsql-bugs@postgresql.org</email> mailing list.
   </para>
@@ -316,7 +318,7 @@
    reported privately to <email>security@postgresql.org</email>.
   </para>
 
-  <para>
+  <para> 
    Do not send bug reports to any of the user mailing lists, such as
    <email>pgsql-sql@postgresql.org</email> or
    <email>pgsql-general@postgresql.org</email>.
@@ -341,10 +343,10 @@
    Please be specific about what part of the documentation you are unhappy
    with.
   </para>
-
+ 
   <para>
    If your bug is a portability problem on a non-supported platform,
-   send mail to <email>pgsql-hackers@postgresql.org</email>,
+   send mail to <email>pgsql-ports@postgresql.org</email>,
    so we (and you) can work on
    porting <productname>PostgreSQL</productname> to your platform.
   </para>
@@ -356,11 +358,28 @@
     subscribed to a list to be allowed to post on it.  (You need not be
     subscribed to use the bug-report web form, however.)
     If you would like to send mail but do not want to receive list traffic,
-    you can subscribe and set your subscription option to <literal>nomail</literal>.
+    you can subscribe and set your subscription option to <literal>nomail</>.
     For more information send mail to
     <email>majordomo@postgresql.org</email>
-    with the single word <literal>help</literal> in the body of the message.
+    with the single word <literal>help</> in the body of the message.
    </para>
   </note>
  </sect2>
 </sect1>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

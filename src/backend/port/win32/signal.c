@@ -3,17 +3,17 @@
  * signal.c
  *	  Microsoft Windows Win32 Signal Emulation Functions
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  *
  * IDENTIFICATION
- *	  src/backend/port/win32/signal.c
+ *	  $PostgreSQL: pgsql/src/backend/port/win32/signal.c,v 1.14.2.1 2005/11/22 18:23:15 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 
 #include "postgres.h"
 
-#include "libpq/pqsignal.h"
+#include <libpq/pqsignal.h>
 
 /*
  * These are exported for use by the UNBLOCKED_SIGNAL_QUEUE() macro.
@@ -33,7 +33,6 @@ HANDLE		pgwin32_initial_signal_pipe = INVALID_HANDLE_VALUE;
  */
 static CRITICAL_SECTION pg_signal_crit_sec;
 
-/* Note that array elements 0 are unused since they correspond to signal 0 */
 static pqsigfunc pg_signal_array[PG_SIGNAL_COUNT];
 static pqsigfunc pg_signal_defaults[PG_SIGNAL_COUNT];
 
@@ -42,19 +41,11 @@ static pqsigfunc pg_signal_defaults[PG_SIGNAL_COUNT];
 static DWORD WINAPI pg_signal_thread(LPVOID param);
 static BOOL WINAPI pg_console_handler(DWORD dwCtrlType);
 
-
-/*
- * pg_usleep --- delay the specified number of microseconds, but
- * stop waiting if a signal arrives.
- *
- * This replaces the non-signal-aware version provided by src/port/pgsleep.c.
- */
+/* Sleep function that can be interrupted by signals */
 void
-pg_usleep(long microsec)
+pgwin32_backend_usleep(long microsec)
 {
-	if (WaitForSingleObject(pgwin32_signal_event,
-							(microsec < 500 ? 1 : (microsec + 500) / 1000))
-		== WAIT_OBJECT_0)
+	if (WaitForSingleObject(pgwin32_signal_event, (microsec < 500 ? 1 : (microsec + 500) / 1000)) == WAIT_OBJECT_0)
 	{
 		pgwin32_dispatch_queued_signals();
 		errno = EINTR;
@@ -84,18 +75,18 @@ pgwin32_signal_initialize(void)
 	pgwin32_signal_event = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (pgwin32_signal_event == NULL)
 		ereport(FATAL,
-				(errmsg_internal("could not create signal event: error code %lu", GetLastError())));
+				(errmsg_internal("failed to create signal event: %d", (int) GetLastError())));
 
 	/* Create thread for handling signals */
 	signal_thread_handle = CreateThread(NULL, 0, pg_signal_thread, NULL, 0, NULL);
 	if (signal_thread_handle == NULL)
 		ereport(FATAL,
-				(errmsg_internal("could not create signal handler thread")));
+				(errmsg_internal("failed to create signal handler thread")));
 
 	/* Create console control handle to pick up Ctrl-C etc */
 	if (!SetConsoleCtrlHandler(pg_console_handler, TRUE))
 		ereport(FATAL,
-				(errmsg_internal("could not set console control handler")));
+				(errmsg_internal("failed to set console control handler")));
 }
 
 /*
@@ -106,15 +97,15 @@ pgwin32_signal_initialize(void)
 void
 pgwin32_dispatch_queued_signals(void)
 {
-	int			exec_mask;
+	int			i;
 
 	EnterCriticalSection(&pg_signal_crit_sec);
-	while ((exec_mask = UNBLOCKED_SIGNAL_QUEUE()) != 0)
+	while (UNBLOCKED_SIGNAL_QUEUE())
 	{
 		/* One or more unblocked signals queued for execution */
-		int			i;
+		int			exec_mask = UNBLOCKED_SIGNAL_QUEUE();
 
-		for (i = 1; i < PG_SIGNAL_COUNT; i++)
+		for (i = 0; i < PG_SIGNAL_COUNT; i++)
 		{
 			if (exec_mask & sigmask(i))
 			{
@@ -159,11 +150,7 @@ pqsigsetmask(int mask)
 }
 
 
-/*
- * Unix-like signal handler installation
- *
- * Only called on main thread, no sync required
- */
+/* signal manipulation. Only called on main thread, no sync required */
 pqsigfunc
 pqsignal(int signum, pqsigfunc handler)
 {
@@ -176,23 +163,23 @@ pqsignal(int signum, pqsigfunc handler)
 	return prevfunc;
 }
 
-/* Create the signal listener pipe for specified PID */
+/* Create the signal listener pipe for specified pid */
 HANDLE
 pgwin32_create_signal_listener(pid_t pid)
 {
 	char		pipename[128];
 	HANDLE		pipe;
 
-	snprintf(pipename, sizeof(pipename), "\\\\.\\pipe\\pgsignal_%u", (int) pid);
+	wsprintf(pipename, "\\\\.\\pipe\\pgsignal_%d", (int) pid);
 
 	pipe = CreateNamedPipe(pipename, PIPE_ACCESS_DUPLEX,
-						   PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+					   PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
 						   PIPE_UNLIMITED_INSTANCES, 16, 16, 1000, NULL);
 
 	if (pipe == INVALID_HANDLE_VALUE)
 		ereport(ERROR,
-				(errmsg("could not create signal listener pipe for PID %d: error code %lu",
-						(int) pid, GetLastError())));
+				(errmsg("could not create signal listener pipe for pid %d: error code %d",
+						(int) pid, (int) GetLastError())));
 
 	return pipe;
 }
@@ -256,7 +243,7 @@ pg_signal_thread(LPVOID param)
 	char		pipename[128];
 	HANDLE		pipe = pgwin32_initial_signal_pipe;
 
-	snprintf(pipename, sizeof(pipename), "\\\\.\\pipe\\pgsignal_%lu", GetCurrentProcessId());
+	wsprintf(pipename, "\\\\.\\pipe\\pgsignal_%d", GetCurrentProcessId());
 
 	for (;;)
 	{
@@ -266,12 +253,12 @@ pg_signal_thread(LPVOID param)
 		if (pipe == INVALID_HANDLE_VALUE)
 		{
 			pipe = CreateNamedPipe(pipename, PIPE_ACCESS_DUPLEX,
-								   PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-								   PIPE_UNLIMITED_INSTANCES, 16, 16, 1000, NULL);
+					   PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+							   PIPE_UNLIMITED_INSTANCES, 16, 16, 1000, NULL);
 
 			if (pipe == INVALID_HANDLE_VALUE)
 			{
-				write_stderr("could not create signal listener pipe: error code %lu; retrying\n", GetLastError());
+				write_stderr("could not create signal listener pipe: error code %d; retrying\n", (int) GetLastError());
 				SleepEx(500, FALSE);
 				continue;
 			}
@@ -280,63 +267,21 @@ pg_signal_thread(LPVOID param)
 		fConnected = ConnectNamedPipe(pipe, NULL) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
 		if (fConnected)
 		{
-			HANDLE		newpipe;
-
-			/*
-			 * We have a connected pipe. Pass this off to a separate thread
-			 * that will do the actual processing of the pipe.
-			 *
-			 * We must also create a new instance of the pipe *before* we
-			 * start running the new thread. If we don't, there is a race
-			 * condition whereby the dispatch thread might run CloseHandle()
-			 * before we have created a new instance, thereby causing a small
-			 * window of time where we will miss incoming requests.
-			 */
-			newpipe = CreateNamedPipe(pipename, PIPE_ACCESS_DUPLEX,
-									  PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-									  PIPE_UNLIMITED_INSTANCES, 16, 16, 1000, NULL);
-			if (newpipe == INVALID_HANDLE_VALUE)
-			{
-				/*
-				 * This really should never fail. Just retry in case it does,
-				 * even though we have a small race window in that case. There
-				 * is nothing else we can do other than abort the whole
-				 * process which will be even worse.
-				 */
-				write_stderr("could not create signal listener pipe: error code %lu; retrying\n", GetLastError());
-
-				/*
-				 * Keep going so we at least dispatch this signal. Hopefully,
-				 * the call will succeed when retried in the loop soon after.
-				 */
-			}
 			hThread = CreateThread(NULL, 0,
-								   (LPTHREAD_START_ROUTINE) pg_signal_dispatch_thread,
+						  (LPTHREAD_START_ROUTINE) pg_signal_dispatch_thread,
 								   (LPVOID) pipe, 0, NULL);
 			if (hThread == INVALID_HANDLE_VALUE)
-				write_stderr("could not create signal dispatch thread: error code %lu\n",
-							 GetLastError());
+				write_stderr("could not create signal dispatch thread: error code %d\n",
+							 (int) GetLastError());
 			else
 				CloseHandle(hThread);
-
-			/*
-			 * Background thread is running with our instance of the pipe. So
-			 * replace our reference with the newly created one and loop back
-			 * up for another run.
-			 */
-			pipe = newpipe;
 		}
 		else
-		{
-			/*
-			 * Connection failed. Cleanup and try again.
-			 *
-			 * This should never happen. If it does, we have a small race
-			 * condition until we loop up and re-create the pipe.
-			 */
+			/* Connection failed. Cleanup and try again */
 			CloseHandle(pipe);
-			pipe = INVALID_HANDLE_VALUE;
-		}
+
+		/* Set up so we create a new pipe on next loop */
+		pipe = INVALID_HANDLE_VALUE;
 	}
 	return 0;
 }

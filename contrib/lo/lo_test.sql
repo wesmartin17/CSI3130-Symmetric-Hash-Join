@@ -1,8 +1,3 @@
-/* contrib/lo/lo_test.sql */
-
--- Adjust this setting to control where the objects get created.
-SET search_path = public;
-
 --
 -- This runs some common tests against the type
 --
@@ -12,7 +7,7 @@ SET search_path = public;
 --
 
 -- Check what is in pg_largeobject
-SELECT count(oid) FROM pg_largeobject_metadata;
+SELECT count(DISTINCT loid) FROM pg_largeobject;
 
 -- ignore any errors here - simply drop the table if it already exists
 DROP TABLE a;
@@ -74,6 +69,6 @@ DELETE FROM a;
 DROP TABLE a;
 
 -- Check what is in pg_largeobject ... if different from original, trouble
-SELECT count(oid) FROM pg_largeobject_metadata;
+SELECT count(DISTINCT loid) FROM pg_largeobject;
 
 -- end of tests

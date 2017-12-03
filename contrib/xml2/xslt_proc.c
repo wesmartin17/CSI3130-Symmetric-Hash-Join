@@ -1,20 +1,11 @@
-/*
- * contrib/xml2/xslt_proc.c
- *
- * XSLT processing functions (requiring libxslt)
- *
- * John Gray, for Torchbox 2003-04-01
- */
-#include "postgres.h"
+/* XSLT processing functions (requiring libxslt) */
+/* John Gray, for Torchbox 2003-04-01 */
 
-#include "executor/spi.h"
+#include "postgres.h"
 #include "fmgr.h"
+#include "executor/spi.h"
 #include "funcapi.h"
 #include "miscadmin.h"
-#include "utils/builtins.h"
-#include "utils/xml.h"
-
-#ifdef USE_LIBXSLT
 
 /* libxml includes */
 
@@ -26,202 +17,141 @@
 
 #include <libxslt/xslt.h>
 #include <libxslt/xsltInternals.h>
-#include <libxslt/security.h>
 #include <libxslt/transform.h>
 #include <libxslt/xsltutils.h>
-#endif							/* USE_LIBXSLT */
 
-
-#ifdef USE_LIBXSLT
 
 /* declarations to come from xpath.c */
-extern PgXmlErrorContext *pgxml_parser_init(PgXmlStrictness strictness);
+
+extern void elog_error(int level, char *explain, int force);
+extern void pgxml_parser_init();
+extern xmlChar *pgxml_texttoxmlchar(text *textstring);
+
+#define GET_STR(textp) DatumGetCString(DirectFunctionCall1(textout, PointerGetDatum(textp)))
 
 /* local defs */
-static const char **parse_params(text *paramstr);
-#endif							/* USE_LIBXSLT */
+static void parse_params(const char **params, text *paramstr);
 
+Datum		xslt_process(PG_FUNCTION_ARGS);
+
+
+#define MAXPARAMS 20
 
 PG_FUNCTION_INFO_V1(xslt_process);
 
 Datum
 xslt_process(PG_FUNCTION_ARGS)
 {
-#ifdef USE_LIBXSLT
 
-	text	   *doct = PG_GETARG_TEXT_PP(0);
-	text	   *ssheet = PG_GETARG_TEXT_PP(1);
-	text	   *result;
+
+	const char *params[MAXPARAMS + 1];	/* +1 for the terminator */
+	xsltStylesheetPtr stylesheet = NULL;
+	xmlDocPtr	doctree;
+	xmlDocPtr	restree;
+	xmlDocPtr	ssdoc = NULL;
+	xmlChar    *resstr;
+	int			resstat;
+	int			reslen;
+
+	text	   *doct = PG_GETARG_TEXT_P(0);
+	text	   *ssheet = PG_GETARG_TEXT_P(1);
 	text	   *paramstr;
-	const char **params;
-	PgXmlErrorContext *xmlerrcxt;
-	volatile xsltStylesheetPtr stylesheet = NULL;
-	volatile xmlDocPtr doctree = NULL;
-	volatile xmlDocPtr restree = NULL;
-	volatile xsltSecurityPrefsPtr xslt_sec_prefs = NULL;
-	volatile xsltTransformContextPtr xslt_ctxt = NULL;
-	volatile int resstat = -1;
-	xmlChar    *resstr = NULL;
-	int			reslen = 0;
+	text	   *tres;
+
 
 	if (fcinfo->nargs == 3)
 	{
-		paramstr = PG_GETARG_TEXT_PP(2);
-		params = parse_params(paramstr);
+		paramstr = PG_GETARG_TEXT_P(2);
+		parse_params(params, paramstr);
 	}
 	else
-	{
 		/* No parameters */
-		params = (const char **) palloc(sizeof(char *));
 		params[0] = NULL;
-	}
 
 	/* Setup parser */
-	xmlerrcxt = pgxml_parser_init(PG_XML_STRICTNESS_LEGACY);
+	pgxml_parser_init();
 
-	PG_TRY();
+	/* Check to see if document is a file or a literal */
+
+	if (VARDATA(doct)[0] == '<')
+		doctree = xmlParseMemory((char *) VARDATA(doct), VARSIZE(doct) - VARHDRSZ);
+	else
+		doctree = xmlParseFile(GET_STR(doct));
+
+	if (doctree == NULL)
 	{
-		xmlDocPtr	ssdoc;
-		bool		xslt_sec_prefs_error;
+		xmlCleanupParser();
+		elog_error(ERROR, "Error parsing XML document", 0);
 
-		/* Parse document */
-		doctree = xmlParseMemory((char *) VARDATA_ANY(doct),
-								 VARSIZE_ANY_EXHDR(doct));
+		PG_RETURN_NULL();
+	}
 
-		if (doctree == NULL)
-			xml_ereport(xmlerrcxt, ERROR, ERRCODE_EXTERNAL_ROUTINE_EXCEPTION,
-						"error parsing XML document");
-
-		/* Same for stylesheet */
-		ssdoc = xmlParseMemory((char *) VARDATA_ANY(ssheet),
-							   VARSIZE_ANY_EXHDR(ssheet));
-
+	/* Same for stylesheet */
+	if (VARDATA(ssheet)[0] == '<')
+	{
+		ssdoc = xmlParseMemory((char *) VARDATA(ssheet),
+							   VARSIZE(ssheet) - VARHDRSZ);
 		if (ssdoc == NULL)
-			xml_ereport(xmlerrcxt, ERROR, ERRCODE_EXTERNAL_ROUTINE_EXCEPTION,
-						"error parsing stylesheet as XML document");
-
-		/* After this call we need not free ssdoc separately */
-		stylesheet = xsltParseStylesheetDoc(ssdoc);
-
-		if (stylesheet == NULL)
-			xml_ereport(xmlerrcxt, ERROR, ERRCODE_EXTERNAL_ROUTINE_EXCEPTION,
-						"failed to parse stylesheet");
-
-		xslt_ctxt = xsltNewTransformContext(stylesheet, doctree);
-
-		xslt_sec_prefs_error = false;
-		if ((xslt_sec_prefs = xsltNewSecurityPrefs()) == NULL)
-			xslt_sec_prefs_error = true;
-
-		if (xsltSetSecurityPrefs(xslt_sec_prefs, XSLT_SECPREF_READ_FILE,
-								 xsltSecurityForbid) != 0)
-			xslt_sec_prefs_error = true;
-		if (xsltSetSecurityPrefs(xslt_sec_prefs, XSLT_SECPREF_WRITE_FILE,
-								 xsltSecurityForbid) != 0)
-			xslt_sec_prefs_error = true;
-		if (xsltSetSecurityPrefs(xslt_sec_prefs, XSLT_SECPREF_CREATE_DIRECTORY,
-								 xsltSecurityForbid) != 0)
-			xslt_sec_prefs_error = true;
-		if (xsltSetSecurityPrefs(xslt_sec_prefs, XSLT_SECPREF_READ_NETWORK,
-								 xsltSecurityForbid) != 0)
-			xslt_sec_prefs_error = true;
-		if (xsltSetSecurityPrefs(xslt_sec_prefs, XSLT_SECPREF_WRITE_NETWORK,
-								 xsltSecurityForbid) != 0)
-			xslt_sec_prefs_error = true;
-		if (xsltSetCtxtSecurityPrefs(xslt_sec_prefs, xslt_ctxt) != 0)
-			xslt_sec_prefs_error = true;
-
-		if (xslt_sec_prefs_error)
-			ereport(ERROR,
-					(errmsg("could not set libxslt security preferences")));
-
-		restree = xsltApplyStylesheetUser(stylesheet, doctree, params,
-										  NULL, NULL, xslt_ctxt);
-
-		if (restree == NULL)
-			xml_ereport(xmlerrcxt, ERROR, ERRCODE_EXTERNAL_ROUTINE_EXCEPTION,
-						"failed to apply stylesheet");
-
-		resstat = xsltSaveResultToString(&resstr, &reslen, restree, stylesheet);
-	}
-	PG_CATCH();
-	{
-		if (restree != NULL)
-			xmlFreeDoc(restree);
-		if (xslt_ctxt != NULL)
-			xsltFreeTransformContext(xslt_ctxt);
-		if (xslt_sec_prefs != NULL)
-			xsltFreeSecurityPrefs(xslt_sec_prefs);
-		if (stylesheet != NULL)
-			xsltFreeStylesheet(stylesheet);
-		if (doctree != NULL)
+		{
 			xmlFreeDoc(doctree);
-		xsltCleanupGlobals();
+			xmlCleanupParser();
+			elog_error(ERROR, "Error parsing stylesheet as XML document", 0);
+			PG_RETURN_NULL();
+		}
 
-		pg_xml_done(xmlerrcxt, true);
-
-		PG_RE_THROW();
+		stylesheet = xsltParseStylesheetDoc(ssdoc);
 	}
-	PG_END_TRY();
+	else
+		stylesheet = xsltParseStylesheetFile(GET_STR(ssheet));
 
-	xmlFreeDoc(restree);
-	xsltFreeTransformContext(xslt_ctxt);
-	xsltFreeSecurityPrefs(xslt_sec_prefs);
+
+	if (stylesheet == NULL)
+	{
+		xmlFreeDoc(doctree);
+		xsltCleanupGlobals();
+		xmlCleanupParser();
+		elog_error(ERROR, "Failed to parse stylesheet", 0);
+		PG_RETURN_NULL();
+	}
+
+	restree = xsltApplyStylesheet(stylesheet, doctree, params);
+	resstat = xsltSaveResultToString(&resstr, &reslen, restree, stylesheet);
+
 	xsltFreeStylesheet(stylesheet);
+	xmlFreeDoc(restree);
 	xmlFreeDoc(doctree);
+
 	xsltCleanupGlobals();
+	xmlCleanupParser();
 
-	pg_xml_done(xmlerrcxt, false);
-
-	/* XXX this is pretty dubious, really ought to throw error instead */
 	if (resstat < 0)
 		PG_RETURN_NULL();
 
-	result = cstring_to_text_with_len((char *) resstr, reslen);
+	tres = palloc(reslen + VARHDRSZ);
+	memcpy(VARDATA(tres), resstr, reslen);
+	VARATT_SIZEP(tres) = reslen + VARHDRSZ;
 
-	if (resstr)
-		xmlFree(resstr);
-
-	PG_RETURN_TEXT_P(result);
-#else							/* !USE_LIBXSLT */
-
-	ereport(ERROR,
-			(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-			 errmsg("xslt_process() is not available without libxslt")));
-	PG_RETURN_NULL();
-#endif							/* USE_LIBXSLT */
+	PG_RETURN_TEXT_P(tres);
 }
 
-#ifdef USE_LIBXSLT
 
-static const char **
-parse_params(text *paramstr)
+void
+parse_params(const char **params, text *paramstr)
 {
 	char	   *pos;
 	char	   *pstr;
+
+	int			i;
 	char	   *nvsep = "=";
 	char	   *itsep = ",";
-	const char **params;
-	int			max_params;
-	int			nparams;
 
-	pstr = text_to_cstring(paramstr);
-
-	max_params = 20;			/* must be even! */
-	params = (const char **) palloc((max_params + 1) * sizeof(char *));
-	nparams = 0;
+	pstr = GET_STR(paramstr);
 
 	pos = pstr;
 
-	while (*pos != '\0')
+	for (i = 0; i < MAXPARAMS; i++)
 	{
-		if (nparams >= max_params)
-		{
-			max_params *= 2;
-			params = (const char **) repalloc(params,
-											  (max_params + 1) * sizeof(char *));
-		}
-		params[nparams++] = pos;
+		params[i] = pos;
 		pos = strstr(pos, nvsep);
 		if (pos != NULL)
 		{
@@ -230,13 +160,12 @@ parse_params(text *paramstr)
 		}
 		else
 		{
-			/* No equal sign, so ignore this "parameter" */
-			nparams--;
+			params[i] = NULL;
 			break;
 		}
-
-		/* since max_params is even, we still have nparams < max_params */
-		params[nparams++] = pos;
+		/* Value */
+		i++;
+		params[i] = pos;
 		pos = strstr(pos, itsep);
 		if (pos != NULL)
 		{
@@ -245,12 +174,8 @@ parse_params(text *paramstr)
 		}
 		else
 			break;
+
 	}
-
-	/* Add the terminator marker; we left room for it in the palloc's */
-	params[nparams] = NULL;
-
-	return params;
+	if (i < MAXPARAMS)
+		params[i + 1] = NULL;
 }
-
-#endif							/* USE_LIBXSLT */

@@ -3,12 +3,12 @@
  * nodeBitmapOr.c
  *	  routines to handle BitmapOr nodes.
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/executor/nodeBitmapOr.c
+ *	  $PostgreSQL: pgsql/src/backend/executor/nodeBitmapOr.c,v 1.3 2005/10/15 02:49:17 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -29,22 +29,10 @@
 #include "postgres.h"
 
 #include "executor/execdebug.h"
+#include "executor/instrument.h"
 #include "executor/nodeBitmapOr.h"
 #include "miscadmin.h"
 
-
-/* ----------------------------------------------------------------
- *		ExecBitmapOr
- *
- *		stub for pro forma compliance
- * ----------------------------------------------------------------
- */
-static TupleTableSlot *
-ExecBitmapOr(PlanState *pstate)
-{
-	elog(ERROR, "BitmapOr node does not support ExecProcNode call convention");
-	return NULL;
-}
 
 /* ----------------------------------------------------------------
  *		ExecInitBitmapOr
@@ -53,7 +41,7 @@ ExecBitmapOr(PlanState *pstate)
  * ----------------------------------------------------------------
  */
 BitmapOrState *
-ExecInitBitmapOr(BitmapOr *node, EState *estate, int eflags)
+ExecInitBitmapOr(BitmapOr *node, EState *estate)
 {
 	BitmapOrState *bitmaporstate = makeNode(BitmapOrState);
 	PlanState **bitmapplanstates;
@@ -62,8 +50,7 @@ ExecInitBitmapOr(BitmapOr *node, EState *estate, int eflags)
 	ListCell   *l;
 	Plan	   *initNode;
 
-	/* check for unsupported flags */
-	Assert(!(eflags & (EXEC_FLAG_BACKWARD | EXEC_FLAG_MARK)));
+	CXT1_printf("ExecInitBitmapOr: context is %d\n", CurrentMemoryContext);
 
 	/*
 	 * Set up empty vector of subplan states
@@ -77,7 +64,6 @@ ExecInitBitmapOr(BitmapOr *node, EState *estate, int eflags)
 	 */
 	bitmaporstate->ps.plan = (Plan *) node;
 	bitmaporstate->ps.state = estate;
-	bitmaporstate->ps.ExecProcNode = ExecBitmapOr;
 	bitmaporstate->bitmapplans = bitmapplanstates;
 	bitmaporstate->nplans = nplans;
 
@@ -88,6 +74,8 @@ ExecInitBitmapOr(BitmapOr *node, EState *estate, int eflags)
 	 * ExecQual or ExecProject.  They don't need any tuple slots either.
 	 */
 
+#define BITMAPOR_NSLOTS 0
+
 	/*
 	 * call ExecInitNode on each of the plans to be executed and save the
 	 * results into the array "bitmapplanstates".
@@ -96,11 +84,22 @@ ExecInitBitmapOr(BitmapOr *node, EState *estate, int eflags)
 	foreach(l, node->bitmapplans)
 	{
 		initNode = (Plan *) lfirst(l);
-		bitmapplanstates[i] = ExecInitNode(initNode, estate, eflags);
+		bitmapplanstates[i] = ExecInitNode(initNode, estate);
 		i++;
 	}
 
 	return bitmaporstate;
+}
+
+int
+ExecCountSlotsBitmapOr(BitmapOr *node)
+{
+	ListCell   *plan;
+	int			nSlots = 0;
+
+	foreach(plan, node->bitmapplans)
+		nSlots += ExecCountSlotsNode((Plan *) lfirst(plan));
+	return nSlots + BITMAPOR_NSLOTS;
 }
 
 /* ----------------------------------------------------------------
@@ -143,9 +142,7 @@ MultiExecBitmapOr(BitmapOrState *node)
 			if (result == NULL) /* first subplan */
 			{
 				/* XXX should we use less than work_mem for this? */
-				result = tbm_create(work_mem * 1024L,
-									((BitmapOr *) node->ps.plan)->isshared ?
-									node->ps.state->es_query_dsa : NULL);
+				result = tbm_create(work_mem * 1024L);
 			}
 
 			((BitmapIndexScanState *) subnode)->biss_result = result;
@@ -164,7 +161,7 @@ MultiExecBitmapOr(BitmapOrState *node)
 				elog(ERROR, "unrecognized result from subplan");
 
 			if (result == NULL)
-				result = subresult; /* first subplan */
+				result = subresult;		/* first subplan */
 			else
 			{
 				tbm_union(result, subresult);
@@ -179,7 +176,7 @@ MultiExecBitmapOr(BitmapOrState *node)
 
 	/* must provide our own instrumentation support */
 	if (node->ps.instrument)
-		InstrStopNode(node->ps.instrument, 0 /* XXX */ );
+		InstrStopNodeMulti(node->ps.instrument, 0 /* XXX */ );
 
 	return (Node *) result;
 }
@@ -216,7 +213,7 @@ ExecEndBitmapOr(BitmapOrState *node)
 }
 
 void
-ExecReScanBitmapOr(BitmapOrState *node)
+ExecReScanBitmapOr(BitmapOrState *node, ExprContext *exprCtxt)
 {
 	int			i;
 
@@ -232,10 +229,9 @@ ExecReScanBitmapOr(BitmapOrState *node)
 			UpdateChangedParamSet(subnode, node->ps.chgParam);
 
 		/*
-		 * If chgParam of subnode is not null then plan will be re-scanned by
-		 * first ExecProcNode.
+		 * Always rescan the inputs immediately, to ensure we can pass down
+		 * any outer tuple that might be used in index quals.
 		 */
-		if (subnode->chgParam == NULL)
-			ExecReScan(subnode);
+		ExecReScan(subnode, exprCtxt);
 	}
 }

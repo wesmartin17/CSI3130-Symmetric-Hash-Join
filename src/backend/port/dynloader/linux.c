@@ -6,12 +6,12 @@
  *
  *	  You need to install the dld library on your Linux system!
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/port/dynloader/linux.c
+ *	  $PostgreSQL: pgsql/src/backend/port/dynloader/linux.c,v 1.31 2005/10/15 02:49:23 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -29,7 +29,7 @@
 #ifndef HAVE_DLOPEN
 
 void *
-pg_dlopen(const char *filename)
+pg_dlopen(char *filename)
 {
 #ifndef HAVE_DLD_H
 	elog(ERROR, "dynamic load not supported");
@@ -101,7 +101,7 @@ pg_dlopen(const char *filename)
 }
 
 PGFunction
-pg_dlsym(void *handle, const char *funcname)
+pg_dlsym(void *handle, char *funcname)
 {
 #ifndef HAVE_DLD_H
 	return NULL;
@@ -124,10 +124,10 @@ char *
 pg_dlerror(void)
 {
 #ifndef HAVE_DLD_H
-	return "dynaloader unsupported";
+	return "dynaloader unspported";
 #else
 	return dld_strerror(dld_errno);
 #endif
 }
 
-#endif							/* !HAVE_DLOPEN */
+#endif   /* !HAVE_DLOPEN */

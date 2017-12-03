@@ -3,12 +3,12 @@
  * nbtcompare.c
  *	  Comparison functions for btree access method.
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/access/nbtree/nbtcompare.c
+ *	  $PostgreSQL: pgsql/src/backend/access/nbtree/nbtcompare.c,v 1.51 2005/03/29 00:16:52 tgl Exp $
  *
  * NOTES
  *
@@ -22,10 +22,10 @@
  *
  *	The result is always an int32 regardless of the input datatype.
  *
- *	Although any negative int32 (except INT_MIN) is acceptable for reporting
- *	"<", and any positive int32 is acceptable for reporting ">", routines
+ *	NOTE: although any negative int32 is acceptable for reporting "<",
+ *	and any positive int32 is acceptable for reporting ">", routines
  *	that work on 32-bit or wider datatypes can't just return "a - b".
- *	That could overflow and give the wrong answer.  Also, one must not
+ *	That could overflow and give the wrong answer.	Also, one should not
  *	return INT_MIN to report "<", since some callers will negate the result.
  *
  *	NOTE: it is critical that the comparison function impose a total order
@@ -49,7 +49,6 @@
 #include "postgres.h"
 
 #include "utils/builtins.h"
-#include "utils/sortsupport.h"
 
 
 Datum
@@ -70,24 +69,6 @@ btint2cmp(PG_FUNCTION_ARGS)
 	PG_RETURN_INT32((int32) a - (int32) b);
 }
 
-static int
-btint2fastcmp(Datum x, Datum y, SortSupport ssup)
-{
-	int16		a = DatumGetInt16(x);
-	int16		b = DatumGetInt16(y);
-
-	return (int) a - (int) b;
-}
-
-Datum
-btint2sortsupport(PG_FUNCTION_ARGS)
-{
-	SortSupport ssup = (SortSupport) PG_GETARG_POINTER(0);
-
-	ssup->comparator = btint2fastcmp;
-	PG_RETURN_VOID();
-}
-
 Datum
 btint4cmp(PG_FUNCTION_ARGS)
 {
@@ -102,29 +83,6 @@ btint4cmp(PG_FUNCTION_ARGS)
 		PG_RETURN_INT32(-1);
 }
 
-static int
-btint4fastcmp(Datum x, Datum y, SortSupport ssup)
-{
-	int32		a = DatumGetInt32(x);
-	int32		b = DatumGetInt32(y);
-
-	if (a > b)
-		return 1;
-	else if (a == b)
-		return 0;
-	else
-		return -1;
-}
-
-Datum
-btint4sortsupport(PG_FUNCTION_ARGS)
-{
-	SortSupport ssup = (SortSupport) PG_GETARG_POINTER(0);
-
-	ssup->comparator = btint4fastcmp;
-	PG_RETURN_VOID();
-}
-
 Datum
 btint8cmp(PG_FUNCTION_ARGS)
 {
@@ -137,29 +95,6 @@ btint8cmp(PG_FUNCTION_ARGS)
 		PG_RETURN_INT32(0);
 	else
 		PG_RETURN_INT32(-1);
-}
-
-static int
-btint8fastcmp(Datum x, Datum y, SortSupport ssup)
-{
-	int64		a = DatumGetInt64(x);
-	int64		b = DatumGetInt64(y);
-
-	if (a > b)
-		return 1;
-	else if (a == b)
-		return 0;
-	else
-		return -1;
-}
-
-Datum
-btint8sortsupport(PG_FUNCTION_ARGS)
-{
-	SortSupport ssup = (SortSupport) PG_GETARG_POINTER(0);
-
-	ssup->comparator = btint8fastcmp;
-	PG_RETURN_VOID();
 }
 
 Datum
@@ -260,29 +195,6 @@ btoidcmp(PG_FUNCTION_ARGS)
 		PG_RETURN_INT32(-1);
 }
 
-static int
-btoidfastcmp(Datum x, Datum y, SortSupport ssup)
-{
-	Oid			a = DatumGetObjectId(x);
-	Oid			b = DatumGetObjectId(y);
-
-	if (a > b)
-		return 1;
-	else if (a == b)
-		return 0;
-	else
-		return -1;
-}
-
-Datum
-btoidsortsupport(PG_FUNCTION_ARGS)
-{
-	SortSupport ssup = (SortSupport) PG_GETARG_POINTER(0);
-
-	ssup->comparator = btoidfastcmp;
-	PG_RETURN_VOID();
-}
-
 Datum
 btoidvectorcmp(PG_FUNCTION_ARGS)
 {
@@ -326,20 +238,11 @@ btnamecmp(PG_FUNCTION_ARGS)
 	PG_RETURN_INT32(strncmp(NameStr(*a), NameStr(*b), NAMEDATALEN));
 }
 
-static int
-btnamefastcmp(Datum x, Datum y, SortSupport ssup)
-{
-	Name		a = DatumGetName(x);
-	Name		b = DatumGetName(y);
-
-	return strncmp(NameStr(*a), NameStr(*b), NAMEDATALEN);
-}
-
 Datum
-btnamesortsupport(PG_FUNCTION_ARGS)
+btname_pattern_cmp(PG_FUNCTION_ARGS)
 {
-	SortSupport ssup = (SortSupport) PG_GETARG_POINTER(0);
+	Name		a = PG_GETARG_NAME(0);
+	Name		b = PG_GETARG_NAME(1);
 
-	ssup->comparator = btnamefastcmp;
-	PG_RETURN_VOID();
+	PG_RETURN_INT32(memcmp(NameStr(*a), NameStr(*b), NAMEDATALEN));
 }

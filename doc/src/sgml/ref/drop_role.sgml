@@ -1,16 +1,11 @@
 <!--
-doc/src/sgml/ref/drop_role.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/drop_role.sgml,v 1.1 2005/07/26 23:24:02 tgl Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-droprole">
- <indexterm zone="sql-droprole">
-  <primary>DROP ROLE</primary>
- </indexterm>
-
+<refentry id="SQL-DROPROLE">
  <refmeta>
-  <refentrytitle>DROP ROLE</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="SQL-DROPROLE-TITLE">DROP ROLE</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -19,9 +14,13 @@ PostgreSQL documentation
   <refpurpose>remove a database role</refpurpose>
  </refnamediv>
 
+ <indexterm zone="sql-droprole">
+  <primary>DROP ROLE</primary>
+ </indexterm>
+
  <refsynopsisdiv>
 <synopsis>
-DROP ROLE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...]
+DROP ROLE <replaceable class="PARAMETER">name</replaceable> [, ...]
 </synopsis>
  </refsynopsisdiv>
 
@@ -31,7 +30,7 @@ DROP ROLE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...
   <para>
    <command>DROP ROLE</command> removes the specified role(s).
    To drop a superuser role, you must be a superuser yourself;
-   to drop non-superuser roles, you must have <literal>CREATEROLE</literal>
+   to drop non-superuser roles, you must have <literal>CREATEROLE</>
    privilege.
   </para>
 
@@ -39,15 +38,12 @@ DROP ROLE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...
    A role cannot be removed if it is still referenced in any database
    of the cluster; an error will be raised if so.  Before dropping the role,
    you must drop all the objects it owns (or reassign their ownership)
-   and revoke any privileges the role has been granted on other objects.
-   The <xref linkend="sql-reassign-owned"/> and <xref linkend="sql-drop-owned"/>
-   commands can be useful for this purpose; see <xref linkend="role-removal"/>
-   for more discussion.
+   and revoke any privileges the role has been granted.
   </para>
 
   <para>
    However, it is not necessary to remove role memberships involving
-   the role; <command>DROP ROLE</command> automatically revokes any memberships
+   the role; <command>DROP ROLE</> automatically revokes any memberships
    of the target role in other roles, and of other roles in the target role.
    The other roles are not dropped nor otherwise affected.
   </para>
@@ -58,17 +54,7 @@ DROP ROLE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...
 
   <variablelist>
    <varlistentry>
-    <term><literal>IF EXISTS</literal></term>
-    <listitem>
-     <para>
-      Do not throw an error if the role does not exist. A notice is issued
-      in this case.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">name</replaceable></term>
+    <term><replaceable class="PARAMETER">name</replaceable></term>
     <listitem>
      <para>
       The name of the role to remove.
@@ -83,7 +69,7 @@ DROP ROLE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...
 
   <para>
    <productname>PostgreSQL</productname> includes a program <xref
-   linkend="app-dropuser"/> that has the
+   linkend="APP-DROPUSER" endterm="APP-DROPUSER-title"> that has the
    same functionality as this command (in fact, it calls this command)
    but can be run from the command shell.
   </para>
@@ -96,12 +82,13 @@ DROP ROLE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...
    To drop a role:
 <programlisting>
 DROP ROLE jonathan;
-</programlisting></para>
+</programlisting>
+  </para>
  </refsect1>
-
+ 
  <refsect1>
   <title>Compatibility</title>
-
+  
   <para>
    The SQL standard defines <command>DROP ROLE</command>, but it allows
    only one role to be dropped at a time, and it specifies different
@@ -113,10 +100,27 @@ DROP ROLE jonathan;
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-createrole"/></member>
-   <member><xref linkend="sql-alterrole"/></member>
-   <member><xref linkend="sql-set-role"/></member>
+   <member><xref linkend="sql-createrole" endterm="sql-createrole-title"></member>
+   <member><xref linkend="sql-alterrole" endterm="sql-alterrole-title"></member>
+   <member><xref linkend="sql-set-role" endterm="sql-set-role-title"></member>
   </simplelist>
  </refsect1>
 
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

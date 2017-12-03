@@ -30,7 +30,7 @@
  *
  * THE AUTHORS AND DISTRIBUTORS SPECIFICALLY DISCLAIM ANY WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.  THIS SOFTWARE
+ * FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.	THIS SOFTWARE
  * IS PROVIDED ON AN "AS IS" BASIS, AND THE AUTHORS AND DISTRIBUTORS HAVE
  * NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR
  * MODIFICATIONS.
@@ -38,7 +38,7 @@
  * GOVERNMENT USE: If you are acquiring this software on behalf of the
  * U.S. government, the Government shall have only "Restricted Rights"
  * in the software and related documentation as defined in the Federal
- * Acquisition Regulations (FARs) in Clause 52.227.19 (c) (2).  If you
+ * Acquisition Regulations (FARs) in Clause 52.227.19 (c) (2).	If you
  * are acquiring the software on behalf of the Department of Defense, the
  * software shall be classified as "Commercial Computer Software" and the
  * Government shall have only "Restricted Rights" as defined in Clause
@@ -47,16 +47,16 @@
  * permission to use and distribute the software in accordance with the
  * terms specified in this license.
  *
- * src/backend/regex/regc_locale.c
+ * $PostgreSQL: pgsql/src/backend/regex/regc_locale.c,v 1.7.2.1 2005/11/22 18:23:16 momjian Exp $
  */
 
 /* ASCII character-name table */
 
-static const struct cname
+static struct cname
 {
-	const char *name;
-	const char	code;
-}			cnames[] =
+	char	   *name;
+	char		code;
+}	cnames[] =
 
 {
 	{
@@ -350,38 +350,119 @@ static const struct cname
 };
 
 /*
- * The following arrays define the valid character class names.
+ * some ctype functions with non-ascii-char guard
  */
-static const char *const classNames[NUM_CCLASSES + 1] = {
-	"alnum", "alpha", "ascii", "blank", "cntrl", "digit", "graph",
-	"lower", "print", "punct", "space", "upper", "xdigit", NULL
-};
-
-enum classes
+static int
+pg_wc_isdigit(pg_wchar c)
 {
-	CC_ALNUM, CC_ALPHA, CC_ASCII, CC_BLANK, CC_CNTRL, CC_DIGIT, CC_GRAPH,
-	CC_LOWER, CC_PRINT, CC_PUNCT, CC_SPACE, CC_UPPER, CC_XDIGIT
-};
+	return (c >= 0 && c <= UCHAR_MAX && isdigit((unsigned char) c));
+}
+
+static int
+pg_wc_isalpha(pg_wchar c)
+{
+	return (c >= 0 && c <= UCHAR_MAX && isalpha((unsigned char) c));
+}
+
+static int
+pg_wc_isalnum(pg_wchar c)
+{
+	return (c >= 0 && c <= UCHAR_MAX && isalnum((unsigned char) c));
+}
+
+static int
+pg_wc_isupper(pg_wchar c)
+{
+	return (c >= 0 && c <= UCHAR_MAX && isupper((unsigned char) c));
+}
+
+static int
+pg_wc_islower(pg_wchar c)
+{
+	return (c >= 0 && c <= UCHAR_MAX && islower((unsigned char) c));
+}
+
+static int
+pg_wc_isgraph(pg_wchar c)
+{
+	return (c >= 0 && c <= UCHAR_MAX && isgraph((unsigned char) c));
+}
+
+static int
+pg_wc_isprint(pg_wchar c)
+{
+	return (c >= 0 && c <= UCHAR_MAX && isprint((unsigned char) c));
+}
+
+static int
+pg_wc_ispunct(pg_wchar c)
+{
+	return (c >= 0 && c <= UCHAR_MAX && ispunct((unsigned char) c));
+}
+
+static int
+pg_wc_isspace(pg_wchar c)
+{
+	return (c >= 0 && c <= UCHAR_MAX && isspace((unsigned char) c));
+}
+
+static pg_wchar
+pg_wc_toupper(pg_wchar c)
+{
+	if (c >= 0 && c <= UCHAR_MAX)
+		return toupper((unsigned char) c);
+	return c;
+}
+
+static pg_wchar
+pg_wc_tolower(pg_wchar c)
+{
+	if (c >= 0 && c <= UCHAR_MAX)
+		return tolower((unsigned char) c);
+	return c;
+}
+
 
 /*
- * We do not use the hard-wired Unicode classification tables that Tcl does.
- * This is because (a) we need to deal with other encodings besides Unicode,
- * and (b) we want to track the behavior of the libc locale routines as
- * closely as possible.  For example, it wouldn't be unreasonable for a
- * locale to not consider every Unicode letter as a letter.  So we build
- * character classification cvecs by asking libc, even for Unicode.
+ * nmcces - how many distinct MCCEs are there?
  */
-
+static int
+nmcces(struct vars * v)
+{
+	/*
+	 * No multi-character collating elements defined at the moment.
+	 */
+	return 0;
+}
 
 /*
- * element - map collating-element name to chr
+ * nleaders - how many chrs can be first chrs of MCCEs?
  */
-static chr
-element(struct vars *v,			/* context */
-		const chr *startp,		/* points to start of name */
-		const chr *endp)		/* points just past end of name */
+static int
+nleaders(struct vars * v)
 {
-	const struct cname *cn;
+	return 0;
+}
+
+/*
+ * allmcces - return a cvec with all the MCCEs of the locale
+ */
+static struct cvec *
+allmcces(struct vars * v,		/* context */
+		 struct cvec * cv)		/* this is supposed to have enough room */
+{
+	return clearcvec(cv);
+}
+
+/*
+ * element - map collating-element name to celt
+ */
+static celt
+element(struct vars * v,		/* context */
+		chr *startp,			/* points to start of name */
+		chr *endp)				/* points just past end of name */
+{
+	struct cname *cn;
 	size_t		len;
 
 	/* generic:  one-chr names stand for themselves */
@@ -413,15 +494,16 @@ element(struct vars *v,			/* context */
  * range - supply cvec for a range, including legality check
  */
 static struct cvec *
-range(struct vars *v,			/* context */
-	  chr a,					/* range start */
-	  chr b,					/* range end, might equal a */
+range(struct vars * v,			/* context */
+	  celt a,					/* range start */
+	  celt b,					/* range end, might equal a */
 	  int cases)				/* case-independent? */
 {
 	int			nchrs;
 	struct cvec *cv;
-	chr			c,
-				cc;
+	celt		c,
+				lc,
+				uc;
 
 	if (a != b && !before(a, b))
 	{
@@ -431,7 +513,7 @@ range(struct vars *v,			/* context */
 
 	if (!cases)
 	{							/* easy version */
-		cv = getcvec(v, 0, 1);
+		cv = getcvec(v, 0, 1, 0);
 		NOERRN();
 		addrange(cv, a, b);
 		return cv;
@@ -439,62 +521,36 @@ range(struct vars *v,			/* context */
 
 	/*
 	 * When case-independent, it's hard to decide when cvec ranges are usable,
-	 * so for now at least, we won't try.  We use a range for the originally
-	 * specified chrs and then add on any case-equivalents that are outside
-	 * that range as individual chrs.
-	 *
-	 * To ensure sane behavior if someone specifies a very large range, limit
-	 * the allocation size to 100000 chrs (arbitrary) and check for overrun
-	 * inside the loop below.
+	 * so for now at least, we won't try.  We allocate enough space for two
+	 * case variants plus a little extra for the two title case variants.
 	 */
-	nchrs = b - a + 1;
-	if (nchrs <= 0 || nchrs > 100000)
-		nchrs = 100000;
 
-	cv = getcvec(v, nchrs, 1);
+	nchrs = (b - a + 1) * 2 + 4;
+
+	cv = getcvec(v, nchrs, 0, 0);
 	NOERRN();
-	addrange(cv, a, b);
 
 	for (c = a; c <= b; c++)
 	{
-		cc = pg_wc_tolower(c);
-		if (cc != c &&
-			(before(cc, a) || before(b, cc)))
-		{
-			if (cv->nchrs >= cv->chrspace)
-			{
-				ERR(REG_ETOOBIG);
-				return NULL;
-			}
-			addchr(cv, cc);
-		}
-		cc = pg_wc_toupper(c);
-		if (cc != c &&
-			(before(cc, a) || before(b, cc)))
-		{
-			if (cv->nchrs >= cv->chrspace)
-			{
-				ERR(REG_ETOOBIG);
-				return NULL;
-			}
-			addchr(cv, cc);
-		}
-		if (CANCEL_REQUESTED(v->re))
-		{
-			ERR(REG_CANCEL);
-			return NULL;
-		}
+		addchr(cv, c);
+		lc = pg_wc_tolower((chr) c);
+		if (c != lc)
+			addchr(cv, lc);
+		uc = pg_wc_toupper((chr) c);
+		if (c != uc)
+			addchr(cv, uc);
 	}
 
 	return cv;
 }
 
 /*
- * before - is chr x before chr y, for purposes of range legality?
+ * before - is celt x before celt y, for purposes of range legality?
  */
 static int						/* predicate */
-before(chr x, chr y)
+before(celt x, celt y)
 {
+	/* trivial because no MCCEs */
 	if (x < y)
 		return 1;
 	return 0;
@@ -505,8 +561,8 @@ before(chr x, chr y)
  * Must include case counterparts on request.
  */
 static struct cvec *
-eclass(struct vars *v,			/* context */
-	   chr c,					/* Collating element representing the
+eclass(struct vars * v,			/* context */
+	   celt c,					/* Collating element representing the
 								 * equivalence class. */
 	   int cases)				/* all cases? */
 {
@@ -515,13 +571,13 @@ eclass(struct vars *v,			/* context */
 	/* crude fake equivalence class for testing */
 	if ((v->cflags & REG_FAKE) && c == 'x')
 	{
-		cv = getcvec(v, 4, 0);
-		addchr(cv, CHR('x'));
-		addchr(cv, CHR('y'));
+		cv = getcvec(v, 4, 0, 0);
+		addchr(cv, (chr) 'x');
+		addchr(cv, (chr) 'y');
 		if (cases)
 		{
-			addchr(cv, CHR('X'));
-			addchr(cv, CHR('Y'));
+			addchr(cv, (chr) 'X');
+			addchr(cv, (chr) 'Y');
 		}
 		return cv;
 	}
@@ -529,32 +585,43 @@ eclass(struct vars *v,			/* context */
 	/* otherwise, none */
 	if (cases)
 		return allcases(v, c);
-	cv = getcvec(v, 1, 0);
+	cv = getcvec(v, 1, 0, 0);
 	assert(cv != NULL);
-	addchr(cv, c);
+	addchr(cv, (chr) c);
 	return cv;
 }
 
 /*
  * cclass - supply cvec for a character class
  *
- * Must include case counterparts if "cases" is true.
- *
- * The returned cvec might be either a transient cvec gotten from getcvec(),
- * or a permanently cached one from pg_ctype_get_cache().  This is okay
- * because callers are not supposed to explicitly free the result either way.
+ * Must include case counterparts on request.
  */
 static struct cvec *
-cclass(struct vars *v,			/* context */
-	   const chr *startp,		/* where the name starts */
-	   const chr *endp,			/* just past the end of the name */
+cclass(struct vars * v,			/* context */
+	   chr *startp,				/* where the name starts */
+	   chr *endp,				/* just past the end of the name */
 	   int cases)				/* case-independent? */
 {
 	size_t		len;
 	struct cvec *cv = NULL;
-	const char *const *namePtr;
+	char	  **namePtr;
 	int			i,
 				index;
+
+	/*
+	 * The following arrays define the valid character class names.
+	 */
+
+	static char *classNames[] = {
+		"alnum", "alpha", "ascii", "blank", "cntrl", "digit", "graph",
+		"lower", "print", "punct", "space", "upper", "xdigit", NULL
+	};
+
+	enum classes
+	{
+		CC_ALNUM, CC_ALPHA, CC_ASCII, CC_BLANK, CC_CNTRL, CC_DIGIT, CC_GRAPH,
+		CC_LOWER, CC_PRINT, CC_PUNCT, CC_SPACE, CC_UPPER, CC_XDIGIT
+	};
 
 	/*
 	 * Map the name to the corresponding enumerated value.
@@ -586,58 +653,80 @@ cclass(struct vars *v,			/* context */
 		index = (int) CC_ALPHA;
 
 	/*
-	 * Now compute the character class contents.  For classes that are based
-	 * on the behavior of a <wctype.h> or <ctype.h> function, we use
-	 * pg_ctype_get_cache so that we can cache the results.  Other classes
-	 * have definitions that are hard-wired here, and for those we just
-	 * construct a transient cvec on the fly.
+	 * Now compute the character class contents.
 	 *
-	 * NB: keep this code in sync with cclass_column_index(), below.
+	 * For the moment, assume that only char codes < 256 can be in these
+	 * classes.
 	 */
 
 	switch ((enum classes) index)
 	{
 		case CC_PRINT:
-			cv = pg_ctype_get_cache(pg_wc_isprint, index);
+			cv = getcvec(v, UCHAR_MAX, 0, 0);
+			if (cv)
+			{
+				for (i = 0; i <= UCHAR_MAX; i++)
+				{
+					if (pg_wc_isprint((chr) i))
+						addchr(cv, (chr) i);
+				}
+			}
 			break;
 		case CC_ALNUM:
-			cv = pg_ctype_get_cache(pg_wc_isalnum, index);
+			cv = getcvec(v, UCHAR_MAX, 0, 0);
+			if (cv)
+			{
+				for (i = 0; i <= UCHAR_MAX; i++)
+				{
+					if (pg_wc_isalnum((chr) i))
+						addchr(cv, (chr) i);
+				}
+			}
 			break;
 		case CC_ALPHA:
-			cv = pg_ctype_get_cache(pg_wc_isalpha, index);
+			cv = getcvec(v, UCHAR_MAX, 0, 0);
+			if (cv)
+			{
+				for (i = 0; i <= UCHAR_MAX; i++)
+				{
+					if (pg_wc_isalpha((chr) i))
+						addchr(cv, (chr) i);
+				}
+			}
 			break;
 		case CC_ASCII:
-			/* hard-wired meaning */
-			cv = getcvec(v, 0, 1);
+			cv = getcvec(v, 0, 1, 0);
 			if (cv)
 				addrange(cv, 0, 0x7f);
 			break;
 		case CC_BLANK:
-			/* hard-wired meaning */
-			cv = getcvec(v, 2, 0);
+			cv = getcvec(v, 2, 0, 0);
 			addchr(cv, '\t');
 			addchr(cv, ' ');
 			break;
 		case CC_CNTRL:
-			/* hard-wired meaning */
-			cv = getcvec(v, 0, 2);
+			cv = getcvec(v, 0, 2, 0);
 			addrange(cv, 0x0, 0x1f);
 			addrange(cv, 0x7f, 0x9f);
 			break;
 		case CC_DIGIT:
-			cv = pg_ctype_get_cache(pg_wc_isdigit, index);
+			cv = getcvec(v, 0, 1, 0);
+			if (cv)
+				addrange(cv, (chr) '0', (chr) '9');
 			break;
 		case CC_PUNCT:
-			cv = pg_ctype_get_cache(pg_wc_ispunct, index);
+			cv = getcvec(v, UCHAR_MAX, 0, 0);
+			if (cv)
+			{
+				for (i = 0; i <= UCHAR_MAX; i++)
+				{
+					if (pg_wc_ispunct((chr) i))
+						addchr(cv, (chr) i);
+				}
+			}
 			break;
 		case CC_XDIGIT:
-
-			/*
-			 * It's not clear how to define this in non-western locales, and
-			 * even less clear that there's any particular use in trying. So
-			 * just hard-wire the meaning.
-			 */
-			cv = getcvec(v, 0, 3);
+			cv = getcvec(v, 0, 3, 0);
 			if (cv)
 			{
 				addrange(cv, '0', '9');
@@ -646,64 +735,53 @@ cclass(struct vars *v,			/* context */
 			}
 			break;
 		case CC_SPACE:
-			cv = pg_ctype_get_cache(pg_wc_isspace, index);
+			cv = getcvec(v, UCHAR_MAX, 0, 0);
+			if (cv)
+			{
+				for (i = 0; i <= UCHAR_MAX; i++)
+				{
+					if (pg_wc_isspace((chr) i))
+						addchr(cv, (chr) i);
+				}
+			}
 			break;
 		case CC_LOWER:
-			cv = pg_ctype_get_cache(pg_wc_islower, index);
+			cv = getcvec(v, UCHAR_MAX, 0, 0);
+			if (cv)
+			{
+				for (i = 0; i <= UCHAR_MAX; i++)
+				{
+					if (pg_wc_islower((chr) i))
+						addchr(cv, (chr) i);
+				}
+			}
 			break;
 		case CC_UPPER:
-			cv = pg_ctype_get_cache(pg_wc_isupper, index);
+			cv = getcvec(v, UCHAR_MAX, 0, 0);
+			if (cv)
+			{
+				for (i = 0; i <= UCHAR_MAX; i++)
+				{
+					if (pg_wc_isupper((chr) i))
+						addchr(cv, (chr) i);
+				}
+			}
 			break;
 		case CC_GRAPH:
-			cv = pg_ctype_get_cache(pg_wc_isgraph, index);
+			cv = getcvec(v, UCHAR_MAX, 0, 0);
+			if (cv)
+			{
+				for (i = 0; i <= UCHAR_MAX; i++)
+				{
+					if (pg_wc_isgraph((chr) i))
+						addchr(cv, (chr) i);
+				}
+			}
 			break;
 	}
-
-	/* If cv is NULL now, the reason must be "out of memory" */
 	if (cv == NULL)
 		ERR(REG_ESPACE);
 	return cv;
-}
-
-/*
- * cclass_column_index - get appropriate high colormap column index for chr
- */
-static int
-cclass_column_index(struct colormap *cm, chr c)
-{
-	int			colnum = 0;
-
-	/* Shouldn't go through all these pushups for simple chrs */
-	assert(c > MAX_SIMPLE_CHR);
-
-	/*
-	 * Note: we should not see requests to consider cclasses that are not
-	 * treated as locale-specific by cclass(), above.
-	 */
-	if (cm->classbits[CC_PRINT] && pg_wc_isprint(c))
-		colnum |= cm->classbits[CC_PRINT];
-	if (cm->classbits[CC_ALNUM] && pg_wc_isalnum(c))
-		colnum |= cm->classbits[CC_ALNUM];
-	if (cm->classbits[CC_ALPHA] && pg_wc_isalpha(c))
-		colnum |= cm->classbits[CC_ALPHA];
-	assert(cm->classbits[CC_ASCII] == 0);
-	assert(cm->classbits[CC_BLANK] == 0);
-	assert(cm->classbits[CC_CNTRL] == 0);
-	if (cm->classbits[CC_DIGIT] && pg_wc_isdigit(c))
-		colnum |= cm->classbits[CC_DIGIT];
-	if (cm->classbits[CC_PUNCT] && pg_wc_ispunct(c))
-		colnum |= cm->classbits[CC_PUNCT];
-	assert(cm->classbits[CC_XDIGIT] == 0);
-	if (cm->classbits[CC_SPACE] && pg_wc_isspace(c))
-		colnum |= cm->classbits[CC_SPACE];
-	if (cm->classbits[CC_LOWER] && pg_wc_islower(c))
-		colnum |= cm->classbits[CC_LOWER];
-	if (cm->classbits[CC_UPPER] && pg_wc_isupper(c))
-		colnum |= cm->classbits[CC_UPPER];
-	if (cm->classbits[CC_GRAPH] && pg_wc_isgraph(c))
-		colnum |= cm->classbits[CC_GRAPH];
-
-	return colnum;
 }
 
 /*
@@ -713,17 +791,18 @@ cclass_column_index(struct colormap *cm, chr c)
  * messy cases are done via range().
  */
 static struct cvec *
-allcases(struct vars *v,		/* context */
-		 chr c)					/* character to get case equivs of */
+allcases(struct vars * v,		/* context */
+		 chr pc)				/* character to get case equivs of */
 {
 	struct cvec *cv;
+	chr			c = (chr) pc;
 	chr			lc,
 				uc;
 
-	lc = pg_wc_tolower(c);
-	uc = pg_wc_toupper(c);
+	lc = pg_wc_tolower((chr) c);
+	uc = pg_wc_toupper((chr) c);
 
-	cv = getcvec(v, 2, 0);
+	cv = getcvec(v, 2, 0, 0);
 	addchr(cv, lc);
 	if (lc != uc)
 		addchr(cv, uc);
@@ -733,7 +812,7 @@ allcases(struct vars *v,		/* context */
 /*
  * cmp - chr-substring compare
  *
- * Backrefs need this.  It should preferably be efficient.
+ * Backrefs need this.	It should preferably be efficient.
  * Note that it does not need to report anything except equal/unequal.
  * Note also that the length is exact, and the comparison should not
  * stop at embedded NULs!
@@ -754,7 +833,7 @@ cmp(const chr *x, const chr *y, /* strings to compare */
  * stop at embedded NULs!
  */
 static int						/* 0 for equal, nonzero for unequal */
-casecmp(const chr *x, const chr *y, /* strings to compare */
+casecmp(const chr *x, const chr *y,		/* strings to compare */
 		size_t len)				/* exact length of comparison */
 {
 	for (; len > 0; len--, x++, y++)

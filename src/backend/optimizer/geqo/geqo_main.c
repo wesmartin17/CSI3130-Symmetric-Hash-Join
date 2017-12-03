@@ -4,10 +4,10 @@
  *	  solution to the query optimization problem
  *	  by means of a Genetic Algorithm (GA)
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/backend/optimizer/geqo/geqo_main.c
+ * $PostgreSQL: pgsql/src/backend/optimizer/geqo/geqo_main.c,v 1.51 2005/10/15 02:49:19 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -26,10 +26,10 @@
 
 #include <math.h>
 
+#include "optimizer/geqo.h"
 #include "optimizer/geqo_misc.h"
 #include "optimizer/geqo_mutation.h"
 #include "optimizer/geqo_pool.h"
-#include "optimizer/geqo_random.h"
 #include "optimizer/geqo_selection.h"
 
 
@@ -40,20 +40,19 @@ int			Geqo_effort;
 int			Geqo_pool_size;
 int			Geqo_generations;
 double		Geqo_selection_bias;
-double		Geqo_seed;
 
 
 static int	gimme_pool_size(int nr_rel);
 static int	gimme_number_generations(int pool_size);
 
-/* complain if no recombination mechanism is #define'd */
+/* define edge recombination crossover [ERX] per default */
 #if !defined(ERX) && \
 	!defined(PMX) && \
 	!defined(CX)  && \
 	!defined(PX)  && \
 	!defined(OX1) && \
 	!defined(OX2)
-#error "must choose one GEQO recombination mechanism in geqo.h"
+#define ERX
 #endif
 
 
@@ -66,24 +65,22 @@ static int	gimme_number_generations(int pool_size);
 RelOptInfo *
 geqo(PlannerInfo *root, int number_of_rels, List *initial_rels)
 {
-	GeqoPrivateData private;
+	GeqoEvalData evaldata;
 	int			generation;
 	Chromosome *momma;
 	Chromosome *daddy;
 	Chromosome *kid;
 	Pool	   *pool;
 	int			pool_size,
-				number_generations;
-
-#ifdef GEQO_DEBUG
-	int			status_interval;
-#endif
+				number_generations,
+				status_interval;
 	Gene	   *best_tour;
 	RelOptInfo *best_rel;
 
 #if defined(ERX)
 	Edge	   *edge_table;		/* list of edges */
 	int			edge_failures = 0;
+	float		difference;
 #endif
 #if defined(CX) || defined(PX) || defined(OX1) || defined(OX2)
 	City	   *city_table;		/* list of cities */
@@ -93,28 +90,23 @@ geqo(PlannerInfo *root, int number_of_rels, List *initial_rels)
 	int			mutations = 0;
 #endif
 
-/* set up private information */
-	root->join_search_private = (void *) &private;
-	private.initial_rels = initial_rels;
-
-/* initialize private number generator */
-	geqo_set_seed(root, Geqo_seed);
+/* set up evaldata */
+	evaldata.root = root;
+	evaldata.initial_rels = initial_rels;
 
 /* set GA parameters */
 	pool_size = gimme_pool_size(number_of_rels);
 	number_generations = gimme_number_generations(pool_size);
-#ifdef GEQO_DEBUG
 	status_interval = 10;
-#endif
 
 /* allocate genetic pool memory */
-	pool = alloc_pool(root, pool_size, number_of_rels);
+	pool = alloc_pool(pool_size, number_of_rels);
 
 /* random initialization of the pool */
-	random_init_pool(root, pool);
+	random_init_pool(pool, &evaldata);
 
 /* sort the pool according to cheapest path as fitness */
-	sort_pool(root, pool);		/* we have to do it only one time, since all
+	sort_pool(pool);			/* we have to do it only one time, since all
 								 * kids replace the worst individuals in
 								 * future (-> geqo_pool.c:spread_chromo ) */
 
@@ -126,49 +118,49 @@ geqo(PlannerInfo *root, int number_of_rels, List *initial_rels)
 #endif
 
 /* allocate chromosome momma and daddy memory */
-	momma = alloc_chromo(root, pool->string_length);
-	daddy = alloc_chromo(root, pool->string_length);
+	momma = alloc_chromo(pool->string_length);
+	daddy = alloc_chromo(pool->string_length);
 
 #if defined (ERX)
 #ifdef GEQO_DEBUG
 	elog(DEBUG2, "using edge recombination crossover [ERX]");
 #endif
 /* allocate edge table memory */
-	edge_table = alloc_edge_table(root, pool->string_length);
+	edge_table = alloc_edge_table(pool->string_length);
 #elif defined(PMX)
 #ifdef GEQO_DEBUG
 	elog(DEBUG2, "using partially matched crossover [PMX]");
 #endif
 /* allocate chromosome kid memory */
-	kid = alloc_chromo(root, pool->string_length);
+	kid = alloc_chromo(pool->string_length);
 #elif defined(CX)
 #ifdef GEQO_DEBUG
 	elog(DEBUG2, "using cycle crossover [CX]");
 #endif
 /* allocate city table memory */
-	kid = alloc_chromo(root, pool->string_length);
-	city_table = alloc_city_table(root, pool->string_length);
+	kid = alloc_chromo(pool->string_length);
+	city_table = alloc_city_table(pool->string_length);
 #elif defined(PX)
 #ifdef GEQO_DEBUG
 	elog(DEBUG2, "using position crossover [PX]");
 #endif
 /* allocate city table memory */
-	kid = alloc_chromo(root, pool->string_length);
-	city_table = alloc_city_table(root, pool->string_length);
+	kid = alloc_chromo(pool->string_length);
+	city_table = alloc_city_table(pool->string_length);
 #elif defined(OX1)
 #ifdef GEQO_DEBUG
 	elog(DEBUG2, "using order crossover [OX1]");
 #endif
 /* allocate city table memory */
-	kid = alloc_chromo(root, pool->string_length);
-	city_table = alloc_city_table(root, pool->string_length);
+	kid = alloc_chromo(pool->string_length);
+	city_table = alloc_city_table(pool->string_length);
 #elif defined(OX2)
 #ifdef GEQO_DEBUG
 	elog(DEBUG2, "using order crossover [OX2]");
 #endif
 /* allocate city table memory */
-	kid = alloc_chromo(root, pool->string_length);
-	city_table = alloc_city_table(root, pool->string_length);
+	kid = alloc_chromo(pool->string_length);
+	city_table = alloc_city_table(pool->string_length);
 #endif
 
 
@@ -178,45 +170,45 @@ geqo(PlannerInfo *root, int number_of_rels, List *initial_rels)
 	for (generation = 0; generation < number_generations; generation++)
 	{
 		/* SELECTION: using linear bias function */
-		geqo_selection(root, momma, daddy, pool, Geqo_selection_bias);
+		geqo_selection(momma, daddy, pool, Geqo_selection_bias);
 
 #if defined (ERX)
 		/* EDGE RECOMBINATION CROSSOVER */
-		gimme_edge_table(root, momma->string, daddy->string, pool->string_length, edge_table);
+		difference = gimme_edge_table(momma->string, daddy->string, pool->string_length, edge_table);
 
 		kid = momma;
 
 		/* are there any edge failures ? */
-		edge_failures += gimme_tour(root, edge_table, kid->string, pool->string_length);
+		edge_failures += gimme_tour(edge_table, kid->string, pool->string_length);
 #elif defined(PMX)
 		/* PARTIALLY MATCHED CROSSOVER */
-		pmx(root, momma->string, daddy->string, kid->string, pool->string_length);
+		pmx(momma->string, daddy->string, kid->string, pool->string_length);
 #elif defined(CX)
 		/* CYCLE CROSSOVER */
-		cycle_diffs = cx(root, momma->string, daddy->string, kid->string, pool->string_length, city_table);
+		cycle_diffs = cx(momma->string, daddy->string, kid->string, pool->string_length, city_table);
 		/* mutate the child */
 		if (cycle_diffs == 0)
 		{
 			mutations++;
-			geqo_mutation(root, kid->string, pool->string_length);
+			geqo_mutation(kid->string, pool->string_length);
 		}
 #elif defined(PX)
 		/* POSITION CROSSOVER */
-		px(root, momma->string, daddy->string, kid->string, pool->string_length, city_table);
+		px(momma->string, daddy->string, kid->string, pool->string_length, city_table);
 #elif defined(OX1)
 		/* ORDER CROSSOVER */
-		ox1(root, momma->string, daddy->string, kid->string, pool->string_length, city_table);
+		ox1(momma->string, daddy->string, kid->string, pool->string_length, city_table);
 #elif defined(OX2)
 		/* ORDER CROSSOVER */
-		ox2(root, momma->string, daddy->string, kid->string, pool->string_length, city_table);
+		ox2(momma->string, daddy->string, kid->string, pool->string_length, city_table);
 #endif
 
 
 		/* EVALUATE FITNESS */
-		kid->worth = geqo_eval(root, kid->string, pool->string_length);
+		kid->worth = geqo_eval(kid->string, pool->string_length, &evaldata);
 
 		/* push the kid into the wilderness of life according to its worth */
-		spread_chromo(root, kid, pool);
+		spread_chromo(kid, pool);
 
 
 #ifdef GEQO_DEBUG
@@ -259,10 +251,10 @@ geqo(PlannerInfo *root, int number_of_rels, List *initial_rels)
 	 */
 	best_tour = (Gene *) pool->data[0].string;
 
-	best_rel = gimme_tree(root, best_tour, pool->string_length);
+	best_rel = gimme_tree(best_tour, pool->string_length, &evaldata);
 
 	if (best_rel == NULL)
-		elog(ERROR, "geqo failed to make a valid plan");
+		elog(ERROR, "failed to make a valid plan");
 
 	/* DBG: show the query plan */
 #ifdef NOT_USED
@@ -270,31 +262,28 @@ geqo(PlannerInfo *root, int number_of_rels, List *initial_rels)
 #endif
 
 	/* ... free memory stuff */
-	free_chromo(root, momma);
-	free_chromo(root, daddy);
+	free_chromo(momma);
+	free_chromo(daddy);
 
 #if defined (ERX)
-	free_edge_table(root, edge_table);
+	free_edge_table(edge_table);
 #elif defined(PMX)
-	free_chromo(root, kid);
+	free_chromo(kid);
 #elif defined(CX)
-	free_chromo(root, kid);
-	free_city_table(root, city_table);
+	free_chromo(kid);
+	free_city_table(city_table);
 #elif defined(PX)
-	free_chromo(root, kid);
-	free_city_table(root, city_table);
+	free_chromo(kid);
+	free_city_table(city_table);
 #elif defined(OX1)
-	free_chromo(root, kid);
-	free_city_table(root, city_table);
+	free_chromo(kid);
+	free_city_table(city_table);
 #elif defined(OX2)
-	free_chromo(root, kid);
-	free_city_table(root, city_table);
+	free_chromo(kid);
+	free_city_table(city_table);
 #endif
 
-	free_pool(root, pool);
-
-	/* ... clear root pointer to our private storage */
-	root->join_search_private = NULL;
+	free_pool(pool);
 
 	return best_rel;
 }

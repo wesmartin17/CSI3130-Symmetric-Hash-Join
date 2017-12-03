@@ -5,13 +5,13 @@
  *	  along with the relation's initial contents.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/catalog/pg_inherits.h
+ * $PostgreSQL: pgsql/src/include/catalog/pg_inherits.h,v 1.21 2005/10/15 02:49:42 momjian Exp $
  *
  * NOTES
- *	  the genbki.pl script reads this file and generates .bki
+ *	  the genbki.sh script reads this file and generates .bki
  *	  information from the DATA() statements.
  *
  *-------------------------------------------------------------------------
@@ -19,7 +19,12 @@
 #ifndef PG_INHERITS_H
 #define PG_INHERITS_H
 
-#include "catalog/genbki.h"
+/* ----------------
+ *		postgres.h contains the system type definitions and the
+ *		CATALOG(), BKI_BOOTSTRAP and DATA() sugar words so this file
+ *		can be read by both genbki.sh and the C compiler.
+ * ----------------
+ */
 
 /* ----------------
  *		pg_inherits definition.  cpp turns this into
@@ -32,7 +37,7 @@ CATALOG(pg_inherits,2611) BKI_WITHOUT_OIDS
 {
 	Oid			inhrelid;
 	Oid			inhparent;
-	int32		inhseqno;
+	int4		inhseqno;
 } FormData_pg_inherits;
 
 /* ----------------
@@ -51,9 +56,4 @@ typedef FormData_pg_inherits *Form_pg_inherits;
 #define Anum_pg_inherits_inhparent		2
 #define Anum_pg_inherits_inhseqno		3
 
-/* ----------------
- *		pg_inherits has no initial contents
- * ----------------
- */
-
-#endif							/* PG_INHERITS_H */
+#endif   /* PG_INHERITS_H */

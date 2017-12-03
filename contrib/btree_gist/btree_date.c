@@ -1,96 +1,80 @@
-/*
- * contrib/btree_gist/btree_date.c
- */
-#include "postgres.h"
-
 #include "btree_gist.h"
 #include "btree_utils_num.h"
-#include "utils/builtins.h"
 #include "utils/date.h"
 
 typedef struct
 {
 	DateADT		lower;
 	DateADT		upper;
-} dateKEY;
+}	dateKEY;
 
 /*
 ** date ops
 */
 PG_FUNCTION_INFO_V1(gbt_date_compress);
-PG_FUNCTION_INFO_V1(gbt_date_fetch);
 PG_FUNCTION_INFO_V1(gbt_date_union);
 PG_FUNCTION_INFO_V1(gbt_date_picksplit);
 PG_FUNCTION_INFO_V1(gbt_date_consistent);
-PG_FUNCTION_INFO_V1(gbt_date_distance);
 PG_FUNCTION_INFO_V1(gbt_date_penalty);
 PG_FUNCTION_INFO_V1(gbt_date_same);
 
+Datum		gbt_date_compress(PG_FUNCTION_ARGS);
+Datum		gbt_date_union(PG_FUNCTION_ARGS);
+Datum		gbt_date_picksplit(PG_FUNCTION_ARGS);
+Datum		gbt_date_consistent(PG_FUNCTION_ARGS);
+Datum		gbt_date_penalty(PG_FUNCTION_ARGS);
+Datum		gbt_date_same(PG_FUNCTION_ARGS);
+
 static bool
-gbt_dategt(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_dategt(const void *a, const void *b)
 {
 	return DatumGetBool(
-						DirectFunctionCall2(date_gt, DateADTGetDatum(*((const DateADT *) a)), DateADTGetDatum(*((const DateADT *) b)))
+						DirectFunctionCall2(date_gt, DateADTGetDatum(*((DateADT *) a)), DateADTGetDatum(*((DateADT *) b)))
 		);
 }
 
 static bool
-gbt_datege(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_datege(const void *a, const void *b)
 {
 	return DatumGetBool(
-						DirectFunctionCall2(date_ge, DateADTGetDatum(*((const DateADT *) a)), DateADTGetDatum(*((const DateADT *) b)))
+						DirectFunctionCall2(date_ge, DateADTGetDatum(*((DateADT *) a)), DateADTGetDatum(*((DateADT *) b)))
 		);
 }
 
 static bool
-gbt_dateeq(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_dateeq(const void *a, const void *b)
 {
 	return DatumGetBool(
-						DirectFunctionCall2(date_eq, DateADTGetDatum(*((const DateADT *) a)), DateADTGetDatum(*((const DateADT *) b)))
+						DirectFunctionCall2(date_eq, DateADTGetDatum(*((DateADT *) a)), DateADTGetDatum(*((DateADT *) b)))
 		);
 }
 
 static bool
-gbt_datele(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_datele(const void *a, const void *b)
 {
 	return DatumGetBool(
-						DirectFunctionCall2(date_le, DateADTGetDatum(*((const DateADT *) a)), DateADTGetDatum(*((const DateADT *) b)))
+						DirectFunctionCall2(date_le, DateADTGetDatum(*((DateADT *) a)), DateADTGetDatum(*((DateADT *) b)))
 		);
 }
 
 static bool
-gbt_datelt(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_datelt(const void *a, const void *b)
 {
 	return DatumGetBool(
-						DirectFunctionCall2(date_lt, DateADTGetDatum(*((const DateADT *) a)), DateADTGetDatum(*((const DateADT *) b)))
+						DirectFunctionCall2(date_lt, DateADTGetDatum(*((DateADT *) a)), DateADTGetDatum(*((DateADT *) b)))
 		);
 }
 
 
 
 static int
-gbt_datekey_cmp(const void *a, const void *b, FmgrInfo *flinfo)
+gbt_datekey_cmp(const void *a, const void *b)
 {
-	dateKEY    *ia = (dateKEY *) (((const Nsrt *) a)->t);
-	dateKEY    *ib = (dateKEY *) (((const Nsrt *) b)->t);
-	int			res;
-
-	res = DatumGetInt32(DirectFunctionCall2(date_cmp, DateADTGetDatum(ia->lower), DateADTGetDatum(ib->lower)));
-	if (res == 0)
-		return DatumGetInt32(DirectFunctionCall2(date_cmp, DateADTGetDatum(ia->upper), DateADTGetDatum(ib->upper)));
-
-	return res;
-}
-
-static float8
-gdb_date_dist(const void *a, const void *b, FmgrInfo *flinfo)
-{
-	/* we assume the difference can't overflow */
-	Datum		diff = DirectFunctionCall2(date_mi,
-										   DateADTGetDatum(*((const DateADT *) a)),
-										   DateADTGetDatum(*((const DateADT *) b)));
-
-	return (float8) Abs(DatumGetInt32(diff));
+	if (gbt_dategt((void *) &(((Nsrt *) a)->t[0]), (void *) &(((Nsrt *) b)->t[0])))
+		return 1;
+	else if (gbt_datelt((void *) &(((Nsrt *) a)->t[0]), (void *) &(((Nsrt *) b)->t[0])))
+		return -1;
+	return 0;
 }
 
 
@@ -98,28 +82,13 @@ static const gbtree_ninfo tinfo =
 {
 	gbt_t_date,
 	sizeof(DateADT),
-	8,							/* sizeof(gbtreekey8) */
 	gbt_dategt,
 	gbt_datege,
 	gbt_dateeq,
 	gbt_datele,
 	gbt_datelt,
-	gbt_datekey_cmp,
-	gdb_date_dist
+	gbt_datekey_cmp
 };
-
-
-PG_FUNCTION_INFO_V1(date_dist);
-Datum
-date_dist(PG_FUNCTION_ARGS)
-{
-	/* we assume the difference can't overflow */
-	Datum		diff = DirectFunctionCall2(date_mi,
-										   PG_GETARG_DATUM(0),
-										   PG_GETARG_DATUM(1));
-
-	PG_RETURN_INT32(Abs(DatumGetInt32(diff)));
-}
 
 
 /**************************************************
@@ -132,57 +101,27 @@ Datum
 gbt_date_compress(PG_FUNCTION_ARGS)
 {
 	GISTENTRY  *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
+	GISTENTRY  *retval = NULL;
 
-	PG_RETURN_POINTER(gbt_num_compress(entry, &tinfo));
+	PG_RETURN_POINTER(gbt_num_compress(retval, entry, &tinfo));
 }
 
-Datum
-gbt_date_fetch(PG_FUNCTION_ARGS)
-{
-	GISTENTRY  *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
 
-	PG_RETURN_POINTER(gbt_num_fetch(entry, &tinfo));
-}
 
 Datum
 gbt_date_consistent(PG_FUNCTION_ARGS)
 {
 	GISTENTRY  *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
 	DateADT		query = PG_GETARG_DATEADT(1);
+	dateKEY    *kkk = (dateKEY *) DatumGetPointer(entry->key);
+	GBT_NUMKEY_R key;
 	StrategyNumber strategy = (StrategyNumber) PG_GETARG_UINT16(2);
 
-	/* Oid		subtype = PG_GETARG_OID(3); */
-	bool	   *recheck = (bool *) PG_GETARG_POINTER(4);
-	dateKEY    *kkk = (dateKEY *) DatumGetPointer(entry->key);
-	GBT_NUMKEY_R key;
-
-	/* All cases served by this function are exact */
-	*recheck = false;
-
-	key.lower = (GBT_NUMKEY *) &kkk->lower;
-	key.upper = (GBT_NUMKEY *) &kkk->upper;
+	key.lower = (GBT_NUMKEY *) & kkk->lower;
+	key.upper = (GBT_NUMKEY *) & kkk->upper;
 
 	PG_RETURN_BOOL(
-				   gbt_num_consistent(&key, (void *) &query, &strategy, GIST_LEAF(entry), &tinfo, fcinfo->flinfo)
-		);
-}
-
-
-Datum
-gbt_date_distance(PG_FUNCTION_ARGS)
-{
-	GISTENTRY  *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
-	DateADT		query = PG_GETARG_DATEADT(1);
-
-	/* Oid		subtype = PG_GETARG_OID(3); */
-	dateKEY    *kkk = (dateKEY *) DatumGetPointer(entry->key);
-	GBT_NUMKEY_R key;
-
-	key.lower = (GBT_NUMKEY *) &kkk->lower;
-	key.upper = (GBT_NUMKEY *) &kkk->upper;
-
-	PG_RETURN_FLOAT8(
-					 gbt_num_distance(&key, (void *) &query, GIST_LEAF(entry), &tinfo, fcinfo->flinfo)
+				   gbt_num_consistent(&key, (void *) &query, &strategy, GIST_LEAF(entry), &tinfo)
 		);
 }
 
@@ -194,7 +133,7 @@ gbt_date_union(PG_FUNCTION_ARGS)
 	void	   *out = palloc(sizeof(dateKEY));
 
 	*(int *) PG_GETARG_POINTER(1) = sizeof(dateKEY);
-	PG_RETURN_POINTER(gbt_num_union((void *) out, entryvec, &tinfo, fcinfo->flinfo));
+	PG_RETURN_POINTER(gbt_num_union((void *) out, entryvec, &tinfo));
 }
 
 
@@ -210,14 +149,14 @@ gbt_date_penalty(PG_FUNCTION_ARGS)
 	diff = DatumGetInt32(DirectFunctionCall2(
 											 date_mi,
 											 DateADTGetDatum(newentry->upper),
-											 DateADTGetDatum(origentry->upper)));
+										 DateADTGetDatum(origentry->upper)));
 
 	res = Max(diff, 0);
 
 	diff = DatumGetInt32(DirectFunctionCall2(
 											 date_mi,
-											 DateADTGetDatum(origentry->lower),
-											 DateADTGetDatum(newentry->lower)));
+										   DateADTGetDatum(origentry->lower),
+										  DateADTGetDatum(newentry->lower)));
 
 	res += Max(diff, 0);
 
@@ -227,8 +166,8 @@ gbt_date_penalty(PG_FUNCTION_ARGS)
 	{
 		diff = DatumGetInt32(DirectFunctionCall2(
 												 date_mi,
-												 DateADTGetDatum(origentry->upper),
-												 DateADTGetDatum(origentry->lower)));
+										   DateADTGetDatum(origentry->upper),
+										 DateADTGetDatum(origentry->lower)));
 		*result += FLT_MIN;
 		*result += (float) (res / ((double) (res + diff)));
 		*result *= (FLT_MAX / (((GISTENTRY *) PG_GETARG_POINTER(0))->rel->rd_att->natts + 1));
@@ -242,9 +181,9 @@ Datum
 gbt_date_picksplit(PG_FUNCTION_ARGS)
 {
 	PG_RETURN_POINTER(gbt_num_picksplit(
-										(GistEntryVector *) PG_GETARG_POINTER(0),
-										(GIST_SPLITVEC *) PG_GETARG_POINTER(1),
-										&tinfo, fcinfo->flinfo
+									(GistEntryVector *) PG_GETARG_POINTER(0),
+									  (GIST_SPLITVEC *) PG_GETARG_POINTER(1),
+										&tinfo
 										));
 }
 
@@ -255,6 +194,6 @@ gbt_date_same(PG_FUNCTION_ARGS)
 	dateKEY    *b2 = (dateKEY *) PG_GETARG_POINTER(1);
 	bool	   *result = (bool *) PG_GETARG_POINTER(2);
 
-	*result = gbt_num_same((void *) b1, (void *) b2, &tinfo, fcinfo->flinfo);
+	*result = gbt_num_same((void *) b1, (void *) b2, &tinfo);
 	PG_RETURN_POINTER(result);
 }

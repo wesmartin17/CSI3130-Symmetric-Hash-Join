@@ -2,14 +2,25 @@
  * Portions Copyright (c) 1987, 1993, 1994
  * The Regents of the University of California.  All rights reserved.
  *
- * Portions Copyright (c) 2003-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 2003-2005, PostgreSQL Global Development Group
  *
- * src/include/getopt_long.h
+ * $PostgreSQL: pgsql/src/include/getopt_long.h,v 1.6 2005/01/01 20:44:26 tgl Exp $
  */
 #ifndef GETOPT_LONG_H
 #define GETOPT_LONG_H
 
-#include "pg_getopt.h"
+#ifdef HAVE_GETOPT_H
+#include <getopt.h>
+#endif
+
+/* These are picked up from the system's getopt() facility. */
+extern int	opterr;
+extern int	optind;
+extern int	optopt;
+extern char *optarg;
+
+/* Some systems have this, otherwise you need to define it somewhere. */
+extern int	optreset;
 
 #ifndef HAVE_STRUCT_OPTION
 
@@ -23,14 +34,13 @@ struct option
 
 #define no_argument 0
 #define required_argument 1
-#define optional_argument 2
 #endif
 
 #ifndef HAVE_GETOPT_LONG
 
 extern int getopt_long(int argc, char *const argv[],
 			const char *optstring,
-			const struct option *longopts, int *longindex);
+			const struct option * longopts, int *longindex);
 #endif
 
-#endif							/* GETOPT_LONG_H */
+#endif   /* GETOPT_LONG_H */

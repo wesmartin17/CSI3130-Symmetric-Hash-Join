@@ -1,4 +1,4 @@
-# src/test/locale/Makefile
+# $PostgreSQL: pgsql/src/test/locale/Makefile,v 1.9 2003/11/29 19:52:14 pgsql Exp $
 
 subdir = src/test/locale
 top_builddir = ../../..
@@ -10,12 +10,11 @@ DIRS = de_DE.ISO8859-1 gr_GR.ISO8859-7 koi8-r koi8-to-win1251
 
 all: $(PROGS)
 
-clean distclean maintainer-clean:
-	rm -f $(PROGS) *.o
+clean: 
+	rm -f $(PROGS)
 	for d in $(DIRS); do \
-		$(MAKE) -C $$d clean || exit; \
+		$(MAKE) -C $$d clean; \
 	done
 
-# These behave like installcheck targets.
 check-%: all
 	@$(MAKE) -C `echo $@ | sed 's/^check-//'` test

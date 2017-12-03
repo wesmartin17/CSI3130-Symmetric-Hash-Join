@@ -5,10 +5,10 @@
  *	  parse trees.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/parser/parsetree.h
+ * $PostgreSQL: pgsql/src/include/parser/parsetree.h,v 1.31 2005/10/15 02:49:45 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -16,6 +16,7 @@
 #define PARSETREE_H
 
 #include "nodes/parsenodes.h"
+#include "nodes/pg_list.h"		/* for list_nth(), etc */
 
 
 /* ----------------
@@ -52,7 +53,7 @@ extern char *get_rte_attribute_name(RangeTblEntry *rte, AttrNumber attnum);
  * type and typemod info for that attribute of that RTE.
  */
 extern void get_rte_attribute_type(RangeTblEntry *rte, AttrNumber attnum,
-					   Oid *vartype, int32 *vartypmod, Oid *varcollid);
+					   Oid *vartype, int32 *vartypmod);
 
 /*
  * Check whether an attribute of an RTE has been dropped (note that
@@ -69,11 +70,4 @@ extern bool get_rte_attribute_is_dropped(RangeTblEntry *rte,
 
 extern TargetEntry *get_tle_by_resno(List *tlist, AttrNumber resno);
 
-/* ----------------
- *		FOR UPDATE/SHARE info
- * ----------------
- */
-
-extern RowMarkClause *get_parse_rowmark(Query *qry, Index rtindex);
-
-#endif							/* PARSETREE_H */
+#endif   /* PARSETREE_H */

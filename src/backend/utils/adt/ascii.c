@@ -2,18 +2,18 @@
  * ascii.c
  *	 The PostgreSQL routine for string to ascii conversion.
  *
- *	 Portions Copyright (c) 1999-2017, PostgreSQL Global Development Group
+ *	 Portions Copyright (c) 1999-2005, PostgreSQL Global Development Group
  *
  * IDENTIFICATION
- *	  src/backend/utils/adt/ascii.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/adt/ascii.c,v 1.26 2005/10/15 02:49:28 momjian Exp $
  *
  *-----------------------------------------------------------------------
  */
 #include "postgres.h"
 
+#include "utils/builtins.h"
 #include "mb/pg_wchar.h"
 #include "utils/ascii.h"
-#include "utils/builtins.h"
 
 static void pg_to_ascii(unsigned char *src, unsigned char *src_end,
 			unsigned char *dest, int enc);
@@ -102,9 +102,9 @@ pg_to_ascii(unsigned char *src, unsigned char *src_end, unsigned char *dest, int
 static text *
 encode_to_ascii(text *data, int enc)
 {
-	pg_to_ascii((unsigned char *) VARDATA(data),	/* src */
-				(unsigned char *) (data) + VARSIZE(data),	/* src end */
-				(unsigned char *) VARDATA(data),	/* dest */
+	pg_to_ascii((unsigned char *) VARDATA(data),		/* src */
+				(unsigned char *) (data) + VARSIZE(data),		/* src end */
+				(unsigned char *) VARDATA(data),		/* dest */
 				enc);			/* encoding */
 
 	return data;
@@ -118,13 +118,7 @@ Datum
 to_ascii_encname(PG_FUNCTION_ARGS)
 {
 	text	   *data = PG_GETARG_TEXT_P_COPY(0);
-	char	   *encname = NameStr(*PG_GETARG_NAME(1));
-	int			enc = pg_char_to_encoding(encname);
-
-	if (enc < 0)
-		ereport(ERROR,
-				(errcode(ERRCODE_UNDEFINED_OBJECT),
-				 errmsg("%s is not a valid encoding name", encname)));
+	int			enc = pg_char_to_encoding(NameStr(*PG_GETARG_NAME(1)));
 
 	PG_RETURN_TEXT_P(encode_to_ascii(data, enc));
 }
@@ -138,11 +132,6 @@ to_ascii_enc(PG_FUNCTION_ARGS)
 {
 	text	   *data = PG_GETARG_TEXT_P_COPY(0);
 	int			enc = PG_GETARG_INT32(1);
-
-	if (!PG_VALID_ENCODING(enc))
-		ereport(ERROR,
-				(errcode(ERRCODE_UNDEFINED_OBJECT),
-				 errmsg("%d is not a valid encoding code", enc)));
 
 	PG_RETURN_TEXT_P(encode_to_ascii(data, enc));
 }
@@ -158,41 +147,4 @@ to_ascii_default(PG_FUNCTION_ARGS)
 	int			enc = GetDatabaseEncoding();
 
 	PG_RETURN_TEXT_P(encode_to_ascii(data, enc));
-}
-
-/* ----------
- * Copy a string in an arbitrary backend-safe encoding, converting it to a
- * valid ASCII string by replacing non-ASCII bytes with '?'.  Otherwise the
- * behavior is identical to strlcpy(), except that we don't bother with a
- * return value.
- *
- * This must not trigger ereport(ERROR), as it is called in postmaster.
- * ----------
- */
-void
-ascii_safe_strlcpy(char *dest, const char *src, size_t destsiz)
-{
-	if (destsiz == 0)			/* corner case: no room for trailing nul */
-		return;
-
-	while (--destsiz > 0)
-	{
-		/* use unsigned char here to avoid compiler warning */
-		unsigned char ch = *src++;
-
-		if (ch == '\0')
-			break;
-		/* Keep printable ASCII characters */
-		if (32 <= ch && ch <= 127)
-			*dest = ch;
-		/* White-space is also OK */
-		else if (ch == '\n' || ch == '\r' || ch == '\t')
-			*dest = ch;
-		/* Everything else is replaced with '?' */
-		else
-			*dest = '?';
-		dest++;
-	}
-
-	*dest = '\0';
 }

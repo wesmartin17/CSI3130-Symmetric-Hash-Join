@@ -1,7 +1,4 @@
 /*
- * src/test/examples/testlibpq2.c
- *
- *
  * testlibpq2.c
  *		Test of the asynchronous notification interface
  *
@@ -24,20 +21,11 @@
  *
  *	 INSERT INTO TBL1 VALUES (10);
  */
-
-#ifdef WIN32
-#include <windows.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/time.h>
-#include <sys/types.h>
-#ifdef HAVE_SYS_SELECT_H
-#include <sys/select.h>
-#endif
-
 #include "libpq-fe.h"
 
 static void
@@ -125,7 +113,7 @@ main(int argc, char **argv)
 		while ((notify = PQnotifies(conn)) != NULL)
 		{
 			fprintf(stderr,
-					"ASYNC NOTIFY of '%s' received from backend PID %d\n",
+					"ASYNC NOTIFY of '%s' received from backend pid %d\n",
 					notify->relname, notify->be_pid);
 			PQfreemem(notify);
 			nnotifies++;

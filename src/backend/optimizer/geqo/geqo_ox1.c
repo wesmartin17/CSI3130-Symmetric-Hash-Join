@@ -6,7 +6,7 @@
 *	 OX1 operator according to Davis
 *	 (Proc Int'l Joint Conf on AI)
 *
-* src/backend/optimizer/geqo/geqo_ox1.c
+* $PostgreSQL: pgsql/src/backend/optimizer/geqo/geqo_ox1.c,v 1.9 2003/11/29 22:39:49 pgsql Exp $
 *
 *-------------------------------------------------------------------------
 */
@@ -37,15 +37,13 @@
 #include "optimizer/geqo_random.h"
 #include "optimizer/geqo_recombination.h"
 
-#if defined(OX1)
 
 /* ox1
  *
  *	 position crossover
  */
 void
-ox1(PlannerInfo *root, Gene *tour1, Gene *tour2, Gene *offspring, int num_gene,
-	City * city_table)
+ox1(Gene *tour1, Gene *tour2, Gene *offspring, int num_gene, City *city_table)
 {
 	int			left,
 				right,
@@ -58,8 +56,8 @@ ox1(PlannerInfo *root, Gene *tour1, Gene *tour2, Gene *offspring, int num_gene,
 		city_table[k].used = 0;
 
 	/* select portion to copy from tour1 */
-	left = geqo_randint(root, num_gene - 1, 0);
-	right = geqo_randint(root, num_gene - 1, 0);
+	left = geqo_randint(num_gene - 1, 0);
+	right = geqo_randint(num_gene - 1, 0);
 
 	if (left > right)
 	{
@@ -91,5 +89,3 @@ ox1(PlannerInfo *root, Gene *tour1, Gene *tour2, Gene *offspring, int num_gene,
 	}
 
 }
-
-#endif							/* defined(OX1) */

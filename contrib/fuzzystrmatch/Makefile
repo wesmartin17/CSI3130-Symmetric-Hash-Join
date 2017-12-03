@@ -1,18 +1,13 @@
-# contrib/fuzzystrmatch/Makefile
+# $PostgreSQL: pgsql/contrib/fuzzystrmatch/Makefile,v 1.6 2005/09/27 17:13:03 tgl Exp $
 
 MODULE_big = fuzzystrmatch
-OBJS = fuzzystrmatch.o dmetaphone.o $(WIN32RES)
-
-EXTENSION = fuzzystrmatch
-DATA = fuzzystrmatch--1.1.sql fuzzystrmatch--1.0--1.1.sql \
-	fuzzystrmatch--unpackaged--1.0.sql
-PGFILEDESC = "fuzzystrmatch - similarities and distance between strings"
-
-REGRESS = fuzzystrmatch
+SRCS += fuzzystrmatch.c dmetaphone.c
+OBJS = $(SRCS:.c=.o)
+DATA_built = fuzzystrmatch.sql
+DOCS = README.fuzzystrmatch README.soundex
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/fuzzystrmatch

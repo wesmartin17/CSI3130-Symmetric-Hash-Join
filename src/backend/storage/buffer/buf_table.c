@@ -3,26 +3,24 @@
  * buf_table.c
  *	  routines for mapping BufferTags to buffer indexes.
  *
- * Note: the routines in this file do no locking of their own.  The caller
- * must hold a suitable lock on the appropriate BufMappingLock, as specified
- * in the comments.  We can't do the locking inside these functions because
- * in most cases the caller needs to adjust the buffer header contents
- * before the lock is released (see notes in README).
+ * Note: the routines in this file do no locking of their own.	The caller
+ * must hold a suitable lock on the BufMappingLock, as specified in the
+ * comments.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/storage/buffer/buf_table.c
+ *	  $PostgreSQL: pgsql/src/backend/storage/buffer/buf_table.c,v 1.43 2005/10/15 02:49:24 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
-#include "storage/bufmgr.h"
 #include "storage/buf_internals.h"
+#include "storage/bufmgr.h"
 
 
 /* entry for buffer lookup hashtable */
@@ -59,46 +57,30 @@ InitBufTable(int size)
 	/* BufferTag maps to Buffer */
 	info.keysize = sizeof(BufferTag);
 	info.entrysize = sizeof(BufferLookupEnt);
-	info.num_partitions = NUM_BUFFER_PARTITIONS;
+	info.hash = tag_hash;
 
 	SharedBufHash = ShmemInitHash("Shared Buffer Lookup Table",
 								  size, size,
 								  &info,
-								  HASH_ELEM | HASH_BLOBS | HASH_PARTITION);
-}
+								  HASH_ELEM | HASH_FUNCTION);
 
-/*
- * BufTableHashCode
- *		Compute the hash code associated with a BufferTag
- *
- * This must be passed to the lookup/insert/delete routines along with the
- * tag.  We do it like this because the callers need to know the hash code
- * in order to determine which buffer partition to lock, and we don't want
- * to do the hash computation twice (hash_any is a bit slow).
- */
-uint32
-BufTableHashCode(BufferTag *tagPtr)
-{
-	return get_hash_value(SharedBufHash, (void *) tagPtr);
+	if (!SharedBufHash)
+		elog(FATAL, "could not initialize shared buffer hash table");
 }
 
 /*
  * BufTableLookup
  *		Lookup the given BufferTag; return buffer ID, or -1 if not found
  *
- * Caller must hold at least share lock on BufMappingLock for tag's partition
+ * Caller must hold at least share lock on BufMappingLock
  */
 int
-BufTableLookup(BufferTag *tagPtr, uint32 hashcode)
+BufTableLookup(BufferTag *tagPtr)
 {
 	BufferLookupEnt *result;
 
 	result = (BufferLookupEnt *)
-		hash_search_with_hash_value(SharedBufHash,
-									(void *) tagPtr,
-									hashcode,
-									HASH_FIND,
-									NULL);
+		hash_search(SharedBufHash, (void *) tagPtr, HASH_FIND, NULL);
 
 	if (!result)
 		return -1;
@@ -111,13 +93,13 @@ BufTableLookup(BufferTag *tagPtr, uint32 hashcode)
  *		Insert a hashtable entry for given tag and buffer ID,
  *		unless an entry already exists for that tag
  *
- * Returns -1 on successful insertion.  If a conflicting entry exists
+ * Returns -1 on successful insertion.	If a conflicting entry exists
  * already, returns the buffer ID in that entry.
  *
- * Caller must hold exclusive lock on BufMappingLock for tag's partition
+ * Caller must hold write lock on BufMappingLock
  */
 int
-BufTableInsert(BufferTag *tagPtr, uint32 hashcode, int buf_id)
+BufTableInsert(BufferTag *tagPtr, int buf_id)
 {
 	BufferLookupEnt *result;
 	bool		found;
@@ -126,11 +108,7 @@ BufTableInsert(BufferTag *tagPtr, uint32 hashcode, int buf_id)
 	Assert(tagPtr->blockNum != P_NEW);	/* invalid tag */
 
 	result = (BufferLookupEnt *)
-		hash_search_with_hash_value(SharedBufHash,
-									(void *) tagPtr,
-									hashcode,
-									HASH_ENTER,
-									&found);
+		hash_search(SharedBufHash, (void *) tagPtr, HASH_ENTER, &found);
 
 	if (found)					/* found something already in the table */
 		return result->id;
@@ -144,19 +122,15 @@ BufTableInsert(BufferTag *tagPtr, uint32 hashcode, int buf_id)
  * BufTableDelete
  *		Delete the hashtable entry for given tag (which must exist)
  *
- * Caller must hold exclusive lock on BufMappingLock for tag's partition
+ * Caller must hold write lock on BufMappingLock
  */
 void
-BufTableDelete(BufferTag *tagPtr, uint32 hashcode)
+BufTableDelete(BufferTag *tagPtr)
 {
 	BufferLookupEnt *result;
 
 	result = (BufferLookupEnt *)
-		hash_search_with_hash_value(SharedBufHash,
-									(void *) tagPtr,
-									hashcode,
-									HASH_REMOVE,
-									NULL);
+		hash_search(SharedBufHash, (void *) tagPtr, HASH_REMOVE, NULL);
 
 	if (!result)				/* shouldn't happen */
 		elog(ERROR, "shared buffer hash table corrupted");

@@ -3,11 +3,9 @@
  * version.c
  *	 Returns the PostgreSQL version string
  *
- * Copyright (c) 1998-2017, PostgreSQL Global Development Group
- *
  * IDENTIFICATION
  *
- * src/backend/utils/adt/version.c
+ * $PostgreSQL: pgsql/src/backend/utils/adt/version.c,v 1.13 2003/11/29 19:52:00 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -20,5 +18,11 @@
 Datum
 pgsql_version(PG_FUNCTION_ARGS)
 {
-	PG_RETURN_TEXT_P(cstring_to_text(PG_VERSION_STR));
+	int			n = strlen(PG_VERSION_STR);
+	text	   *ret = (text *) palloc(n + VARHDRSZ);
+
+	VARATT_SIZEP(ret) = n + VARHDRSZ;
+	memcpy(VARDATA(ret), PG_VERSION_STR, n);
+
+	PG_RETURN_TEXT_P(ret);
 }

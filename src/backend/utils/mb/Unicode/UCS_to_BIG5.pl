@@ -1,75 +1,111 @@
 #! /usr/bin/perl
 #
-# Copyright (c) 2001-2017, PostgreSQL Global Development Group
+# Copyright (c) 2001-2005, PostgreSQL Global Development Group
 #
-# src/backend/utils/mb/Unicode/UCS_to_BIG5.pl
+# $PostgreSQL: pgsql/src/backend/utils/mb/Unicode/UCS_to_BIG5.pl,v 1.7 2005/03/07 04:30:52 momjian Exp $
 #
-# Generate UTF-8 <--> BIG5 conversion tables from
+# Generate UTF-8 <--> BIG5 code conversion tables from
 # map files provided by Unicode organization.
 # Unfortunately it is prohibited by the organization
 # to distribute the map files. So if you try to use this script,
-# you have to obtain the map files from the organization's ftp site.
-# ftp://www.unicode.org/Public/MAPPINGS/
+# you have to obtain OLD5601.TXT from 
+# the organization's ftp site.
 #
-# Our "big5" comes from BIG5.TXT, with the addition of the characters
-# in the range 0xf9d6-0xf9dc from CP950.TXT.
-#
-# BIG5.TXT format:
-#		 BIG5 code in hex
-#		 UCS-2 code in hex
-#		 # and Unicode name (not used in this script)
-#
-# CP950.TXT format:
-#		 CP950 code in hex
+# OLD5601.TXT format:
+#		 KSC5601 code in hex
 #		 UCS-2 code in hex
 #		 # and Unicode name (not used in this script)
 
-use strict;
-use convutils;
+require "ucs2utf.pl";
 
-my $this_script = $0;
+# first generate UTF-8 --> BIG5 table
 
-# Load BIG5.TXT
-my $all = &read_source("BIG5.TXT");
+$in_file = "BIG5.TXT";
 
-# Load CP950.TXT
-my $cp950txt = &read_source("CP950.TXT");
+open( FILE, $in_file ) || die( "cannot open $in_file" );
 
-foreach my $i (@$cp950txt)
-{
-	my $code = $i->{code};
-	my $ucs  = $i->{ucs};
+while( <FILE> ){
+	chop;
+	if( /^#/ ){
+		next;
+	}
+	( $c, $u, $rest ) = split;
+	$ucs = hex($u);
+	$code = hex($c);
+	if( $code >= 0x80 && $ucs >= 0x0080 ){
+		$utf = &ucs2utf($ucs);
+		if( $array{ $utf } ne "" ){
+			printf STDERR "Warning: duplicate UTF8: %04x\n",$ucs;
+			next;
+		}
+		$count++;
 
-	# Pick only the ETEN extended characters in the range 0xf9d6 - 0xf9dc
-	# from CP950.TXT
-	if (   $code >= 0x80
-		&& $ucs >= 0x0080
-		&& $code >= 0xf9d6
-		&& $code <= 0xf9dc)
-	{
-		push @$all,
-		  { code      => $code,
-			ucs       => $ucs,
-			comment   => $i->{comment},
-			direction => BOTH,
-			f         => $i->{f},
-			l         => $i->{l} };
+		$array{ $utf } = $code;
+	}
+}
+close( FILE );
+
+#
+# first, generate UTF8 --> BIG5 table
+#
+
+$file = "utf8_to_big5.map";
+open( FILE, "> $file" ) || die( "cannot open $file" );
+print FILE "static pg_utf_to_local ULmapBIG5[ $count ] = {\n";
+
+for $index ( sort {$a <=> $b} keys( %array ) ){
+	$code = $array{ $index };
+	$count--;
+	if( $count == 0 ){
+		printf FILE "  {0x%04x, 0x%04x}\n", $index, $code;
+	} else {
+		printf FILE "  {0x%04x, 0x%04x},\n", $index, $code;
 	}
 }
 
-foreach my $i (@$all)
-{
-	my $code = $i->{code};
-	my $ucs  = $i->{ucs};
+print FILE "};\n";
+close(FILE);
 
-# BIG5.TXT maps several BIG5 characters to U+FFFD. The UTF-8 to BIG5 mapping can
-# contain only one of them. XXX: Doesn't really make sense to include any of them,
-# but for historical reasons, we map the first one of them.
-	if ($i->{ucs} == 0xFFFD && $i->{code} != 0xA15A)
-	{
-		$i->{direction} = TO_UNICODE;
+#
+# then generate EUC_JP --> UTF8 table
+#
+reset 'array';
+
+open( FILE, $in_file ) || die( "cannot open $in_file" );
+
+while( <FILE> ){
+	chop;
+	if( /^#/ ){
+		next;
+	}
+	( $c, $u, $rest ) = split;
+	$ucs = hex($u);
+	$code = hex($c);
+	if( $code >= 0x80 && $ucs >= 0x0080 ){
+		$utf = &ucs2utf($ucs);
+		if( $array{ $code } ne "" ){
+			printf STDERR "Warning: duplicate code: %04x\n",$ucs;
+			next;
+		}
+		$count++;
+
+		$array{ $code } = $utf;
+	}
+}
+close( FILE );
+
+$file = "big5_to_utf8.map";
+open( FILE, "> $file" ) || die( "cannot open $file" );
+print FILE "static pg_local_to_utf LUmapBIG5[ $count ] = {\n";
+for $index ( sort {$a <=> $b} keys( %array ) ){
+	$utf = $array{ $index };
+	$count--;
+	if( $count == 0 ){
+		printf FILE "  {0x%04x, 0x%04x}\n", $index, $utf;
+	} else {
+		printf FILE "  {0x%04x, 0x%04x},\n", $index, $utf;
 	}
 }
 
-# Output
-print_conversion_tables($this_script, "BIG5", $all);
+print FILE "};\n";
+close(FILE);

@@ -1,8 +1,6 @@
 --
 -- Cast5 cipher
 --
--- ensure consistent test output regardless of the default bytea format
-SET bytea_output TO escape;
 
 -- test vectors from RFC2144
 
@@ -45,3 +43,4 @@ select decrypt_iv(decode('384a970695ce016a', 'hex'),
 -- long message
 select encode(encrypt('Lets try a longer message.', '0123456789', 'cast5'), 'hex');
 select decrypt(encrypt('Lets try a longer message.', '0123456789', 'cast5'), '0123456789', 'cast5');
+

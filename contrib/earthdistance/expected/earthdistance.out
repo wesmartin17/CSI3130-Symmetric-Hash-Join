@@ -1,17 +1,14 @@
 --
---  Test earthdistance extension
+--  Test earth distance functions
 --
--- In this file we also do some testing of extension create/drop scenarios.
--- That's really exercising the core database's dependency logic, so ideally
--- we'd do it in the core regression tests, but we can't for lack of suitable
--- guaranteed-available extensions.  earthdistance is a good test case because
--- it has a dependency on the cube extension.
 --
-CREATE EXTENSION earthdistance;  -- fail, must install cube first
-ERROR:  required extension "cube" is not installed
-HINT:  Use CREATE EXTENSION ... CASCADE to install required extensions too.
-CREATE EXTENSION cube;
-CREATE EXTENSION earthdistance;
+-- first, define the datatype.  Turn off echoing so that expected file
+-- does not depend on contents of earthdistance.sql or cube.sql.
+--
+\set ECHO none
+psql:../cube/cube.sql:10: NOTICE:  type "cube" is not yet defined
+DETAIL:  Creating a shell type definition.
+psql:../cube/cube.sql:15: NOTICE:  argument type cube is only a shell
 --
 -- The radius of the Earth we are using.
 --
@@ -747,7 +744,7 @@ SELECT cube_ll_coord(earth_box(ll_to_earth(0,0),10*earth()),1)::numeric(20,5),
 -- Test for points that should be in bounding boxes.
 --
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,1))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,1))*1.00001) @
        ll_to_earth(0,1);
  ?column? 
 ----------
@@ -755,7 +752,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.1))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.1))*1.00001) @
        ll_to_earth(0,0.1);
  ?column? 
 ----------
@@ -763,7 +760,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.01))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.01))*1.00001) @
        ll_to_earth(0,0.01);
  ?column? 
 ----------
@@ -771,7 +768,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.001))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.001))*1.00001) @
        ll_to_earth(0,0.001);
  ?column? 
 ----------
@@ -779,7 +776,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.0001))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.0001))*1.00001) @
        ll_to_earth(0,0.0001);
  ?column? 
 ----------
@@ -787,7 +784,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0.0001,0.0001))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0.0001,0.0001))*1.00001) @
        ll_to_earth(0.0001,0.0001);
  ?column? 
 ----------
@@ -795,7 +792,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(45,45),
-       earth_distance(ll_to_earth(45,45),ll_to_earth(45.0001,45.0001))*1.00001) @>
+       earth_distance(ll_to_earth(45,45),ll_to_earth(45.0001,45.0001))*1.00001) @
        ll_to_earth(45.0001,45.0001);
  ?column? 
 ----------
@@ -803,7 +800,7 @@ SELECT earth_box(ll_to_earth(45,45),
 (1 row)
 
 SELECT earth_box(ll_to_earth(90,180),
-       earth_distance(ll_to_earth(90,180),ll_to_earth(90.0001,180.0001))*1.00001) @>
+       earth_distance(ll_to_earth(90,180),ll_to_earth(90.0001,180.0001))*1.00001) @
        ll_to_earth(90.0001,180.0001);
  ?column? 
 ----------
@@ -816,7 +813,7 @@ SELECT earth_box(ll_to_earth(90,180),
 -- but further away than the distance we are testing.
 --
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,1))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,1))*.57735) @
        ll_to_earth(0,1);
  ?column? 
 ----------
@@ -824,7 +821,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.1))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.1))*.57735) @
        ll_to_earth(0,0.1);
  ?column? 
 ----------
@@ -832,7 +829,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.01))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.01))*.57735) @
        ll_to_earth(0,0.01);
  ?column? 
 ----------
@@ -840,7 +837,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.001))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.001))*.57735) @
        ll_to_earth(0,0.001);
  ?column? 
 ----------
@@ -848,7 +845,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.0001))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.0001))*.57735) @
        ll_to_earth(0,0.0001);
  ?column? 
 ----------
@@ -856,7 +853,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0.0001,0.0001))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0.0001,0.0001))*.57735) @
        ll_to_earth(0.0001,0.0001);
  ?column? 
 ----------
@@ -864,7 +861,7 @@ SELECT earth_box(ll_to_earth(0,0),
 (1 row)
 
 SELECT earth_box(ll_to_earth(45,45),
-       earth_distance(ll_to_earth(45,45),ll_to_earth(45.0001,45.0001))*.57735) @>
+       earth_distance(ll_to_earth(45,45),ll_to_earth(45.0001,45.0001))*.57735) @
        ll_to_earth(45.0001,45.0001);
  ?column? 
 ----------
@@ -872,7 +869,7 @@ SELECT earth_box(ll_to_earth(45,45),
 (1 row)
 
 SELECT earth_box(ll_to_earth(90,180),
-       earth_distance(ll_to_earth(90,180),ll_to_earth(90.0001,180.0001))*.57735) @>
+       earth_distance(ll_to_earth(90,180),ll_to_earth(90.0001,180.0001))*.57735) @
        ll_to_earth(90.0001,180.0001);
  ?column? 
 ----------
@@ -884,9 +881,7 @@ SELECT earth_box(ll_to_earth(90,180),
 --
 SELECT is_point(ll_to_earth(0,0));
 ERROR:  function is_point(earth) does not exist
-LINE 1: SELECT is_point(ll_to_earth(0,0));
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+HINT:  No function matches the given name and argument types. You may need to add explicit typecasts.
 SELECT cube_dim(ll_to_earth(0,0)) <= 3;
  ?column? 
 ----------
@@ -902,9 +897,7 @@ SELECT abs(cube_distance(ll_to_earth(0,0), '(0)'::cube) / earth() - 1) <
 
 SELECT is_point(ll_to_earth(30,60));
 ERROR:  function is_point(earth) does not exist
-LINE 1: SELECT is_point(ll_to_earth(30,60));
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+HINT:  No function matches the given name and argument types. You may need to add explicit typecasts.
 SELECT cube_dim(ll_to_earth(30,60)) <= 3;
  ?column? 
 ----------
@@ -920,9 +913,7 @@ SELECT abs(cube_distance(ll_to_earth(30,60), '(0)'::cube) / earth() - 1) <
 
 SELECT is_point(ll_to_earth(60,90));
 ERROR:  function is_point(earth) does not exist
-LINE 1: SELECT is_point(ll_to_earth(60,90));
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+HINT:  No function matches the given name and argument types. You may need to add explicit typecasts.
 SELECT cube_dim(ll_to_earth(60,90)) <= 3;
  ?column? 
 ----------
@@ -938,9 +929,7 @@ SELECT abs(cube_distance(ll_to_earth(60,90), '(0)'::cube) / earth() - 1) <
 
 SELECT is_point(ll_to_earth(-30,-90));
 ERROR:  function is_point(earth) does not exist
-LINE 1: SELECT is_point(ll_to_earth(-30,-90));
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+HINT:  No function matches the given name and argument types. You may need to add explicit typecasts.
 SELECT cube_dim(ll_to_earth(-30,-90)) <= 3;
  ?column? 
 ----------
@@ -954,141 +943,3 @@ SELECT abs(cube_distance(ll_to_earth(-30,-90), '(0)'::cube) / earth() - 1) <
  t
 (1 row)
 
---
--- Now we are going to test extension create/drop scenarios.
---
--- list what's installed
-\dT
-                                              List of data types
- Schema | Name  |                                         Description                                         
---------+-------+---------------------------------------------------------------------------------------------
- public | cube  | multi-dimensional cube '(FLOAT-1, FLOAT-2, ..., FLOAT-N), (FLOAT-1, FLOAT-2, ..., FLOAT-N)'
- public | earth | 
-(2 rows)
-
-drop extension cube;  -- fail, earthdistance requires it
-ERROR:  cannot drop extension cube because other objects depend on it
-DETAIL:  extension earthdistance depends on extension cube
-HINT:  Use DROP ... CASCADE to drop the dependent objects too.
-drop extension earthdistance;
-drop type cube;  -- fail, extension cube requires it
-ERROR:  cannot drop type cube because extension cube requires it
-HINT:  You can drop extension cube instead.
--- list what's installed
-\dT
-                                             List of data types
- Schema | Name |                                         Description                                         
---------+------+---------------------------------------------------------------------------------------------
- public | cube | multi-dimensional cube '(FLOAT-1, FLOAT-2, ..., FLOAT-N), (FLOAT-1, FLOAT-2, ..., FLOAT-N)'
-(1 row)
-
-create table foo (f1 cube, f2 int);
-drop extension cube;  -- fail, foo.f1 requires it
-ERROR:  cannot drop extension cube because other objects depend on it
-DETAIL:  table foo column f1 depends on type cube
-HINT:  Use DROP ... CASCADE to drop the dependent objects too.
-drop table foo;
-drop extension cube;
--- list what's installed
-\dT
-     List of data types
- Schema | Name | Description 
---------+------+-------------
-(0 rows)
-
-\df
-                       List of functions
- Schema | Name | Result data type | Argument data types | Type 
---------+------+------------------+---------------------+------
-(0 rows)
-
-\do
-                             List of operators
- Schema | Name | Left arg type | Right arg type | Result type | Description 
---------+------+---------------+----------------+-------------+-------------
-(0 rows)
-
-create schema c;
-create extension cube with schema c;
--- list what's installed
-\dT public.*
-     List of data types
- Schema | Name | Description 
---------+------+-------------
-(0 rows)
-
-\df public.*
-                       List of functions
- Schema | Name | Result data type | Argument data types | Type 
---------+------+------------------+---------------------+------
-(0 rows)
-
-\do public.*
-                             List of operators
- Schema | Name | Left arg type | Right arg type | Result type | Description 
---------+------+---------------+----------------+-------------+-------------
-(0 rows)
-
-\dT c.*
-                                              List of data types
- Schema |  Name  |                                         Description                                         
---------+--------+---------------------------------------------------------------------------------------------
- c      | c.cube | multi-dimensional cube '(FLOAT-1, FLOAT-2, ..., FLOAT-N), (FLOAT-1, FLOAT-2, ..., FLOAT-N)'
-(1 row)
-
-create table foo (f1 c.cube, f2 int);
-drop extension cube;  -- fail, foo.f1 requires it
-ERROR:  cannot drop extension cube because other objects depend on it
-DETAIL:  table foo column f1 depends on type c.cube
-HINT:  Use DROP ... CASCADE to drop the dependent objects too.
-drop schema c;  -- fail, cube requires it
-ERROR:  cannot drop schema c because other objects depend on it
-DETAIL:  extension cube depends on schema c
-table foo column f1 depends on type c.cube
-HINT:  Use DROP ... CASCADE to drop the dependent objects too.
-drop extension cube cascade;
-NOTICE:  drop cascades to table foo column f1
-\d foo
-                Table "public.foo"
- Column |  Type   | Collation | Nullable | Default 
---------+---------+-----------+----------+---------
- f2     | integer |           |          | 
-
--- list what's installed
-\dT public.*
-     List of data types
- Schema | Name | Description 
---------+------+-------------
-(0 rows)
-
-\df public.*
-                       List of functions
- Schema | Name | Result data type | Argument data types | Type 
---------+------+------------------+---------------------+------
-(0 rows)
-
-\do public.*
-                             List of operators
- Schema | Name | Left arg type | Right arg type | Result type | Description 
---------+------+---------------+----------------+-------------+-------------
-(0 rows)
-
-\dT c.*
-     List of data types
- Schema | Name | Description 
---------+------+-------------
-(0 rows)
-
-\df c.*
-                       List of functions
- Schema | Name | Result data type | Argument data types | Type 
---------+------+------------------+---------------------+------
-(0 rows)
-
-\do c.*
-                             List of operators
- Schema | Name | Left arg type | Right arg type | Result type | Description 
---------+------+---------------+----------------+-------------+-------------
-(0 rows)
-
-drop schema c;

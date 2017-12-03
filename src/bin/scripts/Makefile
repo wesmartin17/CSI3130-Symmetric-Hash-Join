@@ -2,62 +2,67 @@
 #
 # Makefile for src/bin/scripts
 #
-# Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+# Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
 # Portions Copyright (c) 1994, Regents of the University of California
 #
-# src/bin/scripts/Makefile
+# $PostgreSQL: pgsql/src/bin/scripts/Makefile,v 1.34 2005/07/29 15:13:11 momjian Exp $
 #
 #-------------------------------------------------------------------------
 
 PGFILEDESC = "PostgreSQL utility"
-PGAPPICON=win32
-
 subdir = src/bin/scripts
 top_builddir = ../../..
 include $(top_builddir)/src/Makefile.global
 
-PROGRAMS = createdb createuser dropdb dropuser clusterdb vacuumdb reindexdb pg_isready
+PROGRAMS = createdb createlang createuser dropdb droplang dropuser clusterdb vacuumdb reindexdb
 
-override CPPFLAGS := -I$(libpq_srcdir) $(CPPFLAGS)
-override LDFLAGS := -L$(top_builddir)/src/fe_utils -lpgfeutils $(libpq_pgport) $(LDFLAGS)
+override CPPFLAGS := -DFRONTEND -I$(top_srcdir)/src/bin/pg_dump -I$(top_srcdir)/src/bin/psql -I$(libpq_srcdir) $(CPPFLAGS)
 
-all: $(PROGRAMS)
+all: submake-libpq submake-backend $(PROGRAMS)
 
 %: %.o $(WIN32RES)
-	$(CC) $(CFLAGS) $^ $(LDFLAGS) $(LDFLAGS_EX) $(LIBS) -o $@$(X)
+	$(CC) $(CFLAGS) $^ $(libpq_pgport) $(LDFLAGS) $(LIBS) -o $@$(X)
 
-createdb: createdb.o common.o | submake-libpq submake-libpgport submake-libpgfeutils
-createuser: createuser.o common.o | submake-libpq submake-libpgport submake-libpgfeutils
-dropdb: dropdb.o common.o | submake-libpq submake-libpgport submake-libpgfeutils
-dropuser: dropuser.o common.o | submake-libpq submake-libpgport submake-libpgfeutils
-clusterdb: clusterdb.o common.o | submake-libpq submake-libpgport submake-libpgfeutils
-vacuumdb: vacuumdb.o common.o | submake-libpq submake-libpgport submake-libpgfeutils
-reindexdb: reindexdb.o common.o | submake-libpq submake-libpgport submake-libpgfeutils
-pg_isready: pg_isready.o common.o | submake-libpq submake-libpgport submake-libpgfeutils
+createdb: createdb.o common.o dumputils.o $(top_builddir)/src/backend/parser/keywords.o
+createlang: createlang.o common.o print.o mbprint.o
+createuser: createuser.o common.o dumputils.o $(top_builddir)/src/backend/parser/keywords.o
+dropdb: dropdb.o common.o dumputils.o $(top_builddir)/src/backend/parser/keywords.o
+droplang: droplang.o common.o print.o mbprint.o
+dropuser: dropuser.o common.o dumputils.o $(top_builddir)/src/backend/parser/keywords.o
+clusterdb: clusterdb.o common.o dumputils.o $(top_builddir)/src/backend/parser/keywords.o
+vacuumdb: vacuumdb.o common.o
+reindexdb: reindexdb.o common.o dumputils.o $(top_builddir)/src/backend/parser/keywords.o
+
+dumputils.c: % : $(top_srcdir)/src/bin/pg_dump/%
+	rm -f $@ && $(LN_S) $< .
+
+print.c mbprint.c : % : $(top_srcdir)/src/bin/psql/%
+	rm -f $@ && $(LN_S) $< .
+
+.PHONY: submake-backend
+submake-backend:
+	$(MAKE) -C $(top_builddir)/src/backend/parser keywords.o
+
 
 install: all installdirs
-	$(INSTALL_PROGRAM) createdb$(X)   '$(DESTDIR)$(bindir)'/createdb$(X)
-	$(INSTALL_PROGRAM) dropdb$(X)     '$(DESTDIR)$(bindir)'/dropdb$(X)
-	$(INSTALL_PROGRAM) createuser$(X) '$(DESTDIR)$(bindir)'/createuser$(X)
-	$(INSTALL_PROGRAM) dropuser$(X)   '$(DESTDIR)$(bindir)'/dropuser$(X)
-	$(INSTALL_PROGRAM) clusterdb$(X)  '$(DESTDIR)$(bindir)'/clusterdb$(X)
-	$(INSTALL_PROGRAM) vacuumdb$(X)   '$(DESTDIR)$(bindir)'/vacuumdb$(X)
-	$(INSTALL_PROGRAM) reindexdb$(X)  '$(DESTDIR)$(bindir)'/reindexdb$(X)
-	$(INSTALL_PROGRAM) pg_isready$(X) '$(DESTDIR)$(bindir)'/pg_isready$(X)
+	$(INSTALL_PROGRAM) createdb$(X)   $(DESTDIR)$(bindir)/createdb$(X)
+	$(INSTALL_PROGRAM) dropdb$(X)     $(DESTDIR)$(bindir)/dropdb$(X)
+	$(INSTALL_PROGRAM) createlang$(X) $(DESTDIR)$(bindir)/createlang$(X)
+	$(INSTALL_PROGRAM) droplang$(X)   $(DESTDIR)$(bindir)/droplang$(X)
+	$(INSTALL_PROGRAM) createuser$(X) $(DESTDIR)$(bindir)/createuser$(X)
+	$(INSTALL_PROGRAM) dropuser$(X)   $(DESTDIR)$(bindir)/dropuser$(X)
+	$(INSTALL_PROGRAM) clusterdb$(X)  $(DESTDIR)$(bindir)/clusterdb$(X)
+	$(INSTALL_PROGRAM) vacuumdb$(X)   $(DESTDIR)$(bindir)/vacuumdb$(X)
+	$(INSTALL_PROGRAM) reindexdb$(X)  $(DESTDIR)$(bindir)/reindexdb$(X)
 
 installdirs:
-	$(MKDIR_P) '$(DESTDIR)$(bindir)'
+	$(mkinstalldirs) $(DESTDIR)$(bindir)
 
 uninstall:
-	rm -f $(addprefix '$(DESTDIR)$(bindir)'/, $(addsuffix $(X), $(PROGRAMS)))
+	rm -f $(addprefix $(DESTDIR)$(bindir)/, $(addsuffix $(X), $(PROGRAMS)))
+
 
 clean distclean maintainer-clean:
 	rm -f $(addsuffix $(X), $(PROGRAMS)) $(addsuffix .o, $(PROGRAMS))
-	rm -f common.o $(WIN32RES)
-	rm -rf tmp_check
-
-check:
-	$(prove_check)
-
-installcheck:
-	$(prove_installcheck)
+	rm -f common.o dumputils.o print.o mbprint.o $(WIN32RES)
+	rm -f dumputils.c print.c mbprint.c

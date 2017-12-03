@@ -4,7 +4,7 @@
 
 BEGIN;
 
-SELECT *
+SELECT * 
    INTO TABLE xacttest
    FROM aggtest;
 
@@ -27,10 +27,10 @@ SELECT * FROM aggtest;
 
 ABORT;
 
--- should not exist
+-- should not exist 
 SELECT oid FROM pg_class WHERE relname = 'disappear';
 
--- should have members again
+-- should have members again 
 SELECT * FROM aggtest;
 
 
@@ -38,48 +38,6 @@ SELECT * FROM aggtest;
 
 CREATE TABLE writetest (a int);
 CREATE TEMPORARY TABLE temptest (a int);
-
-BEGIN;
-SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY, DEFERRABLE; -- ok
-SELECT * FROM writetest; -- ok
-SET TRANSACTION READ WRITE; --fail
-COMMIT;
-
-BEGIN;
-SET TRANSACTION READ ONLY; -- ok
-SET TRANSACTION READ WRITE; -- ok
-SET TRANSACTION READ ONLY; -- ok
-SELECT * FROM writetest; -- ok
-SAVEPOINT x;
-SET TRANSACTION READ ONLY; -- ok
-SELECT * FROM writetest; -- ok
-SET TRANSACTION READ ONLY; -- ok
-SET TRANSACTION READ WRITE; --fail
-COMMIT;
-
-BEGIN;
-SET TRANSACTION READ WRITE; -- ok
-SAVEPOINT x;
-SET TRANSACTION READ WRITE; -- ok
-SET TRANSACTION READ ONLY; -- ok
-SELECT * FROM writetest; -- ok
-SET TRANSACTION READ ONLY; -- ok
-SET TRANSACTION READ WRITE; --fail
-COMMIT;
-
-BEGIN;
-SET TRANSACTION READ WRITE; -- ok
-SAVEPOINT x;
-SET TRANSACTION READ ONLY; -- ok
-SELECT * FROM writetest; -- ok
-ROLLBACK TO SAVEPOINT x;
-SHOW transaction_read_only;  -- off
-SAVEPOINT y;
-SET TRANSACTION READ ONLY; -- ok
-SELECT * FROM writetest; -- ok
-RELEASE SAVEPOINT y;
-SHOW transaction_read_only;  -- off
-COMMIT;
 
 SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;
 
@@ -171,7 +129,7 @@ BEGIN;
 			DELETE FROM savepoints WHERE a=2;
 ROLLBACK;
 COMMIT;		-- should not be in a transaction block
-
+		
 SELECT * FROM savepoints;
 
 -- test whole-tree commit on an aborted subtransaction
@@ -254,7 +212,7 @@ SELECT 1;			-- this should work
 
 -- check non-transactional behavior of cursors
 BEGIN;
-	DECLARE c CURSOR FOR SELECT unique2 FROM tenk1 ORDER BY unique2;
+	DECLARE c CURSOR FOR SELECT unique2 FROM tenk1;
 	SAVEPOINT one;
 		FETCH 10 FROM c;
 	ROLLBACK TO SAVEPOINT one;
@@ -262,7 +220,7 @@ BEGIN;
 	RELEASE SAVEPOINT one;
 	FETCH 10 FROM c;
 	CLOSE c;
-	DECLARE c CURSOR FOR SELECT unique2/0 FROM tenk1 ORDER BY unique2;
+	DECLARE c CURSOR FOR SELECT unique2/0 FROM tenk1;
 	SAVEPOINT two;
 		FETCH 10 FROM c;
 	ROLLBACK TO SAVEPOINT two;
@@ -333,25 +291,6 @@ DROP TABLE foo;
 DROP TABLE baz;
 DROP TABLE barbaz;
 
-
--- test case for problems with revalidating an open relation during abort
-create function inverse(int) returns float8 as
-$$
-begin
-  analyze revalidate_bug;
-  return 1::float8/$1;
-exception
-  when division_by_zero then return 0;
-end$$ language plpgsql volatile;
-
-create table revalidate_bug (c float8 unique);
-insert into revalidate_bug values (1);
-insert into revalidate_bug values (inverse(0));
-
-drop table revalidate_bug;
-drop function inverse(int);
-
-
 -- verify that cursors created during an aborted subtransaction are
 -- closed, but that we do not rollback the effect of any FETCHs
 -- performed in the aborted subtransaction
@@ -386,98 +325,3 @@ rollback to x;
 fetch from foo;
 
 abort;
-
-
--- Test for proper cleanup after a failure in a cursor portal
--- that was created in an outer subtransaction
-CREATE FUNCTION invert(x float8) RETURNS float8 LANGUAGE plpgsql AS
-$$ begin return 1/x; end $$;
-
-CREATE FUNCTION create_temp_tab() RETURNS text
-LANGUAGE plpgsql AS $$
-BEGIN
-  CREATE TEMP TABLE new_table (f1 float8);
-  -- case of interest is that we fail while holding an open
-  -- relcache reference to new_table
-  INSERT INTO new_table SELECT invert(0.0);
-  RETURN 'foo';
-END $$;
-
-BEGIN;
-DECLARE ok CURSOR FOR SELECT * FROM int8_tbl;
-DECLARE ctt CURSOR FOR SELECT create_temp_tab();
-FETCH ok;
-SAVEPOINT s1;
-FETCH ok;  -- should work
-FETCH ctt; -- error occurs here
-ROLLBACK TO s1;
-FETCH ok;  -- should work
-FETCH ctt; -- must be rejected
-COMMIT;
-
-DROP FUNCTION create_temp_tab();
-DROP FUNCTION invert(x float8);
-
-
--- Test assorted behaviors around the implicit transaction block created
--- when multiple SQL commands are sent in a single Query message.  These
--- tests rely on the fact that psql will not break SQL commands apart at a
--- backslash-quoted semicolon, but will send them as one Query.
-
-create temp table i_table (f1 int);
-
--- psql will show only the last result in a multi-statement Query
-SELECT 1\; SELECT 2\; SELECT 3;
-
--- this implicitly commits:
-insert into i_table values(1)\; select * from i_table;
--- 1/0 error will cause rolling back the whole implicit transaction
-insert into i_table values(2)\; select * from i_table\; select 1/0;
-select * from i_table;
-
-rollback;  -- we are not in a transaction at this point
-
--- can use regular begin/commit/rollback within a single Query
-begin\; insert into i_table values(3)\; commit;
-rollback;  -- we are not in a transaction at this point
-begin\; insert into i_table values(4)\; rollback;
-rollback;  -- we are not in a transaction at this point
-
--- begin converts implicit transaction into a regular one that
--- can extend past the end of the Query
-select 1\; begin\; insert into i_table values(5);
-commit;
-select 1\; begin\; insert into i_table values(6);
-rollback;
-
--- commit in implicit-transaction state commits but issues a warning.
-insert into i_table values(7)\; commit\; insert into i_table values(8)\; select 1/0;
--- similarly, rollback aborts but issues a warning.
-insert into i_table values(9)\; rollback\; select 2;
-
-select * from i_table;
-
-rollback;  -- we are not in a transaction at this point
-
--- implicit transaction block is still a transaction block, for e.g. VACUUM
-SELECT 1\; VACUUM;
-SELECT 1\; COMMIT\; VACUUM;
-
--- we disallow savepoint-related commands in implicit-transaction state
-SELECT 1\; SAVEPOINT sp;
-SELECT 1\; COMMIT\; SAVEPOINT sp;
-ROLLBACK TO SAVEPOINT sp\; SELECT 2;
-SELECT 2\; RELEASE SAVEPOINT sp\; SELECT 3;
-
--- but this is OK, because the BEGIN converts it to a regular xact
-SELECT 1\; BEGIN\; SAVEPOINT sp\; ROLLBACK TO SAVEPOINT sp\; COMMIT;
-
-
--- Test for successful cleanup of an aborted transaction at session exit.
--- THIS MUST BE THE LAST TEST IN THIS FILE.
-
-begin;
-select 1/0;
-rollback to X;
-
--- DO NOT ADD ANYTHING HERE.

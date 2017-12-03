@@ -1,16 +1,11 @@
 /*
- *	qsort.c: standard quicksort algorithm
- *
  *	Modifications from vanilla NetBSD source:
  *	  Add do ... while() macro fix
  *	  Remove __inline, _DIAGASSERTs, __P
  *	  Remove ill-considered "swap_cnt" switch to insertion sort,
  *	  in favor of a simple check for presorted input.
- *	  Take care to recurse on the smaller partition, to bound stack usage.
  *
- *	CAUTION: if you change this file, see also qsort_arg.c, gen_qsort_tuple.pl
- *
- *	src/port/qsort.c
+ *	$PostgreSQL: pgsql/src/port/qsort.c,v 1.8.2.1 2006/03/21 19:49:19 tgl Exp $
  */
 
 /*	$NetBSD: qsort.c,v 1.13 2003/08/07 16:43:42 agc Exp $	*/
@@ -34,7 +29,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -47,26 +42,19 @@
 #include "c.h"
 
 
-static char *med3(char *a, char *b, char *c,
-	 int (*cmp) (const void *, const void *));
+static char *med3(char *, char *, char *,
+	 int (*) (const void *, const void *));
 static void swapfunc(char *, char *, size_t, int);
+
+#define min(a, b)	((a) < (b) ? (a) : (b))
 
 /*
  * Qsort routine based on J. L. Bentley and M. D. McIlroy,
  * "Engineering a sort function",
  * Software--Practice and Experience 23 (1993) 1249-1265.
- *
  * We have modified their original by adding a check for already-sorted input,
  * which seems to be a win per discussions on pgsql-hackers around 2006-03-21.
- *
- * Also, we recurse on the smaller partition and iterate on the larger one,
- * which ensures we cannot recurse more than log(N) levels (since the
- * partition recursed to is surely no more than half of the input).  Bentley
- * and McIlroy explicitly rejected doing this on the grounds that it's "not
- * worth the effort", but we have seen crashes in the field due to stack
- * overrun, so that judgment seems wrong.
  */
-
 #define swapcode(TYPE, parmi, parmj, n) \
 do {		\
 	size_t i = (n) / sizeof (TYPE);			\
@@ -83,7 +71,11 @@ do {		\
 	(es) % sizeof(long) ? 2 : (es) == sizeof(long)? 0 : 1;
 
 static void
-swapfunc(char *a, char *b, size_t n, int swaptype)
+swapfunc(a, b, n, swaptype)
+char	   *a,
+		   *b;
+size_t		n;
+int			swaptype;
 {
 	if (swaptype <= 1)
 		swapcode(long, a, b, n);
@@ -99,10 +91,14 @@ swapfunc(char *a, char *b, size_t n, int swaptype)
 	} else							\
 		swapfunc(a, b, es, swaptype)
 
-#define vecswap(a, b, n) if ((n) > 0) swapfunc(a, b, n, swaptype)
+#define vecswap(a, b, n) if ((n) > 0) swapfunc((a), (b), (size_t)(n), swaptype)
 
 static char *
-med3(char *a, char *b, char *c, int (*cmp) (const void *, const void *))
+med3(a, b, c, cmp)
+char	   *a,
+		   *b,
+		   *c;
+int			(*cmp) (const void *, const void *);
 {
 	return cmp(a, b) < 0 ?
 		(cmp(b, c) < 0 ? b : (cmp(a, c) < 0 ? c : a))
@@ -110,7 +106,11 @@ med3(char *a, char *b, char *c, int (*cmp) (const void *, const void *))
 }
 
 void
-pg_qsort(void *a, size_t n, size_t es, int (*cmp) (const void *, const void *))
+qsort(a, n, es, cmp)
+void	   *a;
+size_t		n,
+			es;
+int			(*cmp) (const void *, const void *);
 {
 	char	   *pa,
 			   *pb,
@@ -119,9 +119,8 @@ pg_qsort(void *a, size_t n, size_t es, int (*cmp) (const void *, const void *))
 			   *pl,
 			   *pm,
 			   *pn;
-	size_t		d1,
-				d2;
-	int			r,
+	int			d,
+				r,
 				swaptype,
 				presorted;
 
@@ -152,8 +151,7 @@ loop:SWAPINIT(a, es);
 		pn = (char *) a + (n - 1) * es;
 		if (n > 40)
 		{
-			size_t		d = (n / 8) * es;
-
+			d = (n / 8) * es;
 			pl = med3(pl, pl + d, pl + 2 * d, cmp);
 			pm = med3(pm - d, pm, pm + d, cmp);
 			pn = med3(pn - 2 * d, pn - d, pn, cmp);
@@ -190,46 +188,18 @@ loop:SWAPINIT(a, es);
 		pc -= es;
 	}
 	pn = (char *) a + n * es;
-	d1 = Min(pa - (char *) a, pb - pa);
-	vecswap(a, pb - d1, d1);
-	d1 = Min(pd - pc, pn - pd - es);
-	vecswap(pb, pn - d1, d1);
-	d1 = pb - pa;
-	d2 = pd - pc;
-	if (d1 <= d2)
+	r = min(pa - (char *) a, pb - pa);
+	vecswap(a, pb - r, r);
+	r = min(pd - pc, pn - pd - es);
+	vecswap(pb, pn - r, r);
+	if ((r = pb - pa) > es)
+		qsort(a, r / es, es, cmp);
+	if ((r = pd - pc) > es)
 	{
-		/* Recurse on left partition, then iterate on right partition */
-		if (d1 > es)
-			pg_qsort(a, d1 / es, es, cmp);
-		if (d2 > es)
-		{
-			/* Iterate rather than recurse to save stack space */
-			/* pg_qsort(pn - d2, d2 / es, es, cmp); */
-			a = pn - d2;
-			n = d2 / es;
-			goto loop;
-		}
+		/* Iterate rather than recurse to save stack space */
+		a = pn - r;
+		n = r / es;
+		goto loop;
 	}
-	else
-	{
-		/* Recurse on right partition, then iterate on left partition */
-		if (d2 > es)
-			pg_qsort(pn - d2, d2 / es, es, cmp);
-		if (d1 > es)
-		{
-			/* Iterate rather than recurse to save stack space */
-			/* pg_qsort(a, d1 / es, es, cmp); */
-			n = d1 / es;
-			goto loop;
-		}
-	}
-}
-
-/*
- * qsort comparator wrapper for strcmp.
- */
-int
-pg_qsort_strcmp(const void *a, const void *b)
-{
-	return strcmp(*(const char *const *) a, *(const char *const *) b);
+/*		qsort(pn - r, r / es, es, cmp);*/
 }

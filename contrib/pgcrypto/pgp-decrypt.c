@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/pgp-decrypt.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/pgp-decrypt.c,v 1.6.2.1 2005/11/22 18:23:01 momjian Exp $
  */
 
 #include "postgres.h"
@@ -49,7 +49,7 @@
 #define MAX_CHUNK (16*1024*1024)
 
 static int
-parse_new_len(PullFilter *src, int *len_p)
+parse_new_len(PullFilter * src, int *len_p)
 {
 	uint8		b;
 	int			len;
@@ -92,7 +92,7 @@ parse_new_len(PullFilter *src, int *len_p)
 }
 
 static int
-parse_old_len(PullFilter *src, int *len_p, int lentype)
+parse_old_len(PullFilter * src, int *len_p, int lentype)
 {
 	uint8		b;
 	int			len;
@@ -126,7 +126,7 @@ parse_old_len(PullFilter *src, int *len_p, int lentype)
 
 /* returns pkttype or 0 on eof */
 int
-pgp_parse_pkt_hdr(PullFilter *src, uint8 *tag, int *len_p, int allow_ctx)
+pgp_parse_pkt_hdr(PullFilter * src, uint8 *tag, int *len_p, int allow_ctx)
 {
 	int			lentype;
 	int			res;
@@ -172,7 +172,7 @@ struct PktData
 };
 
 static int
-pktreader_pull(void *priv, PullFilter *src, int len,
+pktreader_pull(void *priv, PullFilter * src, int len,
 			   uint8 **data_p, uint8 *buf, int buflen)
 {
 	int			res;
@@ -182,7 +182,7 @@ pktreader_pull(void *priv, PullFilter *src, int len,
 	if (pkt->type == PKT_CONTEXT)
 		return pullf_read(src, len, data_p);
 
-	while (pkt->len == 0)
+	if (pkt->len == 0)
 	{
 		/* this was last chunk in stream */
 		if (pkt->type == PKT_NORMAL)
@@ -210,7 +210,7 @@ pktreader_free(void *priv)
 {
 	struct PktData *pkt = priv;
 
-	px_memset(pkt, 0, sizeof(*pkt));
+	memset(pkt, 0, sizeof(*pkt));
 	px_free(pkt);
 }
 
@@ -220,8 +220,8 @@ static struct PullFilterOps pktreader_filter = {
 
 /* needs helper function to pass several parameters */
 int
-pgp_create_pkt_reader(PullFilter **pf_p, PullFilter *src, int len,
-					  int pkttype, PGP_Context *ctx)
+pgp_create_pkt_reader(PullFilter ** pf_p, PullFilter * src, int len,
+					  int pkttype, PGP_Context * ctx)
 {
 	int			res;
 	struct PktData *pkt = px_alloc(sizeof(*pkt));
@@ -236,12 +236,10 @@ pgp_create_pkt_reader(PullFilter **pf_p, PullFilter *src, int len,
 
 /*
  * Prefix check filter
- * https://tools.ietf.org/html/rfc4880#section-5.7
- * https://tools.ietf.org/html/rfc4880#section-5.13
  */
 
 static int
-prefix_init(void **priv_p, void *arg, PullFilter *src)
+prefix_init(void **priv_p, void *arg, PullFilter * src)
 {
 	PGP_Context *ctx = arg;
 	int			len;
@@ -259,17 +257,30 @@ prefix_init(void **priv_p, void *arg, PullFilter *src)
 	if (res != len + 2)
 	{
 		px_debug("prefix_init: short read");
-		px_memset(tmpbuf, 0, sizeof(tmpbuf));
+		memset(tmpbuf, 0, sizeof(tmpbuf));
 		return PXE_PGP_CORRUPT_DATA;
 	}
 
 	if (buf[len - 2] != buf[len] || buf[len - 1] != buf[len + 1])
 	{
 		px_debug("prefix_init: corrupt prefix");
-		/* report error in pgp_decrypt() */
+
+		/*
+		 * The original purpose of the 2-byte check was to show user a
+		 * friendly "wrong key" message. This made following possible:
+		 *
+		 * "An Attack on CFB Mode Encryption As Used By OpenPGP" by Serge
+		 * Mister and Robert Zuccherato
+		 *
+		 * To avoid being 'oracle', we delay reporting, which basically means
+		 * we prefer to run into corrupt packet header.
+		 *
+		 * We _could_ throw PXE_PGP_CORRUPT_DATA here, but there is
+		 * possibility of attack via timing, so we don't.
+		 */
 		ctx->corrupt_prefix = 1;
 	}
-	px_memset(tmpbuf, 0, sizeof(tmpbuf));
+	memset(tmpbuf, 0, sizeof(tmpbuf));
 	return 0;
 }
 
@@ -283,7 +294,7 @@ static struct PullFilterOps prefix_filter = {
  */
 
 static int
-decrypt_init(void **priv_p, void *arg, PullFilter *src)
+decrypt_init(void **priv_p, void *arg, PullFilter * src)
 {
 	PGP_CFB    *cfb = arg;
 
@@ -294,7 +305,7 @@ decrypt_init(void **priv_p, void *arg, PullFilter *src)
 }
 
 static int
-decrypt_read(void *priv, PullFilter *src, int len,
+decrypt_read(void *priv, PullFilter * src, int len,
 			 uint8 **data_p, uint8 *buf, int buflen)
 {
 	PGP_CFB    *cfb = priv;
@@ -320,7 +331,7 @@ struct PullFilterOps pgp_decrypt_filter = {
  */
 
 static int
-mdc_init(void **priv_p, void *arg, PullFilter *src)
+mdc_init(void **priv_p, void *arg, PullFilter * src)
 {
 	PGP_Context *ctx = arg;
 
@@ -340,33 +351,37 @@ mdc_free(void *priv)
 }
 
 static int
-mdc_finish(PGP_Context *ctx, PullFilter *src, int len)
+mdc_finish(PGP_Context * ctx, PullFilter * src,
+		   int len, uint8 **data_p)
 {
 	int			res;
 	uint8		hash[20];
-	uint8		tmpbuf[20];
-	uint8	   *data;
+	uint8		tmpbuf[22];
 
-	/* should not happen */
-	if (ctx->use_mdcbuf_filter)
+	if (len + 1 > sizeof(tmpbuf))
 		return PXE_BUG;
 
-	/* It's SHA1 */
-	if (len != 20)
-		return PXE_PGP_CORRUPT_DATA;
-
-	/* mdc_read should not call md_update */
-	ctx->in_mdc_pkt = 1;
-
 	/* read data */
-	res = pullf_read_max(src, len, &data, tmpbuf);
+	res = pullf_read_max(src, len + 1, data_p, tmpbuf);
 	if (res < 0)
 		return res;
 	if (res == 0)
 	{
-		px_debug("no mdc");
+		if (ctx->mdc_checked == 0)
+		{
+			px_debug("no mdc");
+			return PXE_PGP_CORRUPT_DATA;
+		}
+		return 0;
+	}
+
+	/* safety check */
+	if (ctx->in_mdc_pkt > 1)
+	{
+		px_debug("mdc_finish: several times here?");
 		return PXE_PGP_CORRUPT_DATA;
 	}
+	ctx->in_mdc_pkt++;
 
 	/* is the packet sane? */
 	if (res != 20)
@@ -379,28 +394,31 @@ mdc_finish(PGP_Context *ctx, PullFilter *src, int len)
 	 * ok, we got the hash, now check
 	 */
 	px_md_finish(ctx->mdc_ctx, hash);
-	res = memcmp(hash, data, 20);
-	px_memset(hash, 0, 20);
-	px_memset(tmpbuf, 0, sizeof(tmpbuf));
+	res = memcmp(hash, *data_p, 20);
+	memset(hash, 0, 20);
+	memset(tmpbuf, 0, sizeof(tmpbuf));
 	if (res != 0)
 	{
 		px_debug("mdc_finish: mdc failed");
 		return PXE_PGP_CORRUPT_DATA;
 	}
 	ctx->mdc_checked = 1;
-	return 0;
+	return len;
 }
 
 static int
-mdc_read(void *priv, PullFilter *src, int len,
+mdc_read(void *priv, PullFilter * src, int len,
 		 uint8 **data_p, uint8 *buf, int buflen)
 {
 	int			res;
 	PGP_Context *ctx = priv;
 
 	/* skip this filter? */
-	if (ctx->use_mdcbuf_filter || ctx->in_mdc_pkt)
+	if (ctx->use_mdcbuf_filter)
 		return pullf_read(src, len, data_p);
+
+	if (ctx->in_mdc_pkt)
+		return mdc_finish(ctx, src, len, data_p);
 
 	res = pullf_read(src, len, data_p);
 	if (res < 0)
@@ -442,7 +460,7 @@ struct MDCBufData
 };
 
 static int
-mdcbuf_init(void **priv_p, void *arg, PullFilter *src)
+mdcbuf_init(void **priv_p, void *arg, PullFilter * src)
 {
 	PGP_Context *ctx = arg;
 	struct MDCBufData *st;
@@ -460,7 +478,7 @@ mdcbuf_init(void **priv_p, void *arg, PullFilter *src)
 }
 
 static int
-mdcbuf_finish(struct MDCBufData *st)
+mdcbuf_finish(struct MDCBufData * st)
 {
 	uint8		hash[20];
 	int			res;
@@ -475,7 +493,7 @@ mdcbuf_finish(struct MDCBufData *st)
 	px_md_update(st->ctx->mdc_ctx, st->mdc_buf, 2);
 	px_md_finish(st->ctx->mdc_ctx, hash);
 	res = memcmp(hash, st->mdc_buf + 2, 20);
-	px_memset(hash, 0, 20);
+	memset(hash, 0, 20);
 	if (res)
 	{
 		px_debug("mdcbuf_finish: MDC does not match");
@@ -485,7 +503,7 @@ mdcbuf_finish(struct MDCBufData *st)
 }
 
 static void
-mdcbuf_load_data(struct MDCBufData *st, uint8 *src, int len)
+mdcbuf_load_data(struct MDCBufData * st, uint8 *src, int len)
 {
 	uint8	   *dst = st->pos + st->avail;
 
@@ -495,14 +513,14 @@ mdcbuf_load_data(struct MDCBufData *st, uint8 *src, int len)
 }
 
 static void
-mdcbuf_load_mdc(struct MDCBufData *st, uint8 *src, int len)
+mdcbuf_load_mdc(struct MDCBufData * st, uint8 *src, int len)
 {
 	memmove(st->mdc_buf + st->mdc_avail, src, len);
 	st->mdc_avail += len;
 }
 
 static int
-mdcbuf_refill(struct MDCBufData *st, PullFilter *src)
+mdcbuf_refill(struct MDCBufData * st, PullFilter * src)
 {
 	uint8	   *data;
 	int			res;
@@ -546,7 +564,7 @@ mdcbuf_refill(struct MDCBufData *st, PullFilter *src)
 }
 
 static int
-mdcbuf_read(void *priv, PullFilter *src, int len,
+mdcbuf_read(void *priv, PullFilter * src, int len,
 			uint8 **data_p, uint8 *buf, int buflen)
 {
 	struct MDCBufData *st = priv;
@@ -575,7 +593,7 @@ mdcbuf_free(void *priv)
 
 	px_md_free(st->ctx->mdc_ctx);
 	st->ctx->mdc_ctx = NULL;
-	px_memset(st, 0, sizeof(*st));
+	memset(st, 0, sizeof(*st));
 	px_free(st);
 }
 
@@ -588,7 +606,7 @@ static struct PullFilterOps mdcbuf_filter = {
  * Decrypt separate session key
  */
 static int
-decrypt_key(PGP_Context *ctx, const uint8 *src, int len)
+decrypt_key(PGP_Context * ctx, const uint8 *src, int len)
 {
 	int			res;
 	uint8		algo;
@@ -621,7 +639,7 @@ decrypt_key(PGP_Context *ctx, const uint8 *src, int len)
  * Handle key packet
  */
 static int
-parse_symenc_sesskey(PGP_Context *ctx, PullFilter *src)
+parse_symenc_sesskey(PGP_Context * ctx, PullFilter * src)
 {
 	uint8	   *p;
 	int			res;
@@ -643,7 +661,6 @@ parse_symenc_sesskey(PGP_Context *ctx, PullFilter *src)
 	if (res < 0)
 		return res;
 	ctx->s2k_mode = ctx->s2k.mode;
-	ctx->s2k_count = s2k_decode_count(ctx->s2k.iter);
 	ctx->s2k_digest_algo = ctx->s2k.digest_algo;
 
 	/*
@@ -686,12 +703,12 @@ parse_symenc_sesskey(PGP_Context *ctx, PullFilter *src)
 		res = decrypt_key(ctx, p, res);
 	}
 
-	px_memset(tmpbuf, 0, sizeof(tmpbuf));
+	memset(tmpbuf, 0, sizeof(tmpbuf));
 	return res;
 }
 
 static int
-copy_crlf(MBuf *dst, uint8 *data, int len, int *got_cr)
+copy_crlf(MBuf * dst, uint8 *data, int len, int *got_cr)
 {
 	uint8	   *data_end = data + len;
 	uint8		tmpbuf[1024];
@@ -736,12 +753,11 @@ copy_crlf(MBuf *dst, uint8 *data, int len, int *got_cr)
 		if (res < 0)
 			return res;
 	}
-	px_memset(tmpbuf, 0, sizeof(tmpbuf));
 	return 0;
 }
 
 static int
-parse_literal_data(PGP_Context *ctx, MBuf *dst, PullFilter *pkt)
+parse_literal_data(PGP_Context * ctx, MBuf * dst, PullFilter * pkt)
 {
 	int			type;
 	int			name_len;
@@ -776,17 +792,14 @@ parse_literal_data(PGP_Context *ctx, MBuf *dst, PullFilter *pkt)
 		px_debug("parse_literal_data: unexpected eof");
 		return PXE_PGP_CORRUPT_DATA;
 	}
-	px_memset(tmpbuf, 0, 4);
+	memset(tmpbuf, 0, 4);
 
-	/*
-	 * If called from an SQL function that returns text, pgp_decrypt() rejects
-	 * inputs not self-identifying as text.
-	 */
+	/* check if text */
 	if (ctx->text_mode)
 		if (type != 't' && type != 'u')
 		{
 			px_debug("parse_literal_data: data type=%c", type);
-			ctx->unexpected_binary = true;
+			return PXE_PGP_NOT_TEXT;
 		}
 
 	ctx->unicode_mode = (type == 'u') ? 1 : 0;
@@ -811,16 +824,15 @@ parse_literal_data(PGP_Context *ctx, MBuf *dst, PullFilter *pkt)
 }
 
 /* process_data_packets and parse_compressed_data call each other */
-static int process_data_packets(PGP_Context *ctx, MBuf *dst,
-					 PullFilter *src, int allow_compr, int need_mdc);
+static int process_data_packets(PGP_Context * ctx, MBuf * dst,
+					 PullFilter * src, int allow_compr, int need_mdc);
 
 static int
-parse_compressed_data(PGP_Context *ctx, MBuf *dst, PullFilter *pkt)
+parse_compressed_data(PGP_Context * ctx, MBuf * dst, PullFilter * pkt)
 {
 	int			res;
 	uint8		type;
 	PullFilter *pf_decompr;
-	uint8	   *discard_buf;
 
 	GETBYTE(pkt, type);
 
@@ -844,20 +856,7 @@ parse_compressed_data(PGP_Context *ctx, MBuf *dst, PullFilter *pkt)
 
 		case PGP_COMPR_BZIP2:
 			px_debug("parse_compressed_data: bzip2 unsupported");
-			/* report error in pgp_decrypt() */
-			ctx->unsupported_compr = 1;
-
-			/*
-			 * Discard the compressed data, allowing it to first affect any
-			 * MDC digest computation.
-			 */
-			while (1)
-			{
-				res = pullf_read(pkt, 32 * 1024, &discard_buf);
-				if (res <= 0)
-					break;
-			}
-
+			res = PXE_PGP_UNSUPPORTED_COMPR;
 			break;
 
 		default:
@@ -869,7 +868,7 @@ parse_compressed_data(PGP_Context *ctx, MBuf *dst, PullFilter *pkt)
 }
 
 static int
-process_data_packets(PGP_Context *ctx, MBuf *dst, PullFilter *src,
+process_data_packets(PGP_Context * ctx, MBuf * dst, PullFilter * src,
 					 int allow_compr, int need_mdc)
 {
 	uint8		tag;
@@ -878,6 +877,7 @@ process_data_packets(PGP_Context *ctx, MBuf *dst, PullFilter *src,
 	int			got_data = 0;
 	int			got_mdc = 0;
 	PullFilter *pkt = NULL;
+	uint8	   *tmp;
 
 	while (1)
 	{
@@ -936,8 +936,11 @@ process_data_packets(PGP_Context *ctx, MBuf *dst, PullFilter *src,
 					break;
 				}
 
-				res = mdc_finish(ctx, pkt, len);
-				if (res >= 0)
+				/* notify mdc_filter */
+				ctx->in_mdc_pkt = 1;
+
+				res = pullf_read(pkt, 8192, &tmp);
+				if (res > 0)
 					got_mdc = 1;
 				break;
 			default:
@@ -972,7 +975,7 @@ process_data_packets(PGP_Context *ctx, MBuf *dst, PullFilter *src,
 }
 
 static int
-parse_symenc_data(PGP_Context *ctx, PullFilter *pkt, MBuf *dst)
+parse_symenc_data(PGP_Context * ctx, PullFilter * pkt, MBuf * dst)
 {
 	int			res;
 	PGP_CFB    *cfb = NULL;
@@ -1006,7 +1009,7 @@ out:
 }
 
 static int
-parse_symenc_mdc_data(PGP_Context *ctx, PullFilter *pkt, MBuf *dst)
+parse_symenc_mdc_data(PGP_Context * ctx, PullFilter * pkt, MBuf * dst)
 {
 	int			res;
 	PGP_CFB    *cfb = NULL;
@@ -1058,36 +1061,39 @@ out:
  * skip over packet contents
  */
 int
-pgp_skip_packet(PullFilter *pkt)
+pgp_skip_packet(PullFilter * pkt)
 {
 	int			res = 1;
 	uint8	   *tmp;
 
 	while (res > 0)
 		res = pullf_read(pkt, 32 * 1024, &tmp);
-	return res;
+	return res < 0 ? res : 0;
 }
 
 /*
  * expect to be at packet end, any data is error
  */
 int
-pgp_expect_packet_end(PullFilter *pkt)
+pgp_expect_packet_end(PullFilter * pkt)
 {
-	int			res;
+	int			res = 1;
 	uint8	   *tmp;
 
-	res = pullf_read(pkt, 32 * 1024, &tmp);
-	if (res > 0)
+	while (res > 0)
 	{
-		px_debug("pgp_expect_packet_end: got data");
-		return PXE_PGP_CORRUPT_DATA;
+		res = pullf_read(pkt, 32 * 1024, &tmp);
+		if (res > 0)
+		{
+			px_debug("pgp_expect_packet_end: got data");
+			return PXE_PGP_CORRUPT_DATA;
+		}
 	}
-	return res;
+	return res < 0 ? res : 0;
 }
 
 int
-pgp_decrypt(PGP_Context *ctx, MBuf *msrc, MBuf *mdst)
+pgp_decrypt(PGP_Context * ctx, MBuf * msrc, MBuf * mdst)
 {
 	int			res;
 	PullFilter *src = NULL;
@@ -1175,36 +1181,8 @@ pgp_decrypt(PGP_Context *ctx, MBuf *msrc, MBuf *mdst)
 	if (res < 0)
 		return res;
 
-	/*
-	 * Report a failure of the prefix_init() "quick check" now, rather than
-	 * upon detection, to hinder timing attacks.  pgcrypto is not generally
-	 * secure against timing attacks, but this helps.
-	 */
 	if (!got_data || ctx->corrupt_prefix)
-		return PXE_PGP_CORRUPT_DATA;
-
-	/*
-	 * Code interpreting purportedly-decrypted data prior to this stage shall
-	 * report no error other than PXE_PGP_CORRUPT_DATA.  (PXE_BUG is okay so
-	 * long as it remains unreachable.)  This ensures that an attacker able to
-	 * choose a ciphertext and receive a corresponding decryption error
-	 * message cannot use that oracle to gather clues about the decryption
-	 * key.  See "An Attack on CFB Mode Encryption As Used By OpenPGP" by
-	 * Serge Mister and Robert Zuccherato.
-	 *
-	 * A problematic value in the first octet of a Literal Data or Compressed
-	 * Data packet may indicate a simple user error, such as the need to call
-	 * pgp_sym_decrypt_bytea instead of pgp_sym_decrypt.  Occasionally,
-	 * though, it is the first symptom of the encryption key not matching the
-	 * decryption key.  When this was the only problem encountered, report a
-	 * specific error to guide the user; otherwise, we will have reported
-	 * PXE_PGP_CORRUPT_DATA before now.  A key mismatch makes the other errors
-	 * into red herrings, and this avoids leaking clues to attackers.
-	 */
-	if (ctx->unsupported_compr)
-		return PXE_PGP_UNSUPPORTED_COMPR;
-	if (ctx->unexpected_binary)
-		return PXE_PGP_NOT_TEXT;
+		res = PXE_PGP_CORRUPT_DATA;
 
 	return res;
 }

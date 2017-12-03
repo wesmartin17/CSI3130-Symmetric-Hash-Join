@@ -3,12 +3,12 @@
  * globals.c
  *	  global variable declarations
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/utils/init/globals.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/init/globals.c,v 1.96 2005/07/04 04:51:50 tgl Exp $
  *
  * NOTES
  *	  Globals used all over the place should be declared here and not
@@ -18,38 +18,23 @@
  */
 #include "postgres.h"
 
-#include "libpq/libpq-be.h"
 #include "libpq/pqcomm.h"
 #include "miscadmin.h"
 #include "storage/backendid.h"
 
 
-ProtocolVersion FrontendProtocol;
+ProtocolVersion FrontendProtocol = PG_PROTOCOL_LATEST;
 
 volatile bool InterruptPending = false;
 volatile bool QueryCancelPending = false;
 volatile bool ProcDiePending = false;
-volatile bool ClientConnectionLost = false;
-volatile bool IdleInTransactionSessionTimeoutPending = false;
-volatile sig_atomic_t ConfigReloadPending = false;
+volatile bool ImmediateInterruptOK = false;
 volatile uint32 InterruptHoldoffCount = 0;
-volatile uint32 QueryCancelHoldoffCount = 0;
 volatile uint32 CritSectionCount = 0;
 
 int			MyProcPid;
-pg_time_t	MyStartTime;
 struct Port *MyProcPort;
-int32		MyCancelKey;
-int			MyPMChildSlot;
-
-/*
- * MyLatch points to the latch that should be used for signal handling by the
- * current process. It will either point to a process local latch if the
- * current process does not have a PGPROC entry in that moment, or to
- * PGPROC->procLatch if it has. Thus it can always be used in signal handlers,
- * without checking for its existence.
- */
-struct Latch *MyLatch;
+long		MyCancelKey;
 
 /*
  * DataDir is the absolute path to the top level of the PGDATA directory tree.
@@ -62,17 +47,15 @@ char	   *DataDir = NULL;
 char		OutputFileName[MAXPGPATH];	/* debugging output file */
 
 char		my_exec_path[MAXPGPATH];	/* full path to my executable */
-char		pkglib_path[MAXPGPATH]; /* full path to lib directory */
+char		pkglib_path[MAXPGPATH];		/* full path to lib directory */
 
 #ifdef EXEC_BACKEND
-char		postgres_exec_path[MAXPGPATH];	/* full path to backend */
+char		postgres_exec_path[MAXPGPATH];		/* full path to backend */
 
 /* note: currently this is not valid in backend processes */
 #endif
 
 BackendId	MyBackendId = InvalidBackendId;
-
-BackendId	ParallelMasterBackendId = InvalidBackendId;
 
 Oid			MyDatabaseId = InvalidOid;
 
@@ -99,41 +82,28 @@ pid_t		PostmasterPid = 0;
  */
 bool		IsPostmasterEnvironment = false;
 bool		IsUnderPostmaster = false;
-bool		IsBinaryUpgrade = false;
-bool		IsBackgroundWorker = false;
 
 bool		ExitOnAnyError = false;
 
 int			DateStyle = USE_ISO_DATES;
 int			DateOrder = DATEORDER_MDY;
-int			IntervalStyle = INTSTYLE_POSTGRES;
+bool		HasCTZSet = false;
+int			CTimeZone = 0;
 
 bool		enableFsync = true;
 bool		allowSystemTableMods = false;
 int			work_mem = 1024;
 int			maintenance_work_mem = 16384;
 
-/*
- * Primary determinants of sizes of shared-memory structures.
- *
- * MaxBackends is computed by PostmasterMain after modules have had a chance to
- * register background workers.
- */
+/* Primary determinants of sizes of shared-memory structures: */
 int			NBuffers = 1000;
-int			MaxConnections = 90;
-int			max_worker_processes = 8;
-int			max_parallel_workers = 8;
-int			MaxBackends = 0;
+int			MaxBackends = 100;
 
-int			VacuumCostPageHit = 1;	/* GUC parameters for vacuum */
+int			VacuumCostPageHit = 1;		/* GUC parameters for vacuum */
 int			VacuumCostPageMiss = 10;
 int			VacuumCostPageDirty = 20;
 int			VacuumCostLimit = 200;
 int			VacuumCostDelay = 0;
 
-int			VacuumPageHit = 0;
-int			VacuumPageMiss = 0;
-int			VacuumPageDirty = 0;
-
-int			VacuumCostBalance = 0;	/* working state for vacuum */
+int			VacuumCostBalance = 0;		/* working state for vacuum */
 bool		VacuumCostActive = false;

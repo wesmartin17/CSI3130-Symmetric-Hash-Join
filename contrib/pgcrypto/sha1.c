@@ -19,7 +19,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,11 +28,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/sha1.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/sha1.c,v 1.16 2005/07/11 15:07:59 tgl Exp $
  */
 /*
  * FIPS pub 180-1: Secure Hash Algorithm (SHA-1)
- * based on: http://www.itl.nist.gov/fipspubs/fip180-1.htm
+ * based on: http://csrc.nist.gov/fips/fip180-1.txt
  * implemented by Jun-ichiro itojun Itoh <itojun@itojun.org>
  */
 
@@ -40,7 +40,13 @@
 
 #include <sys/param.h>
 
+#include "px.h"
 #include "sha1.h"
+
+/* sanity check */
+#if !defined(BYTE_ORDER) || (BYTE_ORDER != LITTLE_ENDIAN && BYTE_ORDER != BIG_ENDIAN)
+#error Define BYTE_ORDER to be equal to either LITTLE_ENDIAN or BIG_ENDIAN
+#endif
 
 /* constant table */
 static uint32 _K[] = {0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6};
@@ -81,7 +87,7 @@ do { \
 static void sha1_step(struct sha1_ctxt *);
 
 static void
-sha1_step(struct sha1_ctxt *ctxt)
+sha1_step(struct sha1_ctxt * ctxt)
 {
 	uint32		a,
 				b,
@@ -92,7 +98,7 @@ sha1_step(struct sha1_ctxt *ctxt)
 				s;
 	uint32		tmp;
 
-#ifndef WORDS_BIGENDIAN
+#if BYTE_ORDER == LITTLE_ENDIAN
 	struct sha1_ctxt tctxt;
 
 	memmove(&tctxt.m.b8[0], &ctxt->m.b8[0], 64);
@@ -226,7 +232,7 @@ sha1_step(struct sha1_ctxt *ctxt)
 /*------------------------------------------------------------*/
 
 void
-sha1_init(struct sha1_ctxt *ctxt)
+sha1_init(struct sha1_ctxt * ctxt)
 {
 	memset(ctxt, 0, sizeof(struct sha1_ctxt));
 	H(0) = 0x67452301;
@@ -237,7 +243,7 @@ sha1_init(struct sha1_ctxt *ctxt)
 }
 
 void
-sha1_pad(struct sha1_ctxt *ctxt)
+sha1_pad(struct sha1_ctxt * ctxt)
 {
 	size_t		padlen;			/* pad length in bytes */
 	size_t		padstart;
@@ -258,7 +264,7 @@ sha1_pad(struct sha1_ctxt *ctxt)
 	memset(&ctxt->m.b8[padstart], 0, padlen - 8);
 	COUNT += (padlen - 8);
 	COUNT %= 64;
-#ifdef WORDS_BIGENDIAN
+#if BYTE_ORDER == BIG_ENDIAN
 	PUTPAD(ctxt->c.b8[0]);
 	PUTPAD(ctxt->c.b8[1]);
 	PUTPAD(ctxt->c.b8[2]);
@@ -280,7 +286,7 @@ sha1_pad(struct sha1_ctxt *ctxt)
 }
 
 void
-sha1_loop(struct sha1_ctxt *ctxt, const uint8 *input0, size_t len)
+sha1_loop(struct sha1_ctxt * ctxt, const uint8 *input0, size_t len)
 {
 	const uint8 *input;
 	size_t		gaplen;
@@ -308,13 +314,13 @@ sha1_loop(struct sha1_ctxt *ctxt, const uint8 *input0, size_t len)
 }
 
 void
-sha1_result(struct sha1_ctxt *ctxt, uint8 *digest0)
+sha1_result(struct sha1_ctxt * ctxt, uint8 *digest0)
 {
 	uint8	   *digest;
 
 	digest = (uint8 *) digest0;
 	sha1_pad(ctxt);
-#ifdef WORDS_BIGENDIAN
+#if BYTE_ORDER == BIG_ENDIAN
 	memmove(digest, &ctxt->h.b8[0], 20);
 #else
 	digest[0] = ctxt->h.b8[3];

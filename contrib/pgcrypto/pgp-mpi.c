@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,15 +26,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/pgp-mpi.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/pgp-mpi.c,v 1.4 2005/10/15 02:49:06 momjian Exp $
  */
 #include "postgres.h"
 
 #include "px.h"
+#include "mbuf.h"
 #include "pgp.h"
 
 int
-pgp_mpi_alloc(int bits, PGP_MPI **mpi)
+pgp_mpi_alloc(int bits, PGP_MPI ** mpi)
 {
 	PGP_MPI    *n;
 	int			len = (bits + 7) / 8;
@@ -53,7 +54,7 @@ pgp_mpi_alloc(int bits, PGP_MPI **mpi)
 }
 
 int
-pgp_mpi_create(uint8 *data, int bits, PGP_MPI **mpi)
+pgp_mpi_create(uint8 *data, int bits, PGP_MPI ** mpi)
 {
 	int			res;
 	PGP_MPI    *n;
@@ -67,17 +68,17 @@ pgp_mpi_create(uint8 *data, int bits, PGP_MPI **mpi)
 }
 
 int
-pgp_mpi_free(PGP_MPI *mpi)
+pgp_mpi_free(PGP_MPI * mpi)
 {
 	if (mpi == NULL)
 		return 0;
-	px_memset(mpi, 0, sizeof(*mpi) + mpi->bytes);
+	memset(mpi, 0, sizeof(*mpi) + mpi->bytes);
 	px_free(mpi);
 	return 0;
 }
 
 int
-pgp_mpi_read(PullFilter *src, PGP_MPI **mpi)
+pgp_mpi_read(PullFilter * src, PGP_MPI ** mpi)
 {
 	int			res;
 	uint8		hdr[2];
@@ -102,7 +103,7 @@ pgp_mpi_read(PullFilter *src, PGP_MPI **mpi)
 }
 
 int
-pgp_mpi_write(PushFilter *dst, PGP_MPI *n)
+pgp_mpi_write(PushFilter * dst, PGP_MPI * n)
 {
 	int			res;
 	uint8		buf[2];
@@ -116,7 +117,7 @@ pgp_mpi_write(PushFilter *dst, PGP_MPI *n)
 }
 
 int
-pgp_mpi_hash(PX_MD *md, PGP_MPI *n)
+pgp_mpi_hash(PX_MD * md, PGP_MPI * n)
 {
 	uint8		buf[2];
 
@@ -129,7 +130,7 @@ pgp_mpi_hash(PX_MD *md, PGP_MPI *n)
 }
 
 unsigned
-pgp_mpi_cksum(unsigned cksum, PGP_MPI *n)
+pgp_mpi_cksum(unsigned cksum, PGP_MPI * n)
 {
 	int			i;
 

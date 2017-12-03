@@ -3,7 +3,7 @@
 -- Test various data entry syntaxes.
 --
 
--- SQL string continuation syntax
+-- SQL92 string continuation syntax
 -- E021-03 character string literals
 SELECT 'first line'
 ' - next line'
@@ -15,54 +15,6 @@ SELECT 'first line'
 ' - next line' /* this comment is not allowed here */
 ' - third line'
 	AS "Illegal comment within continuation";
-
--- Unicode escapes
-SET standard_conforming_strings TO on;
-
-SELECT U&'d\0061t\+000061' AS U&"d\0061t\+000061";
-SELECT U&'d!0061t\+000061' UESCAPE '!' AS U&"d*0061t\+000061" UESCAPE '*';
-
-SELECT U&' \' UESCAPE '!' AS "tricky";
-SELECT 'tricky' AS U&"\" UESCAPE '!';
-
-SELECT U&'wrong: \061';
-SELECT U&'wrong: \+0061';
-SELECT U&'wrong: +0061' UESCAPE '+';
-
-SET standard_conforming_strings TO off;
-
-SELECT U&'d\0061t\+000061' AS U&"d\0061t\+000061";
-SELECT U&'d!0061t\+000061' UESCAPE '!' AS U&"d*0061t\+000061" UESCAPE '*';
-
-SELECT U&' \' UESCAPE '!' AS "tricky";
-SELECT 'tricky' AS U&"\" UESCAPE '!';
-
-SELECT U&'wrong: \061';
-SELECT U&'wrong: \+0061';
-SELECT U&'wrong: +0061' UESCAPE '+';
-
-RESET standard_conforming_strings;
-
--- bytea
-SET bytea_output TO hex;
-SELECT E'\\xDeAdBeEf'::bytea;
-SELECT E'\\x De Ad Be Ef '::bytea;
-SELECT E'\\xDeAdBeE'::bytea;
-SELECT E'\\xDeAdBeEx'::bytea;
-SELECT E'\\xDe00BeEf'::bytea;
-SELECT E'DeAdBeEf'::bytea;
-SELECT E'De\\000dBeEf'::bytea;
-SELECT E'De\123dBeEf'::bytea;
-SELECT E'De\\123dBeEf'::bytea;
-SELECT E'De\\678dBeEf'::bytea;
-
-SET bytea_output TO escape;
-SELECT E'\\xDeAdBeEf'::bytea;
-SELECT E'\\x De Ad Be Ef '::bytea;
-SELECT E'\\xDe00BeEf'::bytea;
-SELECT E'DeAdBeEf'::bytea;
-SELECT E'De\\000dBeEf'::bytea;
-SELECT E'De\\123dBeEf'::bytea;
 
 --
 -- test conversions between various string types
@@ -92,7 +44,7 @@ SELECT CAST(f1 AS varchar) AS "varchar(char)" FROM CHAR_TBL;
 SELECT CAST(name 'namefield' AS varchar) AS "varchar(name)";
 
 --
--- test SQL string functions
+-- test SQL92 string functions
 -- E### and T### are feature reference numbers from SQL99
 --
 
@@ -129,79 +81,17 @@ SELECT SUBSTRING('abcdefg' FROM 'c.e') AS "cde";
 SELECT SUBSTRING('abcdefg' FROM 'b(.*)f') AS "cde";
 
 -- PostgreSQL extension to allow using back reference in replace string;
-SELECT regexp_replace('1112223333', E'(\\d{3})(\\d{3})(\\d{4})', E'(\\1) \\2-\\3');
-SELECT regexp_replace('AAA   BBB   CCC   ', E'\\s+', ' ', 'g');
+SELECT regexp_replace('1112223333', '(\\d{3})(\\d{3})(\\d{4})', '(\\1) \\2-\\3');
+SELECT regexp_replace('AAA   BBB   CCC   ', '\\s+', ' ', 'g');
 SELECT regexp_replace('AAA', '^|$', 'Z', 'g');
 SELECT regexp_replace('AAA aaa', 'A+', 'Z', 'gi');
--- invalid regexp option
+-- invalid option of REGEXP_REPLACE
 SELECT regexp_replace('AAA aaa', 'A+', 'Z', 'z');
-
--- set so we can tell NULL from empty string
-\pset null '\\N'
-
--- return all matches from regexp
-SELECT regexp_matches('foobarbequebaz', $re$(bar)(beque)$re$);
-
--- test case insensitive
-SELECT regexp_matches('foObARbEqUEbAz', $re$(bar)(beque)$re$, 'i');
-
--- global option - more than one match
-SELECT regexp_matches('foobarbequebazilbarfbonk', $re$(b[^b]+)(b[^b]+)$re$, 'g');
-
--- empty capture group (matched empty string)
-SELECT regexp_matches('foobarbequebaz', $re$(bar)(.*)(beque)$re$);
--- no match
-SELECT regexp_matches('foobarbequebaz', $re$(bar)(.+)(beque)$re$);
--- optional capture group did not match, null entry in array
-SELECT regexp_matches('foobarbequebaz', $re$(bar)(.+)?(beque)$re$);
-
--- no capture groups
-SELECT regexp_matches('foobarbequebaz', $re$barbeque$re$);
-
--- start/end-of-line matches are of zero length
-SELECT regexp_matches('foo' || chr(10) || 'bar' || chr(10) || 'bequq' || chr(10) || 'baz', '^', 'mg');
-SELECT regexp_matches('foo' || chr(10) || 'bar' || chr(10) || 'bequq' || chr(10) || 'baz', '$', 'mg');
-SELECT regexp_matches('1' || chr(10) || '2' || chr(10) || '3' || chr(10) || '4' || chr(10), '^.?', 'mg');
-SELECT regexp_matches(chr(10) || '1' || chr(10) || '2' || chr(10) || '3' || chr(10) || '4' || chr(10), '.?$', 'mg');
-SELECT regexp_matches(chr(10) || '1' || chr(10) || '2' || chr(10) || '3' || chr(10) || '4', '.?$', 'mg');
-
--- give me errors
-SELECT regexp_matches('foobarbequebaz', $re$(bar)(beque)$re$, 'gz');
-SELECT regexp_matches('foobarbequebaz', $re$(barbeque$re$);
-SELECT regexp_matches('foobarbequebaz', $re$(bar)(beque){2,1}$re$);
-
--- split string on regexp
-SELECT foo, length(foo) FROM regexp_split_to_table('the quick brown fox jumps over the lazy dog', $re$\s+$re$) AS foo;
-SELECT regexp_split_to_array('the quick brown fox jumps over the lazy dog', $re$\s+$re$);
-
-SELECT foo, length(foo) FROM regexp_split_to_table('the quick brown fox jumps over the lazy dog', $re$\s*$re$) AS foo;
-SELECT regexp_split_to_array('the quick brown fox jumps over the lazy dog', $re$\s*$re$);
-SELECT foo, length(foo) FROM regexp_split_to_table('the quick brown fox jumps over the lazy dog', '') AS foo;
-SELECT regexp_split_to_array('the quick brown fox jumps over the lazy dog', '');
--- case insensitive
-SELECT foo, length(foo) FROM regexp_split_to_table('thE QUick bROWn FOx jUMPs ovEr The lazy dOG', 'e', 'i') AS foo;
-SELECT regexp_split_to_array('thE QUick bROWn FOx jUMPs ovEr The lazy dOG', 'e', 'i');
--- no match of pattern
-SELECT foo, length(foo) FROM regexp_split_to_table('the quick brown fox jumps over the lazy dog', 'nomatch') AS foo;
-SELECT regexp_split_to_array('the quick brown fox jumps over the lazy dog', 'nomatch');
--- some corner cases
-SELECT regexp_split_to_array('123456','1');
-SELECT regexp_split_to_array('123456','6');
-SELECT regexp_split_to_array('123456','.');
--- errors
-SELECT foo, length(foo) FROM regexp_split_to_table('thE QUick bROWn FOx jUMPs ovEr The lazy dOG', 'e', 'zippy') AS foo;
-SELECT regexp_split_to_array('thE QUick bROWn FOx jUMPs ovEr The lazy dOG', 'e', 'iz');
--- global option meaningless for regexp_split
-SELECT foo, length(foo) FROM regexp_split_to_table('thE QUick bROWn FOx jUMPs ovEr The lazy dOG', 'e', 'g') AS foo;
-SELECT regexp_split_to_array('thE QUick bROWn FOx jUMPs ovEr The lazy dOG', 'e', 'g');
-
--- change NULL-display back
-\pset null ''
 
 -- E021-11 position expression
 SELECT POSITION('4' IN '1234567890') = '4' AS "4";
 
-SELECT POSITION('5' IN '1234567890') = '5' AS "5";
+SELECT POSITION(5 IN '1234567890') = '5' AS "5";
 
 -- T312 character overlay function
 SELECT OVERLAY('abcdef' PLACING '45' FROM 4) AS "abc45f";
@@ -308,19 +198,6 @@ SELECT 'Hawkeye' ILIKE 'h%' AS "true";
 SELECT 'Hawkeye' NOT ILIKE 'h%' AS "false";
 
 --
--- test %/_ combination cases, cf bugs #4821 and #5478
---
-
-SELECT 'foo' LIKE '_%' as t, 'f' LIKE '_%' as t, '' LIKE '_%' as f;
-SELECT 'foo' LIKE '%_' as t, 'f' LIKE '%_' as t, '' LIKE '%_' as f;
-
-SELECT 'foo' LIKE '__%' as t, 'foo' LIKE '___%' as t, 'foo' LIKE '____%' as f;
-SELECT 'foo' LIKE '%__' as t, 'foo' LIKE '%___' as t, 'foo' LIKE '%____' as f;
-
-SELECT 'jack' LIKE '%____%' AS t;
-
-
---
 -- test implicit type conversion
 --
 
@@ -352,7 +229,7 @@ insert into toasttest values(repeat('1234567890',10000));
 insert into toasttest values(repeat('1234567890',10000));
 
 -- If the starting position is zero or less, then return from the start of the string
--- adjusting the length to be consistent with the "negative start" per SQL.
+-- adjusting the length to be consistent with the "negative start" per SQL92.
 SELECT substr(f1, -1, 5) from toasttest;
 
 -- If the length is less than zero, an ERROR is thrown.
@@ -365,23 +242,6 @@ SELECT substr(f1, 99995) from toasttest;
 -- If start plus length is > string length, the result is truncated to
 -- string length
 SELECT substr(f1, 99995, 10) from toasttest;
-
-TRUNCATE TABLE toasttest;
-INSERT INTO toasttest values (repeat('1234567890',300));
-INSERT INTO toasttest values (repeat('1234567890',300));
-INSERT INTO toasttest values (repeat('1234567890',300));
-INSERT INTO toasttest values (repeat('1234567890',300));
--- expect >0 blocks
-select 0 = pg_relation_size('pg_toast.pg_toast_'||(select oid from pg_class where relname = 'toasttest'))/current_setting('block_size')::integer as blocks;
-
-TRUNCATE TABLE toasttest;
-ALTER TABLE toasttest set (toast_tuple_target = 4080);
-INSERT INTO toasttest values (repeat('1234567890',300));
-INSERT INTO toasttest values (repeat('1234567890',300));
-INSERT INTO toasttest values (repeat('1234567890',300));
-INSERT INTO toasttest values (repeat('1234567890',300));
--- expect 0 blocks
-select 0 = pg_relation_size('pg_toast.pg_toast_'||(select oid from pg_class where relname = 'toasttest'))/current_setting('block_size')::integer as blocks;
 
 DROP TABLE toasttest;
 
@@ -402,7 +262,7 @@ insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 
 -- If the starting position is zero or less, then return from the start of the string
--- adjusting the length to be consistent with the "negative start" per SQL.
+-- adjusting the length to be consistent with the "negative start" per SQL92.
 SELECT substr(f1, -1, 5) from toasttest;
 
 -- If the length is less than zero, an ERROR is thrown.
@@ -416,19 +276,6 @@ SELECT substr(f1, 99995) from toasttest;
 -- string length
 SELECT substr(f1, 99995, 10) from toasttest;
 
-DROP TABLE toasttest;
-
--- test internally compressing datums
-
--- this tests compressing a datum to a very small size which exercises a
--- corner case in packed-varlena handling: even though small, the compressed
--- datum must be given a 4-byte header because there are no bits to indicate
--- compression in a 1-byte header
-
-CREATE TABLE toasttest (c char(4096));
-INSERT INTO toasttest VALUES('x');
-SELECT length(c), c::text FROM toasttest;
-SELECT c FROM toasttest;
 DROP TABLE toasttest;
 
 --
@@ -505,74 +352,3 @@ select md5('abcdefghijklmnopqrstuvwxyz'::bytea) = 'c3fcd3d76192e4007dfb496cca67e
 select md5('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'::bytea) = 'd174ab98d277d9f5a5611c2c9f419d9f' AS "TRUE";
 
 select md5('12345678901234567890123456789012345678901234567890123456789012345678901234567890'::bytea) = '57edf4a22be3c955ac49da2e2107b67a' AS "TRUE";
-
---
--- test behavior of escape_string_warning and standard_conforming_strings options
---
-set escape_string_warning = off;
-set standard_conforming_strings = off;
-
-show escape_string_warning;
-show standard_conforming_strings;
-
-set escape_string_warning = on;
-set standard_conforming_strings = on;
-
-show escape_string_warning;
-show standard_conforming_strings;
-
-select 'a\bcd' as f1, 'a\b''cd' as f2, 'a\b''''cd' as f3, 'abcd\'   as f4, 'ab\''cd' as f5, '\\' as f6;
-
-set standard_conforming_strings = off;
-
-select 'a\\bcd' as f1, 'a\\b\'cd' as f2, 'a\\b\'''cd' as f3, 'abcd\\'   as f4, 'ab\\\'cd' as f5, '\\\\' as f6;
-
-set escape_string_warning = off;
-set standard_conforming_strings = on;
-
-select 'a\bcd' as f1, 'a\b''cd' as f2, 'a\b''''cd' as f3, 'abcd\'   as f4, 'ab\''cd' as f5, '\\' as f6;
-
-set standard_conforming_strings = off;
-
-select 'a\\bcd' as f1, 'a\\b\'cd' as f2, 'a\\b\'''cd' as f3, 'abcd\\'   as f4, 'ab\\\'cd' as f5, '\\\\' as f6;
-
-
---
--- Additional string functions
---
-
-SELECT initcap('hi THOMAS');
-
-SELECT lpad('hi', 5, 'xy');
-SELECT lpad('hi', 5);
-SELECT lpad('hi', -5, 'xy');
-SELECT lpad('hello', 2);
-SELECT lpad('hi', 5, '');
-
-SELECT rpad('hi', 5, 'xy');
-SELECT rpad('hi', 5);
-SELECT rpad('hi', -5, 'xy');
-SELECT rpad('hello', 2);
-SELECT rpad('hi', 5, '');
-
-SELECT ltrim('zzzytrim', 'xyz');
-
-SELECT translate('', '14', 'ax');
-SELECT translate('12345', '14', 'ax');
-
-SELECT ascii('x');
-SELECT ascii('');
-
-SELECT chr(65);
-SELECT chr(0);
-
-SELECT repeat('Pg', 4);
-SELECT repeat('Pg', -4);
-
-SELECT trim(E'\\000'::bytea from E'\\000Tom\\000'::bytea);
-SELECT btrim(E'\\000trim\\000'::bytea, E'\\000'::bytea);
-SELECT btrim(''::bytea, E'\\000'::bytea);
-SELECT btrim(E'\\000trim\\000'::bytea, ''::bytea);
-SELECT encode(overlay(E'Th\\000omas'::bytea placing E'Th\\001omas'::bytea from 2),'escape');
-SELECT encode(overlay(E'Th\\000omas'::bytea placing E'\\002\\003'::bytea from 8),'escape');
-SELECT encode(overlay(E'Th\\000omas'::bytea placing E'\\002\\003'::bytea from 5 for 3),'escape');

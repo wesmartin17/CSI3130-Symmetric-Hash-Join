@@ -1,4 +1,6 @@
-<!-- doc/src/sgml/info.sgml -->
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/info.sgml,v 1.23 2005/04/09 03:52:43 momjian Exp $
+-->
 
 <sect1 id="resources">
  <title>Further Information</title>
@@ -8,17 +10,22 @@
   resources about <productname>PostgreSQL</productname>:
 
   <variablelist>
-
    <varlistentry>
-    <term>Wiki</term>
+    <term>FAQs</term>
     <listitem>
      <para>
-      The <productname>PostgreSQL</productname> <ulink
-      url="https://wiki.postgresql.org">wiki</ulink> contains the project's <ulink
-      url="https://wiki.postgresql.org/wiki/Frequently_Asked_Questions">FAQ</ulink>
-      (Frequently Asked Questions) list, <ulink
-      url="https://wiki.postgresql.org/wiki/Todo">TODO</ulink> list, and
-      detailed information about many more topics.
+      The FAQ list <indexterm><primary>FAQ-Liste</></> contains
+      continuously updated answers to frequently asked questions.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term>READMEs</term>
+    <listitem>
+     <para>
+      <filename>README</filename> files are available for most
+      contributed packages.
      </para>
     </listitem>
    </varlistentry>
@@ -27,8 +34,8 @@
     <term>Web Site</term>
     <listitem>
      <para>
-      The <productname>PostgreSQL</productname>
-      <ulink url="https://www.postgresql.org">web site</ulink>
+      The <productname>PostgreSQL</productname> 
+      <ulink url="http://www.postgresql.org">web site</ulink>
       carries details on the latest release and other
       information to make your work or play with
       <productname>PostgreSQL</productname> more productive.
@@ -42,7 +49,7 @@
      <para>
       The mailing lists are a good place to have your questions
       answered, to share experiences with other users, and to contact
-      the developers.  Consult the <productname>PostgreSQL</productname> web site
+      the developers.  Consult the <productname>PostgreSQL</> web site
       for details.
      </para>
     </listitem>

@@ -3,12 +3,12 @@
  * int.c
  *	  Functions for the built-in integer types (except int8).
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/utils/adt/int.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/adt/int.c,v 1.68.2.1 2006/03/02 21:13:11 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -18,6 +18,8 @@
  *		 int2in, int2out, int2recv, int2send
  *		 int4in, int4out, int4recv, int4send
  *		 int2vectorin, int2vectorout, int2vectorrecv, int2vectorsend
+ *		Conversion routines:
+ *		 itoi, int2_text, int4_text
  *		Boolean operators:
  *		 inteq, intne, intlt, intle, intgt, intge
  *		Arithmetic operators:
@@ -38,9 +40,16 @@
 #include "utils/builtins.h"
 
 
+#ifndef SHRT_MAX
+#define SHRT_MAX (0x7FFF)
+#endif
+#ifndef SHRT_MIN
+#define SHRT_MIN (-0x8000)
+#endif
+
 #define SAMESIGN(a,b)	(((a) < 0) == ((b) < 0))
 
-#define Int2VectorSize(n)	(offsetof(int2vector, values) + (n) * sizeof(int16))
+#define Int2VectorSize(n)	(offsetof(int2vector, values) + (n) * sizeof(int2))
 
 typedef struct
 {
@@ -99,7 +108,7 @@ int2send(PG_FUNCTION_ARGS)
 	StringInfoData buf;
 
 	pq_begintypsend(&buf);
-	pq_sendint16(&buf, arg1);
+	pq_sendint(&buf, arg1, sizeof(int16));
 	PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
 }
 
@@ -109,22 +118,22 @@ int2send(PG_FUNCTION_ARGS)
  * If int2s is NULL then caller must fill values[] afterward
  */
 int2vector *
-buildint2vector(const int16 *int2s, int n)
+buildint2vector(const int2 *int2s, int n)
 {
 	int2vector *result;
 
 	result = (int2vector *) palloc0(Int2VectorSize(n));
 
 	if (n > 0 && int2s)
-		memcpy(result->values, int2s, n * sizeof(int16));
+		memcpy(result->values, int2s, n * sizeof(int2));
 
 	/*
 	 * Attach standard array header.  For historical reasons, we set the index
 	 * lower bound to 0 not 1.
 	 */
-	SET_VARSIZE(result, Int2VectorSize(n));
+	result->size = Int2VectorSize(n);
 	result->ndim = 1;
-	result->dataoffset = 0;		/* never any nulls */
+	result->flags = 0;
 	result->elemtype = INT2OID;
 	result->dim1 = n;
 	result->lbound1 = 0;
@@ -146,11 +155,10 @@ int2vectorin(PG_FUNCTION_ARGS)
 
 	for (n = 0; *intString && n < FUNC_MAX_ARGS; n++)
 	{
+		if (sscanf(intString, "%hd", &result->values[n]) != 1)
+			break;
 		while (*intString && isspace((unsigned char) *intString))
 			intString++;
-		if (*intString == '\0')
-			break;
-		result->values[n] = pg_atoi(intString, sizeof(int16), ' ');
 		while (*intString && !isspace((unsigned char) *intString))
 			intString++;
 	}
@@ -161,9 +169,9 @@ int2vectorin(PG_FUNCTION_ARGS)
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("int2vector has too many elements")));
 
-	SET_VARSIZE(result, Int2VectorSize(n));
+	result->size = Int2VectorSize(n);
 	result->ndim = 1;
-	result->dataoffset = 0;		/* never any nulls */
+	result->flags = 0;
 	result->elemtype = INT2OID;
 	result->dim1 = n;
 	result->lbound1 = 0;
@@ -208,13 +216,12 @@ int2vectorrecv(PG_FUNCTION_ARGS)
 	int2vector *result;
 
 	/*
-	 * Normally one would call array_recv() using DirectFunctionCall3, but
-	 * that does not work since array_recv wants to cache some data using
-	 * fcinfo->flinfo->fn_extra.  So we need to pass it our own flinfo
-	 * parameter.
+	 * Normally one would call array_recv() using DirectFunctionCall3,
+	 * but that does not work since array_recv wants to cache some data
+	 * using fcinfo->flinfo->fn_extra.  So we need to pass it our own
+	 * flinfo parameter.
 	 */
-	InitFunctionCallInfoData(locfcinfo, fcinfo->flinfo, 3,
-							 InvalidOid, NULL, NULL);
+	InitFunctionCallInfoData(locfcinfo, fcinfo->flinfo, 3, NULL, NULL);
 
 	locfcinfo.arg[0] = PointerGetDatum(buf);
 	locfcinfo.arg[1] = ObjectIdGetDatum(INT2OID);
@@ -227,21 +234,13 @@ int2vectorrecv(PG_FUNCTION_ARGS)
 
 	Assert(!locfcinfo.isnull);
 
-	/* sanity checks: int2vector must be 1-D, 0-based, no nulls */
-	if (ARR_NDIM(result) != 1 ||
-		ARR_HASNULL(result) ||
-		ARR_ELEMTYPE(result) != INT2OID ||
-		ARR_LBOUND(result)[0] != 0)
+	/* sanity checks: int2vector must be 1-D, no nulls */
+	if (result->ndim != 1 ||
+		result->flags != 0 ||
+		result->elemtype != INT2OID)
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_BINARY_REPRESENTATION),
 				 errmsg("invalid int2vector data")));
-
-	/* check length for consistency with int2vectorin() */
-	if (ARR_DIMS(result)[0] > FUNC_MAX_ARGS)
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("oidvector has too many elements")));
-
 	PG_RETURN_POINTER(result);
 }
 
@@ -252,6 +251,21 @@ Datum
 int2vectorsend(PG_FUNCTION_ARGS)
 {
 	return array_send(fcinfo);
+}
+
+/*
+ * We don't have a complete set of int2vector support routines,
+ * but we need int2vectoreq for catcache indexing.
+ */
+Datum
+int2vectoreq(PG_FUNCTION_ARGS)
+{
+	int2vector *a = (int2vector *) PG_GETARG_POINTER(0);
+	int2vector *b = (int2vector *) PG_GETARG_POINTER(1);
+
+	if (a->dim1 != b->dim1)
+		PG_RETURN_BOOL(false);
+	PG_RETURN_BOOL(memcmp(a->values, b->values, a->dim1 * sizeof(int2)) == 0);
 }
 
 
@@ -304,7 +318,7 @@ int4send(PG_FUNCTION_ARGS)
 	StringInfoData buf;
 
 	pq_begintypsend(&buf);
-	pq_sendint32(&buf, arg1);
+	pq_sendint(&buf, arg1, sizeof(int32));
 	PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
 }
 
@@ -334,6 +348,68 @@ i4toi2(PG_FUNCTION_ARGS)
 				 errmsg("smallint out of range")));
 
 	PG_RETURN_INT16((int16) arg1);
+}
+
+Datum
+int2_text(PG_FUNCTION_ARGS)
+{
+	int16		arg1 = PG_GETARG_INT16(0);
+	text	   *result = (text *) palloc(7 + VARHDRSZ); /* sign,5 digits, '\0' */
+
+	pg_itoa(arg1, VARDATA(result));
+	VARATT_SIZEP(result) = strlen(VARDATA(result)) + VARHDRSZ;
+	PG_RETURN_TEXT_P(result);
+}
+
+Datum
+text_int2(PG_FUNCTION_ARGS)
+{
+	text	   *string = PG_GETARG_TEXT_P(0);
+	Datum		result;
+	int			len;
+	char	   *str;
+
+	len = VARSIZE(string) - VARHDRSZ;
+
+	str = palloc(len + 1);
+	memcpy(str, VARDATA(string), len);
+	*(str + len) = '\0';
+
+	result = DirectFunctionCall1(int2in, CStringGetDatum(str));
+	pfree(str);
+
+	return result;
+}
+
+Datum
+int4_text(PG_FUNCTION_ARGS)
+{
+	int32		arg1 = PG_GETARG_INT32(0);
+	text	   *result = (text *) palloc(12 + VARHDRSZ);		/* sign,10 digits,'\0' */
+
+	pg_ltoa(arg1, VARDATA(result));
+	VARATT_SIZEP(result) = strlen(VARDATA(result)) + VARHDRSZ;
+	PG_RETURN_TEXT_P(result);
+}
+
+Datum
+text_int4(PG_FUNCTION_ARGS)
+{
+	text	   *string = PG_GETARG_TEXT_P(0);
+	Datum		result;
+	int			len;
+	char	   *str;
+
+	len = VARSIZE(string) - VARHDRSZ;
+
+	str = palloc(len + 1);
+	memcpy(str, VARDATA(string), len);
+	*(str + len) = '\0';
+
+	result = DirectFunctionCall1(int4in, CStringGetDatum(str));
+	pfree(str);
+
+	return result;
 }
 
 /* Cast int4 -> bool */
@@ -627,7 +703,7 @@ int4pl(PG_FUNCTION_ARGS)
 	result = arg1 + arg2;
 
 	/*
-	 * Overflow check.  If the inputs are of different signs then their sum
+	 * Overflow check.	If the inputs are of different signs then their sum
 	 * cannot overflow.  If the inputs are of the same sign, their sum had
 	 * better be that sign too.
 	 */
@@ -648,8 +724,8 @@ int4mi(PG_FUNCTION_ARGS)
 	result = arg1 - arg2;
 
 	/*
-	 * Overflow check.  If the inputs are of the same sign then their
-	 * difference cannot overflow.  If they are of different signs then the
+	 * Overflow check.	If the inputs are of the same sign then their
+	 * difference cannot overflow.	If they are of different signs then the
 	 * result should be of the same sign as the first input.
 	 */
 	if (!SAMESIGN(arg1, arg2) && !SAMESIGN(result, arg1))
@@ -669,7 +745,7 @@ int4mul(PG_FUNCTION_ARGS)
 	result = arg1 * arg2;
 
 	/*
-	 * Overflow check.  We basically check to see if result / arg2 gives arg1
+	 * Overflow check.	We basically check to see if result / arg2 gives arg1
 	 * again.  There are two cases where this fails: arg2 = 0 (which cannot
 	 * overflow) and arg1 = INT_MIN, arg2 = -1 (where the division itself will
 	 * overflow and thus incorrectly match).
@@ -682,8 +758,7 @@ int4mul(PG_FUNCTION_ARGS)
 	if (!(arg1 >= (int32) SHRT_MIN && arg1 <= (int32) SHRT_MAX &&
 		  arg2 >= (int32) SHRT_MIN && arg2 <= (int32) SHRT_MAX) &&
 		arg2 != 0 &&
-		((arg2 == -1 && arg1 < 0 && result < 0) ||
-		 result / arg2 != arg1))
+		(result / arg2 != arg1 || (arg2 == -1 && arg1 < 0 && result < 0)))
 		ereport(ERROR,
 				(errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
 				 errmsg("integer out of range")));
@@ -698,35 +773,21 @@ int4div(PG_FUNCTION_ARGS)
 	int32		result;
 
 	if (arg2 == 0)
-	{
 		ereport(ERROR,
 				(errcode(ERRCODE_DIVISION_BY_ZERO),
 				 errmsg("division by zero")));
-		/* ensure compiler realizes we mustn't reach the division (gcc bug) */
-		PG_RETURN_NULL();
-	}
-
-	/*
-	 * INT_MIN / -1 is problematic, since the result can't be represented on a
-	 * two's-complement machine.  Some machines produce INT_MIN, some produce
-	 * zero, some throw an exception.  We can dodge the problem by recognizing
-	 * that division by -1 is the same as negation.
-	 */
-	if (arg2 == -1)
-	{
-		result = -arg1;
-		/* overflow check (needed for INT_MIN) */
-		if (arg1 != 0 && SAMESIGN(result, arg1))
-			ereport(ERROR,
-					(errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
-					 errmsg("integer out of range")));
-		PG_RETURN_INT32(result);
-	}
-
-	/* No overflow is possible */
 
 	result = arg1 / arg2;
 
+	/*
+	 * Overflow check.	The only possible overflow case is for arg1 = INT_MIN,
+	 * arg2 = -1, where the correct result is -INT_MIN, which can't be
+	 * represented on a two's-complement machine.
+	 */
+	if (arg2 == -1 && arg1 < 0 && result < 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
+				 errmsg("integer out of range")));
 	PG_RETURN_INT32(result);
 }
 
@@ -779,7 +840,7 @@ int2pl(PG_FUNCTION_ARGS)
 	result = arg1 + arg2;
 
 	/*
-	 * Overflow check.  If the inputs are of different signs then their sum
+	 * Overflow check.	If the inputs are of different signs then their sum
 	 * cannot overflow.  If the inputs are of the same sign, their sum had
 	 * better be that sign too.
 	 */
@@ -800,8 +861,8 @@ int2mi(PG_FUNCTION_ARGS)
 	result = arg1 - arg2;
 
 	/*
-	 * Overflow check.  If the inputs are of the same sign then their
-	 * difference cannot overflow.  If they are of different signs then the
+	 * Overflow check.	If the inputs are of the same sign then their
+	 * difference cannot overflow.	If they are of different signs then the
 	 * result should be of the same sign as the first input.
 	 */
 	if (!SAMESIGN(arg1, arg2) && !SAMESIGN(result, arg1))
@@ -822,7 +883,7 @@ int2mul(PG_FUNCTION_ARGS)
 	 * The most practical way to detect overflow is to do the arithmetic in
 	 * int32 (so that the result can't overflow) and then do a range check.
 	 */
-	result32 = (int32) arg1 * (int32) arg2;
+	result32 = (int32) arg1 *(int32) arg2;
 
 	if (result32 < SHRT_MIN || result32 > SHRT_MAX)
 		ereport(ERROR,
@@ -840,35 +901,21 @@ int2div(PG_FUNCTION_ARGS)
 	int16		result;
 
 	if (arg2 == 0)
-	{
 		ereport(ERROR,
 				(errcode(ERRCODE_DIVISION_BY_ZERO),
 				 errmsg("division by zero")));
-		/* ensure compiler realizes we mustn't reach the division (gcc bug) */
-		PG_RETURN_NULL();
-	}
-
-	/*
-	 * SHRT_MIN / -1 is problematic, since the result can't be represented on
-	 * a two's-complement machine.  Some machines produce SHRT_MIN, some
-	 * produce zero, some throw an exception.  We can dodge the problem by
-	 * recognizing that division by -1 is the same as negation.
-	 */
-	if (arg2 == -1)
-	{
-		result = -arg1;
-		/* overflow check (needed for SHRT_MIN) */
-		if (arg1 != 0 && SAMESIGN(result, arg1))
-			ereport(ERROR,
-					(errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
-					 errmsg("smallint out of range")));
-		PG_RETURN_INT16(result);
-	}
-
-	/* No overflow is possible */
 
 	result = arg1 / arg2;
 
+	/*
+	 * Overflow check.	The only possible overflow case is for arg1 =
+	 * SHRT_MIN, arg2 = -1, where the correct result is -SHRT_MIN, which can't
+	 * be represented on a two's-complement machine.
+	 */
+	if (arg2 == -1 && arg1 < 0 && result < 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
+				 errmsg("smallint out of range")));
 	PG_RETURN_INT16(result);
 }
 
@@ -882,7 +929,7 @@ int24pl(PG_FUNCTION_ARGS)
 	result = arg1 + arg2;
 
 	/*
-	 * Overflow check.  If the inputs are of different signs then their sum
+	 * Overflow check.	If the inputs are of different signs then their sum
 	 * cannot overflow.  If the inputs are of the same sign, their sum had
 	 * better be that sign too.
 	 */
@@ -903,8 +950,8 @@ int24mi(PG_FUNCTION_ARGS)
 	result = arg1 - arg2;
 
 	/*
-	 * Overflow check.  If the inputs are of the same sign then their
-	 * difference cannot overflow.  If they are of different signs then the
+	 * Overflow check.	If the inputs are of the same sign then their
+	 * difference cannot overflow.	If they are of different signs then the
 	 * result should be of the same sign as the first input.
 	 */
 	if (!SAMESIGN(arg1, arg2) && !SAMESIGN(result, arg1))
@@ -924,7 +971,7 @@ int24mul(PG_FUNCTION_ARGS)
 	result = arg1 * arg2;
 
 	/*
-	 * Overflow check.  We basically check to see if result / arg2 gives arg1
+	 * Overflow check.	We basically check to see if result / arg2 gives arg1
 	 * again.  There is one case where this fails: arg2 = 0 (which cannot
 	 * overflow).
 	 *
@@ -948,14 +995,9 @@ int24div(PG_FUNCTION_ARGS)
 	int32		arg2 = PG_GETARG_INT32(1);
 
 	if (arg2 == 0)
-	{
 		ereport(ERROR,
 				(errcode(ERRCODE_DIVISION_BY_ZERO),
 				 errmsg("division by zero")));
-		/* ensure compiler realizes we mustn't reach the division (gcc bug) */
-		PG_RETURN_NULL();
-	}
-
 	/* No overflow is possible */
 	PG_RETURN_INT32((int32) arg1 / arg2);
 }
@@ -970,7 +1012,7 @@ int42pl(PG_FUNCTION_ARGS)
 	result = arg1 + arg2;
 
 	/*
-	 * Overflow check.  If the inputs are of different signs then their sum
+	 * Overflow check.	If the inputs are of different signs then their sum
 	 * cannot overflow.  If the inputs are of the same sign, their sum had
 	 * better be that sign too.
 	 */
@@ -991,8 +1033,8 @@ int42mi(PG_FUNCTION_ARGS)
 	result = arg1 - arg2;
 
 	/*
-	 * Overflow check.  If the inputs are of the same sign then their
-	 * difference cannot overflow.  If they are of different signs then the
+	 * Overflow check.	If the inputs are of the same sign then their
+	 * difference cannot overflow.	If they are of different signs then the
 	 * result should be of the same sign as the first input.
 	 */
 	if (!SAMESIGN(arg1, arg2) && !SAMESIGN(result, arg1))
@@ -1012,7 +1054,7 @@ int42mul(PG_FUNCTION_ARGS)
 	result = arg1 * arg2;
 
 	/*
-	 * Overflow check.  We basically check to see if result / arg1 gives arg2
+	 * Overflow check.	We basically check to see if result / arg1 gives arg2
 	 * again.  There is one case where this fails: arg1 = 0 (which cannot
 	 * overflow).
 	 *
@@ -1037,35 +1079,21 @@ int42div(PG_FUNCTION_ARGS)
 	int32		result;
 
 	if (arg2 == 0)
-	{
 		ereport(ERROR,
 				(errcode(ERRCODE_DIVISION_BY_ZERO),
 				 errmsg("division by zero")));
-		/* ensure compiler realizes we mustn't reach the division (gcc bug) */
-		PG_RETURN_NULL();
-	}
-
-	/*
-	 * INT_MIN / -1 is problematic, since the result can't be represented on a
-	 * two's-complement machine.  Some machines produce INT_MIN, some produce
-	 * zero, some throw an exception.  We can dodge the problem by recognizing
-	 * that division by -1 is the same as negation.
-	 */
-	if (arg2 == -1)
-	{
-		result = -arg1;
-		/* overflow check (needed for INT_MIN) */
-		if (arg1 != 0 && SAMESIGN(result, arg1))
-			ereport(ERROR,
-					(errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
-					 errmsg("integer out of range")));
-		PG_RETURN_INT32(result);
-	}
-
-	/* No overflow is possible */
 
 	result = arg1 / arg2;
 
+	/*
+	 * Overflow check.	The only possible overflow case is for arg1 = INT_MIN,
+	 * arg2 = -1, where the correct result is -INT_MIN, which can't be
+	 * represented on a two's-complement machine.
+	 */
+	if (arg2 == -1 && arg1 < 0 && result < 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
+				 errmsg("integer out of range")));
 	PG_RETURN_INT32(result);
 }
 
@@ -1076,22 +1104,9 @@ int4mod(PG_FUNCTION_ARGS)
 	int32		arg2 = PG_GETARG_INT32(1);
 
 	if (arg2 == 0)
-	{
 		ereport(ERROR,
 				(errcode(ERRCODE_DIVISION_BY_ZERO),
 				 errmsg("division by zero")));
-		/* ensure compiler realizes we mustn't reach the division (gcc bug) */
-		PG_RETURN_NULL();
-	}
-
-	/*
-	 * Some machines throw a floating-point exception for INT_MIN % -1, which
-	 * is a bit silly since the correct answer is perfectly well-defined,
-	 * namely zero.
-	 */
-	if (arg2 == -1)
-		PG_RETURN_INT32(0);
-
 	/* No overflow is possible */
 
 	PG_RETURN_INT32(arg1 % arg2);
@@ -1104,26 +1119,42 @@ int2mod(PG_FUNCTION_ARGS)
 	int16		arg2 = PG_GETARG_INT16(1);
 
 	if (arg2 == 0)
-	{
 		ereport(ERROR,
 				(errcode(ERRCODE_DIVISION_BY_ZERO),
 				 errmsg("division by zero")));
-		/* ensure compiler realizes we mustn't reach the division (gcc bug) */
-		PG_RETURN_NULL();
-	}
-
-	/*
-	 * Some machines throw a floating-point exception for INT_MIN % -1, which
-	 * is a bit silly since the correct answer is perfectly well-defined,
-	 * namely zero.  (It's not clear this ever happens when dealing with
-	 * int16, but we might as well have the test for safety.)
-	 */
-	if (arg2 == -1)
-		PG_RETURN_INT16(0);
-
 	/* No overflow is possible */
 
 	PG_RETURN_INT16(arg1 % arg2);
+}
+
+Datum
+int24mod(PG_FUNCTION_ARGS)
+{
+	int16		arg1 = PG_GETARG_INT16(0);
+	int32		arg2 = PG_GETARG_INT32(1);
+
+	if (arg2 == 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_DIVISION_BY_ZERO),
+				 errmsg("division by zero")));
+	/* No overflow is possible */
+
+	PG_RETURN_INT32(arg1 % arg2);
+}
+
+Datum
+int42mod(PG_FUNCTION_ARGS)
+{
+	int32		arg1 = PG_GETARG_INT32(0);
+	int16		arg2 = PG_GETARG_INT16(1);
+
+	if (arg2 == 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_DIVISION_BY_ZERO),
+				 errmsg("division by zero")));
+	/* No overflow is possible */
+
+	PG_RETURN_INT32(arg1 % arg2);
 }
 
 
@@ -1344,7 +1375,7 @@ generate_series_step_int4(PG_FUNCTION_ARGS)
 		if (step == 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-					 errmsg("step size cannot equal zero")));
+					 errmsg("step size may not equal zero")));
 
 		/* create a function context for cross-call persistence */
 		funcctx = SRF_FIRSTCALL_INIT();
@@ -1383,10 +1414,6 @@ generate_series_step_int4(PG_FUNCTION_ARGS)
 	{
 		/* increment current in preparation for next iteration */
 		fctx->current += fctx->step;
-
-		/* if next-value computation overflows, this is the final result */
-		if (SAMESIGN(result, fctx->step) && !SAMESIGN(result, fctx->current))
-			fctx->step = 0;
 
 		/* do when there is more left to send */
 		SRF_RETURN_NEXT(funcctx, Int32GetDatum(result));

@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,28 +26,25 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/pgcrypto.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/pgcrypto.c,v 1.20 2005/10/15 02:49:06 momjian Exp $
  */
 
 #include "postgres.h"
 
 #include <ctype.h>
 
+#include "fmgr.h"
 #include "parser/scansup.h"
-#include "utils/backend_random.h"
-#include "utils/builtins.h"
-#include "utils/uuid.h"
 
 #include "px.h"
 #include "px-crypt.h"
 #include "pgcrypto.h"
 
-PG_MODULE_MAGIC;
-
 /* private stuff */
 
 typedef int (*PFN) (const char *name, void **res);
-static void *find_provider(text *name, PFN pf, const char *desc, int silent);
+static void *
+			find_provider(text *name, PFN pf, char *desc, int silent);
 
 /* SQL function: hash(bytea, text) returns bytea */
 PG_FUNCTION_INFO_V1(pg_digest);
@@ -62,7 +59,10 @@ pg_digest(PG_FUNCTION_ARGS)
 	PX_MD	   *md;
 	bytea	   *res;
 
-	name = PG_GETARG_TEXT_PP(1);
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+		PG_RETURN_NULL();
+
+	name = PG_GETARG_TEXT_P(1);
 
 	/* will give error if fails */
 	md = find_provider(name, (PFN) px_find_digest, "Digest", 0);
@@ -70,12 +70,12 @@ pg_digest(PG_FUNCTION_ARGS)
 	hlen = px_md_result_size(md);
 
 	res = (text *) palloc(hlen + VARHDRSZ);
-	SET_VARSIZE(res, hlen + VARHDRSZ);
+	VARATT_SIZEP(res) = hlen + VARHDRSZ;
 
-	arg = PG_GETARG_BYTEA_PP(0);
-	len = VARSIZE_ANY_EXHDR(arg);
+	arg = PG_GETARG_BYTEA_P(0);
+	len = VARSIZE(arg) - VARHDRSZ;
 
-	px_md_update(md, (uint8 *) VARDATA_ANY(arg), len);
+	px_md_update(md, (uint8 *) VARDATA(arg), len);
 	px_md_finish(md, (uint8 *) VARDATA(res));
 	px_md_free(md);
 
@@ -83,6 +83,32 @@ pg_digest(PG_FUNCTION_ARGS)
 	PG_FREE_IF_COPY(name, 1);
 
 	PG_RETURN_BYTEA_P(res);
+}
+
+/* check if given hash exists */
+PG_FUNCTION_INFO_V1(pg_digest_exists);
+
+Datum
+pg_digest_exists(PG_FUNCTION_ARGS)
+{
+	text	   *name;
+	PX_MD	   *res;
+
+	if (PG_ARGISNULL(0))
+		PG_RETURN_NULL();
+
+	name = PG_GETARG_TEXT_P(0);
+
+	res = find_provider(name, (PFN) px_find_digest, "Digest", 1);
+
+	PG_FREE_IF_COPY(name, 0);
+
+	if (res == NULL)
+		PG_RETURN_BOOL(false);
+
+	res->free(res);
+
+	PG_RETURN_BOOL(true);
 }
 
 /* SQL function: hmac(data:bytea, key:bytea, type:text) returns bytea */
@@ -100,7 +126,10 @@ pg_hmac(PG_FUNCTION_ARGS)
 	PX_HMAC    *h;
 	bytea	   *res;
 
-	name = PG_GETARG_TEXT_PP(2);
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
+		PG_RETURN_NULL();
+
+	name = PG_GETARG_TEXT_P(2);
 
 	/* will give error if fails */
 	h = find_provider(name, (PFN) px_find_hmac, "HMAC", 0);
@@ -108,15 +137,15 @@ pg_hmac(PG_FUNCTION_ARGS)
 	hlen = px_hmac_result_size(h);
 
 	res = (text *) palloc(hlen + VARHDRSZ);
-	SET_VARSIZE(res, hlen + VARHDRSZ);
+	VARATT_SIZEP(res) = hlen + VARHDRSZ;
 
-	arg = PG_GETARG_BYTEA_PP(0);
-	key = PG_GETARG_BYTEA_PP(1);
-	len = VARSIZE_ANY_EXHDR(arg);
-	klen = VARSIZE_ANY_EXHDR(key);
+	arg = PG_GETARG_BYTEA_P(0);
+	key = PG_GETARG_BYTEA_P(1);
+	len = VARSIZE(arg) - VARHDRSZ;
+	klen = VARSIZE(key) - VARHDRSZ;
 
-	px_hmac_init(h, (uint8 *) VARDATA_ANY(key), klen);
-	px_hmac_update(h, (uint8 *) VARDATA_ANY(arg), len);
+	px_hmac_init(h, (uint8 *) VARDATA(key), klen);
+	px_hmac_update(h, (uint8 *) VARDATA(arg), len);
 	px_hmac_finish(h, (uint8 *) VARDATA(res));
 	px_hmac_free(h);
 
@@ -127,6 +156,32 @@ pg_hmac(PG_FUNCTION_ARGS)
 	PG_RETURN_BYTEA_P(res);
 }
 
+/* check if given hmac type exists */
+PG_FUNCTION_INFO_V1(pg_hmac_exists);
+
+Datum
+pg_hmac_exists(PG_FUNCTION_ARGS)
+{
+	text	   *name;
+	PX_HMAC    *h;
+
+	if (PG_ARGISNULL(0))
+		PG_RETURN_NULL();
+
+	name = PG_GETARG_TEXT_P(0);
+
+	h = find_provider(name, (PFN) px_find_hmac, "HMAC", 1);
+
+	PG_FREE_IF_COPY(name, 0);
+
+	if (h != NULL)
+	{
+		px_hmac_free(h);
+		PG_RETURN_BOOL(true);
+	}
+	PG_RETURN_BOOL(false);
+}
+
 
 /* SQL function: pg_gen_salt(text) returns text */
 PG_FUNCTION_INFO_V1(pg_gen_salt);
@@ -134,20 +189,33 @@ PG_FUNCTION_INFO_V1(pg_gen_salt);
 Datum
 pg_gen_salt(PG_FUNCTION_ARGS)
 {
-	text	   *arg0 = PG_GETARG_TEXT_PP(0);
+	text	   *arg0;
 	int			len;
+	text	   *res;
 	char		buf[PX_MAX_SALT_LEN + 1];
 
-	text_to_cstring_buffer(arg0, buf, sizeof(buf));
+	if (PG_ARGISNULL(0))
+		PG_RETURN_NULL();
+
+	arg0 = PG_GETARG_TEXT_P(0);
+
+	len = VARSIZE(arg0) - VARHDRSZ;
+	len = len > PX_MAX_SALT_LEN ? PX_MAX_SALT_LEN : len;
+	memcpy(buf, VARDATA(arg0), len);
+	buf[len] = 0;
 	len = px_gen_salt(buf, buf, 0);
 	if (len < 0)
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("gen_salt: %s", px_strerror(len))));
 
+	res = (text *) palloc(len + VARHDRSZ);
+	VARATT_SIZEP(res) = len + VARHDRSZ;
+	memcpy(VARDATA(res), buf, len);
+
 	PG_FREE_IF_COPY(arg0, 0);
 
-	PG_RETURN_TEXT_P(cstring_to_text_with_len(buf, len));
+	PG_RETURN_TEXT_P(res);
 }
 
 /* SQL function: pg_gen_salt(text, int4) returns text */
@@ -156,21 +224,35 @@ PG_FUNCTION_INFO_V1(pg_gen_salt_rounds);
 Datum
 pg_gen_salt_rounds(PG_FUNCTION_ARGS)
 {
-	text	   *arg0 = PG_GETARG_TEXT_PP(0);
-	int			rounds = PG_GETARG_INT32(1);
+	text	   *arg0;
+	int			rounds;
 	int			len;
+	text	   *res;
 	char		buf[PX_MAX_SALT_LEN + 1];
 
-	text_to_cstring_buffer(arg0, buf, sizeof(buf));
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+		PG_RETURN_NULL();
+
+	arg0 = PG_GETARG_TEXT_P(0);
+	rounds = PG_GETARG_INT32(1);
+
+	len = VARSIZE(arg0) - VARHDRSZ;
+	len = len > PX_MAX_SALT_LEN ? PX_MAX_SALT_LEN : len;
+	memcpy(buf, VARDATA(arg0), len);
+	buf[len] = 0;
 	len = px_gen_salt(buf, buf, rounds);
 	if (len < 0)
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("gen_salt: %s", px_strerror(len))));
 
+	res = (text *) palloc(len + VARHDRSZ);
+	VARATT_SIZEP(res) = len + VARHDRSZ;
+	memcpy(VARDATA(res), buf, len);
+
 	PG_FREE_IF_COPY(arg0, 0);
 
-	PG_RETURN_TEXT_P(cstring_to_text_with_len(buf, len));
+	PG_RETURN_TEXT_P(res);
 }
 
 /* SQL function: pg_crypt(psw:text, salt:text) returns text */
@@ -179,18 +261,37 @@ PG_FUNCTION_INFO_V1(pg_crypt);
 Datum
 pg_crypt(PG_FUNCTION_ARGS)
 {
-	text	   *arg0 = PG_GETARG_TEXT_PP(0);
-	text	   *arg1 = PG_GETARG_TEXT_PP(1);
+	text	   *arg0;
+	text	   *arg1;
+	unsigned	len0,
+				len1,
+				clen;
 	char	   *buf0,
 			   *buf1,
 			   *cres,
 			   *resbuf;
 	text	   *res;
 
-	buf0 = text_to_cstring(arg0);
-	buf1 = text_to_cstring(arg1);
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+		PG_RETURN_NULL();
 
-	resbuf = palloc0(PX_MAX_CRYPT);
+	arg0 = PG_GETARG_TEXT_P(0);
+	arg1 = PG_GETARG_TEXT_P(1);
+	len0 = VARSIZE(arg0) - VARHDRSZ;
+	len1 = VARSIZE(arg1) - VARHDRSZ;
+
+	buf0 = palloc(len0 + 1);
+	buf1 = palloc(len1 + 1);
+
+	memcpy(buf0, VARDATA(arg0), len0);
+	memcpy(buf1, VARDATA(arg1), len1);
+
+	buf0[len0] = '\0';
+	buf1[len1] = '\0';
+
+	resbuf = palloc(PX_MAX_CRYPT);
+
+	memset(resbuf, 0, PX_MAX_CRYPT);
 
 	cres = px_crypt(buf0, buf1, resbuf, PX_MAX_CRYPT);
 
@@ -202,8 +303,11 @@ pg_crypt(PG_FUNCTION_ARGS)
 				(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),
 				 errmsg("crypt(3) returned NULL")));
 
-	res = cstring_to_text(cres);
+	clen = strlen(cres);
 
+	res = (text *) palloc(clen + VARHDRSZ);
+	VARATT_SIZEP(res) = clen + VARHDRSZ;
+	memcpy(VARDATA(res), cres, clen);
 	pfree(resbuf);
 
 	PG_FREE_IF_COPY(arg0, 0);
@@ -228,20 +332,23 @@ pg_encrypt(PG_FUNCTION_ARGS)
 				klen,
 				rlen;
 
-	type = PG_GETARG_TEXT_PP(2);
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
+		PG_RETURN_NULL();
+
+	type = PG_GETARG_TEXT_P(2);
 	c = find_provider(type, (PFN) px_find_combo, "Cipher", 0);
 
-	data = PG_GETARG_BYTEA_PP(0);
-	key = PG_GETARG_BYTEA_PP(1);
-	dlen = VARSIZE_ANY_EXHDR(data);
-	klen = VARSIZE_ANY_EXHDR(key);
+	data = PG_GETARG_BYTEA_P(0);
+	key = PG_GETARG_BYTEA_P(1);
+	dlen = VARSIZE(data) - VARHDRSZ;
+	klen = VARSIZE(key) - VARHDRSZ;
 
 	rlen = px_combo_encrypt_len(c, dlen);
 	res = palloc(VARHDRSZ + rlen);
 
-	err = px_combo_init(c, (uint8 *) VARDATA_ANY(key), klen, NULL, 0);
+	err = px_combo_init(c, (uint8 *) VARDATA(key), klen, NULL, 0);
 	if (!err)
-		err = px_combo_encrypt(c, (uint8 *) VARDATA_ANY(data), dlen,
+		err = px_combo_encrypt(c, (uint8 *) VARDATA(data), dlen,
 							   (uint8 *) VARDATA(res), &rlen);
 	px_combo_free(c);
 
@@ -257,7 +364,7 @@ pg_encrypt(PG_FUNCTION_ARGS)
 				 errmsg("encrypt error: %s", px_strerror(err))));
 	}
 
-	SET_VARSIZE(res, VARHDRSZ + rlen);
+	VARATT_SIZEP(res) = VARHDRSZ + rlen;
 	PG_RETURN_BYTEA_P(res);
 }
 
@@ -277,20 +384,23 @@ pg_decrypt(PG_FUNCTION_ARGS)
 				klen,
 				rlen;
 
-	type = PG_GETARG_TEXT_PP(2);
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
+		PG_RETURN_NULL();
+
+	type = PG_GETARG_TEXT_P(2);
 	c = find_provider(type, (PFN) px_find_combo, "Cipher", 0);
 
-	data = PG_GETARG_BYTEA_PP(0);
-	key = PG_GETARG_BYTEA_PP(1);
-	dlen = VARSIZE_ANY_EXHDR(data);
-	klen = VARSIZE_ANY_EXHDR(key);
+	data = PG_GETARG_BYTEA_P(0);
+	key = PG_GETARG_BYTEA_P(1);
+	dlen = VARSIZE(data) - VARHDRSZ;
+	klen = VARSIZE(key) - VARHDRSZ;
 
 	rlen = px_combo_decrypt_len(c, dlen);
 	res = palloc(VARHDRSZ + rlen);
 
-	err = px_combo_init(c, (uint8 *) VARDATA_ANY(key), klen, NULL, 0);
+	err = px_combo_init(c, (uint8 *) VARDATA(key), klen, NULL, 0);
 	if (!err)
-		err = px_combo_decrypt(c, (uint8 *) VARDATA_ANY(data), dlen,
+		err = px_combo_decrypt(c, (uint8 *) VARDATA(data), dlen,
 							   (uint8 *) VARDATA(res), &rlen);
 
 	px_combo_free(c);
@@ -300,7 +410,7 @@ pg_decrypt(PG_FUNCTION_ARGS)
 				(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),
 				 errmsg("decrypt error: %s", px_strerror(err))));
 
-	SET_VARSIZE(res, VARHDRSZ + rlen);
+	VARATT_SIZEP(res) = VARHDRSZ + rlen;
 
 	PG_FREE_IF_COPY(data, 0);
 	PG_FREE_IF_COPY(key, 1);
@@ -327,24 +437,28 @@ pg_encrypt_iv(PG_FUNCTION_ARGS)
 				ivlen,
 				rlen;
 
-	type = PG_GETARG_TEXT_PP(3);
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1)
+		|| PG_ARGISNULL(2) || PG_ARGISNULL(3))
+		PG_RETURN_NULL();
+
+	type = PG_GETARG_TEXT_P(3);
 	c = find_provider(type, (PFN) px_find_combo, "Cipher", 0);
 
-	data = PG_GETARG_BYTEA_PP(0);
-	key = PG_GETARG_BYTEA_PP(1);
-	iv = PG_GETARG_BYTEA_PP(2);
-	dlen = VARSIZE_ANY_EXHDR(data);
-	klen = VARSIZE_ANY_EXHDR(key);
-	ivlen = VARSIZE_ANY_EXHDR(iv);
+	data = PG_GETARG_BYTEA_P(0);
+	key = PG_GETARG_BYTEA_P(1);
+	iv = PG_GETARG_BYTEA_P(2);
+	dlen = VARSIZE(data) - VARHDRSZ;
+	klen = VARSIZE(key) - VARHDRSZ;
+	ivlen = VARSIZE(iv) - VARHDRSZ;
 
 	rlen = px_combo_encrypt_len(c, dlen);
 	res = palloc(VARHDRSZ + rlen);
 
-	err = px_combo_init(c, (uint8 *) VARDATA_ANY(key), klen,
-						(uint8 *) VARDATA_ANY(iv), ivlen);
+	err = px_combo_init(c, (uint8 *) VARDATA(key), klen,
+						(uint8 *) VARDATA(iv), ivlen);
 	if (!err)
-		err = px_combo_encrypt(c, (uint8 *) VARDATA_ANY(data), dlen,
-							   (uint8 *) VARDATA(res), &rlen);
+		px_combo_encrypt(c, (uint8 *) VARDATA(data), dlen,
+						 (uint8 *) VARDATA(res), &rlen);
 
 	px_combo_free(c);
 
@@ -353,7 +467,7 @@ pg_encrypt_iv(PG_FUNCTION_ARGS)
 				(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),
 				 errmsg("encrypt_iv error: %s", px_strerror(err))));
 
-	SET_VARSIZE(res, VARHDRSZ + rlen);
+	VARATT_SIZEP(res) = VARHDRSZ + rlen;
 
 	PG_FREE_IF_COPY(data, 0);
 	PG_FREE_IF_COPY(key, 1);
@@ -381,24 +495,28 @@ pg_decrypt_iv(PG_FUNCTION_ARGS)
 				rlen,
 				ivlen;
 
-	type = PG_GETARG_TEXT_PP(3);
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1)
+		|| PG_ARGISNULL(2) || PG_ARGISNULL(3))
+		PG_RETURN_NULL();
+
+	type = PG_GETARG_TEXT_P(3);
 	c = find_provider(type, (PFN) px_find_combo, "Cipher", 0);
 
-	data = PG_GETARG_BYTEA_PP(0);
-	key = PG_GETARG_BYTEA_PP(1);
-	iv = PG_GETARG_BYTEA_PP(2);
-	dlen = VARSIZE_ANY_EXHDR(data);
-	klen = VARSIZE_ANY_EXHDR(key);
-	ivlen = VARSIZE_ANY_EXHDR(iv);
+	data = PG_GETARG_BYTEA_P(0);
+	key = PG_GETARG_BYTEA_P(1);
+	iv = PG_GETARG_BYTEA_P(2);
+	dlen = VARSIZE(data) - VARHDRSZ;
+	klen = VARSIZE(key) - VARHDRSZ;
+	ivlen = VARSIZE(iv) - VARHDRSZ;
 
 	rlen = px_combo_decrypt_len(c, dlen);
 	res = palloc(VARHDRSZ + rlen);
 
-	err = px_combo_init(c, (uint8 *) VARDATA_ANY(key), klen,
-						(uint8 *) VARDATA_ANY(iv), ivlen);
+	err = px_combo_init(c, (uint8 *) VARDATA(key), klen,
+						(uint8 *) VARDATA(iv), ivlen);
 	if (!err)
-		err = px_combo_decrypt(c, (uint8 *) VARDATA_ANY(data), dlen,
-							   (uint8 *) VARDATA(res), &rlen);
+		px_combo_decrypt(c, (uint8 *) VARDATA(data), dlen,
+						 (uint8 *) VARDATA(res), &rlen);
 
 	px_combo_free(c);
 
@@ -407,7 +525,7 @@ pg_decrypt_iv(PG_FUNCTION_ARGS)
 				(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),
 				 errmsg("decrypt_iv error: %s", px_strerror(err))));
 
-	SET_VARSIZE(res, VARHDRSZ + rlen);
+	VARATT_SIZEP(res) = VARHDRSZ + rlen;
 
 	PG_FREE_IF_COPY(data, 0);
 	PG_FREE_IF_COPY(key, 1);
@@ -417,71 +535,38 @@ pg_decrypt_iv(PG_FUNCTION_ARGS)
 	PG_RETURN_BYTEA_P(res);
 }
 
-/* SQL function: pg_random_bytes(int4) returns bytea */
-PG_FUNCTION_INFO_V1(pg_random_bytes);
+/* SQL function: pg_cipher_exists(text) returns bool */
+PG_FUNCTION_INFO_V1(pg_cipher_exists);
 
 Datum
-pg_random_bytes(PG_FUNCTION_ARGS)
+pg_cipher_exists(PG_FUNCTION_ARGS)
 {
-#ifdef HAVE_STRONG_RANDOM
-	int			len = PG_GETARG_INT32(0);
-	bytea	   *res;
+	text	   *arg;
+	PX_Combo   *c;
 
-	if (len < 1 || len > 1024)
-		ereport(ERROR,
-				(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),
-				 errmsg("Length not in range")));
+	if (PG_ARGISNULL(0))
+		PG_RETURN_NULL();
 
-	res = palloc(VARHDRSZ + len);
-	SET_VARSIZE(res, VARHDRSZ + len);
+	arg = PG_GETARG_TEXT_P(0);
 
-	/* generate result */
-	if (!pg_strong_random(VARDATA(res), len))
-		px_THROW_ERROR(PXE_NO_RANDOM);
+	c = find_provider(arg, (PFN) px_find_combo, "Cipher", 1);
+	if (c != NULL)
+		px_combo_free(c);
 
-	PG_RETURN_BYTEA_P(res);
-#else
-	px_THROW_ERROR(PXE_NO_RANDOM);
-#endif
-}
-
-/* SQL function: gen_random_uuid() returns uuid */
-PG_FUNCTION_INFO_V1(pg_random_uuid);
-
-Datum
-pg_random_uuid(PG_FUNCTION_ARGS)
-{
-#ifdef HAVE_STRONG_RANDOM
-	uint8	   *buf = (uint8 *) palloc(UUID_LEN);
-
-	/* Generate random bits. */
-	if (!pg_backend_random((char *) buf, UUID_LEN))
-		px_THROW_ERROR(PXE_NO_RANDOM);
-
-	/*
-	 * Set magic numbers for a "version 4" (pseudorandom) UUID, see
-	 * http://tools.ietf.org/html/rfc4122#section-4.4
-	 */
-	buf[6] = (buf[6] & 0x0f) | 0x40;	/* "version" field */
-	buf[8] = (buf[8] & 0x3f) | 0x80;	/* "variant" field */
-
-	PG_RETURN_UUID_P((pg_uuid_t *) buf);
-#else
-	px_THROW_ERROR(PXE_NO_RANDOM);
-#endif
+	PG_RETURN_BOOL((c != NULL) ? true : false);
 }
 
 static void *
 find_provider(text *name,
 			  PFN provider_lookup,
-			  const char *desc, int silent)
+			  char *desc, int silent)
 {
 	void	   *res;
 	char	   *buf;
 	int			err;
 
-	buf = downcase_truncate_identifier(VARDATA_ANY(name),
-									   VARSIZE_ANY_EXHDR(name),
+	buf = downcase_truncate_identifier(VARDATA(name),
+									   VARSIZE(name) - VARHDRSZ,
 									   false);
 
 	err = provider_lookup(buf, &res);

@@ -4,7 +4,7 @@
 #    Makefile for utils/hash
 #
 # IDENTIFICATION
-#    src/backend/utils/hash/Makefile
+#    $PostgreSQL: pgsql/src/backend/utils/hash/Makefile,v 1.11 2003/11/29 19:52:01 pgsql Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -14,4 +14,17 @@ include $(top_builddir)/src/Makefile.global
 
 OBJS = dynahash.o hashfn.o pg_crc.o
 
-include $(top_srcdir)/src/backend/common.mk
+all: SUBSYS.o
+
+SUBSYS.o: $(OBJS)
+	$(LD) $(LDREL) $(LDOUT) SUBSYS.o $(OBJS)
+
+depend dep:
+	$(CC) -MM $(CFLAGS) *.c >depend
+
+clean: 
+	rm -f SUBSYS.o $(OBJS)
+
+ifeq (depend,$(wildcard depend))
+include depend
+endif

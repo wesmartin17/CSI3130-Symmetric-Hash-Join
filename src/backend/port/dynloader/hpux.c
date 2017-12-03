@@ -3,12 +3,12 @@
  * dynloader.c
  *	  dynamic loader for HP-UX using the shared library mechanism
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/port/dynloader/hpux.c
+ *	  $PostgreSQL: pgsql/src/backend/port/dynloader/hpux.c,v 1.28 2005/10/15 02:49:23 momjian Exp $
  *
  *	NOTES
  *		all functions are defined here -- it's impossible to trace the
@@ -26,7 +26,7 @@
 #include "utils/dynamic_loader.h"
 
 void *
-pg_dlopen(const char *filename)
+pg_dlopen(char *filename)
 {
 	/*
 	 * Use BIND_IMMEDIATE so that undefined symbols cause a failure return
@@ -34,14 +34,14 @@ pg_dlopen(const char *filename)
 	 * call the library!
 	 */
 	shl_t		handle = shl_load(filename,
-								  BIND_IMMEDIATE | BIND_VERBOSE | DYNAMIC_PATH,
+								BIND_IMMEDIATE | BIND_VERBOSE | DYNAMIC_PATH,
 								  0L);
 
 	return (void *) handle;
 }
 
 PGFunction
-pg_dlsym(void *handle, const char *funcname)
+pg_dlsym(void *handle, char *funcname)
 {
 	PGFunction	f;
 

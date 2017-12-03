@@ -1,17 +1,13 @@
-# contrib/pg_buffercache/Makefile
+# $PostgreSQL: pgsql/contrib/pg_buffercache/Makefile,v 1.2 2005/09/27 17:13:07 tgl Exp $
 
 MODULE_big = pg_buffercache
-OBJS = pg_buffercache_pages.o $(WIN32RES)
+OBJS	= pg_buffercache_pages.o
 
-EXTENSION = pg_buffercache
-DATA = pg_buffercache--1.2.sql pg_buffercache--1.2--1.3.sql \
-	pg_buffercache--1.1--1.2.sql pg_buffercache--1.0--1.1.sql \
-	pg_buffercache--unpackaged--1.0.sql
-PGFILEDESC = "pg_buffercache - monitoring of shared buffer cache in real-time"
+DATA_built = pg_buffercache.sql 
+DOCS = README.pg_buffercache
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/pg_buffercache

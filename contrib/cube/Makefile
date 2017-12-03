@@ -1,23 +1,20 @@
-# contrib/cube/Makefile
+# $PostgreSQL: pgsql/contrib/cube/Makefile,v 1.15 2005/10/18 01:30:48 tgl Exp $
 
 MODULE_big = cube
-OBJS= cube.o cubeparse.o $(WIN32RES)
+OBJS= cube.o cubeparse.o
 
-EXTENSION = cube
-DATA = cube--1.2.sql cube--1.2--1.3.sql cube--1.3--1.4.sql \
-	cube--1.1--1.2.sql cube--1.0--1.1.sql \
-	cube--unpackaged--1.0.sql
-PGFILEDESC = "cube - multidimensional cube data type"
-
+DATA_built = cube.sql
+DOCS = README.cube
 REGRESS = cube
 
-EXTRA_CLEAN = y.tab.c y.tab.h
+EXTRA_CLEAN = cubeparse.c cubeparse.h cubescan.c y.tab.c y.tab.h
+
+PG_CPPFLAGS = -I.
 
 SHLIB_LINK += $(filter -lm, $(LIBS))
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/cube
@@ -30,7 +27,20 @@ endif
 # cubescan is compiled as part of cubeparse
 cubeparse.o: cubescan.c
 
-distprep: cubeparse.c cubescan.c
+cubeparse.c: cubeparse.h ;
 
-maintainer-clean:
-	rm -f cubeparse.c cubescan.c
+cubeparse.h: cubeparse.y
+ifdef YACC
+	$(YACC) -d $(YFLAGS) -p cube_yy $<
+	mv -f y.tab.c cubeparse.c
+	mv -f y.tab.h cubeparse.h
+else
+	@$(missing) bison $< $@
+endif
+
+cubescan.c: cubescan.l
+ifdef FLEX
+	$(FLEX) $(FLEXFLAGS) -o'$@' $<
+else
+	@$(missing) flex $< $@
+endif

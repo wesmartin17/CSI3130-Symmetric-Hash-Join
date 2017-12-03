@@ -1,52 +1,70 @@
 -- first some tests of basic functionality
-CREATE EXTENSION plpython2u;
-
--- really stupid function just to get the module loaded
-CREATE FUNCTION stupid() RETURNS text AS 'return "zarkon"' LANGUAGE plpythonu;
-
+--
+-- better succeed
+--
 select stupid();
 
--- check 2/3 versioning
-CREATE FUNCTION stupidn() RETURNS text AS 'return "zarkon"' LANGUAGE plpython2u;
+-- check static and global data
+--
+SELECT static_test();
+SELECT static_test();
+SELECT global_test_one();
+SELECT global_test_two();
 
-select stupidn();
+-- import python modules
+--
+SELECT import_fail();
+SELECT import_succeed();
 
--- test multiple arguments and odd characters in function name
-CREATE FUNCTION "Argument test #1"(u users, a1 text, a2 text) RETURNS text
-	AS
-'keys = list(u.keys())
-keys.sort()
-out = []
-for key in keys:
-    out.append("%s: %s" % (key, u[key]))
-words = a1 + " " + a2 + " => {" + ", ".join(out) + "}"
-return words'
-	LANGUAGE plpythonu;
+-- test import and simple argument handling
+--
+SELECT import_test_one('sha hash of this string');
 
-select "Argument test #1"(users, fname, lname) from users where lname = 'doe' order by 1;
+-- test import and tuple argument handling
+--
+select import_test_two(users) from users where fname = 'willem';
+
+-- test multiple arguments
+--
+select argument_test_one(users, fname, lname) from users where lname = 'doe' order by 1;
 
 
--- check module contents
-CREATE FUNCTION module_contents() RETURNS SETOF text AS
-$$
-contents = list(filter(lambda x: not x.startswith("__"), dir(plpy)))
-contents.sort()
-return contents
-$$ LANGUAGE plpythonu;
+-- spi and nested calls
+--
+select nested_call_one('pass this along');
+select spi_prepared_plan_test_one('doe');
+select spi_prepared_plan_test_one('smith');
+select spi_prepared_plan_test_nested('smith');
 
-select module_contents();
+-- quick peek at the table
+--
+SELECT * FROM users;
 
-CREATE FUNCTION elog_test_basic() RETURNS void
-AS $$
-plpy.debug('debug')
-plpy.log('log')
-plpy.info('info')
-plpy.info(37)
-plpy.info()
-plpy.info('info', 37, [1, 2, 3])
-plpy.notice('notice')
-plpy.warning('warning')
-plpy.error('error')
-$$ LANGUAGE plpythonu;
+-- should fail
+--
+UPDATE users SET fname = 'william' WHERE fname = 'willem';
 
-SELECT elog_test_basic();
+-- should modify william to willem and create username
+--
+INSERT INTO users (fname, lname) VALUES ('william', 'smith');
+INSERT INTO users (fname, lname, username) VALUES ('charles', 'darwin', 'beagle');
+
+SELECT * FROM users;
+
+
+SELECT join_sequences(sequences) FROM sequences;
+SELECT join_sequences(sequences) FROM sequences
+	WHERE join_sequences(sequences) ~* '^A';
+SELECT join_sequences(sequences) FROM sequences
+	WHERE join_sequences(sequences) ~* '^B';
+
+-- error in trigger
+--
+
+--
+-- Check Universal Newline Support
+--
+
+SELECT newline_lf();
+SELECT newline_cr();
+SELECT newline_crlf();

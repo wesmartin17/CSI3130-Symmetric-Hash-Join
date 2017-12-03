@@ -4,10 +4,10 @@
  *
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/executor/nodeSubqueryscan.h
+ * $PostgreSQL: pgsql/src/include/executor/nodeSubqueryscan.h,v 1.11 2004/12/31 22:03:29 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -16,8 +16,10 @@
 
 #include "nodes/execnodes.h"
 
-extern SubqueryScanState *ExecInitSubqueryScan(SubqueryScan *node, EState *estate, int eflags);
+extern int	ExecCountSlotsSubqueryScan(SubqueryScan *node);
+extern SubqueryScanState *ExecInitSubqueryScan(SubqueryScan *node, EState *estate);
+extern TupleTableSlot *ExecSubqueryScan(SubqueryScanState *node);
 extern void ExecEndSubqueryScan(SubqueryScanState *node);
-extern void ExecReScanSubqueryScan(SubqueryScanState *node);
+extern void ExecSubqueryReScan(SubqueryScanState *node, ExprContext *exprCtxt);
 
-#endif							/* NODESUBQUERYSCAN_H */
+#endif   /* NODESUBQUERYSCAN_H */

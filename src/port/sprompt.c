@@ -3,14 +3,28 @@
  * sprompt.c
  *	  simple_prompt() routine
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/port/sprompt.c
+ *	  $PostgreSQL: pgsql/src/port/sprompt.c,v 1.12.2.3 2006/03/05 05:33:19 momjian Exp $
  *
  *-------------------------------------------------------------------------
+ */
+
+
+/*
+ * simple_prompt
+ *
+ * Generalized function especially intended for reading in usernames and
+ * password interactively. Reads from /dev/tty or stdin/stderr.
+ *
+ * prompt:		The prompt to print
+ * maxlen:		How many characters to accept
+ * echo:		Set to false if you want to hide what is entered (for passwords)
+ *
+ * Returns a malloc()'ed string with the input (w/o trailing newline).
  */
 #include "c.h"
 
@@ -18,25 +32,14 @@
 #include <termios.h>
 #endif
 
+bool		prompt_state = false;
+extern char *simple_prompt(const char *prompt, int maxlen, bool echo);
 
-/*
- * simple_prompt
- *
- * Generalized function especially intended for reading in usernames and
- * passwords interactively.  Reads from /dev/tty or stdin/stderr.
- *
- * prompt:		The prompt to print, or NULL if none (automatically localized)
- * destination: buffer in which to store result
- * destlen:		allocated length of destination
- * echo:		Set to false if you want to hide what is entered (for passwords)
- *
- * The input (without trailing newline) is returned in the destination buffer,
- * with a '\0' appended.
- */
-void
-simple_prompt(const char *prompt, char *destination, size_t destlen, bool echo)
+char *
+simple_prompt(const char *prompt, int maxlen, bool echo)
 {
 	int			length;
+	char	   *destination;
 	FILE	   *termin,
 			   *termout;
 
@@ -46,47 +49,25 @@ simple_prompt(const char *prompt, char *destination, size_t destlen, bool echo)
 #else
 #ifdef WIN32
 	HANDLE		t = NULL;
-	DWORD		t_orig = 0;
+	LPDWORD		t_orig = NULL;
 #endif
 #endif
 
-#ifdef WIN32
+	destination = (char *) malloc(maxlen + 1);
+	if (!destination)
+		return NULL;
 
-	/*
-	 * A Windows console has an "input code page" and an "output code page";
-	 * these usually match each other, but they rarely match the "Windows ANSI
-	 * code page" defined at system boot and expected of "char *" arguments to
-	 * Windows API functions.  The Microsoft CRT write() implementation
-	 * automatically converts text between these code pages when writing to a
-	 * console.  To identify such file descriptors, it calls GetConsoleMode()
-	 * on the underlying HANDLE, which in turn requires GENERIC_READ access on
-	 * the HANDLE.  Opening termout in mode "w+" allows that detection to
-	 * succeed.  Otherwise, write() would not recognize the descriptor as a
-	 * console, and non-ASCII characters would display incorrectly.
-	 *
-	 * XXX fgets() still receives text in the console's input code page.  This
-	 * makes non-ASCII credentials unportable.
-	 */
-	termin = fopen("CONIN$", "r");
-	termout = fopen("CONOUT$", "w+");
-#else
+	prompt_state = true;		/* disable SIGINT */
 
 	/*
 	 * Do not try to collapse these into one "w+" mode file. Doesn't work on
 	 * some platforms (eg, HPUX 10.20).
 	 */
-	termin = fopen("/dev/tty", "r");
-	termout = fopen("/dev/tty", "w");
-#endif
+	termin = fopen(DEVTTY, "r");
+	termout = fopen(DEVTTY, "w");
 	if (!termin || !termout
 #ifdef WIN32
-
-	/*
-	 * Direct console I/O does not work from the MSYS 1.0.10 console.  Writes
-	 * reach nowhere user-visible; reads block indefinitely.  XXX This affects
-	 * most Windows terminal environments, including rxvt, mintty, Cygwin
-	 * xterm, Cygwin sshd, and PowerShell ISE.  Switch to a more-generic test.
-	 */
+		/* See DEVTTY comment for msys */
 		|| (getenv("OSTYPE") && strcmp(getenv("OSTYPE"), "msys") == 0)
 #endif
 		)
@@ -112,10 +93,11 @@ simple_prompt(const char *prompt, char *destination, size_t destlen, bool echo)
 	if (!echo)
 	{
 		/* get a new handle to turn echo off */
+		t_orig = (LPDWORD) malloc(sizeof(DWORD));
 		t = GetStdHandle(STD_INPUT_HANDLE);
 
 		/* save the old configuration first */
-		GetConsoleMode(t, &t_orig);
+		GetConsoleMode(t, t_orig);
 
 		/* set to the new mode */
 		SetConsoleMode(t, ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT);
@@ -129,7 +111,7 @@ simple_prompt(const char *prompt, char *destination, size_t destlen, bool echo)
 		fflush(termout);
 	}
 
-	if (fgets(destination, destlen, termin) == NULL)
+	if (fgets(destination, maxlen + 1, termin) == NULL)
 		destination[0] = '\0';
 
 	length = strlen(destination);
@@ -163,9 +145,10 @@ simple_prompt(const char *prompt, char *destination, size_t destlen, bool echo)
 	if (!echo)
 	{
 		/* reset to the original console mode */
-		SetConsoleMode(t, t_orig);
+		SetConsoleMode(t, *t_orig);
 		fputs("\n", termout);
 		fflush(termout);
+		free(t_orig);
 	}
 #endif
 #endif
@@ -175,4 +158,8 @@ simple_prompt(const char *prompt, char *destination, size_t destlen, bool echo)
 		fclose(termin);
 		fclose(termout);
 	}
+
+	prompt_state = false;		/* SIGINT okay again */
+
+	return destination;
 }

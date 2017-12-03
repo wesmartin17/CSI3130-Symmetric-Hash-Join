@@ -14,12 +14,8 @@
 #	libpgport_srv.a - contains object files without FRONTEND defined,
 #		for use only by the backend binaries
 #
-# LIBOBJS is set by configure (via Makefile.global) to be the list of object
-# files that are conditionally needed as determined by configure's probing.
-# OBJS adds additional object files that are always compiled.
-#
 # IDENTIFICATION
-#    src/port/Makefile
+#    $PostgreSQL: pgsql/src/port/Makefile,v 1.29.2.1 2006/05/08 02:18:59 momjian Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -30,75 +26,41 @@ include $(top_builddir)/src/Makefile.global
 override CPPFLAGS := -I$(top_builddir)/src/port -DFRONTEND $(CPPFLAGS)
 LIBS += $(PTHREAD_LIBS)
 
-OBJS = $(LIBOBJS) $(PG_CRC32C_OBJS) chklocale.o erand48.o inet_net_ntop.o \
-	noblock.o path.o pgcheckdir.o pgmkdirp.o pgsleep.o \
-	pgstrcasecmp.o pqsignal.o \
-	qsort.o qsort_arg.o quotes.o sprompt.o tar.o thread.o
-
-ifeq ($(enable_strong_random), yes)
-OBJS += pg_strong_random.o
-endif
-
-# foo_srv.o and foo.o are both built from foo.c, but only foo.o has -DFRONTEND
-OBJS_SRV = $(OBJS:%.o=%_srv.o)
+# Replace all object files so they use FRONTEND define
+LIBOBJS_SRV := $(LIBOBJS:%.o=%_srv.o)
 
 all: libpgport.a libpgport_srv.a
 
 # libpgport is needed by some contrib
-install: all installdirs
-	$(INSTALL_STLIB) libpgport.a '$(DESTDIR)$(libdir)/libpgport.a'
-
-installdirs:
-	$(MKDIR_P) '$(DESTDIR)$(libdir)'
+install: all
+	$(INSTALL_STLIB) libpgport.a $(DESTDIR)$(libdir)
 
 uninstall:
-	rm -f '$(DESTDIR)$(libdir)/libpgport.a'
+	$(RM) $(DESTDIR)$(libdir)/libpgport.a
 
-libpgport.a: $(OBJS)
-	rm -f $@
+libpgport.a: $(LIBOBJS)
 	$(AR) $(AROPT) $@ $^
 
-# thread.o needs PTHREAD_CFLAGS (but thread_srv.o does not)
-thread.o: CFLAGS+=$(PTHREAD_CFLAGS)
+thread.o: thread.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(PTHREAD_CFLAGS) -c $<
 
-# pg_crc32c_sse42.o and its _srv.o version need CFLAGS_SSE42
-pg_crc32c_sse42.o: CFLAGS+=$(CFLAGS_SSE42)
-pg_crc32c_sse42_srv.o: CFLAGS+=$(CFLAGS_SSE42)
+path.o: path.c pg_config_paths.h
 
 #
 # Server versions of object files
 #
 
-libpgport_srv.a: $(OBJS_SRV)
-	rm -f $@
+libpgport_srv.a: $(LIBOBJS_SRV)
 	$(AR) $(AROPT) $@ $^
 
-# Because this uses its own compilation rule, it doesn't use the
-# dependency tracking logic from Makefile.global.  To make sure that
-# dependency tracking works anyway for the *_srv.o files, depend on
-# their *.o siblings as well, which do have proper dependencies.  It's
-# a hack that might fail someday if there is a *_srv.o without a
-# corresponding *.o, but it works for now (and those would probably go
-# into src/backend/port/ anyway).
-%_srv.o: %.c %.o
+%_srv.o: %.c
 	$(CC) $(CFLAGS) $(subst -DFRONTEND,, $(CPPFLAGS)) -c $< -o $@
 
-$(OBJS_SRV): | submake-errcodes
-
-.PHONY: submake-errcodes
-
-submake-errcodes:
-	$(MAKE) -C ../backend submake-errcodes
+# No thread flags for server version
+thread_srv.o: thread.c
+	$(CC) $(CFLAGS) $(subst -DFRONTEND,, $(CPPFLAGS)) -c $< -o $@
 
 # Dependency is to ensure that path changes propagate
-
-path.o: path.c pg_config_paths.h
-
-path_srv.o: path.c pg_config_paths.h
-
-# We create a separate file rather than put these in pg_config.h
-# because many of these values come from makefiles and are not
-# available to configure.
 pg_config_paths.h: $(top_builddir)/src/Makefile.global
 	echo "#define PGBINDIR \"$(bindir)\"" >$@
 	echo "#define PGSHAREDIR \"$(datadir)\"" >>$@
@@ -110,8 +72,7 @@ pg_config_paths.h: $(top_builddir)/src/Makefile.global
 	echo "#define PKGLIBDIR \"$(pkglibdir)\"" >>$@
 	echo "#define LOCALEDIR \"$(localedir)\"" >>$@
 	echo "#define DOCDIR \"$(docdir)\"" >>$@
-	echo "#define HTMLDIR \"$(htmldir)\"" >>$@
 	echo "#define MANDIR \"$(mandir)\"" >>$@
 
 clean distclean maintainer-clean:
-	rm -f libpgport.a libpgport_srv.a $(OBJS) $(OBJS_SRV) pg_config_paths.h
+	rm -f libpgport.a libpgport_srv.a $(LIBOBJS) $(LIBOBJS_SRV) pg_config_paths.h

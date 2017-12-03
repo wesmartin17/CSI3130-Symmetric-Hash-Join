@@ -4,12 +4,12 @@
  *	  Functions for the built-in type "char" (not to be confused with
  *	  bpchar, which is the SQL CHAR(n) type).
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/utils/adt/char.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/adt/char.c,v 1.43 2005/10/15 02:49:28 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -19,6 +19,14 @@
 
 #include "libpq/pqformat.h"
 #include "utils/builtins.h"
+
+#ifndef SCHAR_MAX
+#define SCHAR_MAX (0x7F)
+#endif
+#ifndef SCHAR_MIN
+#define SCHAR_MIN (-SCHAR_MAX-1)
+#endif
+
 
 /*****************************************************************************
  *	 USER I/O ROUTINES														 *
@@ -59,7 +67,7 @@ charout(PG_FUNCTION_ARGS)
  *		charrecv			- converts external binary format to char
  *
  * The external representation is one byte, with no character set
- * conversion.  This is somewhat dubious, perhaps, but in many
+ * conversion.	This is somewhat dubious, perhaps, but in many
  * cases people use char for a 1-byte binary type.
  */
 Datum
@@ -175,7 +183,7 @@ i4tochar(PG_FUNCTION_ARGS)
 Datum
 text_char(PG_FUNCTION_ARGS)
 {
-	text	   *arg1 = PG_GETARG_TEXT_PP(0);
+	text	   *arg1 = PG_GETARG_TEXT_P(0);
 	char		result;
 
 	/*
@@ -183,8 +191,8 @@ text_char(PG_FUNCTION_ARGS)
 	 * If the input is longer than one character, the excess data is silently
 	 * discarded.
 	 */
-	if (VARSIZE_ANY_EXHDR(arg1) > 0)
-		result = *(VARDATA_ANY(arg1));
+	if (VARSIZE(arg1) > VARHDRSZ)
+		result = *(VARDATA(arg1));
 	else
 		result = '\0';
 
@@ -203,11 +211,11 @@ char_text(PG_FUNCTION_ARGS)
 	 */
 	if (arg1 != '\0')
 	{
-		SET_VARSIZE(result, VARHDRSZ + 1);
+		VARATT_SIZEP(result) = VARHDRSZ + 1;
 		*(VARDATA(result)) = arg1;
 	}
 	else
-		SET_VARSIZE(result, VARHDRSZ);
+		VARATT_SIZEP(result) = VARHDRSZ;
 
 	PG_RETURN_TEXT_P(result);
 }

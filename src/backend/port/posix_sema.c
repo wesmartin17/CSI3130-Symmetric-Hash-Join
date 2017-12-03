@@ -6,58 +6,41 @@
  * We prefer the unnamed style of POSIX semaphore (the kind made with
  * sem_init).  We can cope with the kind made with sem_open, however.
  *
- * In either implementation, typedef PGSemaphore is equivalent to "sem_t *".
- * With unnamed semaphores, the sem_t structs live in an array in shared
- * memory.  With named semaphores, that's not true because we cannot persuade
- * sem_open to do its allocation there.  Therefore, the named-semaphore code
- * *does not cope with EXEC_BACKEND*.  The sem_t structs will just be in the
- * postmaster's private memory, where they are successfully inherited by
- * forked backends, but they could not be accessed by exec'd backends.
  *
- *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/port/posix_sema.c
+ *	  $PostgreSQL: pgsql/src/backend/port/posix_sema.c,v 1.14.2.1 2005/11/22 18:23:14 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
+#include <errno.h>
 #include <fcntl.h>
-#include <semaphore.h>
 #include <signal.h>
 #include <unistd.h>
 
 #include "miscadmin.h"
 #include "storage/ipc.h"
 #include "storage/pg_sema.h"
-#include "storage/shmem.h"
 
 
-/* see file header comment */
-#if defined(USE_NAMED_POSIX_SEMAPHORES) && defined(EXEC_BACKEND)
-#error cannot use named POSIX semaphores with EXEC_BACKEND
+#ifdef USE_NAMED_POSIX_SEMAPHORES
+/* PGSemaphore is pointer to pointer to sem_t */
+#define PG_SEM_REF(x)	(*(x))
+#else
+/* PGSemaphore is pointer to sem_t */
+#define PG_SEM_REF(x)	(x)
 #endif
 
-/* typedef PGSemaphore is equivalent to pointer to sem_t */
-typedef struct PGSemaphoreData
-{
-	sem_t		pgsem;
-} PGSemaphoreData;
-
-#define PG_SEM_REF(x)	(&(x)->pgsem)
 
 #define IPCProtection	(0600)	/* access/modify by user only */
 
-#ifdef USE_NAMED_POSIX_SEMAPHORES
 static sem_t **mySemPointers;	/* keep track of created semaphores */
-#else
-static PGSemaphore sharedSemas; /* array of PGSemaphoreData in shared memory */
-#endif
 static int	numSems;			/* number of semas acquired so far */
-static int	maxSems;			/* allocated size of above arrays */
+static int	maxSems;			/* allocated size of mySemaPointers array */
 static int	nextSemKey;			/* next name to try */
 
 
@@ -125,19 +108,19 @@ PosixSemaphoreCreate(void)
  * Attempt to create a new unnamed semaphore.
  */
 static void
-PosixSemaphoreCreate(sem_t *sem)
+PosixSemaphoreCreate(sem_t * sem)
 {
 	if (sem_init(sem, 1, 1) < 0)
 		elog(FATAL, "sem_init failed: %m");
 }
-#endif							/* USE_NAMED_POSIX_SEMAPHORES */
+#endif   /* USE_NAMED_POSIX_SEMAPHORES */
 
 
 /*
  * PosixSemaphoreKill	- removes a semaphore
  */
 static void
-PosixSemaphoreKill(sem_t *sem)
+PosixSemaphoreKill(sem_t * sem)
 {
 #ifdef USE_NAMED_POSIX_SEMAPHORES
 	/* Got to use sem_close for named semaphores */
@@ -152,26 +135,11 @@ PosixSemaphoreKill(sem_t *sem)
 
 
 /*
- * Report amount of shared memory needed for semaphores
- */
-Size
-PGSemaphoreShmemSize(int maxSemas)
-{
-#ifdef USE_NAMED_POSIX_SEMAPHORES
-	/* No shared memory needed in this case */
-	return 0;
-#else
-	/* Need a PGSemaphoreData per semaphore */
-	return mul_size(maxSemas, sizeof(PGSemaphoreData));
-#endif
-}
-
-/*
  * PGReserveSemaphores --- initialize semaphore support
  *
  * This is called during postmaster start or shared memory reinitialization.
  * It should do whatever is needed to be able to support up to maxSemas
- * subsequent PGSemaphoreCreate calls.  Also, if any system resources
+ * subsequent PGSemaphoreCreate calls.	Also, if any system resources
  * are acquired here or in PGSemaphoreCreate, register an on_shmem_exit
  * callback to release them.
  *
@@ -180,33 +148,15 @@ PGSemaphoreShmemSize(int maxSemas)
  * zero will be passed.
  *
  * In the Posix implementation, we acquire semaphores on-demand; the
- * maxSemas parameter is just used to size the arrays.  For unnamed
- * semaphores, there is an array of PGSemaphoreData structs in shared memory.
- * For named semaphores, we keep a postmaster-local array of sem_t pointers,
- * which we use for releasing the semphores when done.
- * (This design minimizes the dependency of postmaster shutdown on the
- * contents of shared memory, which a failed backend might have clobbered.
- * We can't do much about the possibility of sem_destroy() crashing, but
- * we don't have to expose the counters to other processes.)
+ * maxSemas parameter is just used to size the array that keeps track of
+ * acquired semas for subsequent releasing.
  */
 void
 PGReserveSemaphores(int maxSemas, int port)
 {
-#ifdef USE_NAMED_POSIX_SEMAPHORES
 	mySemPointers = (sem_t **) malloc(maxSemas * sizeof(sem_t *));
 	if (mySemPointers == NULL)
 		elog(PANIC, "out of memory");
-#else
-
-	/*
-	 * We must use ShmemAllocUnlocked(), since the spinlock protecting
-	 * ShmemAlloc() won't be ready yet.  (This ordering is necessary when we
-	 * are emulating spinlocks with semaphores.)
-	 */
-	sharedSemas = (PGSemaphore)
-		ShmemAllocUnlocked(PGSemaphoreShmemSize(maxSemas));
-#endif
-
 	numSems = 0;
 	maxSems = maxSemas;
 	nextSemKey = port * 1000;
@@ -224,27 +174,19 @@ ReleaseSemaphores(int status, Datum arg)
 {
 	int			i;
 
-#ifdef USE_NAMED_POSIX_SEMAPHORES
 	for (i = 0; i < numSems; i++)
 		PosixSemaphoreKill(mySemPointers[i]);
 	free(mySemPointers);
-#endif
-
-#ifdef USE_UNNAMED_POSIX_SEMAPHORES
-	for (i = 0; i < numSems; i++)
-		PosixSemaphoreKill(PG_SEM_REF(sharedSemas + i));
-#endif
 }
 
 /*
  * PGSemaphoreCreate
  *
- * Allocate a PGSemaphore structure with initial count 1
+ * Initialize a PGSemaphore structure to represent a sema with count 1
  */
-PGSemaphore
-PGSemaphoreCreate(void)
+void
+PGSemaphoreCreate(PGSemaphore sema)
 {
-	PGSemaphore sema;
 	sem_t	   *newsem;
 
 	/* Can't do this in a backend, because static state is postmaster's */
@@ -254,19 +196,14 @@ PGSemaphoreCreate(void)
 		elog(PANIC, "too many semaphores created");
 
 #ifdef USE_NAMED_POSIX_SEMAPHORES
-	newsem = PosixSemaphoreCreate();
-	/* Remember new sema for ReleaseSemaphores */
-	mySemPointers[numSems] = newsem;
-	sema = (PGSemaphore) newsem;
+	*sema = newsem = PosixSemaphoreCreate();
 #else
-	sema = &sharedSemas[numSems];
-	newsem = PG_SEM_REF(sema);
-	PosixSemaphoreCreate(newsem);
+	PosixSemaphoreCreate(sema);
+	newsem = sema;
 #endif
 
-	numSems++;
-
-	return sema;
+	/* Remember new sema for ReleaseSemaphores */
+	mySemPointers[numSems++] = newsem;
 }
 
 /*
@@ -300,14 +237,49 @@ PGSemaphoreReset(PGSemaphore sema)
  * Lock a semaphore (decrement count), blocking if count would be < 0
  */
 void
-PGSemaphoreLock(PGSemaphore sema)
+PGSemaphoreLock(PGSemaphore sema, bool interruptOK)
 {
 	int			errStatus;
 
-	/* See notes in sysv_sema.c's implementation of PGSemaphoreLock. */
+	/*
+	 * Note: if errStatus is -1 and errno == EINTR then it means we returned
+	 * from the operation prematurely because we were sent a signal.  So we
+	 * try and lock the semaphore again.
+	 *
+	 * Each time around the loop, we check for a cancel/die interrupt. We
+	 * assume that if such an interrupt comes in while we are waiting, it will
+	 * cause the sem_wait() call to exit with errno == EINTR, so that we will
+	 * be able to service the interrupt (if not in a critical section
+	 * already).
+	 *
+	 * Once we acquire the lock, we do NOT check for an interrupt before
+	 * returning.  The caller needs to be able to record ownership of the lock
+	 * before any interrupt can be accepted.
+	 *
+	 * There is a window of a few instructions between CHECK_FOR_INTERRUPTS
+	 * and entering the sem_wait() call.  If a cancel/die interrupt occurs in
+	 * that window, we would fail to notice it until after we acquire the lock
+	 * (or get another interrupt to escape the sem_wait()).  We can avoid this
+	 * problem by temporarily setting ImmediateInterruptOK to true before we
+	 * do CHECK_FOR_INTERRUPTS; then, a die() interrupt in this interval will
+	 * execute directly.  However, there is a huge pitfall: there is another
+	 * window of a few instructions after the sem_wait() before we are able to
+	 * reset ImmediateInterruptOK.	If an interrupt occurs then, we'll lose
+	 * control, which means that the lock has been acquired but our caller did
+	 * not get a chance to record the fact. Therefore, we only set
+	 * ImmediateInterruptOK if the caller tells us it's OK to do so, ie, the
+	 * caller does not need to record acquiring the lock.  (This is currently
+	 * true for lockmanager locks, since the process that granted us the lock
+	 * did all the necessary state updates. It's not true for Posix semaphores
+	 * used to implement LW locks or emulate spinlocks --- but the wait time
+	 * for such locks should not be very long, anyway.)
+	 */
 	do
 	{
+		ImmediateInterruptOK = interruptOK;
+		CHECK_FOR_INTERRUPTS();
 		errStatus = sem_wait(PG_SEM_REF(sema));
+		ImmediateInterruptOK = false;
 	} while (errStatus < 0 && errno == EINTR);
 
 	if (errStatus < 0)

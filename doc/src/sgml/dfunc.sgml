@@ -1,7 +1,9 @@
-<!-- doc/src/sgml/dfunc.sgml -->
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/dfunc.sgml,v 1.32 2005/09/14 21:14:26 neilc Exp $
+-->
 
 <sect2 id="dfunc">
- <title>Compiling and Linking Dynamically-loaded Functions</title>
+ <title id="dfunc-title">Compiling and Linking Dynamically-Loaded Functions</title>
 
  <para>
   Before you are able to use your
@@ -9,7 +11,7 @@
   C, they must be compiled and linked in a special way to produce a
   file that can be dynamically loaded by the server.  To be precise, a
   <firstterm>shared library</firstterm> needs to be
-  created.<indexterm><primary>shared library</primary></indexterm>
+  created.<indexterm><primary>shared library</></indexterm>
 
  </para>
 
@@ -30,7 +32,7 @@
   executables: first the source files are compiled into object files,
   then the object files are linked together.  The object files need to
   be created as <firstterm>position-independent code</firstterm>
-  (<acronym>PIC</acronym>),<indexterm><primary>PIC</primary></indexterm> which
+  (<acronym>PIC</acronym>),<indexterm><primary>PIC</></> which
   conceptually means that they can be placed at an arbitrary location
   in memory when they are loaded by the executable.  (Object files
   intended for executables are usually not compiled that way.)  The
@@ -56,48 +58,62 @@
 
   <variablelist>
    <varlistentry>
-    <term>
-     <systemitem class="osname">FreeBSD</systemitem>
-     <indexterm><primary>FreeBSD</primary><secondary>shared library</secondary></indexterm>
-    </term>
+    <term><systemitem class="osname">BSD/OS</></term>
+    <indexterm><primary>BSD/OS</><secondary>shared library</></>
     <listitem>
      <para>
       The compiler flag to create <acronym>PIC</acronym> is
-      <option>-fPIC</option>.  To create shared libraries the compiler
-      flag is <option>-shared</option>.
+      <option>-fpic</option>.  The linker flag to create shared
+      libraries is <option>-shared</option>.
 <programlisting>
-gcc -fPIC -c foo.c
-gcc -shared -o foo.so foo.o
+gcc -fpic -c foo.c
+ld -shared -o foo.so foo.o
 </programlisting>
-      This is applicable as of version 3.0 of
-      <systemitem class="osname">FreeBSD</systemitem>.
+      This is applicable as of version 4.0 of
+      <systemitem class="osname">BSD/OS</>.
      </para>
     </listitem>
    </varlistentry>
 
    <varlistentry>
-    <term>
-     <systemitem class="osname">HP-UX</systemitem>
-     <indexterm><primary>HP-UX</primary><secondary>shared library</secondary></indexterm>
-    </term>
+    <term><systemitem class="osname">FreeBSD</></term>
+    <indexterm><primary>FreeBSD</><secondary>shared library</></>
+    <listitem>
+     <para>
+      The compiler flag to create <acronym>PIC</acronym> is
+      <option>-fpic</option>.  To create shared libraries the compiler
+      flag is <option>-shared</option>.
+<programlisting>
+gcc -fpic -c foo.c
+gcc -shared -o foo.so foo.o
+</programlisting>
+      This is applicable as of version 3.0 of
+      <systemitem class="osname">FreeBSD</>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><systemitem class="osname">HP-UX</></term>
+    <indexterm><primary>HP-UX</><secondary>shared library</></>
     <listitem>
      <para>
       The compiler flag of the system compiler to create
       <acronym>PIC</acronym> is <option>+z</option>.  When using
-      <application>GCC</application> it's <option>-fPIC</option>. The
-      linker flag for shared libraries is <option>-b</option>.  So:
+      <application>GCC</application> it's <option>-fpic</option>. The
+      linker flag for shared libraries is <option>-b</option>.  So
 <programlisting>
 cc +z -c foo.c
 </programlisting>
-      or:
+      or
 <programlisting>
-gcc -fPIC -c foo.c
+gcc -fpic -c foo.c
 </programlisting>
-      and then:
+      and then
 <programlisting>
 ld -b -o foo.sl foo.o
 </programlisting>
-      <systemitem class="osname">HP-UX</systemitem> uses the extension
+      <systemitem class="osname">HP-UX</> uses the extension
       <filename>.sl</filename> for shared libraries, unlike most other
       systems.
      </para>
@@ -105,18 +121,34 @@ ld -b -o foo.sl foo.o
    </varlistentry>
 
    <varlistentry>
-    <term>
-     <systemitem class="osname">Linux</systemitem>
-     <indexterm><primary>Linux</primary><secondary>shared library</secondary></indexterm>
-    </term>
+    <term><systemitem class="osname">IRIX</></term>
+    <indexterm><primary>IRIX</><secondary>shared library</></>
+    <listitem>
+     <para>
+      <acronym>PIC</acronym> is the default, no special compiler
+      options are necessary.  The linker option to produce shared
+      libraries is <option>-shared</option>.
+<programlisting>
+cc -c foo.c
+ld -shared -o foo.so foo.o
+</programlisting>
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><systemitem class="osname">Linux</></term>
+    <indexterm><primary>Linux</><secondary>shared library</></>
     <listitem>
      <para>
       The compiler flag to create <acronym>PIC</acronym> is
-      <option>-fPIC</option>.
+      <option>-fpic</option>.  On some platforms in some situations
+      <option>-fPIC</option> must be used if <option>-fpic</option>
+      does not work.  Refer to the GCC manual for more information.
       The compiler flag to create a shared library is
       <option>-shared</option>.  A complete example looks like this:
 <programlisting>
-cc -fPIC -c foo.c
+cc -fpic -c foo.c
 cc -shared -o foo.so foo.o
 </programlisting>
      </para>
@@ -124,15 +156,13 @@ cc -shared -o foo.so foo.o
    </varlistentry>
 
    <varlistentry>
-    <term>
-     <systemitem class="osname">macOS</systemitem>
-     <indexterm><primary>macOS</primary><secondary>shared library</secondary></indexterm>
-    </term>
+    <term><systemitem class="osname">MacOS X</></term>
+    <indexterm><primary>MacOS X</><secondary>shared library</></>
     <listitem>
      <para>
       Here is an example.  It assumes the developer tools are installed.
 <programlisting>
-cc -c foo.c
+cc -c foo.c 
 cc -bundle -flat_namespace -undefined suppress -o foo.so foo.o
 </programlisting>
      </para>
@@ -140,19 +170,17 @@ cc -bundle -flat_namespace -undefined suppress -o foo.so foo.o
    </varlistentry>
 
    <varlistentry>
-    <term>
-     <systemitem class="osname">NetBSD</systemitem>
-     <indexterm><primary>NetBSD</primary><secondary>shared library</secondary></indexterm>
-    </term>
+    <term><systemitem class="osname">NetBSD</></term>
+    <indexterm><primary>NetBSD</><secondary>shared library</></>
     <listitem>
      <para>
       The compiler flag to create <acronym>PIC</acronym> is
-      <option>-fPIC</option>.  For <acronym>ELF</acronym> systems, the
+      <option>-fpic</option>.  For <acronym>ELF</acronym> systems, the
       compiler with the flag <option>-shared</option> is used to link
       shared libraries.  On the older non-ELF systems, <literal>ld
       -Bshareable</literal> is used.
 <programlisting>
-gcc -fPIC -c foo.c
+gcc -fpic -c foo.c
 gcc -shared -o foo.so foo.o
 </programlisting>
      </para>
@@ -160,17 +188,15 @@ gcc -shared -o foo.so foo.o
    </varlistentry>
 
    <varlistentry>
-    <term>
-     <systemitem class="osname">OpenBSD</systemitem>
-     <indexterm><primary>OpenBSD</primary><secondary>shared library</secondary></indexterm>
-    </term>
+    <term><systemitem class="osname">OpenBSD</></term>
+    <indexterm><primary>OpenBSD</><secondary>shared library</></>
     <listitem>
      <para>
       The compiler flag to create <acronym>PIC</acronym> is
-      <option>-fPIC</option>.  <literal>ld -Bshareable</literal> is
+      <option>-fpic</option>.  <literal>ld -Bshareable</literal> is
       used to link shared libraries.
 <programlisting>
-gcc -fPIC -c foo.c
+gcc -fpic -c foo.c
 ld -Bshareable -o foo.so foo.o
 </programlisting>
      </para>
@@ -178,26 +204,67 @@ ld -Bshareable -o foo.so foo.o
    </varlistentry>
 
    <varlistentry>
-    <term>
-     <systemitem class="osname">Solaris</systemitem>
-     <indexterm><primary>Solaris</primary><secondary>shared library</secondary></indexterm>
-    </term>
+    <term><systemitem class="osname">Solaris</></term>
+    <indexterm><primary>Solaris</><secondary>shared library</></>
     <listitem>
      <para>
       The compiler flag to create <acronym>PIC</acronym> is
       <option>-KPIC</option> with the Sun compiler and
-      <option>-fPIC</option> with <application>GCC</application>.  To
+      <option>-fpic</option> with <application>GCC</>.  To
       link shared libraries, the compiler option is
       <option>-G</option> with either compiler or alternatively
-      <option>-shared</option> with <application>GCC</application>.
+      <option>-shared</option> with <application>GCC</>.
 <programlisting>
 cc -KPIC -c foo.c
 cc -G -o foo.so foo.o
 </programlisting>
       or
 <programlisting>
-gcc -fPIC -c foo.c
+gcc -fpic -c foo.c
 gcc -G -o foo.so foo.o
+</programlisting>
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><systemitem class="osname">Tru64 UNIX</></term>   
+    <indexterm><primary>Tru64 UNIX</><secondary>shared library</></>
+    <indexterm><primary>Digital UNIX</><see>Tru64 UNIX</></>
+    <listitem>
+     <para>
+      <acronym>PIC</acronym> is the default, so the compilation command
+      is the usual one.  <command>ld</command> with special options is
+      used to do the linking:
+<programlisting>
+cc -c foo.c
+ld -shared -expect_unresolved '*' -o foo.so foo.o
+</programlisting>
+      The same procedure is used with GCC instead of the system
+      compiler; no special options are required.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><systemitem class="osname">UnixWare</></term>
+    <indexterm><primary>UnixWare</><secondary>shared library</></>
+    <listitem>
+     <para>
+      The compiler flag to create <acronym>PIC</acronym> is <option>-K
+      PIC</option> with the SCO compiler and <option>-fpic</option>
+      with <productname>GCC</productname>.  To link shared libraries,
+      the compiler option is <option>-G</option> with the SCO compiler
+      and <option>-shared</option> with
+      <productname>GCC</productname>.
+<programlisting>
+cc -K PIC -c foo.c
+cc -G -o foo.so foo.o
+</programlisting>
+      or
+<programlisting>
+gcc -fpic -c foo.c
+gcc -shared -o foo.so foo.o
 </programlisting>
      </para>
     </listitem>
@@ -207,7 +274,7 @@ gcc -G -o foo.so foo.o
 
  <tip>
   <para>
-   If this is too complicated for you, you should consider using
+   If this is too complicated for you, you should consider using   
    <ulink url="http://www.gnu.org/software/libtool/">
    <productname>GNU Libtool</productname></ulink>,
    which hides the platform differences behind a uniform interface.
@@ -226,7 +293,7 @@ gcc -G -o foo.so foo.o
  </para>
 
  <para>
-  Refer back to <xref linkend="xfunc-c-dynload"/> about where the
+  Refer back to <xref linkend="xfunc-c-dynload"> about where the
   server expects to find the shared library files.
  </para>
 
@@ -250,3 +317,21 @@ ld <other flags> -H512 -T512 -o foo.so -e _nostart \e
   -->
 
 </sect2>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-tabs-mode:nil
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/share/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

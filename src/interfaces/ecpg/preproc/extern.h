@@ -1,50 +1,39 @@
-/* src/interfaces/ecpg/preproc/extern.h */
-
 #ifndef _ECPG_PREPROC_EXTERN_H
 #define _ECPG_PREPROC_EXTERN_H
 
 #include "type.h"
 
-#include "common/keywords.h"
-
 #include <errno.h>
-#ifndef CHAR_BIT
-#include <limits.h>
-#endif
 
 /* defines */
 
 #define STRUCT_DEPTH 128
-#define EMPTY mm_strdup("")
+#define EMPTY make_str("")
 
 /* variables */
 
-extern bool autocommit,
+extern int	braces_open,
+			autocommit,
 			auto_create_c,
 			system_includes,
 			force_indicator,
-			questionmarks,
-			regression_mode,
-			auto_prepare;
-extern int	braces_open,
 			ret_value,
 			struct_level,
-			ecpg_internal_var;
-extern char *current_function;
+			ecpg_informix_var;
 extern char *descriptor_index;
 extern char *descriptor_name;
 extern char *connection;
 extern char *input_filename;
-extern char *base_yytext,
+extern char *yytext,
 		   *token_start;
 
 #ifdef YYDEBUG
-extern int	base_yydebug;
+extern int	yydebug;
 #endif
-extern int	base_yylineno;
-extern FILE *base_yyin,
-		   *base_yyout;
-extern char *output_filename;
+extern int	yylineno,
+			yyleng;
+extern FILE *yyin,
+		   *yyout;
 
 extern struct _include_path *include_paths;
 extern struct cursor *cur;
@@ -59,27 +48,23 @@ extern struct when when_error,
 			when_warn;
 extern struct ECPGstruct_member *struct_member_list[STRUCT_DEPTH];
 
-/* Globals from keywords.c */
-extern const ScanKeyword SQLScanKeywords[];
-extern const int NumSQLScanKeywords;
-
 /* functions */
 
 extern const char *get_dtype(enum ECPGdtype);
 extern void lex_init(void);
+extern char *make_str(const char *);
 extern void output_line_number(void);
-extern void output_statement(char *, int, enum ECPG_statement_type);
-extern void output_prepare_statement(char *, char *);
-extern void output_deallocate_prepare_statement(char *);
+extern void output_statement(char *, int, char *);
 extern void output_simple_statement(char *);
 extern char *hashline_number(void);
-extern int	base_yyparse(void);
-extern int	base_yylex(void);
-extern void base_yyerror(const char *);
+extern int	yyparse(void);
+extern int	yylex(void);
+extern void yyerror(char *);
 extern void *mm_alloc(size_t), *mm_realloc(void *, size_t);
 extern char *mm_strdup(const char *);
-extern void mmerror(int errorcode, enum errortype type, const char *error,...) pg_attribute_printf(3, 4);
-extern void mmfatal(int errorcode, const char *error,...) pg_attribute_printf(2, 3) pg_attribute_noreturn();
+extern void mmerror(int, enum errortype, char *,...);
+extern ScanKeyword *ScanECPGKeywordLookup(char *);
+extern ScanKeyword *ScanCKeywordLookup(char *);
 extern void output_get_descr_header(char *);
 extern void output_get_descr(char *, char *);
 extern void output_set_descr_header(char *);
@@ -91,10 +76,8 @@ extern void add_descriptor(char *, char *);
 extern void drop_descriptor(char *, char *);
 extern struct descriptor *lookup_descriptor(char *, char *);
 extern struct variable *descriptor_variable(const char *name, int input);
-extern struct variable *sqlda_variable(const char *name);
 extern void add_variable_to_head(struct arguments **, struct variable *, struct variable *);
 extern void add_variable_to_tail(struct arguments **, struct variable *, struct variable *);
-extern void remove_variable_from_list(struct arguments **list, struct variable *var);
 extern void dump_variables(struct arguments *, int);
 extern struct typedefs *get_typedef(char *);
 extern void adjust_array(enum ECPGttype, char **, char **, char *, char *, int, bool);
@@ -103,12 +86,7 @@ extern void check_indicator(struct ECPGtype *);
 extern void remove_typedefs(int);
 extern void remove_variables(int);
 extern struct variable *new_variable(const char *, struct ECPGtype *, int);
-extern const ScanKeyword *ScanCKeywordLookup(const char *);
-extern const ScanKeyword *ScanECPGKeywordLookup(const char *text);
-extern void scanner_init(const char *);
-extern void parser_init(void);
-extern void scanner_finish(void);
-extern int	filtered_base_yylex(void);
+extern ScanKeyword *ScanKeywordLookup(char *text);
 
 /* return codes */
 
@@ -128,4 +106,4 @@ extern enum COMPAT_MODE compat;
 
 #define INFORMIX_MODE	(compat == ECPG_COMPAT_INFORMIX || compat == ECPG_COMPAT_INFORMIX_SE)
 
-#endif							/* _ECPG_PREPROC_EXTERN_H */
+#endif   /* _ECPG_PREPROC_EXTERN_H */

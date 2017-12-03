@@ -1,9 +1,6 @@
-CREATE EXTENSION ltree;
-
--- Check whether any of our opclasses fail amvalidate
-SELECT amname, opcname
-FROM pg_opclass opc LEFT JOIN pg_am am ON am.oid = opcmethod
-WHERE opc.oid >= 16384 AND NOT amvalidate(opc.oid);
+\set ECHO none
+\i ltree.sql
+\set ECHO all
 
 SELECT ''::ltree;
 SELECT '1'::ltree;
@@ -209,7 +206,7 @@ SELECT 'a.b.c.d.e'::ltree ? '{A.b.c.d.e, a.*}';
 SELECT '{a.b.c.d.e,B.df}'::ltree[] ? '{A.b.c.d.e}';
 SELECT '{a.b.c.d.e,B.df}'::ltree[] ? '{A.b.c.d.e,*.df}';
 
---extractors
+--exractors
 SELECT ('{3456,1.2.3.34}'::ltree[] ?@> '1.2.3.4') is null;
 SELECT '{3456,1.2.3}'::ltree[] ?@> '1.2.3.4';
 SELECT '{3456,1.2.3.4}'::ltree[] ?<@ '1.2.3';
@@ -288,3 +285,4 @@ SELECT count(*) FROM _ltreetest WHERE t ~ '23.*{1}.1' ;
 SELECT count(*) FROM _ltreetest WHERE t ~ '23.*.1' ;
 SELECT count(*) FROM _ltreetest WHERE t ~ '23.*.2' ;
 SELECT count(*) FROM _ltreetest WHERE t ? '{23.*.1,23.*.2}' ;
+

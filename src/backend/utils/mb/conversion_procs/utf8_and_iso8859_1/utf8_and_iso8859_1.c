@@ -2,11 +2,11 @@
  *
  *	  ISO8859_1 <--> UTF8
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/utils/mb/conversion_procs/utf8_and_iso8859_1/utf8_and_iso8859_1.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/mb/conversion_procs/utf8_and_iso8859_1/utf8_and_iso8859_1.c,v 1.12.2.1 2006/05/21 20:05:49 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -15,10 +15,11 @@
 #include "fmgr.h"
 #include "mb/pg_wchar.h"
 
-PG_MODULE_MAGIC;
-
 PG_FUNCTION_INFO_V1(iso8859_1_to_utf8);
 PG_FUNCTION_INFO_V1(utf8_to_iso8859_1);
+
+extern Datum iso8859_1_to_utf8(PG_FUNCTION_ARGS);
+extern Datum utf8_to_iso8859_1(PG_FUNCTION_ARGS);
 
 /* ----------
  * conv_proc(
@@ -39,7 +40,9 @@ iso8859_1_to_utf8(PG_FUNCTION_ARGS)
 	int			len = PG_GETARG_INT32(4);
 	unsigned short c;
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_LATIN1, PG_UTF8);
+	Assert(PG_GETARG_INT32(0) == PG_LATIN1);
+	Assert(PG_GETARG_INT32(1) == PG_UTF8);
+	Assert(len >= 0);
 
 	while (len > 0)
 	{
@@ -51,7 +54,7 @@ iso8859_1_to_utf8(PG_FUNCTION_ARGS)
 		else
 		{
 			*dest++ = (c >> 6) | 0xc0;
-			*dest++ = (c & 0x003f) | HIGHBIT;
+			*dest++ = (c & 0x003f) | 0x80;
 		}
 		src++;
 		len--;
@@ -70,7 +73,9 @@ utf8_to_iso8859_1(PG_FUNCTION_ARGS)
 	unsigned short c,
 				c1;
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_UTF8, PG_LATIN1);
+	Assert(PG_GETARG_INT32(0) == PG_UTF8);
+	Assert(PG_GETARG_INT32(1) == PG_LATIN1);
+	Assert(len >= 0);
 
 	while (len > 0)
 	{
@@ -86,7 +91,7 @@ utf8_to_iso8859_1(PG_FUNCTION_ARGS)
 		}
 		else
 		{
-			int			l = pg_utf_mblen(src);
+			int		l = pg_utf_mblen(src);
 
 			if (l > len || !pg_utf8_islegal(src, l))
 				report_invalid_encoding(PG_UTF8, (const char *) src, len);

@@ -1,12 +1,17 @@
 /*-------------------------------------------------------------------------
  *
  * pqsignal.h
- *	  Backend signal(2) support (see also src/port/pqsignal.c)
+ *	  prototypes for the reliable BSD-style signal(2) routine.
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ *
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/libpq/pqsignal.h
+ * $PostgreSQL: pgsql/src/include/libpq/pqsignal.h,v 1.29 2004/12/31 22:03:32 pgsql Exp $
+ *
+ * NOTES
+ *	  This shouldn't be in libpq, but the monitor and some other
+ *	  things need it...
  *
  *-------------------------------------------------------------------------
  */
@@ -15,25 +20,29 @@
 
 #include <signal.h>
 
-#ifndef WIN32
-#define PG_SETMASK(mask)	sigprocmask(SIG_SETMASK, mask, NULL)
-#else
-/* Emulate POSIX sigset_t APIs on Windows */
-typedef int sigset_t;
-
-extern int	pqsigsetmask(int mask);
-
-#define PG_SETMASK(mask)		pqsigsetmask(*(mask))
-#define sigemptyset(set)		(*(set) = 0)
-#define sigfillset(set)			(*(set) = ~0)
-#define sigaddset(set, signum)	(*(set) |= (sigmask(signum)))
-#define sigdelset(set, signum)	(*(set) &= ~(sigmask(signum)))
-#endif							/* WIN32 */
-
+#ifdef HAVE_SIGPROCMASK
 extern sigset_t UnBlockSig,
 			BlockSig,
-			StartupBlockSig;
+			AuthBlockSig;
+
+#define PG_SETMASK(mask)	sigprocmask(SIG_SETMASK, mask, NULL)
+#else
+extern int	UnBlockSig,
+			BlockSig,
+			AuthBlockSig;
+
+#ifndef WIN32
+#define PG_SETMASK(mask)	sigsetmask(*((int*)(mask)))
+#else
+#define PG_SETMASK(mask)		pqsigsetmask(*((int*)(mask)))
+int			pqsigsetmask(int mask);
+#endif
+#endif
+
+typedef void (*pqsigfunc) (int);
 
 extern void pqinitmask(void);
 
-#endif							/* PQSIGNAL_H */
+extern pqsigfunc pqsignal(int signo, pqsigfunc func);
+
+#endif   /* PQSIGNAL_H */

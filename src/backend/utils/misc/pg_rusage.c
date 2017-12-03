@@ -4,12 +4,12 @@
  *	  Resource usage measurement support routines.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/utils/misc/pg_rusage.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/misc/pg_rusage.c,v 1.3 2005/10/22 14:27:29 adunstan Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -61,11 +61,11 @@ pg_rusage_show(const PGRUsage *ru0)
 	}
 
 	snprintf(result, sizeof(result),
-			 _("CPU: user: %d.%02d s, system: %d.%02d s, elapsed: %d.%02d s"),
-			 (int) (ru1.ru.ru_utime.tv_sec - ru0->ru.ru_utime.tv_sec),
-			 (int) (ru1.ru.ru_utime.tv_usec - ru0->ru.ru_utime.tv_usec) / 10000,
+			 "CPU %d.%02ds/%d.%02du sec elapsed %d.%02d sec",
 			 (int) (ru1.ru.ru_stime.tv_sec - ru0->ru.ru_stime.tv_sec),
-			 (int) (ru1.ru.ru_stime.tv_usec - ru0->ru.ru_stime.tv_usec) / 10000,
+		  (int) (ru1.ru.ru_stime.tv_usec - ru0->ru.ru_stime.tv_usec) / 10000,
+			 (int) (ru1.ru.ru_utime.tv_sec - ru0->ru.ru_utime.tv_sec),
+		  (int) (ru1.ru.ru_utime.tv_usec - ru0->ru.ru_utime.tv_usec) / 10000,
 			 (int) (ru1.tv.tv_sec - ru0->tv.tv_sec),
 			 (int) (ru1.tv.tv_usec - ru0->tv.tv_usec) / 10000);
 

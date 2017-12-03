@@ -4,52 +4,32 @@
  *	  prototypes for utility.c.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/tcop/utility.h
+ * $PostgreSQL: pgsql/src/include/tcop/utility.h,v 1.26 2004/12/31 22:03:44 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
 #ifndef UTILITY_H
 #define UTILITY_H
 
-#include "tcop/tcopprot.h"
+#include "executor/execdesc.h"
 
-typedef enum
-{
-	PROCESS_UTILITY_TOPLEVEL,	/* toplevel interactive command */
-	PROCESS_UTILITY_QUERY,		/* a complete query, but not toplevel */
-	PROCESS_UTILITY_SUBCOMMAND	/* a portion of a query */
-} ProcessUtilityContext;
 
-/* Hook for plugins to get control in ProcessUtility() */
-typedef void (*ProcessUtility_hook_type) (PlannedStmt *pstmt,
-										  const char *queryString, ProcessUtilityContext context,
-										  ParamListInfo params,
-										  QueryEnvironment *queryEnv,
-										  DestReceiver *dest, char *completionTag);
-extern PGDLLIMPORT ProcessUtility_hook_type ProcessUtility_hook;
-
-extern void ProcessUtility(PlannedStmt *pstmt, const char *queryString,
-			   ProcessUtilityContext context, ParamListInfo params,
-			   QueryEnvironment *queryEnv,
+extern void ProcessUtility(Node *parsetree, ParamListInfo params,
 			   DestReceiver *dest, char *completionTag);
-extern void standard_ProcessUtility(PlannedStmt *pstmt, const char *queryString,
-						ProcessUtilityContext context, ParamListInfo params,
-						QueryEnvironment *queryEnv,
-						DestReceiver *dest, char *completionTag);
 
 extern bool UtilityReturnsTuples(Node *parsetree);
 
 extern TupleDesc UtilityTupleDescriptor(Node *parsetree);
 
-extern Query *UtilityContainsQuery(Node *parsetree);
-
 extern const char *CreateCommandTag(Node *parsetree);
 
-extern LogStmtLevel GetCommandLogLevel(Node *parsetree);
+extern const char *CreateQueryTag(Query *parsetree);
 
-extern bool CommandIsReadOnly(PlannedStmt *pstmt);
+extern bool QueryIsReadOnly(Query *parsetree);
 
-#endif							/* UTILITY_H */
+extern void CheckRelationOwnership(RangeVar *rel, bool noCatalogs);
+
+#endif   /* UTILITY_H */

@@ -1,8 +1,6 @@
-/* src/interfaces/ecpg/compatlib/informix.c */
-
-#define POSTGRES_ECPG_INTERNAL
-#include "postgres_fe.h"
-
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include <math.h>
 #include <ctype.h>
 #include <limits.h>
@@ -13,37 +11,9 @@
 #include <pgtypes_date.h>
 #include <pgtypes_numeric.h>
 #include <sqltypes.h>
-#include <sqlca.h>
-#include <ecpgerrno.h>
 
-/* this is also defined in ecpglib/misc.c, by defining it twice we don't have to export the symbol */
+char	   *ECPGalloc(long, int);
 
-static struct sqlca_t sqlca_init =
-{
-	{
-		'S', 'Q', 'L', 'C', 'A', ' ', ' ', ' '
-	},
-	sizeof(struct sqlca_t),
-	0,
-	{
-		0,
-		{
-			0
-		}
-	},
-	{
-		'N', 'O', 'T', ' ', 'S', 'E', 'T', ' '
-	},
-	{
-		0, 0, 0, 0, 0, 0
-	},
-	{
-		0, 0, 0, 0, 0, 0, 0, 0
-	},
-	{
-		'0', '0', '0', '0', '0'
-	}
-};
 static int
 deccall2(decimal *arg1, decimal *arg2, int (*ptr) (numeric *, numeric *))
 {
@@ -79,7 +49,7 @@ deccall2(decimal *arg1, decimal *arg2, int (*ptr) (numeric *, numeric *))
 	PGTYPESnumeric_free(a1);
 	PGTYPESnumeric_free(a2);
 
-	return i;
+	return (i);
 }
 
 static int
@@ -143,22 +113,19 @@ deccall3(decimal *arg1, decimal *arg2, decimal *result, int (*ptr) (numeric *, n
 	PGTYPESnumeric_free(a1);
 	PGTYPESnumeric_free(a2);
 
-	return i;
+	return (i);
 }
 
 /* we start with the numeric functions */
 int
 decadd(decimal *arg1, decimal *arg2, decimal *sum)
 {
-	errno = 0;
 	deccall3(arg1, arg2, sum, PGTYPESnumeric_add);
 
 	if (errno == PGTYPES_NUM_OVERFLOW)
 		return ECPG_INFORMIX_NUM_OVERFLOW;
-	else if (errno == PGTYPES_NUM_UNDERFLOW)
-		return ECPG_INFORMIX_NUM_UNDERFLOW;
 	else if (errno != 0)
-		return -1;
+		return ECPG_INFORMIX_NUM_UNDERFLOW;
 	else
 		return 0;
 }
@@ -166,7 +133,7 @@ decadd(decimal *arg1, decimal *arg2, decimal *sum)
 int
 deccmp(decimal *arg1, decimal *arg2)
 {
-	return deccall2(arg1, arg2, PGTYPESnumeric_cmp);
+	return (deccall2(arg1, arg2, PGTYPESnumeric_cmp));
 }
 
 void
@@ -178,8 +145,8 @@ deccopy(decimal *src, decimal *target)
 static char *
 ecpg_strndup(const char *str, size_t len)
 {
-	size_t		real_len = strlen(str);
-	int			use_len = (int) ((real_len > len) ? len : real_len);
+	int			real_len = strlen(str);
+	int			use_len = (real_len > len) ? len : real_len;
 
 	char	   *new = malloc(use_len + 1);
 
@@ -195,23 +162,21 @@ ecpg_strndup(const char *str, size_t len)
 }
 
 int
-deccvasc(const char *cp, int len, decimal *np)
+deccvasc(char *cp, int len, decimal *np)
 {
-	char	   *str;
-	int			ret = 0;
-	numeric    *result;
+	char		*str;
+	int		ret = 0;
+	numeric		*result;
 
 	rsetnull(CDECIMALTYPE, (char *) np);
 	if (risnull(CSTRINGTYPE, cp))
 		return 0;
 
-	str = ecpg_strndup(cp, len);	/* decimal_in always converts the complete
-									 * string */
+	str = ecpg_strndup(cp, len);	/* decimal_in always converts the complete string */
 	if (!str)
 		ret = ECPG_INFORMIX_NUM_UNDERFLOW;
 	else
 	{
-		errno = 0;
 		result = PGTYPESnumeric_from_asc(str, NULL);
 		if (!result)
 		{
@@ -230,11 +195,10 @@ deccvasc(const char *cp, int len, decimal *np)
 		}
 		else
 		{
-			int			i = PGTYPESnumeric_to_decimal(result, np);
-
-			PGTYPESnumeric_free(result);
-			if (i != 0)
+			if (PGTYPESnumeric_to_decimal(result, np) != 0)
 				ret = ECPG_INFORMIX_NUM_OVERFLOW;
+
+			free(result);
 		}
 	}
 
@@ -245,14 +209,13 @@ deccvasc(const char *cp, int len, decimal *np)
 int
 deccvdbl(double dbl, decimal *np)
 {
-	numeric    *nres;
+	numeric    *nres = PGTYPESnumeric_new();
 	int			result = 1;
 
 	rsetnull(CDECIMALTYPE, (char *) np);
 	if (risnull(CDOUBLETYPE, (char *) &dbl))
 		return 0;
 
-	nres = PGTYPESnumeric_new();
 	if (nres == NULL)
 		return ECPG_INFORMIX_OUT_OF_MEMORY;
 
@@ -261,20 +224,19 @@ deccvdbl(double dbl, decimal *np)
 		result = PGTYPESnumeric_to_decimal(nres, np);
 
 	PGTYPESnumeric_free(nres);
-	return result;
+	return (result);
 }
 
 int
 deccvint(int in, decimal *np)
 {
-	numeric    *nres;
+	numeric    *nres = PGTYPESnumeric_new();
 	int			result = 1;
 
 	rsetnull(CDECIMALTYPE, (char *) np);
 	if (risnull(CINTTYPE, (char *) &in))
 		return 0;
 
-	nres = PGTYPESnumeric_new();
 	if (nres == NULL)
 		return ECPG_INFORMIX_OUT_OF_MEMORY;
 
@@ -283,20 +245,19 @@ deccvint(int in, decimal *np)
 		result = PGTYPESnumeric_to_decimal(nres, np);
 
 	PGTYPESnumeric_free(nres);
-	return result;
+	return (result);
 }
 
 int
 deccvlong(long lng, decimal *np)
 {
-	numeric    *nres;
+	numeric    *nres = PGTYPESnumeric_new();
 	int			result = 1;
 
 	rsetnull(CDECIMALTYPE, (char *) np);
 	if (risnull(CLONGTYPE, (char *) &lng))
 		return 0;
 
-	nres = PGTYPESnumeric_new();
 	if (nres == NULL)
 		return ECPG_INFORMIX_OUT_OF_MEMORY;
 
@@ -305,15 +266,15 @@ deccvlong(long lng, decimal *np)
 		result = PGTYPESnumeric_to_decimal(nres, np);
 
 	PGTYPESnumeric_free(nres);
-	return result;
+	return (result);
 }
 
 int
 decdiv(decimal *n1, decimal *n2, decimal *result)
 {
+
 	int			i;
 
-	errno = 0;
 	i = deccall3(n1, n2, result, PGTYPESnumeric_div);
 
 	if (i != 0)
@@ -338,7 +299,6 @@ decmul(decimal *n1, decimal *n2, decimal *result)
 {
 	int			i;
 
-	errno = 0;
 	i = deccall3(n1, n2, result, PGTYPESnumeric_mul);
 
 	if (i != 0)
@@ -360,7 +320,6 @@ decsub(decimal *n1, decimal *n2, decimal *result)
 {
 	int			i;
 
-	errno = 0;
 	i = deccall3(n1, n2, result, PGTYPESnumeric_sub);
 
 	if (i != 0)
@@ -381,21 +340,17 @@ int
 dectoasc(decimal *np, char *cp, int len, int right)
 {
 	char	   *str;
-	numeric    *nres;
+	numeric    *nres = PGTYPESnumeric_new();
+
+	if (nres == NULL)
+		return ECPG_INFORMIX_OUT_OF_MEMORY;
 
 	rsetnull(CSTRINGTYPE, (char *) cp);
 	if (risnull(CDECIMALTYPE, (char *) np))
 		return 0;
 
-	nres = PGTYPESnumeric_new();
-	if (nres == NULL)
-		return ECPG_INFORMIX_OUT_OF_MEMORY;
-
 	if (PGTYPESnumeric_from_decimal(np, nres) != 0)
-	{
-		PGTYPESnumeric_free(nres);
 		return ECPG_INFORMIX_OUT_OF_MEMORY;
-	}
 
 	if (right >= 0)
 		str = PGTYPESnumeric_to_asc(nres, right);
@@ -407,41 +362,26 @@ dectoasc(decimal *np, char *cp, int len, int right)
 		return -1;
 
 	/*
-	 * TODO: have to take care of len here and create exponential notation if
+	 * TODO: have to take care of len here and create exponatial notion if
 	 * necessary
 	 */
-	if ((int) (strlen(str) + 1) > len)
-	{
-		if (len > 1)
-		{
-			cp[0] = '*';
-			cp[1] = '\0';
-		}
-		free(str);
-		return -1;
-	}
-	else
-	{
-		strcpy(cp, str);
-		free(str);
-		return 0;
-	}
+	strncpy(cp, str, len);
+	free(str);
+
+	return 0;
 }
 
 int
 dectodbl(decimal *np, double *dblp)
 {
-	int			i;
 	numeric    *nres = PGTYPESnumeric_new();
+	int			i;
 
 	if (nres == NULL)
 		return ECPG_INFORMIX_OUT_OF_MEMORY;
 
 	if (PGTYPESnumeric_from_decimal(np, nres) != 0)
-	{
-		PGTYPESnumeric_free(nres);
 		return ECPG_INFORMIX_OUT_OF_MEMORY;
-	}
 
 	i = PGTYPESnumeric_to_double(nres, dblp);
 	PGTYPESnumeric_free(nres);
@@ -459,13 +399,9 @@ dectoint(decimal *np, int *ip)
 		return ECPG_INFORMIX_OUT_OF_MEMORY;
 
 	if (PGTYPESnumeric_from_decimal(np, nres) != 0)
-	{
-		PGTYPESnumeric_free(nres);
 		return ECPG_INFORMIX_OUT_OF_MEMORY;
-	}
 
 	ret = PGTYPESnumeric_to_int(nres, ip);
-	PGTYPESnumeric_free(nres);
 
 	if (ret == PGTYPES_NUM_OVERFLOW)
 		ret = ECPG_INFORMIX_NUM_OVERFLOW;
@@ -477,19 +413,15 @@ int
 dectolong(decimal *np, long *lngp)
 {
 	int			ret;
-	numeric    *nres = PGTYPESnumeric_new();
+	numeric    *nres = PGTYPESnumeric_new();;
 
 	if (nres == NULL)
 		return ECPG_INFORMIX_OUT_OF_MEMORY;
 
 	if (PGTYPESnumeric_from_decimal(np, nres) != 0)
-	{
-		PGTYPESnumeric_free(nres);
 		return ECPG_INFORMIX_OUT_OF_MEMORY;
-	}
 
 	ret = PGTYPESnumeric_to_long(nres, lngp);
-	PGTYPESnumeric_free(nres);
 
 	if (ret == PGTYPES_NUM_OVERFLOW)
 		ret = ECPG_INFORMIX_NUM_OVERFLOW;
@@ -520,9 +452,61 @@ rdatestr(date d, char *str)
 *
 */
 int
-rstrdate(const char *str, date * d)
+rstrdate(char *str, date * d)
 {
-	return rdefmtdate(d, "mm/dd/yyyy", str);
+	date		dat;
+	char		strbuf[10];
+	int			i,
+				j;
+
+	rsetnull(CDATETYPE, (char *) &dat);
+
+	/*
+	 * we have to flip the year month date around for postgres expects
+	 * yyyymmdd
+	 *
+	 */
+
+	for (i = 0, j = 0; i < 10; i++)
+	{
+		/* ignore non-digits */
+		if (isdigit((unsigned char) str[i]))
+		{
+
+			/* j only increments if it is a digit */
+			switch (j)
+			{
+					/* stick the month into the 4th, 5th position */
+				case 0:
+				case 1:
+					strbuf[j + 4] = str[i];
+					break;
+					/* stick the day into the 6th, and 7th position */
+				case 2:
+				case 3:
+					strbuf[j + 4] = str[i];
+					break;
+
+					/* stick the year into the first 4 positions */
+				case 4:
+				case 5:
+				case 6:
+				case 7:
+					strbuf[j - 4] = str[i];
+					break;
+
+			}
+			j++;
+		}
+	}
+	strbuf[8] = '\0';
+	dat = PGTYPESdate_from_asc(strbuf, NULL);
+
+	if (errno && errno != PGTYPES_DATE_BAD_DATE)
+		return ECPG_INFORMIX_BAD_DATE;
+
+	*d = dat;
+	return 0;
 }
 
 void
@@ -545,12 +529,11 @@ rjulmdy(date d, short mdy[3])
 }
 
 int
-rdefmtdate(date * d, const char *fmt, const char *str)
+rdefmtdate(date * d, char *fmt, char *str)
 {
 	/* TODO: take care of DBCENTURY environment variable */
 	/* PGSQL functions allow all centuries */
 
-	errno = 0;
 	if (PGTYPESdate_defmt_asc(d, fmt, str) == 0)
 		return 0;
 
@@ -571,9 +554,8 @@ rdefmtdate(date * d, const char *fmt, const char *str)
 }
 
 int
-rfmtdate(date d, const char *fmt, char *str)
+rfmtdate(date d, char *fmt, char *str)
 {
-	errno = 0;
 	if (PGTYPESdate_fmt_asc(d, fmt, str) == 0)
 		return 0;
 
@@ -598,7 +580,7 @@ rmdyjul(short mdy[3], date * d)
 int
 rdayofweek(date d)
 {
-	return PGTYPESdate_dayofweek(d);
+	return (PGTYPESdate_dayofweek(d));
 }
 
 /* And the datetime stuff */
@@ -616,29 +598,20 @@ dtcvasc(char *str, timestamp * ts)
 	int			i;
 	char	  **endptr = &str;
 
-	errno = 0;
 	ts_tmp = PGTYPEStimestamp_from_asc(str, endptr);
 	i = errno;
 	if (i)
-		/* TODO: rewrite to Informix error codes */
 		return i;
 	if (**endptr)
 	{
 		/* extra characters exist at the end */
 		return ECPG_INFORMIX_EXTRA_CHARS;
 	}
-	/* TODO: other Informix error codes missing */
 
 	/* everything went fine */
 	*ts = ts_tmp;
 
 	return 0;
-}
-
-int
-dtcvfmtasc(char *inbuf, char *fmtstr, timestamp * dtvalue)
-{
-	return PGTYPEStimestamp_defmt_asc(inbuf, fmtstr, dtvalue);
 }
 
 int
@@ -666,23 +639,21 @@ dttofmtasc(timestamp * ts, char *output, int str_len, char *fmtstr)
 int
 intoasc(interval * i, char *str)
 {
-	char	   *tmp;
+	str = PGTYPESinterval_to_asc(i);
 
-	errno = 0;
-	tmp = PGTYPESinterval_to_asc(i);
-
-	if (!tmp)
+	if (!str)
 		return -errno;
 
-	memcpy(str, tmp, strlen(tmp));
-	free(tmp);
 	return 0;
 }
 
-/*
- *	rfmt.c	-  description
- *	by Carsten Wolff <carsten.wolff@credativ.de>, Wed Apr 2 2003
- */
+/***************************************************************************
+						  rfmt.c  -  description
+							 -------------------
+	begin				 : Wed Apr 2 2003
+	copyright			 : (C) 2003 by Carsten Wolff
+	email				 : carsten.wolff@credativ.de
+ ***************************************************************************/
 
 static struct
 {
@@ -692,13 +663,13 @@ static struct
 	int			remaining;
 	char		sign;
 	char	   *val_string;
-}			value;
+}	value;
 
 /**
  * initialize the struct, which holds the different forms
  * of the long value
  */
-static int
+static void
 initValue(long lng_val)
 {
 	int			i,
@@ -732,8 +703,7 @@ initValue(long lng_val)
 	value.remaining = value.digits;
 
 	/* convert the long to string */
-	if ((value.val_string = (char *) malloc(value.digits + 1)) == NULL)
-		return -1;
+	value.val_string = (char *) malloc(value.digits + 1);
 	dig = value.val;
 	for (i = value.digits, j = 0; i > 0; i--, j++)
 	{
@@ -742,12 +712,11 @@ initValue(long lng_val)
 		l /= 10;
 	}
 	value.val_string[value.digits] = '\0';
-	return 0;
 }
 
 /* return the position oft the right-most dot in some string */
 static int
-getRightMostDot(const char *str)
+getRightMostDot(char *str)
 {
 	size_t		len = strlen(str);
 	int			i,
@@ -765,17 +734,18 @@ getRightMostDot(const char *str)
 
 /* And finally some misc functions */
 int
-rfmtlong(long lng_val, const char *fmt, char *outbuf)
+rfmtlong(long lng_val, char *fmt, char *outbuf)
 {
 	size_t		fmt_len = strlen(fmt);
 	size_t		temp_len;
 	int			i,
-				j,				/* position in temp */
+				j,
 				k,
 				dotpos;
 	int			leftalign = 0,
 				blank = 0,
 				sign = 0,
+				entity = 0,
 				entitydone = 0,
 				signdone = 0,
 				brackets_ok = 0;
@@ -785,19 +755,9 @@ rfmtlong(long lng_val, const char *fmt, char *outbuf)
 				fmtchar = ' ';
 
 	temp = (char *) malloc(fmt_len + 1);
-	if (!temp)
-	{
-		errno = ENOMEM;
-		return -1;
-	}
 
 	/* put all info about the long in a struct */
-	if (initValue(lng_val) == -1)
-	{
-		free(temp);
-		errno = ENOMEM;
-		return -1;
-	}
+	initValue(lng_val);
 
 	/* '<' is the only format, where we have to align left */
 	if (strchr(fmt, (int) '<'))
@@ -813,25 +773,24 @@ rfmtlong(long lng_val, const char *fmt, char *outbuf)
 
 	/* start to parse the formatstring */
 	temp[0] = '\0';
+	j = 0;						/* position in temp */
 	k = value.digits - 1;		/* position in the value_string */
 	for (i = fmt_len - 1, j = 0; i >= 0; i--, j++)
 	{
 		/* qualify, where we are in the value_string */
 		if (k < 0)
 		{
-			blank = 1;
-			if (k == -1)
-				sign = 1;
 			if (leftalign)
 			{
 				/* can't use strncat(,,0) here, Solaris would freek out */
-				if (sign)
-					if (signdone)
-					{
-						temp[j] = '\0';
-						break;
-					}
+				temp[j] = '\0';
+				break;
 			}
+			blank = 1;
+			if (k == -2)
+				entity = 1;
+			else if (k == -1)
+				sign = 1;
 		}
 		/* if we're right side of the right-most dot, print '0' */
 		if (dotpos >= 0 && dotpos <= i)
@@ -853,9 +812,6 @@ rfmtlong(long lng_val, const char *fmt, char *outbuf)
 			fmtchar = lastfmt;
 		else
 			fmtchar = fmt[i];
-		/* waiting for the sign */
-		if (k < 0 && leftalign && sign && !signdone && fmtchar != '+' && fmtchar != '-')
-			continue;
 		/* analyse this format-char */
 		switch (fmtchar)
 		{
@@ -880,6 +836,9 @@ rfmtlong(long lng_val, const char *fmt, char *outbuf)
 					tmp[0] = ' ';
 				else
 					tmp[0] = value.val_string[k];
+				break;
+			case '<':
+				tmp[0] = value.val_string[k];
 				break;
 			case '-':
 				if (sign && value.sign == '-' && !signdone)
@@ -928,9 +887,6 @@ rfmtlong(long lng_val, const char *fmt, char *outbuf)
 				else
 					tmp[0] = value.val_string[k];
 				break;
-			case '<':
-				tmp[0] = value.val_string[k];
-				break;
 			default:
 				tmp[0] = fmt[i];
 		}
@@ -977,66 +933,77 @@ byleng(char *str, int len)
 void
 ldchar(char *src, int len, char *dest)
 {
-	int			dlen = byleng(src, len);
-
-	memmove(dest, src, dlen);
-	dest[dlen] = '\0';
+	memmove(dest, src, len);
+	dest[len] = 0;
 }
 
 int
 rgetmsg(int msgnum, char *s, int maxsize)
 {
-	(void) msgnum;				/* keep the compiler quiet */
-	(void) s;					/* keep the compiler quiet */
-	(void) maxsize;				/* keep the compiler quiet */
 	return 0;
 }
 
 int
 rtypalign(int offset, int type)
 {
-	(void) offset;				/* keep the compiler quiet */
-	(void) type;				/* keep the compiler quiet */
 	return 0;
 }
 
 int
 rtypmsize(int type, int len)
 {
-	(void) type;				/* keep the compiler quiet */
-	(void) len;					/* keep the compiler quiet */
 	return 0;
 }
 
 int
 rtypwidth(int sqltype, int sqllen)
 {
-	(void) sqltype;				/* keep the compiler quiet */
-	(void) sqllen;				/* keep the compiler quiet */
 	return 0;
 }
+
+int
+dtcvfmtasc(char *inbuf, char *fmtstr, timestamp * dtvalue)
+{
+	return PGTYPEStimestamp_defmt_asc(inbuf, fmtstr, dtvalue);
+}
+
+static struct var_list
+{
+	int			number;
+	void	   *pointer;
+	struct var_list *next;
+}	*ivlist = NULL;
 
 void
 ECPG_informix_set_var(int number, void *pointer, int lineno)
 {
-	ECPGset_var(number, pointer, lineno);
+	struct var_list *ptr;
+
+	for (ptr = ivlist; ptr != NULL; ptr = ptr->next)
+	{
+		if (ptr->number == number)
+		{
+			/* already known => just change pointer value */
+			ptr->pointer = pointer;
+			return;
+		}
+	}
+
+	/* a new one has to be added */
+	ptr = (struct var_list *) ECPGalloc(sizeof(struct var_list), lineno);
+	ptr->number = number;
+	ptr->pointer = pointer;
+	ptr->next = ivlist;
+	ivlist = ptr;
 }
 
 void *
 ECPG_informix_get_var(int number)
 {
-	return ECPGget_var(number);
-}
+	struct var_list *ptr;
 
-void
-ECPG_informix_reset_sqlca(void)
-{
-	struct sqlca_t *sqlca = ECPGget_sqlca();
-
-	if (sqlca == NULL)
-		return;
-
-	memcpy((char *) sqlca, (char *) &sqlca_init, sizeof(struct sqlca_t));
+	for (ptr = ivlist; ptr != NULL && ptr->number != number; ptr = ptr->next);
+	return (ptr) ? ptr->pointer : NULL;
 }
 
 int
@@ -1047,7 +1014,7 @@ rsetnull(int t, char *ptr)
 }
 
 int
-risnull(int t, const char *ptr)
+risnull(int t, char *ptr)
 {
-	return ECPGis_noind_null(t, ptr);
+	return (ECPGis_noind_null(t, ptr));
 }

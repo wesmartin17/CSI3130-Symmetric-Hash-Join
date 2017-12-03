@@ -1,8 +1,6 @@
 /*
  * functions needed for descriptor handling
  *
- * src/interfaces/ecpg/preproc/descriptor.c
- *
  * since descriptor might be either a string constant or a string var
  * we need to check for a constant if we expect a constant
  */
@@ -15,7 +13,7 @@
  * assignment handling function (descriptor)
  */
 
-static struct assignment *assignments;
+struct assignment *assignments;
 
 void
 push_assignment(char *var, enum ECPGdtype value)
@@ -43,7 +41,7 @@ drop_assignments(void)
 }
 
 static void
-ECPGnumeric_lvalue(char *name)
+ECPGnumeric_lvalue(FILE *f, char *name)
 {
 	const struct variable *v = find_variable(name);
 
@@ -58,10 +56,10 @@ ECPGnumeric_lvalue(char *name)
 		case ECPGt_unsigned_long:
 		case ECPGt_unsigned_long_long:
 		case ECPGt_const:
-			fputs(name, base_yyout);
+			fputs(name, yyout);
 			break;
 		default:
-			mmerror(PARSE_ERROR, ET_ERROR, "variable \"%s\" must have a numeric type", name);
+			mmerror(PARSE_ERROR, ET_ERROR, "variable %s: numeric type needed", name);
 			break;
 	}
 }
@@ -106,11 +104,11 @@ drop_descriptor(char *name, char *connection)
 
 	for (i = descriptors; i; lastptr = &i->next, i = i->next)
 	{
-		if (strcmp(name, i->name) == 0)
+		if (!strcmp(name, i->name))
 		{
 			if ((!connection && !i->connection)
 				|| (connection && i->connection
-					&& strcmp(connection, i->connection) == 0))
+					&& !strcmp(connection, i->connection)))
 			{
 				*lastptr = i->next;
 				if (i->connection)
@@ -121,7 +119,7 @@ drop_descriptor(char *name, char *connection)
 			}
 		}
 	}
-	mmerror(PARSE_ERROR, ET_WARNING, "descriptor \"%s\" does not exist", name);
+	mmerror(PARSE_ERROR, ET_WARNING, "unknown descriptor %s", name);
 }
 
 struct descriptor
@@ -135,15 +133,15 @@ lookup_descriptor(char *name, char *connection)
 
 	for (i = descriptors; i; i = i->next)
 	{
-		if (strcmp(name, i->name) == 0)
+		if (!strcmp(name, i->name))
 		{
 			if ((!connection && !i->connection)
 				|| (connection && i->connection
-					&& strcmp(connection, i->connection) == 0))
+					&& !strcmp(connection, i->connection)))
 				return i;
 		}
 	}
-	mmerror(PARSE_ERROR, ET_WARNING, "descriptor \"%s\" does not exist", name);
+	mmerror(PARSE_ERROR, ET_WARNING, "unknown descriptor %s", name);
 	return NULL;
 }
 
@@ -152,17 +150,17 @@ output_get_descr_header(char *desc_name)
 {
 	struct assignment *results;
 
-	fprintf(base_yyout, "{ ECPGget_desc_header(__LINE__, %s, &(", desc_name);
+	fprintf(yyout, "{ ECPGget_desc_header(__LINE__, %s, &(", desc_name);
 	for (results = assignments; results != NULL; results = results->next)
 	{
 		if (results->value == ECPGd_count)
-			ECPGnumeric_lvalue(results->variable);
+			ECPGnumeric_lvalue(yyout, results->variable);
 		else
-			mmerror(PARSE_ERROR, ET_WARNING, "descriptor header item \"%d\" does not exist", results->value);
+			mmerror(PARSE_ERROR, ET_WARNING, "unknown descriptor header item '%d'", results->value);
 	}
 
 	drop_assignments();
-	fprintf(base_yyout, "));\n");
+	fprintf(yyout, "));\n");
 	whenever_action(3);
 }
 
@@ -171,11 +169,10 @@ output_get_descr(char *desc_name, char *index)
 {
 	struct assignment *results;
 
-	fprintf(base_yyout, "{ ECPGget_desc(__LINE__, %s, %s,", desc_name, index);
+	fprintf(yyout, "{ ECPGget_desc(__LINE__, %s, %s,", desc_name, index);
 	for (results = assignments; results != NULL; results = results->next)
 	{
 		const struct variable *v = find_variable(results->variable);
-		char	   *str_zero = mm_strdup("0");
 
 		switch (results->value)
 		{
@@ -188,13 +185,11 @@ output_get_descr(char *desc_name, char *index)
 			default:
 				break;
 		}
-		fprintf(base_yyout, "%s,", get_dtype(results->value));
-		ECPGdump_a_type(base_yyout, v->name, v->type, v->brace_level,
-						NULL, NULL, -1, NULL, NULL, str_zero, NULL, NULL);
-		free(str_zero);
+		fprintf(yyout, "%s,", get_dtype(results->value));
+		ECPGdump_a_type(yyout, v->name, v->type, NULL, NULL, NULL, NULL, make_str("0"), NULL, NULL);
 	}
 	drop_assignments();
-	fputs("ECPGd_EODT);\n", base_yyout);
+	fputs("ECPGd_EODT);\n", yyout);
 
 	whenever_action(2 | 1);
 }
@@ -204,17 +199,17 @@ output_set_descr_header(char *desc_name)
 {
 	struct assignment *results;
 
-	fprintf(base_yyout, "{ ECPGset_desc_header(__LINE__, %s, (int)(", desc_name);
+	fprintf(yyout, "{ ECPGset_desc_header(__LINE__, %s, (int)(", desc_name);
 	for (results = assignments; results != NULL; results = results->next)
 	{
 		if (results->value == ECPGd_count)
-			ECPGnumeric_lvalue(results->variable);
+			ECPGnumeric_lvalue(yyout, results->variable);
 		else
-			mmerror(PARSE_ERROR, ET_WARNING, "descriptor header item \"%d\" does not exist", results->value);
+			mmerror(PARSE_ERROR, ET_WARNING, "unknown descriptor header item '%d'", results->value);
 	}
 
 	drop_assignments();
-	fprintf(base_yyout, "));\n");
+	fprintf(yyout, "));\n");
 	whenever_action(3);
 }
 
@@ -265,7 +260,7 @@ output_set_descr(char *desc_name, char *index)
 {
 	struct assignment *results;
 
-	fprintf(base_yyout, "{ ECPGset_desc(__LINE__, %s, %s,", desc_name, index);
+	fprintf(yyout, "{ ECPGset_desc(__LINE__, %s, %s,", desc_name, index);
 	for (results = assignments; results != NULL; results = results->next)
 	{
 		const struct variable *v = find_variable(results->variable);
@@ -277,7 +272,7 @@ output_set_descr(char *desc_name, char *index)
 			case ECPGd_di_precision:
 			case ECPGd_precision:
 			case ECPGd_scale:
-				mmfatal(PARSE_ERROR, "descriptor item \"%s\" is not implemented",
+				mmerror(PARSE_ERROR, ET_FATAL, "descriptor item %s is not implemented",
 						descriptor_item_name(results->value));
 				break;
 
@@ -287,7 +282,7 @@ output_set_descr(char *desc_name, char *index)
 			case ECPGd_octet:
 			case ECPGd_ret_length:
 			case ECPGd_ret_octet:
-				mmfatal(PARSE_ERROR, "descriptor item \"%s\" cannot be set",
+				mmerror(PARSE_ERROR, ET_FATAL, "descriptor item %s cannot be set",
 						descriptor_item_name(results->value));
 				break;
 
@@ -295,14 +290,8 @@ output_set_descr(char *desc_name, char *index)
 			case ECPGd_indicator:
 			case ECPGd_length:
 			case ECPGd_type:
-				{
-					char	   *str_zero = mm_strdup("0");
-
-					fprintf(base_yyout, "%s,", get_dtype(results->value));
-					ECPGdump_a_type(base_yyout, v->name, v->type, v->brace_level,
-									NULL, NULL, -1, NULL, NULL, str_zero, NULL, NULL);
-					free(str_zero);
-				}
+				fprintf(yyout, "%s,", get_dtype(results->value));
+				ECPGdump_a_type(yyout, v->name, v->type, NULL, NULL, NULL, NULL, make_str("0"), NULL, NULL);
 				break;
 
 			default:
@@ -310,7 +299,7 @@ output_set_descr(char *desc_name, char *index)
 		}
 	}
 	drop_assignments();
-	fputs("ECPGd_EODT);\n", base_yyout);
+	fputs("ECPGd_EODT);\n", yyout);
 
 	whenever_action(2 | 1);
 }
@@ -326,30 +315,13 @@ struct variable *
 descriptor_variable(const char *name, int input)
 {
 	static char descriptor_names[2][MAX_DESCRIPTOR_NAMELEN];
-	static struct ECPGtype descriptor_type = {ECPGt_descriptor, NULL, NULL, NULL, {NULL}, 0};
-	static struct variable varspace[2] = {
-		{descriptor_names[0], &descriptor_type, 0, NULL},
-		{descriptor_names[1], &descriptor_type, 0, NULL}
+	static const struct ECPGtype descriptor_type = {ECPGt_descriptor, NULL};
+	static const struct variable varspace[2] = {
+		{descriptor_names[0], (struct ECPGtype *) & descriptor_type, 0, NULL},
+		{descriptor_names[1], (struct ECPGtype *) & descriptor_type, 0, NULL}
 	};
 
-	strlcpy(descriptor_names[input], name, sizeof(descriptor_names[input]));
-	return &varspace[input];
-}
-
-struct variable *
-sqlda_variable(const char *name)
-{
-	struct variable *p = (struct variable *) mm_alloc(sizeof(struct variable));
-
-	p->name = mm_strdup(name);
-	p->type = (struct ECPGtype *) mm_alloc(sizeof(struct ECPGtype));
-	p->type->type = ECPGt_sqlda;
-	p->type->size = NULL;
-	p->type->struct_sizeof = NULL;
-	p->type->u.element = NULL;
-	p->type->counter = 0;
-	p->brace_level = 0;
-	p->next = NULL;
-
-	return p;
+	strncpy(descriptor_names[input], name, MAX_DESCRIPTOR_NAMELEN);
+	descriptor_names[input][MAX_DESCRIPTOR_NAMELEN - 1] = 0;
+	return (struct variable *) & varspace[input];
 }

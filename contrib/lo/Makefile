@@ -1,16 +1,12 @@
-# contrib/lo/Makefile
+# $PostgreSQL: pgsql/contrib/lo/Makefile,v 1.14 2005/09/27 17:13:04 tgl Exp $
 
 MODULES = lo
-
-EXTENSION = lo
-DATA = lo--1.1.sql lo--1.0--1.1.sql lo--unpackaged--1.0.sql
-PGFILEDESC = "lo - management for large objects"
-
-REGRESS = lo
+DATA_built = lo.sql
+DATA = lo_drop.sql lo_test.sql
+DOCS = README.lo
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/lo

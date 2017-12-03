@@ -3,76 +3,49 @@
  * joinrels.c
  *	  Routines to determine which relations should be joined
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/optimizer/path/joinrels.c
+ *	  $PostgreSQL: pgsql/src/backend/optimizer/path/joinrels.c,v 1.76.2.1 2005/11/22 18:23:10 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
-#include "miscadmin.h"
-#include "catalog/partition.h"
-#include "nodes/relation.h"
-#include "optimizer/clauses.h"
 #include "optimizer/joininfo.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
-#include "optimizer/prep.h"
-#include "optimizer/cost.h"
-#include "utils/memutils.h"
-#include "utils/lsyscache.h"
 
 
-static void make_rels_by_clause_joins(PlannerInfo *root,
+static List *make_rels_by_clause_joins(PlannerInfo *root,
 						  RelOptInfo *old_rel,
 						  ListCell *other_rels);
-static void make_rels_by_clauseless_joins(PlannerInfo *root,
+static List *make_rels_by_clauseless_joins(PlannerInfo *root,
 							  RelOptInfo *old_rel,
 							  ListCell *other_rels);
-static bool has_join_restriction(PlannerInfo *root, RelOptInfo *rel);
-static bool has_legal_joinclause(PlannerInfo *root, RelOptInfo *rel);
-static bool is_dummy_rel(RelOptInfo *rel);
-static bool restriction_is_constant_false(List *restrictlist,
-							  bool only_pushed_down);
-static void populate_joinrel_with_paths(PlannerInfo *root, RelOptInfo *rel1,
-							RelOptInfo *rel2, RelOptInfo *joinrel,
-							SpecialJoinInfo *sjinfo, List *restrictlist);
-static void try_partition_wise_join(PlannerInfo *root, RelOptInfo *rel1,
-						RelOptInfo *rel2, RelOptInfo *joinrel,
-						SpecialJoinInfo *parent_sjinfo,
-						List *parent_restrictlist);
-static int match_expr_to_partition_keys(Expr *expr, RelOptInfo *rel,
-							 bool strict_op);
+static bool is_inside_IN(PlannerInfo *root, RelOptInfo *rel);
 
 
 /*
- * join_search_one_level
+ * make_rels_by_joins
  *	  Consider ways to produce join relations containing exactly 'level'
  *	  jointree items.  (This is one step of the dynamic-programming method
- *	  embodied in standard_join_search.)  Join rel nodes for each feasible
+ *	  embodied in make_one_rel_by_joins.)  Join rel nodes for each feasible
  *	  combination of lower-level rels are created and returned in a list.
  *	  Implementation paths are created for each such joinrel, too.
  *
- * level: level of rels we want to make this time
- * root->join_rel_level[j], 1 <= j < level, is a list of rels containing j items
- *
- * The result is returned in root->join_rel_level[level].
+ * level: level of rels we want to make this time.
+ * joinrels[j], 1 <= j < level, is a list of rels containing j items.
  */
-void
-join_search_one_level(PlannerInfo *root, int level)
+List *
+make_rels_by_joins(PlannerInfo *root, int level, List **joinrels)
 {
-	List	  **joinrels = root->join_rel_level;
+	List	   *result_rels = NIL;
+	List	   *new_rels;
 	ListCell   *r;
 	int			k;
-
-	Assert(joinrels[level] == NIL);
-
-	/* Set join_cur_level so that new joinrels are added to proper list */
-	root->join_cur_level = level;
 
 	/*
 	 * First, consider left-sided and right-sided plans, in which rels of
@@ -80,56 +53,72 @@ join_search_one_level(PlannerInfo *root, int level)
 	 * We prefer to join using join clauses, but if we find a rel of level-1
 	 * members that has no join clauses, we will generate Cartesian-product
 	 * joins against all initial rels not already contained in it.
+	 *
+	 * In the first pass (level == 2), we try to join each initial rel to each
+	 * initial rel that appears later in joinrels[1].  (The mirror-image joins
+	 * are handled automatically by make_join_rel.)  In later passes, we try
+	 * to join rels of size level-1 from joinrels[level-1] to each initial rel
+	 * in joinrels[1].
 	 */
 	foreach(r, joinrels[level - 1])
 	{
 		RelOptInfo *old_rel = (RelOptInfo *) lfirst(r);
+		ListCell   *other_rels;
 
-		if (old_rel->joininfo != NIL || old_rel->has_eclass_joins ||
-			has_join_restriction(root, old_rel))
+		if (level == 2)
+			other_rels = lnext(r);		/* only consider remaining initial
+										 * rels */
+		else
+			other_rels = list_head(joinrels[1]);		/* consider all initial
+														 * rels */
+
+		if (old_rel->joininfo != NIL)
 		{
 			/*
-			 * There are join clauses or join order restrictions relevant to
-			 * this rel, so consider joins between this rel and (only) those
-			 * initial rels it is linked to by a clause or restriction.
-			 *
-			 * At level 2 this condition is symmetric, so there is no need to
-			 * look at initial rels before this one in the list; we already
-			 * considered such joins when we were at the earlier rel.  (The
-			 * mirror-image joins are handled automatically by make_join_rel.)
-			 * In later passes (level > 2), we join rels of the previous level
-			 * to each initial rel they don't already include but have a join
-			 * clause or restriction with.
+			 * Note that if all available join clauses for this rel require
+			 * more than one other rel, we will fail to make any joins against
+			 * it here.  In most cases that's OK; it'll be considered by
+			 * "bushy plan" join code in a higher-level pass where we have
+			 * those other rels collected into a join rel.
 			 */
-			ListCell   *other_rels;
+			new_rels = make_rels_by_clause_joins(root,
+												 old_rel,
+												 other_rels);
 
-			if (level == 2)		/* consider remaining initial rels */
-				other_rels = lnext(r);
-			else				/* consider all initial rels */
-				other_rels = list_head(joinrels[1]);
-
-			make_rels_by_clause_joins(root,
-									  old_rel,
-									  other_rels);
+			/*
+			 * An exception occurs when there is a clauseless join inside an
+			 * IN (sub-SELECT) construct.  Here, the members of the subselect
+			 * all have join clauses (against the stuff outside the IN), but
+			 * they *must* be joined to each other before we can make use of
+			 * those join clauses.	So do the clauseless join bit.
+			 *
+			 * See also the last-ditch case below.
+			 */
+			if (new_rels == NIL && is_inside_IN(root, old_rel))
+				new_rels = make_rels_by_clauseless_joins(root,
+														 old_rel,
+														 other_rels);
 		}
 		else
 		{
 			/*
 			 * Oops, we have a relation that is not joined to any other
-			 * relation, either directly or by join-order restrictions.
-			 * Cartesian product time.
-			 *
-			 * We consider a cartesian product with each not-already-included
-			 * initial rel, whether it has other join clauses or not.  At
-			 * level 2, if there are two or more clauseless initial rels, we
-			 * will redundantly consider joining them in both directions; but
-			 * such cases aren't common enough to justify adding complexity to
-			 * avoid the duplicated effort.
+			 * relation.  Cartesian product time.
 			 */
-			make_rels_by_clauseless_joins(root,
-										  old_rel,
-										  list_head(joinrels[1]));
+			new_rels = make_rels_by_clauseless_joins(root,
+													 old_rel,
+													 other_rels);
 		}
+
+		/*
+		 * At levels above 2 we will generate the same joined relation in
+		 * multiple ways --- for example (a join b) join c is the same
+		 * RelOptInfo as (b join c) join a, though the second case will add a
+		 * different set of Paths to it.  To avoid making extra work for
+		 * subsequent passes, do not enter the same RelOptInfo into our output
+		 * list multiple times.
+		 */
+		result_rels = list_concat_unique_ptr(result_rels, new_rels);
 	}
 
 	/*
@@ -137,8 +126,8 @@ join_search_one_level(PlannerInfo *root, int level)
 	 * joined to relations of level-k initial rels, for 2 <= k <= level-2.
 	 *
 	 * We only consider bushy-plan joins for pairs of rels where there is a
-	 * suitable join clause (or join order restriction), in order to avoid
-	 * unreasonable growth of planning time.
+	 * suitable join clause, in order to avoid unreasonable growth of planning
+	 * time.
 	 */
 	for (k = 2;; k++)
 	{
@@ -157,14 +146,8 @@ join_search_one_level(PlannerInfo *root, int level)
 			ListCell   *other_rels;
 			ListCell   *r2;
 
-			/*
-			 * We can ignore relations without join clauses here, unless they
-			 * participate in join-order restrictions --- then we might have
-			 * to force a bushy join plan.
-			 */
-			if (old_rel->joininfo == NIL && !old_rel->has_eclass_joins &&
-				!has_join_restriction(root, old_rel))
-				continue;
+			if (old_rel->joininfo == NIL)
+				continue;		/* we ignore clauseless joins here */
 
 			if (k == other_level)
 				other_rels = lnext(r);	/* only consider remaining rels */
@@ -179,39 +162,38 @@ join_search_one_level(PlannerInfo *root, int level)
 				{
 					/*
 					 * OK, we can build a rel of the right level from this
-					 * pair of rels.  Do so if there is at least one relevant
-					 * join clause or join order restriction.
+					 * pair of rels.  Do so if there is at least one usable
+					 * join clause.
 					 */
-					if (have_relevant_joinclause(root, old_rel, new_rel) ||
-						have_join_order_restriction(root, old_rel, new_rel))
+					if (have_relevant_joinclause(old_rel, new_rel))
 					{
-						(void) make_join_rel(root, old_rel, new_rel);
+						RelOptInfo *jrel;
+
+						jrel = make_join_rel(root, old_rel, new_rel,
+											 JOIN_INNER);
+						/* Avoid making duplicate entries ... */
+						if (jrel)
+							result_rels = list_append_unique_ptr(result_rels,
+																 jrel);
 					}
 				}
 			}
 		}
 	}
 
-	/*----------
+	/*
 	 * Last-ditch effort: if we failed to find any usable joins so far, force
 	 * a set of cartesian-product joins to be generated.  This handles the
 	 * special case where all the available rels have join clauses but we
-	 * cannot use any of those clauses yet.  This can only happen when we are
-	 * considering a join sub-problem (a sub-joinlist) and all the rels in the
-	 * sub-problem have only join clauses with rels outside the sub-problem.
-	 * An example is
+	 * cannot use any of the joins yet.  An example is
 	 *
-	 *		SELECT ... FROM a INNER JOIN b ON TRUE, c, d, ...
-	 *		WHERE a.w = c.x and b.y = d.z;
+	 * SELECT * FROM a,b,c WHERE (a.f1 + b.f2 + c.f3) = 0;
 	 *
-	 * If the "a INNER JOIN b" sub-problem does not get flattened into the
-	 * upper level, we must be willing to make a cartesian join of a and b;
-	 * but the code above will not have done so, because it thought that both
-	 * a and b have joinclauses.  We consider only left-sided and right-sided
-	 * cartesian joins in this case (no bushy).
-	 *----------
+	 * The join clause will be usable at level 3, but at level 2 we have no
+	 * choice but to make cartesian joins.	We consider only left-sided and
+	 * right-sided cartesian joins in this case (no bushy).
 	 */
-	if (joinrels[level] == NIL)
+	if (result_rels == NIL)
 	{
 		/*
 		 * This loop is just like the first one, except we always call
@@ -220,49 +202,52 @@ join_search_one_level(PlannerInfo *root, int level)
 		foreach(r, joinrels[level - 1])
 		{
 			RelOptInfo *old_rel = (RelOptInfo *) lfirst(r);
+			ListCell   *other_rels;
 
-			make_rels_by_clauseless_joins(root,
-										  old_rel,
-										  list_head(joinrels[1]));
+			if (level == 2)
+				other_rels = lnext(r);	/* only consider remaining initial
+										 * rels */
+			else
+				other_rels = list_head(joinrels[1]);	/* consider all initial
+														 * rels */
+
+			new_rels = make_rels_by_clauseless_joins(root,
+													 old_rel,
+													 other_rels);
+
+			result_rels = list_concat_unique_ptr(result_rels, new_rels);
 		}
 
 		/*----------
-		 * When special joins are involved, there may be no legal way
-		 * to make an N-way join for some values of N.  For example consider
+		 * When IN clauses are involved, there may be no legal way to make
+		 * an N-way join for some values of N.	For example consider
 		 *
 		 * SELECT ... FROM t1 WHERE
 		 *	 x IN (SELECT ... FROM t2,t3 WHERE ...) AND
 		 *	 y IN (SELECT ... FROM t4,t5 WHERE ...)
 		 *
 		 * We will flatten this query to a 5-way join problem, but there are
-		 * no 4-way joins that join_is_legal() will consider legal.  We have
+		 * no 4-way joins that make_join_rel() will consider legal.  We have
 		 * to accept failure at level 4 and go on to discover a workable
 		 * bushy plan at level 5.
 		 *
-		 * However, if there are no special joins and no lateral references
-		 * then join_is_legal() should never fail, and so the following sanity
-		 * check is useful.
+		 * However, if there are no IN clauses then make_join_rel() should
+		 * never fail, and so the following sanity check is useful.
 		 *----------
 		 */
-		if (joinrels[level] == NIL &&
-			root->join_info_list == NIL &&
-			!root->hasLateralRTEs)
+		if (result_rels == NIL && root->in_info_list == NIL)
 			elog(ERROR, "failed to build any %d-way joins", level);
 	}
+
+	return result_rels;
 }
 
 /*
  * make_rels_by_clause_joins
  *	  Build joins between the given relation 'old_rel' and other relations
- *	  that participate in join clauses that 'old_rel' also participates in
- *	  (or participate in join-order restrictions with it).
- *	  The join rels are returned in root->join_rel_level[join_cur_level].
- *
- * Note: at levels above 2 we will generate the same joined relation in
- * multiple ways --- for example (a join b) join c is the same RelOptInfo as
- * (b join c) join a, though the second case will add a different set of Paths
- * to it.  This is the reason for using the join_rel_level mechanism, which
- * automatically ensures that each new joinrel is only added to the list once.
+ *	  that are mentioned within old_rel's joininfo list (i.e., relations
+ *	  that participate in join clauses that 'old_rel' also participates in).
+ *	  The join rel nodes are returned in a list.
  *
  * 'old_rel' is the relation entry for the relation to be joined
  * 'other_rels': the first cell in a linked list containing the other
@@ -271,11 +256,12 @@ join_search_one_level(PlannerInfo *root, int level)
  * Currently, this is only used with initial rels in other_rels, but it
  * will work for joining to joinrels too.
  */
-static void
+static List *
 make_rels_by_clause_joins(PlannerInfo *root,
 						  RelOptInfo *old_rel,
 						  ListCell *other_rels)
 {
+	List	   *result = NIL;
 	ListCell   *l;
 
 	for_each_cell(l, other_rels)
@@ -283,12 +269,17 @@ make_rels_by_clause_joins(PlannerInfo *root,
 		RelOptInfo *other_rel = (RelOptInfo *) lfirst(l);
 
 		if (!bms_overlap(old_rel->relids, other_rel->relids) &&
-			(have_relevant_joinclause(root, old_rel, other_rel) ||
-			 have_join_order_restriction(root, old_rel, other_rel)))
+			have_relevant_joinclause(old_rel, other_rel))
 		{
-			(void) make_join_rel(root, old_rel, other_rel);
+			RelOptInfo *jrel;
+
+			jrel = make_join_rel(root, old_rel, other_rel, JOIN_INNER);
+			if (jrel)
+				result = lcons(jrel, result);
 		}
 	}
+
+	return result;
 }
 
 /*
@@ -296,7 +287,7 @@ make_rels_by_clause_joins(PlannerInfo *root,
  *	  Given a relation 'old_rel' and a list of other relations
  *	  'other_rels', create a join relation between 'old_rel' and each
  *	  member of 'other_rels' that isn't already included in 'old_rel'.
- *	  The join rels are returned in root->join_rel_level[join_cur_level].
+ *	  The join rel nodes are returned in a list.
  *
  * 'old_rel' is the relation entry for the relation to be joined
  * 'other_rels': the first cell of a linked list containing the
@@ -305,351 +296,117 @@ make_rels_by_clause_joins(PlannerInfo *root,
  * Currently, this is only used with initial rels in other_rels, but it would
  * work for joining to joinrels too.
  */
-static void
+static List *
 make_rels_by_clauseless_joins(PlannerInfo *root,
 							  RelOptInfo *old_rel,
 							  ListCell *other_rels)
 {
-	ListCell   *l;
+	List	   *result = NIL;
+	ListCell   *i;
 
-	for_each_cell(l, other_rels)
+	for_each_cell(i, other_rels)
 	{
-		RelOptInfo *other_rel = (RelOptInfo *) lfirst(l);
+		RelOptInfo *other_rel = (RelOptInfo *) lfirst(i);
 
 		if (!bms_overlap(other_rel->relids, old_rel->relids))
 		{
-			(void) make_join_rel(root, old_rel, other_rel);
+			RelOptInfo *jrel;
+
+			jrel = make_join_rel(root, old_rel, other_rel, JOIN_INNER);
+
+			/*
+			 * As long as given other_rels are distinct, don't need to test to
+			 * see if jrel is already part of output list.
+			 */
+			if (jrel)
+				result = lcons(jrel, result);
 		}
 	}
+
+	return result;
 }
 
 
 /*
- * join_is_legal
- *	   Determine whether a proposed join is legal given the query's
- *	   join order constraints; and if it is, determine the join type.
+ * is_inside_IN
+ *		Detect whether the specified relation is inside an IN (sub-SELECT).
  *
- * Caller must supply not only the two rels, but the union of their relids.
- * (We could simplify the API by computing joinrelids locally, but this
- * would be redundant work in the normal path through make_join_rel.)
- *
- * On success, *sjinfo_p is set to NULL if this is to be a plain inner join,
- * else it's set to point to the associated SpecialJoinInfo node.  Also,
- * *reversed_p is set true if the given relations need to be swapped to
- * match the SpecialJoinInfo node.
+ * Note that we are actually only interested in rels that have been pulled up
+ * out of an IN, so the routine name is a slight misnomer.
  */
 static bool
-join_is_legal(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
-			  Relids joinrelids,
-			  SpecialJoinInfo **sjinfo_p, bool *reversed_p)
+is_inside_IN(PlannerInfo *root, RelOptInfo *rel)
 {
-	SpecialJoinInfo *match_sjinfo;
-	bool		reversed;
-	bool		unique_ified;
-	bool		must_be_leftjoin;
 	ListCell   *l;
 
-	/*
-	 * Ensure output params are set on failure return.  This is just to
-	 * suppress uninitialized-variable warnings from overly anal compilers.
-	 */
-	*sjinfo_p = NULL;
-	*reversed_p = false;
-
-	/*
-	 * If we have any special joins, the proposed join might be illegal; and
-	 * in any case we have to determine its join type.  Scan the join info
-	 * list for matches and conflicts.
-	 */
-	match_sjinfo = NULL;
-	reversed = false;
-	unique_ified = false;
-	must_be_leftjoin = false;
-
-	foreach(l, root->join_info_list)
+	foreach(l, root->in_info_list)
 	{
-		SpecialJoinInfo *sjinfo = (SpecialJoinInfo *) lfirst(l);
+		InClauseInfo *ininfo = (InClauseInfo *) lfirst(l);
 
-		/*
-		 * This special join is not relevant unless its RHS overlaps the
-		 * proposed join.  (Check this first as a fast path for dismissing
-		 * most irrelevant SJs quickly.)
-		 */
-		if (!bms_overlap(sjinfo->min_righthand, joinrelids))
-			continue;
-
-		/*
-		 * Also, not relevant if proposed join is fully contained within RHS
-		 * (ie, we're still building up the RHS).
-		 */
-		if (bms_is_subset(joinrelids, sjinfo->min_righthand))
-			continue;
-
-		/*
-		 * Also, not relevant if SJ is already done within either input.
-		 */
-		if (bms_is_subset(sjinfo->min_lefthand, rel1->relids) &&
-			bms_is_subset(sjinfo->min_righthand, rel1->relids))
-			continue;
-		if (bms_is_subset(sjinfo->min_lefthand, rel2->relids) &&
-			bms_is_subset(sjinfo->min_righthand, rel2->relids))
-			continue;
-
-		/*
-		 * If it's a semijoin and we already joined the RHS to any other rels
-		 * within either input, then we must have unique-ified the RHS at that
-		 * point (see below).  Therefore the semijoin is no longer relevant in
-		 * this join path.
-		 */
-		if (sjinfo->jointype == JOIN_SEMI)
-		{
-			if (bms_is_subset(sjinfo->syn_righthand, rel1->relids) &&
-				!bms_equal(sjinfo->syn_righthand, rel1->relids))
-				continue;
-			if (bms_is_subset(sjinfo->syn_righthand, rel2->relids) &&
-				!bms_equal(sjinfo->syn_righthand, rel2->relids))
-				continue;
-		}
-
-		/*
-		 * If one input contains min_lefthand and the other contains
-		 * min_righthand, then we can perform the SJ at this join.
-		 *
-		 * Reject if we get matches to more than one SJ; that implies we're
-		 * considering something that's not really valid.
-		 */
-		if (bms_is_subset(sjinfo->min_lefthand, rel1->relids) &&
-			bms_is_subset(sjinfo->min_righthand, rel2->relids))
-		{
-			if (match_sjinfo)
-				return false;	/* invalid join path */
-			match_sjinfo = sjinfo;
-			reversed = false;
-		}
-		else if (bms_is_subset(sjinfo->min_lefthand, rel2->relids) &&
-				 bms_is_subset(sjinfo->min_righthand, rel1->relids))
-		{
-			if (match_sjinfo)
-				return false;	/* invalid join path */
-			match_sjinfo = sjinfo;
-			reversed = true;
-		}
-		else if (sjinfo->jointype == JOIN_SEMI &&
-				 bms_equal(sjinfo->syn_righthand, rel2->relids) &&
-				 create_unique_path(root, rel2, rel2->cheapest_total_path,
-									sjinfo) != NULL)
-		{
-			/*----------
-			 * For a semijoin, we can join the RHS to anything else by
-			 * unique-ifying the RHS (if the RHS can be unique-ified).
-			 * We will only get here if we have the full RHS but less
-			 * than min_lefthand on the LHS.
-			 *
-			 * The reason to consider such a join path is exemplified by
-			 *	SELECT ... FROM a,b WHERE (a.x,b.y) IN (SELECT c1,c2 FROM c)
-			 * If we insist on doing this as a semijoin we will first have
-			 * to form the cartesian product of A*B.  But if we unique-ify
-			 * C then the semijoin becomes a plain innerjoin and we can join
-			 * in any order, eg C to A and then to B.  When C is much smaller
-			 * than A and B this can be a huge win.  So we allow C to be
-			 * joined to just A or just B here, and then make_join_rel has
-			 * to handle the case properly.
-			 *
-			 * Note that actually we'll allow unique-ified C to be joined to
-			 * some other relation D here, too.  That is legal, if usually not
-			 * very sane, and this routine is only concerned with legality not
-			 * with whether the join is good strategy.
-			 *----------
-			 */
-			if (match_sjinfo)
-				return false;	/* invalid join path */
-			match_sjinfo = sjinfo;
-			reversed = false;
-			unique_ified = true;
-		}
-		else if (sjinfo->jointype == JOIN_SEMI &&
-				 bms_equal(sjinfo->syn_righthand, rel1->relids) &&
-				 create_unique_path(root, rel1, rel1->cheapest_total_path,
-									sjinfo) != NULL)
-		{
-			/* Reversed semijoin case */
-			if (match_sjinfo)
-				return false;	/* invalid join path */
-			match_sjinfo = sjinfo;
-			reversed = true;
-			unique_ified = true;
-		}
-		else
-		{
-			/*
-			 * Otherwise, the proposed join overlaps the RHS but isn't a valid
-			 * implementation of this SJ.  But don't panic quite yet: the RHS
-			 * violation might have occurred previously, in one or both input
-			 * relations, in which case we must have previously decided that
-			 * it was OK to commute some other SJ with this one.  If we need
-			 * to perform this join to finish building up the RHS, rejecting
-			 * it could lead to not finding any plan at all.  (This can occur
-			 * because of the heuristics elsewhere in this file that postpone
-			 * clauseless joins: we might not consider doing a clauseless join
-			 * within the RHS until after we've performed other, validly
-			 * commutable SJs with one or both sides of the clauseless join.)
-			 * This consideration boils down to the rule that if both inputs
-			 * overlap the RHS, we can allow the join --- they are either
-			 * fully within the RHS, or represent previously-allowed joins to
-			 * rels outside it.
-			 */
-			if (bms_overlap(rel1->relids, sjinfo->min_righthand) &&
-				bms_overlap(rel2->relids, sjinfo->min_righthand))
-				continue;		/* assume valid previous violation of RHS */
-
-			/*
-			 * The proposed join could still be legal, but only if we're
-			 * allowed to associate it into the RHS of this SJ.  That means
-			 * this SJ must be a LEFT join (not SEMI or ANTI, and certainly
-			 * not FULL) and the proposed join must not overlap the LHS.
-			 */
-			if (sjinfo->jointype != JOIN_LEFT ||
-				bms_overlap(joinrelids, sjinfo->min_lefthand))
-				return false;	/* invalid join path */
-
-			/*
-			 * To be valid, the proposed join must be a LEFT join; otherwise
-			 * it can't associate into this SJ's RHS.  But we may not yet have
-			 * found the SpecialJoinInfo matching the proposed join, so we
-			 * can't test that yet.  Remember the requirement for later.
-			 */
-			must_be_leftjoin = true;
-		}
+		if (bms_is_subset(rel->relids, ininfo->righthand))
+			return true;
 	}
+	return false;
+}
 
-	/*
-	 * Fail if violated any SJ's RHS and didn't match to a LEFT SJ: the
-	 * proposed join can't associate into an SJ's RHS.
-	 *
-	 * Also, fail if the proposed join's predicate isn't strict; we're
-	 * essentially checking to see if we can apply outer-join identity 3, and
-	 * that's a requirement.  (This check may be redundant with checks in
-	 * make_outerjoininfo, but I'm not quite sure, and it's cheap to test.)
-	 */
-	if (must_be_leftjoin &&
-		(match_sjinfo == NULL ||
-		 match_sjinfo->jointype != JOIN_LEFT ||
-		 !match_sjinfo->lhs_strict))
-		return false;			/* invalid join path */
 
-	/*
-	 * We also have to check for constraints imposed by LATERAL references.
-	 */
-	if (root->hasLateralRTEs)
+/*
+ * make_jointree_rel
+ *		Find or build a RelOptInfo join rel representing a specific
+ *		jointree item.	For JoinExprs, we only consider the construction
+ *		path that corresponds exactly to what the user wrote.
+ */
+RelOptInfo *
+make_jointree_rel(PlannerInfo *root, Node *jtnode)
+{
+	if (IsA(jtnode, RangeTblRef))
 	{
-		bool		lateral_fwd;
-		bool		lateral_rev;
-		Relids		join_lateral_rels;
+		int			varno = ((RangeTblRef *) jtnode)->rtindex;
 
-		/*
-		 * The proposed rels could each contain lateral references to the
-		 * other, in which case the join is impossible.  If there are lateral
-		 * references in just one direction, then the join has to be done with
-		 * a nestloop with the lateral referencer on the inside.  If the join
-		 * matches an SJ that cannot be implemented by such a nestloop, the
-		 * join is impossible.
-		 *
-		 * Also, if the lateral reference is only indirect, we should reject
-		 * the join; whatever rel(s) the reference chain goes through must be
-		 * joined to first.
-		 *
-		 * Another case that might keep us from building a valid plan is the
-		 * implementation restriction described by have_dangerous_phv().
-		 */
-		lateral_fwd = bms_overlap(rel1->relids, rel2->lateral_relids);
-		lateral_rev = bms_overlap(rel2->relids, rel1->lateral_relids);
-		if (lateral_fwd && lateral_rev)
-			return false;		/* have lateral refs in both directions */
-		if (lateral_fwd)
-		{
-			/* has to be implemented as nestloop with rel1 on left */
-			if (match_sjinfo &&
-				(reversed ||
-				 unique_ified ||
-				 match_sjinfo->jointype == JOIN_FULL))
-				return false;	/* not implementable as nestloop */
-			/* check there is a direct reference from rel2 to rel1 */
-			if (!bms_overlap(rel1->relids, rel2->direct_lateral_relids))
-				return false;	/* only indirect refs, so reject */
-			/* check we won't have a dangerous PHV */
-			if (have_dangerous_phv(root, rel1->relids, rel2->lateral_relids))
-				return false;	/* might be unable to handle required PHV */
-		}
-		else if (lateral_rev)
-		{
-			/* has to be implemented as nestloop with rel2 on left */
-			if (match_sjinfo &&
-				(!reversed ||
-				 unique_ified ||
-				 match_sjinfo->jointype == JOIN_FULL))
-				return false;	/* not implementable as nestloop */
-			/* check there is a direct reference from rel1 to rel2 */
-			if (!bms_overlap(rel2->relids, rel1->direct_lateral_relids))
-				return false;	/* only indirect refs, so reject */
-			/* check we won't have a dangerous PHV */
-			if (have_dangerous_phv(root, rel2->relids, rel1->lateral_relids))
-				return false;	/* might be unable to handle required PHV */
-		}
-
-		/*
-		 * LATERAL references could also cause problems later on if we accept
-		 * this join: if the join's minimum parameterization includes any rels
-		 * that would have to be on the inside of an outer join with this join
-		 * rel, then it's never going to be possible to build the complete
-		 * query using this join.  We should reject this join not only because
-		 * it'll save work, but because if we don't, the clauseless-join
-		 * heuristics might think that legality of this join means that some
-		 * other join rel need not be formed, and that could lead to failure
-		 * to find any plan at all.  We have to consider not only rels that
-		 * are directly on the inner side of an OJ with the joinrel, but also
-		 * ones that are indirectly so, so search to find all such rels.
-		 */
-		join_lateral_rels = min_join_parameterization(root, joinrelids,
-													  rel1, rel2);
-		if (join_lateral_rels)
-		{
-			Relids		join_plus_rhs = bms_copy(joinrelids);
-			bool		more;
-
-			do
-			{
-				more = false;
-				foreach(l, root->join_info_list)
-				{
-					SpecialJoinInfo *sjinfo = (SpecialJoinInfo *) lfirst(l);
-
-					if (bms_overlap(sjinfo->min_lefthand, join_plus_rhs) &&
-						!bms_is_subset(sjinfo->min_righthand, join_plus_rhs))
-					{
-						join_plus_rhs = bms_add_members(join_plus_rhs,
-														sjinfo->min_righthand);
-						more = true;
-					}
-					/* full joins constrain both sides symmetrically */
-					if (sjinfo->jointype == JOIN_FULL &&
-						bms_overlap(sjinfo->min_righthand, join_plus_rhs) &&
-						!bms_is_subset(sjinfo->min_lefthand, join_plus_rhs))
-					{
-						join_plus_rhs = bms_add_members(join_plus_rhs,
-														sjinfo->min_lefthand);
-						more = true;
-					}
-				}
-			} while (more);
-			if (bms_overlap(join_plus_rhs, join_lateral_rels))
-				return false;	/* will not be able to join to some RHS rel */
-		}
+		return find_base_rel(root, varno);
 	}
+	else if (IsA(jtnode, FromExpr))
+	{
+		FromExpr   *f = (FromExpr *) jtnode;
 
-	/* Otherwise, it's a valid join */
-	*sjinfo_p = match_sjinfo;
-	*reversed_p = reversed;
-	return true;
+		/* Recurse back to multi-way-join planner */
+		return make_fromexpr_rel(root, f);
+	}
+	else if (IsA(jtnode, JoinExpr))
+	{
+		JoinExpr   *j = (JoinExpr *) jtnode;
+		RelOptInfo *rel,
+				   *lrel,
+				   *rrel;
+
+		/* Recurse */
+		lrel = make_jointree_rel(root, j->larg);
+		rrel = make_jointree_rel(root, j->rarg);
+
+		/* Make this join rel */
+		rel = make_join_rel(root, lrel, rrel, j->jointype);
+
+		if (rel == NULL)		/* oops */
+			elog(ERROR, "invalid join order");
+
+		/*
+		 * Since we are only going to consider this one way to do it, we're
+		 * done generating Paths for this joinrel and can now select the
+		 * cheapest.  In fact we *must* do so now, since next level up will
+		 * need it!
+		 */
+		set_cheapest(rel);
+
+#ifdef OPTIMIZER_DEBUG
+		debug_print_rel(root, rel);
+#endif
+
+		return rel;
+	}
+	else
+		elog(ERROR, "unrecognized node type: %d",
+			 (int) nodeTag(jtnode));
+	return NULL;				/* keep compiler quiet */
 }
 
 
@@ -661,17 +418,14 @@ join_is_legal(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
  *	   (The join rel may already contain paths generated from other
  *	   pairs of rels that add up to the same set of base rels.)
  *
- * NB: will return NULL if attempted join is not valid.  This can happen
- * when working with outer joins, or with IN or EXISTS clauses that have been
- * turned into joins.
+ * NB: will return NULL if attempted join is not valid.  This can only
+ * happen when working with IN clauses that have been turned into joins.
  */
 RelOptInfo *
-make_join_rel(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2)
+make_join_rel(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
+			  JoinType jointype)
 {
 	Relids		joinrelids;
-	SpecialJoinInfo *sjinfo;
-	bool		reversed;
-	SpecialJoinInfo sjinfo_data;
 	RelOptInfo *joinrel;
 	List	   *restrictlist;
 
@@ -681,908 +435,171 @@ make_join_rel(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2)
 	/* Construct Relids set that identifies the joinrel. */
 	joinrelids = bms_union(rel1->relids, rel2->relids);
 
-	/* Check validity and determine join type. */
-	if (!join_is_legal(root, rel1, rel2, joinrelids,
-					   &sjinfo, &reversed))
-	{
-		/* invalid join path */
-		bms_free(joinrelids);
-		return NULL;
-	}
-
-	/* Swap rels if needed to match the join info. */
-	if (reversed)
-	{
-		RelOptInfo *trel = rel1;
-
-		rel1 = rel2;
-		rel2 = trel;
-	}
-
 	/*
-	 * If it's a plain inner join, then we won't have found anything in
-	 * join_info_list.  Make up a SpecialJoinInfo so that selectivity
-	 * estimation functions will know what's being joined.
+	 * If we are implementing IN clauses as joins, there are some joins that
+	 * are illegal.  Check to see if the proposed join is trouble. We can skip
+	 * the work if looking at an outer join, however, because only top-level
+	 * joins might be affected.
 	 */
-	if (sjinfo == NULL)
+	if (jointype == JOIN_INNER)
 	{
-		sjinfo = &sjinfo_data;
-		sjinfo->type = T_SpecialJoinInfo;
-		sjinfo->min_lefthand = rel1->relids;
-		sjinfo->min_righthand = rel2->relids;
-		sjinfo->syn_lefthand = rel1->relids;
-		sjinfo->syn_righthand = rel2->relids;
-		sjinfo->jointype = JOIN_INNER;
-		/* we don't bother trying to make the remaining fields valid */
-		sjinfo->lhs_strict = false;
-		sjinfo->delay_upper_joins = false;
-		sjinfo->semi_can_btree = false;
-		sjinfo->semi_can_hash = false;
-		sjinfo->semi_operators = NIL;
-		sjinfo->semi_rhs_exprs = NIL;
+		ListCell   *l;
+
+		foreach(l, root->in_info_list)
+		{
+			InClauseInfo *ininfo = (InClauseInfo *) lfirst(l);
+
+			/*
+			 * This IN clause is not relevant unless its RHS overlaps the
+			 * proposed join.  (Check this first as a fast path for dismissing
+			 * most irrelevant INs quickly.)
+			 */
+			if (!bms_overlap(ininfo->righthand, joinrelids))
+				continue;
+
+			/*
+			 * If we are still building the IN clause's RHS, then this IN
+			 * clause isn't relevant yet.
+			 */
+			if (bms_is_subset(joinrelids, ininfo->righthand))
+				continue;
+
+			/*
+			 * Cannot join if proposed join contains rels not in the RHS *and*
+			 * contains only part of the RHS.  We must build the complete RHS
+			 * (subselect's join) before it can be joined to rels outside the
+			 * subselect.
+			 */
+			if (!bms_is_subset(ininfo->righthand, joinrelids))
+			{
+				bms_free(joinrelids);
+				return NULL;
+			}
+
+			/*
+			 * At this point we are considering a join of the IN's RHS to some
+			 * other rel(s).
+			 *
+			 * If we already joined IN's RHS to any other rels in either input
+			 * path, then this join is not constrained (the necessary work was
+			 * done at the lower level where that join occurred).
+			 */
+			if (bms_is_subset(ininfo->righthand, rel1->relids) &&
+				!bms_equal(ininfo->righthand, rel1->relids))
+				continue;
+			if (bms_is_subset(ininfo->righthand, rel2->relids) &&
+				!bms_equal(ininfo->righthand, rel2->relids))
+				continue;
+
+			/*
+			 * JOIN_IN technique will work if outerrel includes LHS and
+			 * innerrel is exactly RHS; conversely JOIN_REVERSE_IN handles
+			 * RHS/LHS.
+			 *
+			 * JOIN_UNIQUE_OUTER will work if outerrel is exactly RHS;
+			 * conversely JOIN_UNIQUE_INNER will work if innerrel is exactly
+			 * RHS.
+			 *
+			 * But none of these will work if we already found another IN that
+			 * needs to trigger here.
+			 */
+			if (jointype != JOIN_INNER)
+			{
+				bms_free(joinrelids);
+				return NULL;
+			}
+			if (bms_is_subset(ininfo->lefthand, rel1->relids) &&
+				bms_equal(ininfo->righthand, rel2->relids))
+				jointype = JOIN_IN;
+			else if (bms_is_subset(ininfo->lefthand, rel2->relids) &&
+					 bms_equal(ininfo->righthand, rel1->relids))
+				jointype = JOIN_REVERSE_IN;
+			else if (bms_equal(ininfo->righthand, rel1->relids))
+				jointype = JOIN_UNIQUE_OUTER;
+			else if (bms_equal(ininfo->righthand, rel2->relids))
+				jointype = JOIN_UNIQUE_INNER;
+			else
+			{
+				/* invalid join path */
+				bms_free(joinrelids);
+				return NULL;
+			}
+		}
 	}
 
 	/*
 	 * Find or build the join RelOptInfo, and compute the restrictlist that
 	 * goes with this particular joining.
 	 */
-	joinrel = build_join_rel(root, joinrelids, rel1, rel2, sjinfo,
+	joinrel = build_join_rel(root, joinrelids, rel1, rel2, jointype,
 							 &restrictlist);
 
 	/*
-	 * If we've already proven this join is empty, we needn't consider any
-	 * more paths for it.
+	 * Consider paths using each rel as both outer and inner.
 	 */
-	if (is_dummy_rel(joinrel))
+	switch (jointype)
 	{
-		bms_free(joinrelids);
-		return joinrel;
+		case JOIN_INNER:
+			add_paths_to_joinrel(root, joinrel, rel1, rel2, JOIN_INNER,
+								 restrictlist);
+			add_paths_to_joinrel(root, joinrel, rel2, rel1, JOIN_INNER,
+								 restrictlist);
+			break;
+		case JOIN_LEFT:
+			add_paths_to_joinrel(root, joinrel, rel1, rel2, JOIN_LEFT,
+								 restrictlist);
+			add_paths_to_joinrel(root, joinrel, rel2, rel1, JOIN_RIGHT,
+								 restrictlist);
+			break;
+		case JOIN_FULL:
+			add_paths_to_joinrel(root, joinrel, rel1, rel2, JOIN_FULL,
+								 restrictlist);
+			add_paths_to_joinrel(root, joinrel, rel2, rel1, JOIN_FULL,
+								 restrictlist);
+			break;
+		case JOIN_RIGHT:
+			add_paths_to_joinrel(root, joinrel, rel1, rel2, JOIN_RIGHT,
+								 restrictlist);
+			add_paths_to_joinrel(root, joinrel, rel2, rel1, JOIN_LEFT,
+								 restrictlist);
+			break;
+		case JOIN_IN:
+			add_paths_to_joinrel(root, joinrel, rel1, rel2, JOIN_IN,
+								 restrictlist);
+			/* REVERSE_IN isn't supported by joinpath.c */
+			add_paths_to_joinrel(root, joinrel, rel1, rel2, JOIN_UNIQUE_INNER,
+								 restrictlist);
+			add_paths_to_joinrel(root, joinrel, rel2, rel1, JOIN_UNIQUE_OUTER,
+								 restrictlist);
+			break;
+		case JOIN_REVERSE_IN:
+			/* REVERSE_IN isn't supported by joinpath.c */
+			add_paths_to_joinrel(root, joinrel, rel2, rel1, JOIN_IN,
+								 restrictlist);
+			add_paths_to_joinrel(root, joinrel, rel1, rel2, JOIN_UNIQUE_OUTER,
+								 restrictlist);
+			add_paths_to_joinrel(root, joinrel, rel2, rel1, JOIN_UNIQUE_INNER,
+								 restrictlist);
+			break;
+		case JOIN_UNIQUE_OUTER:
+			add_paths_to_joinrel(root, joinrel, rel1, rel2, JOIN_UNIQUE_OUTER,
+								 restrictlist);
+			add_paths_to_joinrel(root, joinrel, rel2, rel1, JOIN_UNIQUE_INNER,
+								 restrictlist);
+			break;
+		case JOIN_UNIQUE_INNER:
+			add_paths_to_joinrel(root, joinrel, rel1, rel2, JOIN_UNIQUE_INNER,
+								 restrictlist);
+			add_paths_to_joinrel(root, joinrel, rel2, rel1, JOIN_UNIQUE_OUTER,
+								 restrictlist);
+			break;
+		default:
+			elog(ERROR, "unrecognized join type: %d",
+				 (int) jointype);
+			break;
 	}
-
-	/* Add paths to the join relation. */
-	populate_joinrel_with_paths(root, rel1, rel2, joinrel, sjinfo,
-								restrictlist);
 
 	bms_free(joinrelids);
 
 	return joinrel;
-}
-
-/*
- * populate_joinrel_with_paths
- *	  Add paths to the given joinrel for given pair of joining relations. The
- *	  SpecialJoinInfo provides details about the join and the restrictlist
- *	  contains the join clauses and the other clauses applicable for given pair
- *	  of the joining relations.
- */
-static void
-populate_joinrel_with_paths(PlannerInfo *root, RelOptInfo *rel1,
-							RelOptInfo *rel2, RelOptInfo *joinrel,
-							SpecialJoinInfo *sjinfo, List *restrictlist)
-{
-	/*
-	 * Consider paths using each rel as both outer and inner.  Depending on
-	 * the join type, a provably empty outer or inner rel might mean the join
-	 * is provably empty too; in which case throw away any previously computed
-	 * paths and mark the join as dummy.  (We do it this way since it's
-	 * conceivable that dummy-ness of a multi-element join might only be
-	 * noticeable for certain construction paths.)
-	 *
-	 * Also, a provably constant-false join restriction typically means that
-	 * we can skip evaluating one or both sides of the join.  We do this by
-	 * marking the appropriate rel as dummy.  For outer joins, a
-	 * constant-false restriction that is pushed down still means the whole
-	 * join is dummy, while a non-pushed-down one means that no inner rows
-	 * will join so we can treat the inner rel as dummy.
-	 *
-	 * We need only consider the jointypes that appear in join_info_list, plus
-	 * JOIN_INNER.
-	 */
-	switch (sjinfo->jointype)
-	{
-		case JOIN_INNER:
-			if (is_dummy_rel(rel1) || is_dummy_rel(rel2) ||
-				restriction_is_constant_false(restrictlist, false))
-			{
-				mark_dummy_rel(joinrel);
-				break;
-			}
-			add_paths_to_joinrel(root, joinrel, rel1, rel2,
-								 JOIN_INNER, sjinfo,
-								 restrictlist);
-			add_paths_to_joinrel(root, joinrel, rel2, rel1,
-								 JOIN_INNER, sjinfo,
-								 restrictlist);
-			break;
-		case JOIN_LEFT:
-			if (is_dummy_rel(rel1) ||
-				restriction_is_constant_false(restrictlist, true))
-			{
-				mark_dummy_rel(joinrel);
-				break;
-			}
-			if (restriction_is_constant_false(restrictlist, false) &&
-				bms_is_subset(rel2->relids, sjinfo->syn_righthand))
-				mark_dummy_rel(rel2);
-			add_paths_to_joinrel(root, joinrel, rel1, rel2,
-								 JOIN_LEFT, sjinfo,
-								 restrictlist);
-			add_paths_to_joinrel(root, joinrel, rel2, rel1,
-								 JOIN_RIGHT, sjinfo,
-								 restrictlist);
-			break;
-		case JOIN_FULL:
-			if ((is_dummy_rel(rel1) && is_dummy_rel(rel2)) ||
-				restriction_is_constant_false(restrictlist, true))
-			{
-				mark_dummy_rel(joinrel);
-				break;
-			}
-			add_paths_to_joinrel(root, joinrel, rel1, rel2,
-								 JOIN_FULL, sjinfo,
-								 restrictlist);
-			add_paths_to_joinrel(root, joinrel, rel2, rel1,
-								 JOIN_FULL, sjinfo,
-								 restrictlist);
-
-			/*
-			 * If there are join quals that aren't mergeable or hashable, we
-			 * may not be able to build any valid plan.  Complain here so that
-			 * we can give a somewhat-useful error message.  (Since we have no
-			 * flexibility of planning for a full join, there's no chance of
-			 * succeeding later with another pair of input rels.)
-			 */
-			if (joinrel->pathlist == NIL)
-				ereport(ERROR,
-						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-						 errmsg("FULL JOIN is only supported with merge-joinable or hash-joinable join conditions")));
-			break;
-		case JOIN_SEMI:
-
-			/*
-			 * We might have a normal semijoin, or a case where we don't have
-			 * enough rels to do the semijoin but can unique-ify the RHS and
-			 * then do an innerjoin (see comments in join_is_legal).  In the
-			 * latter case we can't apply JOIN_SEMI joining.
-			 */
-			if (bms_is_subset(sjinfo->min_lefthand, rel1->relids) &&
-				bms_is_subset(sjinfo->min_righthand, rel2->relids))
-			{
-				if (is_dummy_rel(rel1) || is_dummy_rel(rel2) ||
-					restriction_is_constant_false(restrictlist, false))
-				{
-					mark_dummy_rel(joinrel);
-					break;
-				}
-				add_paths_to_joinrel(root, joinrel, rel1, rel2,
-									 JOIN_SEMI, sjinfo,
-									 restrictlist);
-			}
-
-			/*
-			 * If we know how to unique-ify the RHS and one input rel is
-			 * exactly the RHS (not a superset) we can consider unique-ifying
-			 * it and then doing a regular join.  (The create_unique_path
-			 * check here is probably redundant with what join_is_legal did,
-			 * but if so the check is cheap because it's cached.  So test
-			 * anyway to be sure.)
-			 */
-			if (bms_equal(sjinfo->syn_righthand, rel2->relids) &&
-				create_unique_path(root, rel2, rel2->cheapest_total_path,
-								   sjinfo) != NULL)
-			{
-				if (is_dummy_rel(rel1) || is_dummy_rel(rel2) ||
-					restriction_is_constant_false(restrictlist, false))
-				{
-					mark_dummy_rel(joinrel);
-					break;
-				}
-				add_paths_to_joinrel(root, joinrel, rel1, rel2,
-									 JOIN_UNIQUE_INNER, sjinfo,
-									 restrictlist);
-				add_paths_to_joinrel(root, joinrel, rel2, rel1,
-									 JOIN_UNIQUE_OUTER, sjinfo,
-									 restrictlist);
-			}
-			break;
-		case JOIN_ANTI:
-			if (is_dummy_rel(rel1) ||
-				restriction_is_constant_false(restrictlist, true))
-			{
-				mark_dummy_rel(joinrel);
-				break;
-			}
-			if (restriction_is_constant_false(restrictlist, false) &&
-				bms_is_subset(rel2->relids, sjinfo->syn_righthand))
-				mark_dummy_rel(rel2);
-			add_paths_to_joinrel(root, joinrel, rel1, rel2,
-								 JOIN_ANTI, sjinfo,
-								 restrictlist);
-			break;
-		default:
-			/* other values not expected here */
-			elog(ERROR, "unrecognized join type: %d", (int) sjinfo->jointype);
-			break;
-	}
-
-	/* Apply partition-wise join technique, if possible. */
-	try_partition_wise_join(root, rel1, rel2, joinrel, sjinfo, restrictlist);
-}
-
-
-/*
- * have_join_order_restriction
- *		Detect whether the two relations should be joined to satisfy
- *		a join-order restriction arising from special or lateral joins.
- *
- * In practice this is always used with have_relevant_joinclause(), and so
- * could be merged with that function, but it seems clearer to separate the
- * two concerns.  We need this test because there are degenerate cases where
- * a clauseless join must be performed to satisfy join-order restrictions.
- * Also, if one rel has a lateral reference to the other, or both are needed
- * to compute some PHV, we should consider joining them even if the join would
- * be clauseless.
- *
- * Note: this is only a problem if one side of a degenerate outer join
- * contains multiple rels, or a clauseless join is required within an
- * IN/EXISTS RHS; else we will find a join path via the "last ditch" case in
- * join_search_one_level().  We could dispense with this test if we were
- * willing to try bushy plans in the "last ditch" case, but that seems much
- * less efficient.
- */
-bool
-have_join_order_restriction(PlannerInfo *root,
-							RelOptInfo *rel1, RelOptInfo *rel2)
-{
-	bool		result = false;
-	ListCell   *l;
-
-	/*
-	 * If either side has a direct lateral reference to the other, attempt the
-	 * join regardless of outer-join considerations.
-	 */
-	if (bms_overlap(rel1->relids, rel2->direct_lateral_relids) ||
-		bms_overlap(rel2->relids, rel1->direct_lateral_relids))
-		return true;
-
-	/*
-	 * Likewise, if both rels are needed to compute some PlaceHolderVar,
-	 * attempt the join regardless of outer-join considerations.  (This is not
-	 * very desirable, because a PHV with a large eval_at set will cause a lot
-	 * of probably-useless joins to be considered, but failing to do this can
-	 * cause us to fail to construct a plan at all.)
-	 */
-	foreach(l, root->placeholder_list)
-	{
-		PlaceHolderInfo *phinfo = (PlaceHolderInfo *) lfirst(l);
-
-		if (bms_is_subset(rel1->relids, phinfo->ph_eval_at) &&
-			bms_is_subset(rel2->relids, phinfo->ph_eval_at))
-			return true;
-	}
-
-	/*
-	 * It's possible that the rels correspond to the left and right sides of a
-	 * degenerate outer join, that is, one with no joinclause mentioning the
-	 * non-nullable side; in which case we should force the join to occur.
-	 *
-	 * Also, the two rels could represent a clauseless join that has to be
-	 * completed to build up the LHS or RHS of an outer join.
-	 */
-	foreach(l, root->join_info_list)
-	{
-		SpecialJoinInfo *sjinfo = (SpecialJoinInfo *) lfirst(l);
-
-		/* ignore full joins --- other mechanisms handle them */
-		if (sjinfo->jointype == JOIN_FULL)
-			continue;
-
-		/* Can we perform the SJ with these rels? */
-		if (bms_is_subset(sjinfo->min_lefthand, rel1->relids) &&
-			bms_is_subset(sjinfo->min_righthand, rel2->relids))
-		{
-			result = true;
-			break;
-		}
-		if (bms_is_subset(sjinfo->min_lefthand, rel2->relids) &&
-			bms_is_subset(sjinfo->min_righthand, rel1->relids))
-		{
-			result = true;
-			break;
-		}
-
-		/*
-		 * Might we need to join these rels to complete the RHS?  We have to
-		 * use "overlap" tests since either rel might include a lower SJ that
-		 * has been proven to commute with this one.
-		 */
-		if (bms_overlap(sjinfo->min_righthand, rel1->relids) &&
-			bms_overlap(sjinfo->min_righthand, rel2->relids))
-		{
-			result = true;
-			break;
-		}
-
-		/* Likewise for the LHS. */
-		if (bms_overlap(sjinfo->min_lefthand, rel1->relids) &&
-			bms_overlap(sjinfo->min_lefthand, rel2->relids))
-		{
-			result = true;
-			break;
-		}
-	}
-
-	/*
-	 * We do not force the join to occur if either input rel can legally be
-	 * joined to anything else using joinclauses.  This essentially means that
-	 * clauseless bushy joins are put off as long as possible. The reason is
-	 * that when there is a join order restriction high up in the join tree
-	 * (that is, with many rels inside the LHS or RHS), we would otherwise
-	 * expend lots of effort considering very stupid join combinations within
-	 * its LHS or RHS.
-	 */
-	if (result)
-	{
-		if (has_legal_joinclause(root, rel1) ||
-			has_legal_joinclause(root, rel2))
-			result = false;
-	}
-
-	return result;
-}
-
-
-/*
- * has_join_restriction
- *		Detect whether the specified relation has join-order restrictions,
- *		due to being inside an outer join or an IN (sub-SELECT),
- *		or participating in any LATERAL references or multi-rel PHVs.
- *
- * Essentially, this tests whether have_join_order_restriction() could
- * succeed with this rel and some other one.  It's OK if we sometimes
- * say "true" incorrectly.  (Therefore, we don't bother with the relatively
- * expensive has_legal_joinclause test.)
- */
-static bool
-has_join_restriction(PlannerInfo *root, RelOptInfo *rel)
-{
-	ListCell   *l;
-
-	if (rel->lateral_relids != NULL || rel->lateral_referencers != NULL)
-		return true;
-
-	foreach(l, root->placeholder_list)
-	{
-		PlaceHolderInfo *phinfo = (PlaceHolderInfo *) lfirst(l);
-
-		if (bms_is_subset(rel->relids, phinfo->ph_eval_at) &&
-			!bms_equal(rel->relids, phinfo->ph_eval_at))
-			return true;
-	}
-
-	foreach(l, root->join_info_list)
-	{
-		SpecialJoinInfo *sjinfo = (SpecialJoinInfo *) lfirst(l);
-
-		/* ignore full joins --- other mechanisms preserve their ordering */
-		if (sjinfo->jointype == JOIN_FULL)
-			continue;
-
-		/* ignore if SJ is already contained in rel */
-		if (bms_is_subset(sjinfo->min_lefthand, rel->relids) &&
-			bms_is_subset(sjinfo->min_righthand, rel->relids))
-			continue;
-
-		/* restricted if it overlaps LHS or RHS, but doesn't contain SJ */
-		if (bms_overlap(sjinfo->min_lefthand, rel->relids) ||
-			bms_overlap(sjinfo->min_righthand, rel->relids))
-			return true;
-	}
-
-	return false;
-}
-
-
-/*
- * has_legal_joinclause
- *		Detect whether the specified relation can legally be joined
- *		to any other rels using join clauses.
- *
- * We consider only joins to single other relations in the current
- * initial_rels list.  This is sufficient to get a "true" result in most real
- * queries, and an occasional erroneous "false" will only cost a bit more
- * planning time.  The reason for this limitation is that considering joins to
- * other joins would require proving that the other join rel can legally be
- * formed, which seems like too much trouble for something that's only a
- * heuristic to save planning time.  (Note: we must look at initial_rels
- * and not all of the query, since when we are planning a sub-joinlist we
- * may be forced to make clauseless joins within initial_rels even though
- * there are join clauses linking to other parts of the query.)
- */
-static bool
-has_legal_joinclause(PlannerInfo *root, RelOptInfo *rel)
-{
-	ListCell   *lc;
-
-	foreach(lc, root->initial_rels)
-	{
-		RelOptInfo *rel2 = (RelOptInfo *) lfirst(lc);
-
-		/* ignore rels that are already in "rel" */
-		if (bms_overlap(rel->relids, rel2->relids))
-			continue;
-
-		if (have_relevant_joinclause(root, rel, rel2))
-		{
-			Relids		joinrelids;
-			SpecialJoinInfo *sjinfo;
-			bool		reversed;
-
-			/* join_is_legal needs relids of the union */
-			joinrelids = bms_union(rel->relids, rel2->relids);
-
-			if (join_is_legal(root, rel, rel2, joinrelids,
-							  &sjinfo, &reversed))
-			{
-				/* Yes, this will work */
-				bms_free(joinrelids);
-				return true;
-			}
-
-			bms_free(joinrelids);
-		}
-	}
-
-	return false;
-}
-
-
-/*
- * There's a pitfall for creating parameterized nestloops: suppose the inner
- * rel (call it A) has a parameter that is a PlaceHolderVar, and that PHV's
- * minimum eval_at set includes the outer rel (B) and some third rel (C).
- * We might think we could create a B/A nestloop join that's parameterized by
- * C.  But we would end up with a plan in which the PHV's expression has to be
- * evaluated as a nestloop parameter at the B/A join; and the executor is only
- * set up to handle simple Vars as NestLoopParams.  Rather than add complexity
- * and overhead to the executor for such corner cases, it seems better to
- * forbid the join.  (Note that we can still make use of A's parameterized
- * path with pre-joined B+C as the outer rel.  have_join_order_restriction()
- * ensures that we will consider making such a join even if there are not
- * other reasons to do so.)
- *
- * So we check whether any PHVs used in the query could pose such a hazard.
- * We don't have any simple way of checking whether a risky PHV would actually
- * be used in the inner plan, and the case is so unusual that it doesn't seem
- * worth working very hard on it.
- *
- * This needs to be checked in two places.  If the inner rel's minimum
- * parameterization would trigger the restriction, then join_is_legal() should
- * reject the join altogether, because there will be no workable paths for it.
- * But joinpath.c has to check again for every proposed nestloop path, because
- * the inner path might have more than the minimum parameterization, causing
- * some PHV to be dangerous for it that otherwise wouldn't be.
- */
-bool
-have_dangerous_phv(PlannerInfo *root,
-				   Relids outer_relids, Relids inner_params)
-{
-	ListCell   *lc;
-
-	foreach(lc, root->placeholder_list)
-	{
-		PlaceHolderInfo *phinfo = (PlaceHolderInfo *) lfirst(lc);
-
-		if (!bms_is_subset(phinfo->ph_eval_at, inner_params))
-			continue;			/* ignore, could not be a nestloop param */
-		if (!bms_overlap(phinfo->ph_eval_at, outer_relids))
-			continue;			/* ignore, not relevant to this join */
-		if (bms_is_subset(phinfo->ph_eval_at, outer_relids))
-			continue;			/* safe, it can be eval'd within outerrel */
-		/* Otherwise, it's potentially unsafe, so reject the join */
-		return true;
-	}
-
-	/* OK to perform the join */
-	return false;
-}
-
-
-/*
- * is_dummy_rel --- has relation been proven empty?
- */
-static bool
-is_dummy_rel(RelOptInfo *rel)
-{
-	return IS_DUMMY_REL(rel);
-}
-
-/*
- * Mark a relation as proven empty.
- *
- * During GEQO planning, this can get invoked more than once on the same
- * baserel struct, so it's worth checking to see if the rel is already marked
- * dummy.
- *
- * Also, when called during GEQO join planning, we are in a short-lived
- * memory context.  We must make sure that the dummy path attached to a
- * baserel survives the GEQO cycle, else the baserel is trashed for future
- * GEQO cycles.  On the other hand, when we are marking a joinrel during GEQO,
- * we don't want the dummy path to clutter the main planning context.  Upshot
- * is that the best solution is to explicitly make the dummy path in the same
- * context the given RelOptInfo is in.
- */
-void
-mark_dummy_rel(RelOptInfo *rel)
-{
-	MemoryContext oldcontext;
-
-	/* Already marked? */
-	if (is_dummy_rel(rel))
-		return;
-
-	/* No, so choose correct context to make the dummy path in */
-	oldcontext = MemoryContextSwitchTo(GetMemoryChunkContext(rel));
-
-	/* Set dummy size estimate */
-	rel->rows = 0;
-
-	/* Evict any previously chosen paths */
-	rel->pathlist = NIL;
-	rel->partial_pathlist = NIL;
-
-	/* Set up the dummy path */
-	add_path(rel, (Path *) create_append_path(rel, NIL, NULL, 0, NIL));
-
-	/* Set or update cheapest_total_path and related fields */
-	set_cheapest(rel);
-
-	MemoryContextSwitchTo(oldcontext);
-}
-
-
-/*
- * restriction_is_constant_false --- is a restrictlist just FALSE?
- *
- * In cases where a qual is provably constant FALSE, eval_const_expressions
- * will generally have thrown away anything that's ANDed with it.  In outer
- * join situations this will leave us computing cartesian products only to
- * decide there's no match for an outer row, which is pretty stupid.  So,
- * we need to detect the case.
- *
- * If only_pushed_down is true, then consider only pushed-down quals.
- */
-static bool
-restriction_is_constant_false(List *restrictlist, bool only_pushed_down)
-{
-	ListCell   *lc;
-
-	/*
-	 * Despite the above comment, the restriction list we see here might
-	 * possibly have other members besides the FALSE constant, since other
-	 * quals could get "pushed down" to the outer join level.  So we check
-	 * each member of the list.
-	 */
-	foreach(lc, restrictlist)
-	{
-		RestrictInfo *rinfo = lfirst_node(RestrictInfo, lc);
-
-		if (only_pushed_down && !rinfo->is_pushed_down)
-			continue;
-
-		if (rinfo->clause && IsA(rinfo->clause, Const))
-		{
-			Const	   *con = (Const *) rinfo->clause;
-
-			/* constant NULL is as good as constant FALSE for our purposes */
-			if (con->constisnull)
-				return true;
-			if (!DatumGetBool(con->constvalue))
-				return true;
-		}
-	}
-	return false;
-}
-
-/*
- * Assess whether join between given two partitioned relations can be broken
- * down into joins between matching partitions; a technique called
- * "partition-wise join"
- *
- * Partition-wise join is possible when a. Joining relations have same
- * partitioning scheme b. There exists an equi-join between the partition keys
- * of the two relations.
- *
- * Partition-wise join is planned as follows (details: optimizer/README.)
- *
- * 1. Create the RelOptInfos for joins between matching partitions i.e
- * child-joins and add paths to them.
- *
- * 2. Construct Append or MergeAppend paths across the set of child joins.
- * This second phase is implemented by generate_partition_wise_join_paths().
- *
- * The RelOptInfo, SpecialJoinInfo and restrictlist for each child join are
- * obtained by translating the respective parent join structures.
- */
-static void
-try_partition_wise_join(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
-						RelOptInfo *joinrel, SpecialJoinInfo *parent_sjinfo,
-						List *parent_restrictlist)
-{
-	int			nparts;
-	int			cnt_parts;
-
-	/* Guard against stack overflow due to overly deep partition hierarchy. */
-	check_stack_depth();
-
-	/* Nothing to do, if the join relation is not partitioned. */
-	if (!IS_PARTITIONED_REL(joinrel))
-		return;
-
-	/*
-	 * set_rel_pathlist() may not create paths in children of an empty
-	 * partitioned table and so we can not add paths to child-joins. So, deem
-	 * such a join as unpartitioned. When a partitioned relation is deemed
-	 * empty because all its children are empty, dummy path will be set in
-	 * each of the children.  In such a case we could still consider the join
-	 * as partitioned, but it might not help much.
-	 */
-	if (IS_DUMMY_REL(rel1) || IS_DUMMY_REL(rel2))
-		return;
-
-	/*
-	 * Since this join relation is partitioned, all the base relations
-	 * participating in this join must be partitioned and so are all the
-	 * intermediate join relations.
-	 */
-	Assert(IS_PARTITIONED_REL(rel1) && IS_PARTITIONED_REL(rel2));
-	Assert(REL_HAS_ALL_PART_PROPS(rel1) && REL_HAS_ALL_PART_PROPS(rel2));
-
-	/*
-	 * The partition scheme of the join relation should match that of the
-	 * joining relations.
-	 */
-	Assert(joinrel->part_scheme == rel1->part_scheme &&
-		   joinrel->part_scheme == rel2->part_scheme);
-
-	/*
-	 * Since we allow partition-wise join only when the partition bounds of
-	 * the joining relations exactly match, the partition bounds of the join
-	 * should match those of the joining relations.
-	 */
-	Assert(partition_bounds_equal(joinrel->part_scheme->partnatts,
-								  joinrel->part_scheme->parttyplen,
-								  joinrel->part_scheme->parttypbyval,
-								  joinrel->boundinfo, rel1->boundinfo));
-	Assert(partition_bounds_equal(joinrel->part_scheme->partnatts,
-								  joinrel->part_scheme->parttyplen,
-								  joinrel->part_scheme->parttypbyval,
-								  joinrel->boundinfo, rel2->boundinfo));
-
-	nparts = joinrel->nparts;
-
-	/* Allocate space to hold child-joins RelOptInfos, if not already done. */
-	if (!joinrel->part_rels)
-		joinrel->part_rels =
-			(RelOptInfo **) palloc0(sizeof(RelOptInfo *) * nparts);
-
-	/*
-	 * Create child-join relations for this partitioned join, if those don't
-	 * exist. Add paths to child-joins for a pair of child relations
-	 * corresponding to the given pair of parent relations.
-	 */
-	for (cnt_parts = 0; cnt_parts < nparts; cnt_parts++)
-	{
-		RelOptInfo *child_rel1 = rel1->part_rels[cnt_parts];
-		RelOptInfo *child_rel2 = rel2->part_rels[cnt_parts];
-		SpecialJoinInfo *child_sjinfo;
-		List	   *child_restrictlist;
-		RelOptInfo *child_joinrel;
-		Relids		child_joinrelids;
-		AppendRelInfo **appinfos;
-		int			nappinfos;
-
-		/* We should never try to join two overlapping sets of rels. */
-		Assert(!bms_overlap(child_rel1->relids, child_rel2->relids));
-		child_joinrelids = bms_union(child_rel1->relids, child_rel2->relids);
-		appinfos = find_appinfos_by_relids(root, child_joinrelids, &nappinfos);
-
-		/*
-		 * Construct SpecialJoinInfo from parent join relations's
-		 * SpecialJoinInfo.
-		 */
-		child_sjinfo = build_child_join_sjinfo(root, parent_sjinfo,
-											   child_rel1->relids,
-											   child_rel2->relids);
-
-		/*
-		 * Construct restrictions applicable to the child join from those
-		 * applicable to the parent join.
-		 */
-		child_restrictlist =
-			(List *) adjust_appendrel_attrs(root,
-											(Node *) parent_restrictlist,
-											nappinfos, appinfos);
-		pfree(appinfos);
-
-		child_joinrel = joinrel->part_rels[cnt_parts];
-		if (!child_joinrel)
-		{
-			child_joinrel = build_child_join_rel(root, child_rel1, child_rel2,
-												 joinrel, child_restrictlist,
-												 child_sjinfo,
-												 child_sjinfo->jointype);
-			joinrel->part_rels[cnt_parts] = child_joinrel;
-		}
-
-		Assert(bms_equal(child_joinrel->relids, child_joinrelids));
-
-		populate_joinrel_with_paths(root, child_rel1, child_rel2,
-									child_joinrel, child_sjinfo,
-									child_restrictlist);
-	}
-}
-
-/*
- * Returns true if there exists an equi-join condition for each pair of
- * partition keys from given relations being joined.
- */
-bool
-have_partkey_equi_join(RelOptInfo *rel1, RelOptInfo *rel2, JoinType jointype,
-					   List *restrictlist)
-{
-	PartitionScheme part_scheme = rel1->part_scheme;
-	ListCell   *lc;
-	int			cnt_pks;
-	bool		pk_has_clause[PARTITION_MAX_KEYS];
-	bool		strict_op;
-
-	/*
-	 * This function should be called when the joining relations have same
-	 * partitioning scheme.
-	 */
-	Assert(rel1->part_scheme == rel2->part_scheme);
-	Assert(part_scheme);
-
-	memset(pk_has_clause, 0, sizeof(pk_has_clause));
-	foreach(lc, restrictlist)
-	{
-		RestrictInfo *rinfo = lfirst_node(RestrictInfo, lc);
-		OpExpr	   *opexpr;
-		Expr	   *expr1;
-		Expr	   *expr2;
-		int			ipk1;
-		int			ipk2;
-
-		/* If processing an outer join, only use its own join clauses. */
-		if (IS_OUTER_JOIN(jointype) && rinfo->is_pushed_down)
-			continue;
-
-		/* Skip clauses which can not be used for a join. */
-		if (!rinfo->can_join)
-			continue;
-
-		/* Skip clauses which are not equality conditions. */
-		if (!rinfo->mergeopfamilies && !OidIsValid(rinfo->hashjoinoperator))
-			continue;
-
-		opexpr = (OpExpr *) rinfo->clause;
-		Assert(is_opclause(opexpr));
-
-		/*
-		 * The equi-join between partition keys is strict if equi-join between
-		 * at least one partition key is using a strict operator. See
-		 * explanation about outer join reordering identity 3 in
-		 * optimizer/README
-		 */
-		strict_op = op_strict(opexpr->opno);
-
-		/* Match the operands to the relation. */
-		if (bms_is_subset(rinfo->left_relids, rel1->relids) &&
-			bms_is_subset(rinfo->right_relids, rel2->relids))
-		{
-			expr1 = linitial(opexpr->args);
-			expr2 = lsecond(opexpr->args);
-		}
-		else if (bms_is_subset(rinfo->left_relids, rel2->relids) &&
-				 bms_is_subset(rinfo->right_relids, rel1->relids))
-		{
-			expr1 = lsecond(opexpr->args);
-			expr2 = linitial(opexpr->args);
-		}
-		else
-			continue;
-
-		/*
-		 * Only clauses referencing the partition keys are useful for
-		 * partition-wise join.
-		 */
-		ipk1 = match_expr_to_partition_keys(expr1, rel1, strict_op);
-		if (ipk1 < 0)
-			continue;
-		ipk2 = match_expr_to_partition_keys(expr2, rel2, strict_op);
-		if (ipk2 < 0)
-			continue;
-
-		/*
-		 * If the clause refers to keys at different ordinal positions, it can
-		 * not be used for partition-wise join.
-		 */
-		if (ipk1 != ipk2)
-			continue;
-
-		/*
-		 * The clause allows partition-wise join if only it uses the same
-		 * operator family as that specified by the partition key.
-		 */
-		if (rel1->part_scheme->strategy == PARTITION_STRATEGY_HASH)
-		{
-			if (!op_in_opfamily(rinfo->hashjoinoperator,
-								part_scheme->partopfamily[ipk1]))
-				continue;
-		}
-		else if (!list_member_oid(rinfo->mergeopfamilies,
-								  part_scheme->partopfamily[ipk1]))
-			continue;
-
-		/* Mark the partition key as having an equi-join clause. */
-		pk_has_clause[ipk1] = true;
-	}
-
-	/* Check whether every partition key has an equi-join condition. */
-	for (cnt_pks = 0; cnt_pks < part_scheme->partnatts; cnt_pks++)
-	{
-		if (!pk_has_clause[cnt_pks])
-			return false;
-	}
-
-	return true;
-}
-
-/*
- * Find the partition key from the given relation matching the given
- * expression. If found, return the index of the partition key, else return -1.
- */
-static int
-match_expr_to_partition_keys(Expr *expr, RelOptInfo *rel, bool strict_op)
-{
-	int			cnt;
-
-	/* This function should be called only for partitioned relations. */
-	Assert(rel->part_scheme);
-
-	/* Remove any relabel decorations. */
-	while (IsA(expr, RelabelType))
-		expr = (Expr *) (castNode(RelabelType, expr))->arg;
-
-	for (cnt = 0; cnt < rel->part_scheme->partnatts; cnt++)
-	{
-		ListCell   *lc;
-
-		Assert(rel->partexprs);
-		foreach(lc, rel->partexprs[cnt])
-		{
-			if (equal(lfirst(lc), expr))
-				return cnt;
-		}
-
-		if (!strict_op)
-			continue;
-
-		/*
-		 * If it's a strict equi-join a NULL partition key on one side will
-		 * not join a NULL partition key on the other side. So, rows with NULL
-		 * partition key from a partition on one side can not join with those
-		 * from a non-matching partition on the other side. So, search the
-		 * nullable partition keys as well.
-		 */
-		Assert(rel->nullable_partexprs);
-		foreach(lc, rel->nullable_partexprs[cnt])
-		{
-			if (equal(lfirst(lc), expr))
-				return cnt;
-		}
-	}
-
-	return -1;
 }

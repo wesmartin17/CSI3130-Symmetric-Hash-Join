@@ -1,14 +1,10 @@
 /*
  * txtquery operations with ltree
  * Teodor Sigaev <teodor@stack.net>
- * contrib/ltree/ltxtquery_op.c
  */
-#include "postgres.h"
-
-#include <ctype.h>
 
 #include "ltree.h"
-#include "miscadmin.h"
+#include <ctype.h>
 
 PG_FUNCTION_INFO_V1(ltxtq_exec);
 PG_FUNCTION_INFO_V1(ltxtq_rexec);
@@ -17,20 +13,17 @@ PG_FUNCTION_INFO_V1(ltxtq_rexec);
  * check for boolean condition
  */
 bool
-ltree_execute(ITEM *curitem, void *checkval, bool calcnot, bool (*chkcond) (void *checkval, ITEM *val))
+ltree_execute(ITEM * curitem, void *checkval, bool calcnot, bool (*chkcond) (void *checkval, ITEM * val))
 {
-	/* since this function recurses, it could be driven to stack overflow */
-	check_stack_depth();
-
 	if (curitem->type == VAL)
 		return (*chkcond) (checkval, curitem);
-	else if (curitem->val == (int32) '!')
+	else if (curitem->val == (int4) '!')
 	{
-		return calcnot ?
+		return (calcnot) ?
 			((ltree_execute(curitem + 1, checkval, calcnot, chkcond)) ? false : true)
 			: true;
 	}
-	else if (curitem->val == (int32) '&')
+	else if (curitem->val == (int4) '&')
 	{
 		if (ltree_execute(curitem + curitem->left, checkval, calcnot, chkcond))
 			return ltree_execute(curitem + 1, checkval, calcnot, chkcond);
@@ -44,26 +37,27 @@ ltree_execute(ITEM *curitem, void *checkval, bool calcnot, bool (*chkcond) (void
 		else
 			return ltree_execute(curitem + 1, checkval, calcnot, chkcond);
 	}
+	return false;
 }
 
 typedef struct
 {
 	ltree	   *node;
 	char	   *operand;
-} CHKVAL;
+}	CHKVAL;
 
 static bool
-checkcondition_str(void *checkval, ITEM *val)
+checkcondition_str(void *checkval, ITEM * val)
 {
 	ltree_level *level = LTREE_FIRST(((CHKVAL *) checkval)->node);
 	int			tlen = ((CHKVAL *) checkval)->node->numlevel;
 	char	   *op = ((CHKVAL *) checkval)->operand + val->distance;
 	int			(*cmpptr) (const char *, const char *, size_t);
 
-	cmpptr = (val->flag & LVAR_INCASE) ? ltree_strncasecmp : strncmp;
+	cmpptr = (val->flag & LVAR_INCASE) ? pg_strncasecmp : strncmp;
 	while (tlen > 0)
 	{
-		if (val->flag & LVAR_SUBLEXEME)
+		if (val->flag & LVAR_SUBLEXEM)
 		{
 			if (compare_subnode(level, op, val->length, cmpptr, (val->flag & LVAR_ANYEND)))
 				return true;
@@ -86,8 +80,8 @@ checkcondition_str(void *checkval, ITEM *val)
 Datum
 ltxtq_exec(PG_FUNCTION_ARGS)
 {
-	ltree	   *val = PG_GETARG_LTREE_P(0);
-	ltxtquery  *query = PG_GETARG_LTXTQUERY_P(1);
+	ltree	   *val = PG_GETARG_LTREE(0);
+	ltxtquery  *query = PG_GETARG_LTXTQUERY(1);
 	CHKVAL		chkval;
 	bool		result;
 

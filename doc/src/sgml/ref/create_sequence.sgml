@@ -1,16 +1,11 @@
 <!--
-doc/src/sgml/ref/create_sequence.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_sequence.sgml,v 1.43 2005/11/01 21:09:50 tgl Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-createsequence">
- <indexterm zone="sql-createsequence">
-  <primary>CREATE SEQUENCE</primary>
- </indexterm>
-
+<refentry id="SQL-CREATESEQUENCE">
  <refmeta>
-  <refentrytitle>CREATE SEQUENCE</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="sql-createsequence-title">CREATE SEQUENCE</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -19,14 +14,15 @@ PostgreSQL documentation
   <refpurpose>define a new sequence generator</refpurpose>
  </refnamediv>
 
+ <indexterm zone="sql-createsequence">
+  <primary>CREATE SEQUENCE</primary>
+ </indexterm>
+
  <refsynopsisdiv>
 <synopsis>
-CREATE [ TEMPORARY | TEMP ] SEQUENCE [ IF NOT EXISTS ] <replaceable class="parameter">name</replaceable>
-    [ AS <replaceable class="parameter">data_type</replaceable> ]
-    [ INCREMENT [ BY ] <replaceable class="parameter">increment</replaceable> ]
+CREATE [ TEMPORARY | TEMP ] SEQUENCE <replaceable class="parameter">name</replaceable> [ INCREMENT [ BY ] <replaceable class="parameter">increment</replaceable> ]
     [ MINVALUE <replaceable class="parameter">minvalue</replaceable> | NO MINVALUE ] [ MAXVALUE <replaceable class="parameter">maxvalue</replaceable> | NO MAXVALUE ]
     [ START [ WITH ] <replaceable class="parameter">start</replaceable> ] [ CACHE <replaceable class="parameter">cache</replaceable> ] [ [ NO ] CYCLE ]
-    [ OWNED BY { <replaceable class="parameter">table_name</replaceable>.<replaceable class="parameter">column_name</replaceable> | NONE } ]
 </synopsis>
  </refsynopsisdiv>
 
@@ -44,10 +40,10 @@ CREATE [ TEMPORARY | TEMP ] SEQUENCE [ IF NOT EXISTS ] <replaceable class="param
   <para>
    If a schema name is given then the sequence is created in the
    specified schema.  Otherwise it is created in the current schema.
-   Temporary sequences exist in a special schema, so a schema name cannot be
+   Temporary sequences exist in a special schema, so a schema name may not be
    given when creating a temporary sequence.
    The sequence name must be distinct from the name of any other sequence,
-   table, index, view, or foreign table in the same schema.
+   table, index, or view in the same schema.
   </para>
 
   <para>
@@ -56,21 +52,21 @@ CREATE [ TEMPORARY | TEMP ] SEQUENCE [ IF NOT EXISTS ] <replaceable class="param
    <function>currval</function>, and
    <function>setval</function>
    to operate on the sequence.  These functions are documented in
-   <xref linkend="functions-sequence"/>.
+   <xref linkend="functions-sequence">.
   </para>
 
   <para>
-   Although you cannot update a sequence directly, you can use a query like:
+   Although you cannot update a sequence directly, you can use a query like
 
 <programlisting>
 SELECT * FROM <replaceable>name</replaceable>;
 </programlisting>
 
    to examine the parameters and current state of a sequence.  In particular,
-   the <literal>last_value</literal> field of the sequence shows the last value
-   allocated by any session.  (Of course, this value might be obsolete
+   the <literal>last_value</> field of the sequence shows the last value
+   allocated by any session.  (Of course, this value may be obsolete
    by the time it's printed, if other sessions are actively doing
-   <function>nextval</function> calls.)
+   <function>nextval</> calls.)
   </para>
  </refsect1>
 
@@ -92,37 +88,10 @@ SELECT * FROM <replaceable>name</replaceable>;
    </varlistentry>
 
    <varlistentry>
-    <term><literal>IF NOT EXISTS</literal></term>
-    <listitem>
-     <para>
-      Do not throw an error if a relation with the same name already exists.
-      A notice is issued in this case. Note that there is no guarantee that
-      the existing relation is anything like the sequence that would have
-      been created - it might not even be a sequence.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
     <term><replaceable class="parameter">name</replaceable></term>
     <listitem>
      <para>
       The name (optionally schema-qualified) of the sequence to be created.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">data_type</replaceable></term>
-    <listitem>
-     <para>
-      The optional
-      clause <literal>AS <replaceable class="parameter">data_type</replaceable></literal>
-      specifies the data type of the sequence.  Valid types are
-      <literal>smallint</literal>, <literal>integer</literal>,
-      and <literal>bigint</literal>.  <literal>bigint</literal> is the
-      default.  The data type determines the default minimum and maximum
-      values of the sequence.
      </para>
     </listitem>
    </varlistentry>
@@ -149,8 +118,9 @@ SELECT * FROM <replaceable>name</replaceable>;
       class="parameter">minvalue</replaceable></literal> determines
       the minimum value a sequence can generate. If this clause is not
       supplied or <option>NO MINVALUE</option> is specified, then
-      defaults will be used.  The default for an ascending sequence is 1.  The
-      default for a descending sequence is the minimum value of the data type.
+      defaults will be used.  The defaults are 1 and
+      -2<superscript>63</>-1 for ascending and descending sequences,
+      respectively.
      </para>
     </listitem>
    </varlistentry>
@@ -164,9 +134,9 @@ SELECT * FROM <replaceable>name</replaceable>;
       class="parameter">maxvalue</replaceable></literal> determines
       the maximum value for the sequence. If this clause is not
       supplied or <option>NO MAXVALUE</option> is specified, then
-      default values will be used.  The default for an ascending sequence is
-      the maximum value of the data type.  The default for a descending
-      sequence is -1.
+      default values will be used.  The defaults are
+      2<superscript>63</>-1 and -1 for ascending and descending
+      sequences, respectively.
      </para>
     </listitem>
    </varlistentry>
@@ -223,22 +193,6 @@ SELECT * FROM <replaceable>name</replaceable>;
      </para>
     </listitem>
    </varlistentry>
-
-   <varlistentry>
-    <term><literal>OWNED BY</literal> <replaceable class="parameter">table_name</replaceable>.<replaceable class="parameter">column_name</replaceable></term>
-    <term><literal>OWNED BY NONE</literal></term>
-    <listitem>
-     <para>
-      The <literal>OWNED BY</literal> option causes the sequence to be
-      associated with a specific table column, such that if that column
-      (or its whole table) is dropped, the sequence will be automatically
-      dropped as well.  The specified table must have the same owner and be in
-      the same schema as the sequence.
-      <literal>OWNED BY NONE</literal>, the default, specifies that there
-      is no such association.
-     </para>
-    </listitem>
-   </varlistentry>
   </variablelist>
  </refsect1>
 
@@ -250,30 +204,23 @@ SELECT * FROM <replaceable>name</replaceable>;
   </para>
 
   <para>
-   Sequences are based on <type>bigint</type> arithmetic, so the range
+   Sequences are based on <type>bigint</> arithmetic, so the range
    cannot exceed the range of an eight-byte integer
-   (-9223372036854775808 to 9223372036854775807).
+   (-9223372036854775808 to 9223372036854775807).  On some older
+   platforms, there may be no compiler support for eight-byte
+   integers, in which case sequences use regular <type>integer</>
+   arithmetic (range -2147483648 to +2147483647).
   </para>
 
   <para>
-   Because <function>nextval</function> and <function>setval</function> calls are never
-   rolled back, sequence objects cannot be used if <quote>gapless</quote>
-   assignment of sequence numbers is needed.  It is possible to build
-   gapless assignment by using exclusive locking of a table containing a
-   counter; but this solution is much more expensive than sequence
-   objects, especially if many transactions need sequence numbers
-   concurrently.
-  </para>
-
-  <para>
-   Unexpected results might be obtained if a <replaceable
+   Unexpected results may be obtained if a <replaceable
    class="parameter">cache</replaceable> setting greater than one is
    used for a sequence object that will be used concurrently by
    multiple sessions.  Each session will allocate and cache successive
    sequence values during one access to the sequence object and
-   increase the sequence object's <literal>last_value</literal> accordingly.
+   increase the sequence object's <literal>last_value</> accordingly.
    Then, the next <replaceable class="parameter">cache</replaceable>-1
-   uses of <function>nextval</function> within that session simply return the
+   uses of <function>nextval</> within that session simply return the
    preallocated values without touching the sequence object.  So, any
    numbers allocated but not used within a session will be lost when
    that session ends, resulting in <quote>holes</quote> in the
@@ -282,7 +229,7 @@ SELECT * FROM <replaceable>name</replaceable>;
 
   <para>
    Furthermore, although multiple sessions are guaranteed to allocate
-   distinct sequence values, the values might be generated out of
+   distinct sequence values, the values may be generated out of
    sequence when all the sessions are considered.  For example, with
    a <replaceable class="parameter">cache</replaceable> setting of 10,
    session A might reserve values 1..10 and return
@@ -290,18 +237,18 @@ SELECT * FROM <replaceable>name</replaceable>;
    11..20 and return <function>nextval</function>=11 before session A
    has generated <literal>nextval</literal>=2.  Thus, with a
    <replaceable class="parameter">cache</replaceable> setting of one
-   it is safe to assume that <function>nextval</function> values are generated
+   it is safe to assume that <function>nextval</> values are generated
    sequentially; with a <replaceable
    class="parameter">cache</replaceable> setting greater than one you
-   should only assume that the <function>nextval</function> values are all
+   should only assume that the <function>nextval</> values are all
    distinct, not that they are generated purely sequentially.  Also,
-   <literal>last_value</literal> will reflect the latest value reserved by
+   <literal>last_value</> will reflect the latest value reserved by
    any session, whether or not it has yet been returned by
-   <function>nextval</function>.
+   <function>nextval</>.
   </para>
 
   <para>
-   Another consideration is that a <function>setval</function> executed on
+   Another consideration is that a <function>setval</> executed on
    such a sequence will not be noticed by other sessions until they
    have used up any preallocated values they have cached.
   </para>
@@ -324,18 +271,7 @@ SELECT nextval('serial');
 
  nextval
 ---------
-     101
-</programlisting>
-  </para>
-
-  <para>
-   Select the next number from this sequence:
-<programlisting>
-SELECT nextval('serial');
-
- nextval
----------
-     102
+     114
 </programlisting>
   </para>
 
@@ -353,7 +289,8 @@ BEGIN;
 COPY distributors FROM 'input_file';
 SELECT setval('serial', max(id)) FROM distributors;
 END;
-</programlisting></para>
+</programlisting>
+  </para>
  </refsect1>
 
  <refsect1>
@@ -363,29 +300,26 @@ END;
    <command>CREATE SEQUENCE</command> conforms to the <acronym>SQL</acronym>
    standard, with the following exceptions:
    <itemizedlist>
-    <listitem>
-     <para>
-      Obtaining the next value is done using the <function>nextval()</function>
-      function instead of the standard's <command>NEXT VALUE FOR</command>
-      expression.
-     </para>
-    </listitem>
-    <listitem>
-     <para>
-      The <literal>OWNED BY</literal> clause is a <productname>PostgreSQL</productname>
-      extension.
-     </para>
-    </listitem>
-   </itemizedlist></para>
+    <listitem><para>The standard's <literal>AS &lt;data type&gt;</literal> expression is not supported.</para></listitem>
+    <listitem><para>Obtaining the next value is done using the <function>nextval()</> function instead of the standard's <command>NEXT VALUE FOR</command> expression.</para></listitem>
+   </itemizedlist>
+  </para>
  </refsect1>
-
- <refsect1>
-  <title>See Also</title>
-
-  <simplelist type="inline">
-   <member><xref linkend="sql-altersequence"/></member>
-   <member><xref linkend="sql-dropsequence"/></member>
-  </simplelist>
- </refsect1>
-
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

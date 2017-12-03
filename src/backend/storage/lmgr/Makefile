@@ -4,7 +4,7 @@
 #    Makefile for storage/lmgr
 #
 # IDENTIFICATION
-#    src/backend/storage/lmgr/Makefile
+#    $PostgreSQL: pgsql/src/backend/storage/lmgr/Makefile,v 1.20 2004/10/07 00:08:04 neilc Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -12,30 +12,26 @@ subdir = src/backend/storage/lmgr
 top_builddir = ../../../..
 include $(top_builddir)/src/Makefile.global
 
-OBJS = lmgr.o lock.o proc.o deadlock.o lwlock.o lwlocknames.o spin.o \
-	s_lock.o predicate.o condition_variable.o
+OBJS = lmgr.o lock.o proc.o deadlock.o lwlock.o spin.o s_lock.o
 
-include $(top_srcdir)/src/backend/common.mk
+all: SUBSYS.o
 
-ifdef TAS
-TASPATH = $(top_builddir)/src/backend/port/tas.o
-endif
+SUBSYS.o: $(OBJS)
+	$(LD) $(LDREL) $(LDOUT) SUBSYS.o $(OBJS)
 
 s_lock_test: s_lock.c $(top_builddir)/src/port/libpgport.a
 	$(CC) $(CPPFLAGS) $(CFLAGS) -DS_LOCK_TEST=1 $(srcdir)/s_lock.c \
-		$(TASPATH) -L $(top_builddir)/src/port -lpgport -o s_lock_test
-
-# see explanation in ../../parser/Makefile
-lwlocknames.c: lwlocknames.h ;
-
-lwlocknames.h: $(top_srcdir)/src/backend/storage/lmgr/lwlocknames.txt generate-lwlocknames.pl
-	$(PERL) $(srcdir)/generate-lwlocknames.pl $<
+		-L $(top_builddir)/src/port -lpgport -o s_lock_test
 
 check: s_lock_test
 	./s_lock_test
 
-clean distclean:
-	rm -f s_lock_test
+depend dep:
+	$(CC) -MM $(CFLAGS) *.c >depend
 
-maintainer-clean: clean
-	rm -f lwlocknames.h lwlocknames.c
+clean distclean maintainer-clean: 
+	rm -f SUBSYS.o $(OBJS) s_lock_test
+
+ifeq (depend,$(wildcard depend))
+include depend
+endif

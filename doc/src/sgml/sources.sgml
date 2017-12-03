@@ -1,4 +1,6 @@
-<!-- doc/src/sgml/sources.sgml -->
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/sources.sgml,v 2.16 2004/12/13 18:05:09 petere Exp $
+-->
 
  <chapter id="source">
   <title>PostgreSQL Coding Conventions</title>
@@ -7,71 +9,63 @@
    <title>Formatting</title>
 
    <para>
-    Source code formatting uses 4 column tab spacing, with
-    tabs preserved (i.e., tabs are not expanded to spaces).
+    Source code formatting uses 4 column tab spacing, with 
+    tabs preserved (i.e. tabs are not expanded to spaces).
     Each logical indentation level is one additional tab stop.
-   </para>
-
-   <para>
-    Layout rules (brace positioning, etc) follow BSD conventions.  In
-    particular, curly braces for the controlled blocks of <literal>if</literal>,
-    <literal>while</literal>, <literal>switch</literal>, etc go on their own lines.
-   </para>
-
-   <para>
-    Limit line lengths so that the code is readable in an 80-column window.
-    (This doesn't mean that you must never go past 80 columns.  For instance,
-    breaking a long error message string in arbitrary places just to keep the
-    code within 80 columns is probably not a net gain in readability.)
-   </para>
-
-   <para>
-    Do not use C++ style comments (<literal>//</literal> comments).  Strict ANSI C
-    compilers do not accept them.  For the same reason, do not use C++
-    extensions such as declaring new variables mid-block.
-   </para>
-
-   <para>
-    The preferred style for multi-line comment blocks is
-<programlisting>
-/*
- * comment text begins here
- * and continues here
- */
-</programlisting>
-    Note that comment blocks that begin in column 1 will be preserved as-is
-    by <application>pgindent</application>, but it will re-flow indented comment blocks
-    as though they were plain text.  If you want to preserve the line breaks
-    in an indented block, add dashes like this:
-<programlisting>
-    /*----------
-     * comment text begins here
-     * and continues here
-     *----------
-     */
-</programlisting>
+    Layout rules (brace positioning, etc) follow BSD conventions.
    </para>
 
    <para>
     While submitted patches do not absolutely have to follow these formatting
     rules, it's a good idea to do so.  Your code will get run through
-    <application>pgindent</application> before the next release, so there's no point in
-    making it look nice under some other set of formatting conventions.
-    A good rule of thumb for patches is <quote>make the new code look like
-    the existing code around it</quote>.
+    <application>pgindent</>, so there's no point in making it look nice
+    under some other set of formatting conventions.
    </para>
 
    <para>
-    The <filename>src/tools</filename> directory contains sample settings
-    files that can be used with the <productname>emacs</productname>,
-    <productname>xemacs</productname> or <productname>vim</productname>
-    editors to help ensure that they format code according to these
-    conventions.
+    For <productname>Emacs</productname>, add the following (or
+    something similar) to your <filename>~/.emacs</filename> 
+    initialization file:
+
+<programlisting>
+;; check for files with a path containing "postgres" or "pgsql"
+(setq auto-mode-alist
+  (cons '("\\(postgres\\|pgsql\\).*\\.[ch]\\'" . pgsql-c-mode)
+        auto-mode-alist))
+(setq auto-mode-alist
+  (cons '("\\(postgres\\|pgsql\\).*\\.cc\\'" . pgsql-c-mode)
+        auto-mode-alist))
+
+(defun pgsql-c-mode ()
+  ;; sets up formatting for PostgreSQL C code
+  (interactive)
+  (c-mode)
+  (setq-default tab-width 4)
+  (c-set-style "bsd")             ; set c-basic-offset to 4, plus other stuff
+  (c-set-offset 'case-label '+)   ; tweak case indent to match PG custom
+  (setq indent-tabs-mode t))      ; make sure we keep tabs when indenting
+</programlisting>
+   </para>
+
+   <para>
+    For <application>vi</application>, your
+    <filename>~/.vimrc</filename> or equivalent file should contain
+    the following:
+
+<programlisting>
+set tabstop=4
+</programlisting>
+
+    or equivalently from within <application>vi</application>, try
+
+<programlisting>
+:set ts=4
+</programlisting>
    </para>
 
    <para>
     The text browsing tools <application>more</application> and
-    <application>less</application> can be invoked as:
+    <application>less</application> can be invoked as
 <programlisting>
 more -x4
 less -x4
@@ -92,37 +86,37 @@ less -x4
 
    <para>
     Error, warning, and log messages generated within the server code
-    should be created using <function>ereport</function>, or its older cousin
-    <function>elog</function>.  The use of this function is complex enough to
+    should be created using <function>ereport</>, or its older cousin
+    <function>elog</>.  The use of this function is complex enough to
     require some explanation.
    </para>
 
    <para>
     There are two required elements for every message: a severity level
-    (ranging from <literal>DEBUG</literal> to <literal>PANIC</literal>) and a primary
+    (ranging from <literal>DEBUG</> to <literal>PANIC</>) and a primary
     message text.  In addition there are optional elements, the most
     common of which is an error identifier code that follows the SQL spec's
     SQLSTATE conventions.
-    <function>ereport</function> itself is just a shell function, that exists
+    <function>ereport</> itself is just a shell function, that exists
     mainly for the syntactic convenience of making message generation
     look like a function call in the C source code.  The only parameter
-    accepted directly by <function>ereport</function> is the severity level.
+    accepted directly by <function>ereport</> is the severity level.
     The primary message text and any optional message elements are
-    generated by calling auxiliary functions, such as <function>errmsg</function>,
-    within the <function>ereport</function> call.
+    generated by calling auxiliary functions, such as <function>errmsg</>,
+    within the <function>ereport</> call.
    </para>
 
    <para>
-    A typical call to <function>ereport</function> might look like this:
+    A typical call to <function>ereport</> might look like this:
 <programlisting>
 ereport(ERROR,
         (errcode(ERRCODE_DIVISION_BY_ZERO),
          errmsg("division by zero")));
 </programlisting>
-    This specifies error severity level <literal>ERROR</literal> (a run-of-the-mill
-    error).  The <function>errcode</function> call specifies the SQLSTATE error code
-    using a macro defined in <filename>src/include/utils/errcodes.h</filename>.  The
-    <function>errmsg</function> call provides the primary message text.  Notice the
+    This specifies error severity level <literal>ERROR</> (a run-of-the-mill
+    error).  The <function>errcode</> call specifies the SQLSTATE error code
+    using a macro defined in <filename>src/include/utils/errcodes.h</>.  The
+    <function>errmsg</> call provides the primary message text.  Notice the
     extra set of parentheses surrounding the auxiliary function calls &mdash;
     these are annoying but syntactically necessary.
    </para>
@@ -134,150 +128,91 @@ ereport(ERROR,
         (errcode(ERRCODE_AMBIGUOUS_FUNCTION),
          errmsg("function %s is not unique",
                 func_signature_string(funcname, nargs,
-                                      NIL, actual_arg_types)),
+                                      actual_arg_types)),
          errhint("Unable to choose a best candidate function. "
-                 "You might need to add explicit typecasts.")));
+                 "You may need to add explicit typecasts.")));
 </programlisting>
     This illustrates the use of format codes to embed run-time values into
-    a message text.  Also, an optional <quote>hint</quote> message is provided.
+    a message text.  Also, an optional <quote>hint</> message is provided.
    </para>
 
    <para>
-    If the severity level is <literal>ERROR</literal> or higher,
-    <function>ereport</function> aborts the execution of the user-defined
-    function and does not return to the caller. If the severity level is
-    lower than <literal>ERROR</literal>, <function>ereport</function> returns normally.
-   </para>
-
-   <para>
-    The available auxiliary routines for <function>ereport</function> are:
+    The available auxiliary routines for <function>ereport</> are:
   <itemizedlist>
    <listitem>
     <para>
      <function>errcode(sqlerrcode)</function> specifies the SQLSTATE error identifier
      code for the condition.  If this routine is not called, the error
      identifier defaults to
-     <literal>ERRCODE_INTERNAL_ERROR</literal> when the error severity level is
-     <literal>ERROR</literal> or higher, <literal>ERRCODE_WARNING</literal> when the
-     error level is <literal>WARNING</literal>, otherwise (for <literal>NOTICE</literal>
-     and below) <literal>ERRCODE_SUCCESSFUL_COMPLETION</literal>.
+     <literal>ERRCODE_INTERNAL_ERROR</> when the error severity level is
+     <literal>ERROR</> or higher, <literal>ERRCODE_WARNING</> when the
+     error level is <literal>WARNING</>, otherwise (for <literal>NOTICE</>
+     and below) <literal>ERRCODE_SUCCESSFUL_COMPLETION</>.
      While these defaults are often convenient, always think whether they
-     are appropriate before omitting the <function>errcode()</function> call.
+     are appropriate before omitting the <function>errcode()</> call.
     </para>
    </listitem>
    <listitem>
     <para>
      <function>errmsg(const char *msg, ...)</function> specifies the primary error
      message text, and possibly run-time values to insert into it.  Insertions
-     are specified by <function>sprintf</function>-style format codes.  In addition to
-     the standard format codes accepted by <function>sprintf</function>, the format
-     code <literal>%m</literal> can be used to insert the error message returned
-     by <function>strerror</function> for the current value of <literal>errno</literal>.
+     are specified by <function>sprintf</>-style format codes.  In addition to
+     the standard format codes accepted by <function>sprintf</>, the format
+     code <literal>%m</> can be used to insert the error message returned
+     by <function>strerror</> for the current value of <literal>errno</>.
      <footnote>
       <para>
-       That is, the value that was current when the <function>ereport</function> call
-       was reached; changes of <literal>errno</literal> within the auxiliary reporting
+       That is, the value that was current when the <function>ereport</> call
+       was reached; changes of <literal>errno</> within the auxiliary reporting
        routines will not affect it.  That would not be true if you were to
-       write <literal>strerror(errno)</literal> explicitly in <function>errmsg</function>'s
+       write <literal>strerror(errno)</> explicitly in <function>errmsg</>'s
        parameter list; accordingly, do not do so.
       </para>
      </footnote>
-     <literal>%m</literal> does not require any
-     corresponding entry in the parameter list for <function>errmsg</function>.
-     Note that the message string will be run through <function>gettext</function>
+     <literal>%m</> does not require any
+     corresponding entry in the parameter list for <function>errmsg</>.
+     Note that the message string will be run through <function>gettext</>
      for possible localization before format codes are processed.
     </para>
    </listitem>
    <listitem>
     <para>
      <function>errmsg_internal(const char *msg, ...)</function> is the same as
-     <function>errmsg</function>, except that the message string will not be
-     translated nor included in the internationalization message dictionary.
-     This should be used for <quote>cannot happen</quote> cases that are probably
+     <function>errmsg</>, except that the message string will not be
+     included in the internationalization message dictionary.
+     This should be used for <quote>can't happen</> cases that are probably
      not worth expending translation effort on.
     </para>
    </listitem>
    <listitem>
     <para>
-     <function>errmsg_plural(const char *fmt_singular, const char *fmt_plural,
-     unsigned long n, ...)</function> is like <function>errmsg</function>, but with
-     support for various plural forms of the message.
-     <replaceable>fmt_singular</replaceable> is the English singular format,
-     <replaceable>fmt_plural</replaceable> is the English plural format,
-     <replaceable>n</replaceable> is the integer value that determines which plural
-     form is needed, and the remaining arguments are formatted according
-     to the selected format string.  For more information see
-     <xref linkend="nls-guidelines"/>.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
      <function>errdetail(const char *msg, ...)</function> supplies an optional
-     <quote>detail</quote> message; this is to be used when there is additional
+     <quote>detail</> message; this is to be used when there is additional
      information that seems inappropriate to put in the primary message.
      The message string is processed in just the same way as for
-     <function>errmsg</function>.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errdetail_internal(const char *msg, ...)</function> is the same
-     as <function>errdetail</function>, except that the message string will not be
-     translated nor included in the internationalization message dictionary.
-     This should be used for detail messages that are not worth expending
-     translation effort on, for instance because they are too technical to be
-     useful to most users.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errdetail_plural(const char *fmt_singular, const char *fmt_plural,
-     unsigned long n, ...)</function> is like <function>errdetail</function>, but with
-     support for various plural forms of the message.
-     For more information see <xref linkend="nls-guidelines"/>.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errdetail_log(const char *msg, ...)</function> is the same as
-     <function>errdetail</function> except that this string goes only to the server
-     log, never to the client.  If both <function>errdetail</function> (or one of
-     its equivalents above) and
-     <function>errdetail_log</function> are used then one string goes to the client
-     and the other to the log.  This is useful for error details that are
-     too security-sensitive or too bulky to include in the report
-     sent to the client.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errdetail_log_plural(const char *fmt_singular, const char
-     *fmt_plural, unsigned long n, ...)</function> is like
-     <function>errdetail_log</function>, but with support for various plural forms of
-     the message.
-     For more information see <xref linkend="nls-guidelines"/>.
+     <function>errmsg</>.
     </para>
    </listitem>
    <listitem>
     <para>
      <function>errhint(const char *msg, ...)</function> supplies an optional
-     <quote>hint</quote> message; this is to be used when offering suggestions
+     <quote>hint</> message; this is to be used when offering suggestions
      about how to fix the problem, as opposed to factual details about
      what went wrong.
      The message string is processed in just the same way as for
-     <function>errmsg</function>.
+     <function>errmsg</>.
     </para>
    </listitem>
    <listitem>
     <para>
      <function>errcontext(const char *msg, ...)</function> is not normally called
-     directly from an <function>ereport</function> message site; rather it is used
-     in <literal>error_context_stack</literal> callback functions to provide
+     directly from an <function>ereport</> message site; rather it is used
+     in <literal>error_context_stack</> callback functions to provide
      information about the context in which an error occurred, such as the
      current location in a PL function.
      The message string is processed in just the same way as for
-     <function>errmsg</function>.  Unlike the other auxiliary functions, this can
-     be called more than once per <function>ereport</function> call; the successive
+     <function>errmsg</>.  Unlike the other auxiliary functions, this can
+     be called more than once per <function>ereport</> call; the successive
      strings thus supplied are concatenated with separating newlines.
     </para>
    </listitem>
@@ -291,120 +226,47 @@ ereport(ERROR,
    </listitem>
    <listitem>
     <para>
-     <function>errtable(Relation rel)</function> specifies a relation whose
-     name and schema name should be included as auxiliary fields in the error
-     report.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errtablecol(Relation rel, int attnum)</function> specifies
-     a column whose name, table name, and schema name should be included as
-     auxiliary fields in the error report.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errtableconstraint(Relation rel, const char *conname)</function>
-     specifies a table constraint whose name, table name, and schema name
-     should be included as auxiliary fields in the error report.  Indexes
-     should be considered to be constraints for this purpose, whether or
-     not they have an associated <structname>pg_constraint</structname> entry.  Be
-     careful to pass the underlying heap relation, not the index itself, as
-     <literal>rel</literal>.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errdatatype(Oid datatypeOid)</function> specifies a data
-     type whose name and schema name should be included as auxiliary fields
-     in the error report.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errdomainconstraint(Oid datatypeOid, const char *conname)</function>
-     specifies a domain constraint whose name, domain name, and schema name
-     should be included as auxiliary fields in the error report.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errcode_for_file_access()</function> is a convenience function that
+     <function>errcode_for_file_access()</> is a convenience function that
      selects an appropriate SQLSTATE error identifier for a failure in a
      file-access-related system call.  It uses the saved
-     <literal>errno</literal> to determine which error code to generate.
-     Usually this should be used in combination with <literal>%m</literal> in the
+     <literal>errno</> to determine which error code to generate.
+     Usually this should be used in combination with <literal>%m</> in the
      primary error message text.
     </para>
    </listitem>
    <listitem>
     <para>
-     <function>errcode_for_socket_access()</function> is a convenience function that
+     <function>errcode_for_socket_access()</> is a convenience function that
      selects an appropriate SQLSTATE error identifier for a failure in a
      socket-related system call.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errhidestmt(bool hide_stmt)</function> can be called to specify
-     suppression of the <literal>STATEMENT:</literal> portion of a message in the
-     postmaster log.  Generally this is appropriate if the message text
-     includes the current statement already.
-    </para>
-   </listitem>
-   <listitem>
-    <para>
-     <function>errhidecontext(bool hide_ctx)</function> can be called to
-     specify suppression of the <literal>CONTEXT:</literal> portion of a message in
-     the postmaster log.  This should only be used for verbose debugging
-     messages where the repeated inclusion of context would bloat the log
-     volume too much.
     </para>
    </listitem>
   </itemizedlist>
    </para>
 
-   <note>
-    <para>
-     At most one of the functions <function>errtable</function>,
-     <function>errtablecol</function>, <function>errtableconstraint</function>,
-     <function>errdatatype</function>, or <function>errdomainconstraint</function> should
-     be used in an <function>ereport</function> call.  These functions exist to
-     allow applications to extract the name of a database object associated
-     with the error condition without having to examine the
-     potentially-localized error message text.
-     These functions should be used in error reports for which it's likely
-     that applications would wish to have automatic error handling.  As of
-     <productname>PostgreSQL</productname> 9.3, complete coverage exists only for
-     errors in SQLSTATE class 23 (integrity constraint violation), but this
-     is likely to be expanded in future.
-    </para>
-   </note>
-
    <para>
-    There is an older function <function>elog</function> that is still heavily used.
-    An <function>elog</function> call:
+    There is an older function <function>elog</> that is still heavily used.
+    An <function>elog</> call
 <programlisting>
 elog(level, "format string", ...);
 </programlisting>
-    is exactly equivalent to:
+    is exactly equivalent to
 <programlisting>
 ereport(level, (errmsg_internal("format string", ...)));
 </programlisting>
-    Notice that the SQLSTATE error code is always defaulted, and the message
-    string is not subject to translation.
-    Therefore, <function>elog</function> should be used only for internal errors and
+    Notice that the SQLSTATE errcode is always defaulted, and the message
+    string is not included in the internationalization message dictionary.
+    Therefore, <function>elog</> should be used only for internal errors and
     low-level debug logging.  Any message that is likely to be of interest to
-    ordinary users should go through <function>ereport</function>.  Nonetheless,
-    there are enough internal <quote>cannot happen</quote> error checks in the
-    system that <function>elog</function> is still widely used; it is preferred for
+    ordinary users should go through <function>ereport</>.  Nonetheless,
+    there are enough internal <quote>can't happen</> error checks in the
+    system that <function>elog</> is still widely used; it is preferred for
     those messages for its notational simplicity.
    </para>
 
    <para>
     Advice about writing good error messages can be found in
-    <xref linkend="error-style-guide"/>.
+    <xref linkend="error-style-guide">.
    </para>
   </sect1>
 
@@ -414,11 +276,11 @@ ereport(level, (errmsg_internal("format string", ...)));
    <para>
     This style guide is offered in the hope of maintaining a consistent,
     user-friendly style throughout all the messages generated by
-    <productname>PostgreSQL</productname>.
+    <productname>PostgreSQL</>.
    </para>
 
   <simplesect>
-   <title>What Goes Where</title>
+   <title>What goes where</title>
 
    <para>
     The primary message should be short, factual, and avoid reference to
@@ -433,12 +295,12 @@ ereport(level, (errmsg_internal("format string", ...)));
    </para>
 
    <para>
-    For example, instead of:
+    For example, instead of
 <programlisting>
 IpcMemoryCreate: shmget(key=%d, size=%u, 0%o) failed: %m
 (plus a long addendum that is basically a hint)
 </programlisting>
-    write:
+    write
 <programlisting>
 Primary:    could not create shared memory segment: %m
 Detail:     Failed syscall was shmget(key=%d, size=%u, 0%o).
@@ -449,11 +311,11 @@ Hint:       the addendum
    <para>
     Rationale: keeping the primary message short helps keep it to the point,
     and lets clients lay out screen space on the assumption that one line is
-    enough for error messages.  Detail and hint messages can be relegated to a
+    enough for error messages.  Detail and hint messages may be relegated to a
     verbose mode, or perhaps a pop-up error-details window.  Also, details and
     hints would normally be suppressed from the server log to save
     space. Reference to implementation details is best avoided since users
-    aren't expected to know the details.
+    don't know the details anyway.
    </para>
 
   </simplesect>
@@ -464,7 +326,7 @@ Hint:       the addendum
    <para>
     Don't put any specific assumptions about formatting into the message
     texts.  Expect clients and the server log to wrap lines to fit their own
-    needs.  In long messages, newline characters (\n) can be used to indicate
+    needs.  In long messages, newline characters (\n) may be used to indicate
     suggested paragraph breaks.  Don't end a message with a newline.  Don't
     use tabs or other formatting characters.  (In error context displays,
     newlines are automatically added to separate levels of context such as
@@ -480,7 +342,7 @@ Hint:       the addendum
   </simplesect>
 
   <simplesect>
-   <title>Quotation Marks</title>
+   <title>Quotation marks</title>
 
    <para>
     English text should use double quotes when quoting is appropriate.
@@ -501,7 +363,7 @@ Hint:       the addendum
   </simplesect>
 
   <simplesect>
-   <title>Use of Quotes</title>
+   <title>Use of quotes</title>
 
    <para>
     Use quotes always to delimit file names, user-supplied identifiers, and
@@ -511,21 +373,21 @@ Hint:       the addendum
 
    <para>
     There are functions in the backend that will double-quote their own output
-    at need (for example, <function>format_type_be()</function>).  Do not put
-    additional quotes around the output of such functions.
+    at need (for example, <function>format_type_be</>()).  Do not put
+    additional quotes around the output of such functions. 
    </para>
 
    <para>
     Rationale: Objects can have names that create ambiguity when embedded in a
     message.  Be consistent about denoting where a plugged-in name starts and
     ends.  But don't clutter messages with unnecessary or duplicate quote
-    marks.
+    marks. 
    </para>
 
   </simplesect>
 
   <simplesect>
-   <title>Grammar and Punctuation</title>
+   <title>Grammar and punctuation</title>
 
    <para>
     The rules are different for primary error messages and for detail/hint
@@ -535,20 +397,12 @@ Hint:       the addendum
    <para>
     Primary error messages: Do not capitalize the first letter.  Do not end a
     message with a period.  Do not even think about ending a message with an
-    exclamation point.
+    exclamation point. 
    </para>
 
    <para>
     Detail and hint messages: Use complete sentences, and end each with
-    a period.  Capitalize the first word of sentences.  Put two spaces after
-    the period if another sentence follows (for English text; might be
-    inappropriate in other languages).
-   </para>
-
-   <para>
-    Error context strings: Do not capitalize the first letter and do
-    not end the string with a period.  Context strings should normally
-    not be complete sentences.
+    a period.  Capitalize the first word of sentences.
    </para>
 
    <para>
@@ -557,14 +411,14 @@ Hint:       the addendum
     messages are not grammatically complete sentences anyway.  (And if they're
     long enough to be more than one sentence, they should be split into
     primary and detail parts.)  However, detail and hint messages are longer
-    and might need to include multiple sentences.  For consistency, they should
-    follow complete-sentence style even when there's only one sentence.
+    and may need to include multiple sentences.  For consistency, they should
+    follow complete-sentence style even when there's only one sentence. 
    </para>
 
   </simplesect>
 
   <simplesect>
-   <title>Upper Case vs. Lower Case</title>
+   <title>Upper case vs. lower case</title>
 
    <para>
     Use lower case for message wording, including the first letter of a
@@ -580,7 +434,7 @@ Hint:       the addendum
   </simplesect>
 
   <simplesect>
-   <title>Avoid Passive Voice</title>
+   <title>Avoid passive voice</title>
 
    <para>
     Use the active voice.  Use complete sentences when there is an acting
@@ -596,54 +450,54 @@ Hint:       the addendum
   </simplesect>
 
   <simplesect>
-   <title>Present vs. Past Tense</title>
+   <title>Present vs past tense</title>
 
    <para>
     Use past tense if an attempt to do something failed, but could perhaps
     succeed next time (perhaps after fixing some problem).  Use present tense
-    if the failure is certainly permanent.
+    if the failure is certainly permanent. 
    </para>
 
    <para>
-    There is a nontrivial semantic difference between sentences of the form:
+    There is a nontrivial semantic difference between sentences of the form
 <programlisting>
 could not open file "%s": %m
 </programlisting>
-and:
+and
 <programlisting>
 cannot open file "%s"
 </programlisting>
     The first one means that the attempt to open the file failed.  The
     message should give a reason, such as <quote>disk full</quote> or
     <quote>file doesn't exist</quote>.  The past tense is appropriate because
-    next time the disk might not be full anymore or the file in question might
-    exist.
+    next time the disk might not be full anymore or the file in question may
+    exist. 
    </para>
 
    <para>
-    The second form indicates that the functionality of opening the named file
+    The second form indicates the the functionality of opening the named file
     does not exist at all in the program, or that it's conceptually
     impossible.  The present tense is appropriate because the condition will
-    persist indefinitely.
+    persist indefinitely. 
    </para>
 
    <para>
     Rationale: Granted, the average user will not be able to draw great
     conclusions merely from the tense of the message, but since the language
-    provides us with a grammar we should use it correctly.
+    provides us with a grammar we should use it correctly. 
    </para>
 
   </simplesect>
 
   <simplesect>
-   <title>Type of the Object</title>
+   <title>Type of the object</title>
 
    <para>
     When citing the name of an object, state what kind of object it is.
    </para>
 
    <para>
-    Rationale: Otherwise no one will know what <quote>foo.bar.baz</quote>
+    Rationale: Otherwise no one will know what <quote>foo.bar.baz</>
     refers to.
    </para>
 
@@ -665,7 +519,7 @@ cannot open file "%s"
   </simplesect>
 
   <simplesect>
-   <title>Assembling Error Messages</title>
+   <title>Assembling error messages</title>
 
    <para>
    When a message includes text that is generated elsewhere, embed it in
@@ -680,13 +534,13 @@ could not open file %s: %m
     to paste this into a single smooth sentence, so some sort of punctuation
     is needed.  Putting the embedded text in parentheses has also been
     suggested, but it's unnatural if the embedded text is likely to be the
-    most important part of the message, as is often the case.
+    most important part of the message, as is often the case. 
    </para>
 
   </simplesect>
 
   <simplesect>
-   <title>Reasons for Errors</title>
+   <title>Reasons for errors</title>
 
    <para>
     Messages should always state the reason why an error occurred.
@@ -701,15 +555,15 @@ BETTER: could not open file %s (I/O failure)
   </simplesect>
 
   <simplesect>
-   <title>Function Names</title>
+   <title>Function names</title>
 
    <para>
     Don't include the name of the reporting routine in the error text. We have
     other mechanisms for finding that out when needed, and for most users it's
     not helpful information.  If the error text doesn't make as much sense
-    without the function name, reword it.
+    without the function name, reword it. 
 <programlisting>
-BAD:    pg_atoi: error in "z": cannot parse "z"
+BAD:    pg_atoi: error in "z": can't parse "z"
 BETTER: invalid input syntax for integer: "z"
 </programlisting>
    </para>
@@ -733,7 +587,7 @@ BETTER: could not open file %s: %m
   </simplesect>
 
   <simplesect>
-   <title>Tricky Words to Avoid</title>
+   <title>Tricky words to avoid</title>
 
   <formalpara>
     <title>Unable</title>
@@ -748,7 +602,7 @@ BETTER: could not open file %s: %m
    <para>
     Error messages like <quote>bad result</quote> are really hard to interpret
     intelligently.  It's better to write why the result is <quote>bad</quote>,
-    e.g., <quote>invalid format</quote>.
+    e.g., <quote>invalid format</quote>. 
    </para>
   </formalpara>
 
@@ -766,7 +620,7 @@ BETTER: could not open file %s: %m
     Try to avoid <quote>unknown</quote>.  Consider <quote>error: unknown
     response</quote>.  If you don't know what the response is, how do you know
     it's erroneous? <quote>Unrecognized</quote> is often a better choice.
-    Also, be sure to include the value being complained of.
+    Also, be sure to include the value being complained of. 
 <programlisting>
 BAD:    unknown node type
 BETTER: unrecognized node type: 42
@@ -782,34 +636,14 @@ BETTER: unrecognized node type: 42
     couldn't <quote>find</quote> the resource.  If, on the other hand, the
     expected location of the resource is known but the program cannot access
     it there then say that the resource doesn't <quote>exist</quote>.  Using
-    <quote>find</quote> in this case sounds weak and confuses the issue.
-   </para>
-  </formalpara>
-
-  <formalpara>
-    <title>May vs. Can vs. Might</title>
-   <para>
-    <quote>May</quote> suggests permission (e.g., "You may borrow my rake."),
-    and has little use in documentation or error messages.
-    <quote>Can</quote> suggests ability (e.g., "I can lift that log."),
-    and <quote>might</quote> suggests possibility (e.g., "It might rain
-    today.").  Using the proper word clarifies meaning and assists
-    translation.
-   </para>
-  </formalpara>
-
-  <formalpara>
-    <title>Contractions</title>
-   <para>
-    Avoid contractions, like <quote>can't</quote>;  use
-    <quote>cannot</quote> instead.
+    <quote>find</quote> in this case sounds weak and confuses the issue. 
    </para>
   </formalpara>
 
   </simplesect>
 
   <simplesect>
-   <title>Proper Spelling</title>
+   <title>Proper spelling</title>
 
    <para>
     Spell out words in full.  For instance, avoid:
@@ -853,134 +687,28 @@ BETTER: unrecognized node type: 42
 
    <para>
     Keep in mind that error message texts need to be translated into other
-    languages.  Follow the guidelines in <xref linkend="nls-guidelines"/>
+    languages.  Follow the guidelines in <xref linkend="nls-guidelines">
     to avoid making life difficult for translators.
    </para>
   </simplesect>
 
   </sect1>
 
-  <sect1 id="source-conventions">
-   <title>Miscellaneous Coding Conventions</title>
-
-   <simplesect>
-    <title>C Standard</title>
-    <para>
-     Code in <productname>PostgreSQL</productname> should only rely on language
-     features available in the C89 standard. That means a conforming
-     C89 compiler has to be able to compile postgres, at least aside
-     from a few platform dependent pieces. Features from later
-     revision of the C standard or compiler specific features can be
-     used, if a fallback is provided.
-    </para>
-    <para>
-     For example <literal>static inline</literal> and
-     <literal>_StaticAssert()</literal> are currently used, even
-     though they are from newer revisions of the C standard. If not
-     available we respectively fall back to defining the functions
-     without inline, and to using a C89 compatible replacement that
-     performs the same checks, but emits rather cryptic messages.
-    </para>
-   </simplesect>
-
-   <simplesect>
-    <title>Function-Like Macros and Inline Functions</title>
-    <para>
-     Both, macros with arguments and <literal>static inline</literal>
-     functions, may be used. The latter are preferable if there are
-     multiple-evaluation hazards when written as a macro, as e.g. the
-     case with
-<programlisting>
-#define Max(x, y)       ((x) > (y) ? (x) : (y))
-</programlisting>
-     or when the macro would be very long. In other cases it's only
-     possible to use macros, or at least easier.  For example because
-     expressions of various types need to be passed to the macro.
-    </para>
-    <para>
-     When the definition of an inline function references symbols
-     (i.e. variables, functions) that are only available as part of the
-     backend, the function may not be visible when included from frontend
-     code.
-<programlisting>
-#ifndef FRONTEND
-static inline MemoryContext
-MemoryContextSwitchTo(MemoryContext context)
-{
-    MemoryContext old = CurrentMemoryContext;
-
-    CurrentMemoryContext = context;
-    return old;
-}
-#endif   /* FRONTEND */
-</programlisting>
-     In this example <literal>CurrentMemoryContext</literal>, which is only
-     available in the backend, is referenced and the function thus
-     hidden with a <literal>#ifndef FRONTEND</literal>. This rule
-     exists because some compilers emit references to symbols
-     contained in inline functions even if the function is not used.
-    </para>
-   </simplesect>
-
-   <simplesect>
-    <title>Writing Signal Handlers</title>
-    <para>
-     To be suitable to run inside a signal handler code has to be
-     written very carefully. The fundamental problem is that, unless
-     blocked, a signal handler can interrupt code at any time. If code
-     inside the signal handler uses the same state as code outside
-     chaos may ensue. As an example consider what happens if a signal
-     handler tries to acquire a lock that's already held in the
-     interrupted code.
-    </para>
-    <para>
-     Barring special arrangements code in signal handlers may only
-     call async-signal safe functions (as defined in POSIX) and access
-     variables of type <literal>volatile sig_atomic_t</literal>. A few
-     functions in <command>postgres</command> are also deemed signal safe, importantly
-     <function>SetLatch()</function>.
-    </para>
-    <para>
-     In most cases signal handlers should do nothing more than note
-     that a signal has arrived, and wake up code running outside of
-     the handler using a latch. An example of such a handler is the
-     following:
-<programlisting>
-static void
-handle_sighup(SIGNAL_ARGS)
-{
-    int         save_errno = errno;
-
-    got_SIGHUP = true;
-    SetLatch(MyLatch);
-
-    errno = save_errno;
-}
-</programlisting>
-     <varname>errno</varname> is saved and restored because
-     <function>SetLatch()</function> might change it. If that were not done
-     interrupted code that's currently inspecting <varname>errno</varname> might see the wrong
-     value.
-    </para>
-   </simplesect>
-
-   <simplesect>
-    <title>Calling Function Pointers</title>
-
-    <para>
-     For clarity, it is preferred to explicitly dereference a function pointer
-     when calling the pointed-to function if the pointer is a simple variable,
-     for example:
-<programlisting>
-(*emit_log_hook) (edata);
-</programlisting>
-     (even though <literal>emit_log_hook(edata)</literal> would also work).
-     When the function pointer is part of a structure, then the extra
-     punctuation can and usually should be omitted, for example:
-<programlisting>
-paramInfo->paramFetch(paramInfo, paramId);
-</programlisting>
-    </para>
-   </simplesect>
-  </sect1>
  </chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

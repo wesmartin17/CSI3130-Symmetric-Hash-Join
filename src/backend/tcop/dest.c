@@ -4,11 +4,11 @@
  *	  support for communication destinations
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/tcop/dest.c
+ *	  $PostgreSQL: pgsql/src/backend/tcop/dest.c,v 1.67 2005/11/03 17:11:38 alvherre Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -28,14 +28,8 @@
 
 #include "postgres.h"
 
-#include "access/printsimple.h"
 #include "access/printtup.h"
 #include "access/xact.h"
-#include "commands/copy.h"
-#include "commands/createas.h"
-#include "commands/matview.h"
-#include "executor/functions.h"
-#include "executor/tqueue.h"
 #include "executor/tstoreReceiver.h"
 #include "libpq/libpq.h"
 #include "libpq/pqformat.h"
@@ -46,10 +40,9 @@
  *		dummy DestReceiver functions
  * ----------------
  */
-static bool
+static void
 donothingReceive(TupleTableSlot *slot, DestReceiver *self)
 {
-	return true;
 }
 
 static void
@@ -77,11 +70,6 @@ static DestReceiver debugtupDR = {
 	DestDebug
 };
 
-static DestReceiver printsimpleDR = {
-	printsimple, printsimple_startup, donothingCleanup, donothingCleanup,
-	DestRemoteSimple
-};
-
 static DestReceiver spi_printtupDR = {
 	spi_printtup, spi_dest_startup, donothingCleanup, donothingCleanup,
 	DestSPI
@@ -103,19 +91,21 @@ BeginCommand(const char *commandTag, CommandDest dest)
 
 /* ----------------
  *		CreateDestReceiver - return appropriate receiver function set for dest
+ *
+ * Note: a Portal must be specified for destinations DestRemote,
+ * DestRemoteExecute, and DestTuplestore.  It can be NULL for the others.
  * ----------------
  */
 DestReceiver *
-CreateDestReceiver(CommandDest dest)
+CreateDestReceiver(CommandDest dest, Portal portal)
 {
 	switch (dest)
 	{
 		case DestRemote:
 		case DestRemoteExecute:
-			return printtup_create_DR(dest);
-
-		case DestRemoteSimple:
-			return &printsimpleDR;
+			if (portal == NULL)
+				elog(ERROR, "no portal specified for DestRemote receiver");
+			return printtup_create_DR(dest, portal);
 
 		case DestNone:
 			return &donothingDR;
@@ -127,22 +117,13 @@ CreateDestReceiver(CommandDest dest)
 			return &spi_printtupDR;
 
 		case DestTuplestore:
-			return CreateTuplestoreDestReceiver();
-
-		case DestIntoRel:
-			return CreateIntoRelDestReceiver(NULL);
-
-		case DestCopyOut:
-			return CreateCopyDestReceiver();
-
-		case DestSQLFunction:
-			return CreateSQLFunctionDestReceiver();
-
-		case DestTransientRel:
-			return CreateTransientRelDestReceiver(InvalidOid);
-
-		case DestTupleQueue:
-			return CreateTupleQueueDestReceiver(NULL);
+			if (portal == NULL)
+				elog(ERROR, "no portal specified for DestTuplestore receiver");
+			if (portal->holdStore == NULL ||
+				portal->holdContext == NULL)
+				elog(ERROR, "portal has no holdStore");
+			return CreateTuplestoreDestReceiver(portal->holdStore,
+												portal->holdContext);
 	}
 
 	/* should never get here */
@@ -160,24 +141,13 @@ EndCommand(const char *commandTag, CommandDest dest)
 	{
 		case DestRemote:
 		case DestRemoteExecute:
-		case DestRemoteSimple:
-
-			/*
-			 * We assume the commandTag is plain ASCII and therefore requires
-			 * no encoding conversion.
-			 */
-			pq_putmessage('C', commandTag, strlen(commandTag) + 1);
+			pq_puttextmessage('C', commandTag);
 			break;
 
 		case DestNone:
 		case DestDebug:
 		case DestSPI:
 		case DestTuplestore:
-		case DestIntoRel:
-		case DestCopyOut:
-		case DestSQLFunction:
-		case DestTransientRel:
-		case DestTupleQueue:
 			break;
 	}
 }
@@ -201,7 +171,6 @@ NullCommand(CommandDest dest)
 	{
 		case DestRemote:
 		case DestRemoteExecute:
-		case DestRemoteSimple:
 
 			/*
 			 * tell the fe that we saw an empty query string.  In protocols
@@ -210,18 +179,13 @@ NullCommand(CommandDest dest)
 			if (PG_PROTOCOL_MAJOR(FrontendProtocol) >= 3)
 				pq_putemptymessage('I');
 			else
-				pq_putmessage('I', "", 1);
+				pq_puttextmessage('I', "");
 			break;
 
 		case DestNone:
 		case DestDebug:
 		case DestSPI:
 		case DestTuplestore:
-		case DestIntoRel:
-		case DestCopyOut:
-		case DestSQLFunction:
-		case DestTransientRel:
-		case DestTupleQueue:
 			break;
 	}
 }
@@ -229,8 +193,8 @@ NullCommand(CommandDest dest)
 /* ----------------
  *		ReadyForQuery - tell dest that we are ready for a new query
  *
- *		The ReadyForQuery message is sent so that the FE can tell when
- *		we are done processing a query string.
+ *		The ReadyForQuery message is sent in protocol versions 2.0 and up
+ *		so that the FE can tell when we are done processing a query string.
  *		In versions 3.0 and up, it also carries a transaction state indicator.
  *
  *		Note that by flushing the stdio buffer here, we can avoid doing it
@@ -244,7 +208,6 @@ ReadyForQuery(CommandDest dest)
 	{
 		case DestRemote:
 		case DestRemoteExecute:
-		case DestRemoteSimple:
 			if (PG_PROTOCOL_MAJOR(FrontendProtocol) >= 3)
 			{
 				StringInfoData buf;
@@ -253,7 +216,7 @@ ReadyForQuery(CommandDest dest)
 				pq_sendbyte(&buf, TransactionBlockStatusCode());
 				pq_endmessage(&buf);
 			}
-			else
+			else if (PG_PROTOCOL_MAJOR(FrontendProtocol) >= 2)
 				pq_putemptymessage('Z');
 			/* Flush output at end of cycle in any case. */
 			pq_flush();
@@ -263,11 +226,6 @@ ReadyForQuery(CommandDest dest)
 		case DestDebug:
 		case DestSPI:
 		case DestTuplestore:
-		case DestIntoRel:
-		case DestCopyOut:
-		case DestSQLFunction:
-		case DestTransientRel:
-		case DestTupleQueue:
 			break;
 	}
 }

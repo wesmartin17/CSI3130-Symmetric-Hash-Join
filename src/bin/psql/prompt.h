@@ -1,17 +1,25 @@
 /*
  * psql - the PostgreSQL interactive terminal
  *
- * Copyright (c) 2000-2017, PostgreSQL Global Development Group
+ * Copyright (c) 2000-2005, PostgreSQL Global Development Group
  *
- * src/bin/psql/prompt.h
+ * $PostgreSQL: pgsql/src/bin/psql/prompt.h,v 1.16 2005/01/01 05:43:08 momjian Exp $
  */
 #ifndef PROMPT_H
 #define PROMPT_H
 
-/* enum promptStatus_t is now defined by psqlscan.h */
-#include "fe_utils/psqlscan.h"
-#include "conditional.h"
+typedef enum _promptStatus
+{
+	PROMPT_READY,
+	PROMPT_CONTINUE,
+	PROMPT_COMMENT,
+	PROMPT_SINGLEQUOTE,
+	PROMPT_DOUBLEQUOTE,
+	PROMPT_DOLLARQUOTE,
+	PROMPT_PAREN,
+	PROMPT_COPY
+} promptStatus_t;
 
-char	   *get_prompt(promptStatus_t status, ConditionalStack cstack);
+char	   *get_prompt(promptStatus_t status);
 
-#endif							/* PROMPT_H */
+#endif   /* PROMPT_H */

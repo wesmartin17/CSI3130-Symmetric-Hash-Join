@@ -1,20 +1,14 @@
-# contrib/earthdistance/Makefile
+# $PostgreSQL: pgsql/contrib/earthdistance/Makefile,v 1.16 2005/09/27 17:13:02 tgl Exp $
 
 MODULES = earthdistance
-
-EXTENSION = earthdistance
-DATA = earthdistance--1.1.sql earthdistance--1.0--1.1.sql \
-	earthdistance--unpackaged--1.0.sql
-PGFILEDESC = "earthdistance - calculate distances on the surface of the Earth"
-
+DATA_built = earthdistance.sql
+DOCS = README.earthdistance
 REGRESS = earthdistance
-EXTRA_INSTALL = contrib/cube
 
-LDFLAGS_SL += $(filter -lm, $(LIBS))
+SHLIB_LINK += $(filter -lm, $(LIBS))
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/earthdistance

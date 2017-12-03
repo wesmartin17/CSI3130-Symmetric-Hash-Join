@@ -1,14 +1,14 @@
 #! /usr/bin/perl
 #
-# Copyright (c) 2001-2017, PostgreSQL Global Development Group
+# Copyright (c) 2001-2005, PostgreSQL Global Development Group
 #
-# src/backend/utils/mb/Unicode/UCS_to_EUC_TW.pl
+# $PostgreSQL: pgsql/src/backend/utils/mb/Unicode/UCS_to_EUC_TW.pl,v 1.7 2005/03/07 04:30:52 momjian Exp $
 #
 # Generate UTF-8 <--> EUC_TW code conversion tables from
 # map files provided by Unicode organization.
 # Unfortunately it is prohibited by the organization
 # to distribute the map files. So if you try to use this script,
-# you have to obtain CNS11643.TXT from
+# you have to obtain CNS11643.TXT from 
 # the organization's ftp site.
 #
 # CNS11643.TXT format:
@@ -17,51 +17,118 @@
 #		 UCS-2 code in hex
 #		 # and Unicode name (not used in this script)
 
-use strict;
-use convutils;
+require "ucs2utf.pl";
 
-my $this_script = $0;
+# first generate UTF-8 --> EUC_TW table
 
-my $mapping = &read_source("CNS11643.TXT");
+$in_file = "CNS11643.TXT";
 
-my @extras;
+open( FILE, $in_file ) || die( "cannot open $in_file" );
 
-foreach my $i (@$mapping)
-{
-	my $ucs      = $i->{ucs};
-	my $code     = $i->{code};
-	my $origcode = $i->{code};
-
-	my $plane = ($code & 0x1f0000) >> 16;
-	if ($plane > 16)
-	{
-		printf STDERR "Warning: invalid plane No.$plane. ignored\n";
+while( <FILE> ){
+	chop;
+	if( /^#/ ){
 		next;
 	}
+	( $c, $u, $rest ) = split;
+	$ucs = hex($u);
+	$code = hex($c);
+	if( $code >= 0x80 && $ucs >= 0x0080 ){
+		$utf = &ucs2utf($ucs);
+		if( $array{ $utf } ne "" ){
+			printf STDERR "Warning: duplicate UTF8: %04x\n",$ucs;
+			next;
+		}
+		$count++;
 
-	if ($plane == 1)
-	{
-		$code = ($code & 0xffff) | 0x8080;
-	}
-	else
-	{
-		$code = (0x8ea00000 + ($plane << 16)) | (($code & 0xffff) | 0x8080);
-	}
-	$i->{code} = $code;
+		$plane = ($code & 0x1f0000) >> 16;
+		if ($plane > 16) {
+			printf STDERR "Warning: invalid plane No.$plane. ignored\n";
+			next;
+		}
 
-	# Some codes are mapped twice in the EUC_TW to UTF-8 table.
-	if ($origcode >= 0x12121 && $origcode <= 0x20000)
-	{
-		push @extras,
-		  { ucs       => $i->{ucs},
-			code      => ($i->{code} + 0x8ea10000),
-			rest      => $i->{rest},
-			direction => TO_UNICODE,
-			f         => $i->{f},
-			l         => $i->{l} };
+		if ($plane == 1) {
+			$array{ $utf } = (($code & 0xffff) | 0x8080);
+		} else {
+			$array{ $utf } = (0x8ea00000 + ($plane << 16)) | (($code & 0xffff) | 0x8080);
+		}
+	}
+}
+close( FILE );
+
+#
+# first, generate UTF8 --> EUC_TW table
+#
+
+$file = "utf8_to_euc_tw.map";
+open( FILE, "> $file" ) || die( "cannot open $file" );
+print FILE "static pg_utf_to_local ULmapEUC_TW[ $count ] = {\n";
+
+for $index ( sort {$a <=> $b} keys( %array ) ){
+	$code = $array{ $index };
+	$count--;
+	if( $count == 0 ){
+		printf FILE "  {0x%04x, 0x%04x}\n", $index, $code;
+	} else {
+		printf FILE "  {0x%04x, 0x%04x},\n", $index, $code;
 	}
 }
 
-push @$mapping, @extras;
+print FILE "};\n";
+close(FILE);
 
-print_conversion_tables($this_script, "EUC_TW", $mapping);
+#
+# then generate EUC_JP --> UTF8 table
+#
+reset 'array';
+
+open( FILE, $in_file ) || die( "cannot open $in_file" );
+
+while( <FILE> ){
+	chop;
+	if( /^#/ ){
+		next;
+	}
+	( $c, $u, $rest ) = split;
+	$ucs = hex($u);
+	$code = hex($c);
+	if( $code >= 0x80 && $ucs >= 0x0080 ){
+		$utf = &ucs2utf($ucs);
+		if( $array{ $code } ne "" ){
+			printf STDERR "Warning: duplicate code: %04x\n",$ucs;
+			next;
+		}
+		$count++;
+
+		$plane = ($code & 0x1f0000) >> 16;
+		if ($plane > 16) {
+			printf STDERR "Warning: invalid plane No.$plane. ignored\n";
+			next;
+		}
+
+		if ($plane == 1) {
+			$c = (($code & 0xffff) | 0x8080);
+			$array{ $c } = $utf;
+			$count++;
+		}
+		$c = (0x8ea00000 + ($plane << 16)) | (($code & 0xffff) | 0x8080);
+		$array{ $c } = $utf;
+	}
+}
+close( FILE );
+
+$file = "euc_tw_to_utf8.map";
+open( FILE, "> $file" ) || die( "cannot open $file" );
+print FILE "static pg_local_to_utf LUmapEUC_TW[ $count ] = {\n";
+for $index ( sort {$a <=> $b} keys( %array ) ){
+	$utf = $array{ $index };
+	$count--;
+	if( $count == 0 ){
+		printf FILE "  {0x%04x, 0x%04x}\n", $index, $utf;
+	} else {
+		printf FILE "  {0x%04x, 0x%04x},\n", $index, $utf;
+	}
+}
+
+print FILE "};\n";
+close(FILE);

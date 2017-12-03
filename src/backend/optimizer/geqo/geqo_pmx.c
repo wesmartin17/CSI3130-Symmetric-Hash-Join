@@ -6,7 +6,7 @@
 *	 PMX operator according to Goldberg & Lingle
 *	 (Proc Int'l Conf on GA's)
 *
-* src/backend/optimizer/geqo/geqo_pmx.c
+* $PostgreSQL: pgsql/src/backend/optimizer/geqo/geqo_pmx.c,v 1.10 2003/11/29 22:39:49 pgsql Exp $
 *
 *-------------------------------------------------------------------------
 */
@@ -37,14 +37,13 @@
 #include "optimizer/geqo_random.h"
 #include "optimizer/geqo_recombination.h"
 
-#if defined(PMX)
 
 /* pmx
  *
  *	 partially matched crossover
  */
 void
-pmx(PlannerInfo *root, Gene *tour1, Gene *tour2, Gene *offspring, int num_gene)
+pmx(Gene *tour1, Gene *tour2, Gene *offspring, int num_gene)
 {
 	int		   *failed = (int *) palloc((num_gene + 1) * sizeof(int));
 	int		   *from = (int *) palloc((num_gene + 1) * sizeof(int));
@@ -72,8 +71,8 @@ pmx(PlannerInfo *root, Gene *tour1, Gene *tour2, Gene *offspring, int num_gene)
 	}
 
 /* locate crossover points */
-	left = geqo_randint(root, num_gene - 1, 0);
-	right = geqo_randint(root, num_gene - 1, 0);
+	left = geqo_randint(num_gene - 1, 0);
+	right = geqo_randint(num_gene - 1, 0);
 
 	if (left > right)
 	{
@@ -220,5 +219,3 @@ pmx(PlannerInfo *root, Gene *tour1, Gene *tour2, Gene *offspring, int num_gene)
 	pfree(indx);
 	pfree(check_list);
 }
-
-#endif							/* defined(PMX) */

@@ -2,12 +2,12 @@
  *
  * isinf.c
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/port/isinf.c
+ *	  $PostgreSQL: pgsql/src/port/isinf.c,v 1.7 2005/10/15 02:49:51 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -73,5 +73,19 @@ isinf(double x)
 	return 0;
 }
 #endif
+#endif
+
+#ifdef __QNX__
+#include <float.h>
+
+int
+isinf(double x)
+{
+	if (x == HUGE_VAL)
+		return 1;
+	if (x == -HUGE_VAL)
+		return -1;
+	return 0;
+}
 
 #endif

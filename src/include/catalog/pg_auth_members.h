@@ -5,13 +5,13 @@
  *	  (pg_auth_members) along with the relation's initial contents.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/catalog/pg_auth_members.h
+ * $PostgreSQL: pgsql/src/include/catalog/pg_auth_members.h,v 1.1 2005/06/28 05:09:04 tgl Exp $
  *
  * NOTES
- *	  the genbki.pl script reads this file and generates .bki
+ *	  the genbki.sh script reads this file and generates .bki
  *	  information from the DATA() statements.
  *
  *-------------------------------------------------------------------------
@@ -19,17 +19,14 @@
 #ifndef PG_AUTH_MEMBERS_H
 #define PG_AUTH_MEMBERS_H
 
-#include "catalog/genbki.h"
-
 /* ----------------
  *		pg_auth_members definition.  cpp turns this into
  *		typedef struct FormData_pg_auth_members
  * ----------------
  */
 #define AuthMemRelationId	1261
-#define AuthMemRelation_Rowtype_Id	2843
 
-CATALOG(pg_auth_members,1261) BKI_SHARED_RELATION BKI_WITHOUT_OIDS BKI_ROWTYPE_OID(2843) BKI_SCHEMA_MACRO
+CATALOG(pg_auth_members,1261) BKI_SHARED_RELATION BKI_WITHOUT_OIDS
 {
 	Oid			roleid;			/* ID of a role */
 	Oid			member;			/* ID of a member of that role */
@@ -54,4 +51,4 @@ typedef FormData_pg_auth_members *Form_pg_auth_members;
 #define Anum_pg_auth_members_grantor		3
 #define Anum_pg_auth_members_admin_option	4
 
-#endif							/* PG_AUTH_MEMBERS_H */
+#endif   /* PG_AUTH_MEMBERS_H */

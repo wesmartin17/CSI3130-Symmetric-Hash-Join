@@ -15,3 +15,4 @@ SELECT res = crypt(data, res) AS "worked"
 FROM ctest;
 
 DROP TABLE ctest;
+

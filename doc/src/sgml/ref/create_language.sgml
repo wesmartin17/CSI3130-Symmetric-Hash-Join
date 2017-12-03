@@ -1,16 +1,11 @@
 <!--
-doc/src/sgml/ref/create_language.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_language.sgml,v 1.41 2005/09/08 20:07:41 tgl Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-createlanguage">
- <indexterm zone="sql-createlanguage">
-  <primary>CREATE LANGUAGE</primary>
- </indexterm>
-
+<refentry id="SQL-CREATELANGUAGE">
  <refmeta>
-  <refentrytitle>CREATE LANGUAGE</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="sql-createlanguage-title">CREATE LANGUAGE</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -19,11 +14,15 @@ PostgreSQL documentation
   <refpurpose>define a new procedural language</refpurpose>
  </refnamediv>
 
+ <indexterm zone="sql-createlanguage">
+  <primary>CREATE LANGUAGE</primary>
+ </indexterm>
+
  <refsynopsisdiv>
 <synopsis>
-CREATE [ OR REPLACE ] [ PROCEDURAL ] LANGUAGE <replaceable class="parameter">name</replaceable>
-CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="parameter">name</replaceable>
-    HANDLER <replaceable class="parameter">call_handler</replaceable> [ INLINE <replaceable class="parameter">inline_handler</replaceable> ] [ VALIDATOR <replaceable>valfunction</replaceable> ]
+CREATE [ PROCEDURAL ] LANGUAGE <replaceable class="parameter">name</replaceable>
+CREATE [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="parameter">name</replaceable>
+    HANDLER <replaceable class="parameter">call_handler</replaceable> [ VALIDATOR <replaceable>valfunction</replaceable> ]
 </synopsis>
  </refsynopsisdiv>
 
@@ -31,32 +30,20 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
   <title>Description</title>
 
   <para>
-   <command>CREATE LANGUAGE</command> registers a new
+   Using <command>CREATE LANGUAGE</command>, a
+   <productname>PostgreSQL</productname> user can register a new
    procedural language with a <productname>PostgreSQL</productname>
    database.  Subsequently, functions and trigger procedures can be
-   defined in this new language.
+   defined in this new language.  The user must have the
+   <productname>PostgreSQL</productname> superuser privilege to
+   register a new language.
   </para>
-
-  <note>
-   <para>
-    As of <productname>PostgreSQL</productname> 9.1, most procedural
-    languages have been made into <quote>extensions</quote>, and should
-    therefore be installed with <xref linkend="sql-createextension"/>
-    not <command>CREATE LANGUAGE</command>.  Direct use of
-    <command>CREATE LANGUAGE</command> should now be confined to
-    extension installation scripts.  If you have a <quote>bare</quote>
-    language in your database, perhaps as a result of an upgrade,
-    you can convert it to an extension using
-    <literal>CREATE EXTENSION <replaceable>langname</replaceable> FROM
-    unpackaged</literal>.
-   </para>
-  </note>
 
   <para>
    <command>CREATE LANGUAGE</command> effectively associates the
-   language name with handler function(s) that are responsible for executing
-   functions written in the language.  Refer to <xref linkend="plhandler"/>
-   for more information about language handlers.
+   language name with a call handler that is responsible for executing
+   functions written in the language.  Refer to <xref linkend="xplang">
+   for more information about language call handlers.
   </para>
 
   <para>
@@ -67,46 +54,15 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
    system catalog to determine the correct parameters.  In the second form,
    the user supplies the language parameters along with the language name.
    The second form can be used to create a language that is not defined in
-   <structname>pg_pltemplate</structname>, but this approach is considered obsolescent.
+   <structname>pg_pltemplate</>, but this approach is considered obsolescent.
   </para>
 
   <para>
-   When the server finds an entry in the <structname>pg_pltemplate</structname> catalog
+   When the server finds an entry in the <structname>pg_pltemplate</> catalog
    for the given language name, it will use the catalog data even if the
    command includes language parameters.  This behavior simplifies loading of
    old dump files, which are likely to contain out-of-date information
    about language support functions.
-  </para>
-
-  <para>
-   Ordinarily, the user must have the
-   <productname>PostgreSQL</productname> superuser privilege to
-   register a new language.  However, the owner of a database can register
-   a new language within that database if the language is listed in
-   the <structname>pg_pltemplate</structname> catalog and is marked
-   as allowed to be created by database owners (<structfield>tmpldbacreate</structfield>
-   is true).  The default is that trusted languages can be created
-   by database owners, but this can be adjusted by superusers by modifying
-   the contents of <structname>pg_pltemplate</structname>.
-   The creator of a language becomes its owner and can later
-   drop it, rename it, or assign it to a new owner.
-  </para>
-
-  <para>
-   <command>CREATE OR REPLACE LANGUAGE</command> will either create a
-   new language, or replace an existing definition.  If the language
-   already exists, its parameters are updated according to the values
-   specified or taken from <structname>pg_pltemplate</structname>,
-   but the language's ownership and permissions settings do not change,
-   and any existing functions written in the language are assumed to still
-   be valid.  In addition to the normal privilege requirements for creating
-   a language, the user must be superuser or owner of the existing language.
-   The <literal>REPLACE</literal> case is mainly meant to be used to
-   ensure that the language exists.  If the language has a
-   <structname>pg_pltemplate</structname> entry then <literal>REPLACE</literal>
-   will not actually change anything about an existing definition, except in
-   the unusual case where the <structname>pg_pltemplate</structname> entry
-   has been modified since the language was created.
   </para>
  </refsect1>
 
@@ -118,10 +74,12 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
      <term><literal>TRUSTED</literal></term>
 
      <listitem>
-      <para><literal>TRUSTED</literal> specifies that the language does
-       not grant access to data that the user would not otherwise
-       have.  If this key word is omitted
-       when registering the language, only users with the
+      <para>
+       <literal>TRUSTED</literal> specifies that the call handler for
+       the language is safe, that is, it does not offer an
+       unprivileged user any functionality to bypass access
+       restrictions. If this key word is omitted when registering the
+       language, only users with the
        <productname>PostgreSQL</productname> superuser privilege can
        use this language to create new functions.
       </para>
@@ -143,12 +101,13 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
 
      <listitem>
       <para>
-       The name of the new procedural language.
-       The name must be unique among the languages in the database.
+       The name of the new procedural language.  The language name is
+       case insensitive. The name must be unique among the languages
+       in the database.
       </para>
 
       <para>
-       For backward compatibility, the name can be enclosed by single
+       For backward compatibility, the name may be enclosed by single
        quotes.
       </para>
      </listitem>
@@ -158,9 +117,10 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
      <term><literal>HANDLER</literal> <replaceable class="parameter">call_handler</replaceable></term>
 
      <listitem>
-      <para><replaceable class="parameter">call_handler</replaceable> is
+      <para>
+       <replaceable class="parameter">call_handler</replaceable> is
        the name of a previously registered function that will be
-       called to execute the procedural language's functions.  The call
+       called to execute the procedural language functions.  The call
        handler for a procedural language must be written in a compiled
        language such as C with version 1 call convention and
        registered with <productname>PostgreSQL</productname> as a
@@ -172,30 +132,11 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
     </varlistentry>
 
     <varlistentry>
-     <term><literal>INLINE</literal> <replaceable class="parameter">inline_handler</replaceable></term>
-
-     <listitem>
-      <para><replaceable class="parameter">inline_handler</replaceable> is the
-       name of a previously registered function that will be called
-       to execute an anonymous code block
-       (<xref linkend="sql-do"/> command)
-       in this language.
-       If no <replaceable class="parameter">inline_handler</replaceable>
-       function is specified, the language does not support anonymous code
-       blocks.
-       The handler function must take one argument of
-       type <type>internal</type>, which will be the <command>DO</command> command's
-       internal representation, and it will typically return
-       <type>void</type>.  The return value of the handler is ignored.
-      </para>
-     </listitem>
-    </varlistentry>
-
-    <varlistentry>
      <term><literal>VALIDATOR</literal> <replaceable class="parameter">valfunction</replaceable></term>
 
      <listitem>
-      <para><replaceable class="parameter">valfunction</replaceable> is the
+      <para>
+       <replaceable class="parameter">valfunction</replaceable> is the
        name of a previously registered function that will be called
        when a new function in the language is created, to validate the
        new function.
@@ -204,7 +145,7 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
        be checked when it is created.
        The validator function must take one argument of
        type <type>oid</type>, which will be the OID of the
-       to-be-created function, and will typically return <type>void</type>.
+       to-be-created function, and will typically return <type>void</>.
       </para>
 
       <para>
@@ -220,9 +161,9 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
    </variablelist>
 
   <para>
-   The <literal>TRUSTED</literal> option and the support function name(s) are
+   The <literal>TRUSTED</> option and the support function name(s) are
    ignored if the server has an entry for the specified language
-   name in <structname>pg_pltemplate</structname>.
+   name in <structname>pg_pltemplate</>.
   </para>
  </refsect1>
 
@@ -230,21 +171,28 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
   <title>Notes</title>
 
   <para>
-   Use <xref linkend="sql-droplanguage"/> to drop procedural languages.
+   The <xref linkend="app-createlang"> program is a simple wrapper around
+   the <command>CREATE LANGUAGE</> command.  It eases
+   installation of procedural languages from the shell command line.
+  </para>
+
+  <para>
+   Use <xref linkend="sql-droplanguage" endterm="sql-droplanguage-title">, or better yet the <xref
+   linkend="app-droplang"> program, to drop procedural languages.
   </para>
 
   <para>
    The system catalog <classname>pg_language</classname> (see <xref
-   linkend="catalog-pg-language"/>) records information about the
-   currently installed languages.  Also, the <application>psql</application>
-   command <command>\dL</command> lists the installed languages.
+   linkend="catalog-pg-language">) records information about the
+   currently installed languages.  Also, <command>createlang</command>
+   has an option to list the installed languages.
   </para>
 
   <para>
    To create functions in a procedural language, a user must have the
    <literal>USAGE</literal> privilege for the language.  By default,
-   <literal>USAGE</literal> is granted to <literal>PUBLIC</literal> (i.e., everyone)
-   for trusted languages.  This can be revoked if desired.
+   <literal>USAGE</> is granted to <literal>PUBLIC</> (i.e., everyone)
+   for trusted languages.  This may be revoked if desired.
   </para>
 
   <para>
@@ -255,13 +203,12 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
   </para>
 
   <para>
-   The call handler function, the inline handler function (if any),
-   and the validator function (if any)
+   The call handler function and the validator function (if any)
    must already exist if the server does not have an entry for the language
-   in <structname>pg_pltemplate</structname>.  But when there is an entry,
+   in <structname>pg_pltemplate</>.  But when there is an entry,
    the functions need not already exist;
    they will be automatically defined if not present in the database.
-   (This might result in <command>CREATE LANGUAGE</command> failing, if the
+   (This can result in <command>CREATE LANGUAGE</> failing, if the
    shared library that implements the language is not available in
    the installation.)
   </para>
@@ -269,11 +216,11 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
   <para>
    In <productname>PostgreSQL</productname> versions before 7.3, it was
    necessary to declare handler functions as returning the placeholder
-   type <type>opaque</type>, rather than <type>language_handler</type>.
-   To support loading
-   of old dump files, <command>CREATE LANGUAGE</command> will accept a function
-   declared as returning <type>opaque</type>, but it will issue a notice and
-   change the function's declared return type to <type>language_handler</type>.
+   type <type>opaque</>, rather than <type>language_handler</>.
+   To support loading 
+   of old dump files, <command>CREATE LANGUAGE</> will accept a function
+   declared as returning <type>opaque</>, but it will issue a notice and
+   change the function's declared return type to <type>language_handler</>.
   </para>
  </refsect1>
 
@@ -284,12 +231,12 @@ CREATE [ OR REPLACE ] [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="pa
    The preferred way of creating any of the standard procedural languages
    is just:
 <programlisting>
-CREATE LANGUAGE plperl;
+CREATE LANGUAGE plpgsql;
 </programlisting>
   </para>
 
   <para>
-   For a language not known in the <structname>pg_pltemplate</structname> catalog, a
+   For a language not known in the <structname>pg_pltemplate</> catalog, a
    sequence such as this is needed:
 <programlisting>
 CREATE FUNCTION plsample_call_handler() RETURNS language_handler
@@ -297,7 +244,8 @@ CREATE FUNCTION plsample_call_handler() RETURNS language_handler
     LANGUAGE C;
 CREATE LANGUAGE plsample
     HANDLER plsample_call_handler;
-</programlisting></para>
+</programlisting>
+  </para>
  </refsect1>
 
  <refsect1 id="sql-createlanguage-compat">
@@ -313,11 +261,30 @@ CREATE LANGUAGE plsample
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-alterlanguage"/></member>
-   <member><xref linkend="sql-createfunction"/></member>
-   <member><xref linkend="sql-droplanguage"/></member>
-   <member><xref linkend="sql-grant"/></member>
-   <member><xref linkend="sql-revoke"/></member>
+   <member><xref linkend="sql-alterlanguage" endterm="sql-alterlanguage-title"></member>
+   <member><xref linkend="sql-createfunction" endterm="sql-createfunction-title"></member>
+   <member><xref linkend="sql-droplanguage" endterm="sql-droplanguage-title"></member>
+   <member><xref linkend="sql-grant" endterm="sql-grant-title"></member>
+   <member><xref linkend="sql-revoke" endterm="sql-revoke-title"></member>
+   <member><xref linkend="app-createlang" endterm="app-createlang-title"></member>
+   <member><xref linkend="app-droplang" endterm="app-droplang-title"></member>
   </simplelist>
  </refsect1>
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,4 +1,4 @@
-<!-- doc/src/sgml/docguide.sgml -->
+<!-- $PostgreSQL: pgsql/doc/src/sgml/docguide.sgml,v 1.56 2005/05/13 16:48:14 tgl Exp $ -->
 
 <appendix id="docguide">
  <title>Documentation</title>
@@ -20,7 +20,7 @@
    </listitem>
    <listitem>
     <para>
-     PDF, for printing
+     PDF or Postscript, for printing
     </para>
    </listitem>
    <listitem>
@@ -37,8 +37,8 @@
 
  <para>
   <acronym>HTML</acronym> documentation and man pages are part of a
-  standard distribution and are installed by default.  PDF
-  format documentation is available separately for
+  standard distribution and are installed by default.  PDF and
+  Postscript format documentation is available separately for
   download.
  </para>
 
@@ -47,8 +47,11 @@
   <para>
    The documentation sources are written in
    <firstterm>DocBook</firstterm>, which is a markup language
-   defined in <acronym>XML</acronym>.  In what
-   follows, the terms DocBook and <acronym>XML</acronym> are both
+   superficially similar to <acronym>HTML</acronym>.  Both of these
+   languages are applications of the <firstterm>Standard Generalized
+   Markup Language</firstterm>, <acronym>SGML</acronym>, which is
+   essentially a language for describing other languages.  In what
+   follows, the terms DocBook and <acronym>SGML</acronym> are both
    used, but technically they are not interchangeable.
   </para>
 
@@ -58,7 +61,7 @@
    about presentation details.  A document style defines how that
    content is rendered into one of several final forms.  DocBook is
    maintained by the <ulink url="http://www.oasis-open.org">
-   OASIS group</ulink>.  The <ulink url="http://www.oasis-open.org/docbook/">
+   OASIS group</ulink>.  The <ulink url="http://www.oasis-open.org/docbook">
    official DocBook site</ulink> has good introductory and reference documentation and
    a complete O'Reilly book for your online reading pleasure.  The
    <ulink url="http://newbiedoc.sourceforge.net/metadoc/docbook-guide.html">
@@ -76,66 +79,86 @@
 
   <para>
    The following tools are used to process the documentation.  Some
-   might be optional, as noted.
+   may be optional, as noted.
 
    <variablelist>
     <varlistentry>
-     <term><ulink url="http://www.oasis-open.org/docbook/">DocBook DTD</ulink></term>
+     <term><ulink url="http://www.oasis-open.org/docbook/sgml/">DocBook DTD</ulink></term>
      <listitem>
       <para>
-       This is the definition of DocBook itself.  We currently use version
-       4.2; you cannot use later or earlier versions.  You need
-       the <acronym>XML</acronym> variant of the DocBook DTD, not
-       the <acronym>SGML</acronym> variant.
+       This is the definition of DocBook itself.  We currently use
+       version 4.2; you cannot use later or earlier versions.  Note
+       that there is also an <acronym>XML</acronym> version of DocBook
+       &mdash; do not use that.
       </para>
      </listitem>
     </varlistentry>
 
     <varlistentry>
-     <term><ulink url="https://github.com/docbook/wiki/wiki/DocBookXslStylesheets">DocBook XSL Stylesheets</ulink></term>
+     <term><ulink url="http://www.oasis-open.org/cover/ISOEnts.zip">ISO 8879 character entities</ulink></term>
+     <listitem>
+      <para>
+       These are required by DocBook but are distributed separately
+       because they are maintained by ISO.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><ulink url="http://openjade.sourceforge.net">OpenJade</ulink></term>
+     <listitem>
+      <para>
+       This is the base package of <acronym>SGML</acronym> processing.
+       It contains an <acronym>SGML</acronym> parser, a
+       <acronym>DSSSL</acronym> processor (that is, a program to
+       convert <acronym>SGML</acronym> to other formats using
+       <acronym>DSSSL</acronym> stylesheets), as well as a number of
+       related tools.  <productname>Jade</productname> is now being
+       maintained by the OpenJade group, no longer by James Clark.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><ulink url="http://docbook.sourceforge.net/projects/dsssl/index.html">DocBook DSSSL Stylesheets</ulink></term>
      <listitem>
       <para>
        These contain the processing instructions for converting the
        DocBook sources to other formats, such as
        <acronym>HTML</acronym>.
       </para>
+     </listitem>
+    </varlistentry>
 
+    <varlistentry>
+     <term><ulink url="http://docbook2x.sourceforge.net">DocBook2X tools</ulink></term>
+     <listitem>
       <para>
-       The minimum required version is currently 1.77.0, but it is recommended
-       to use the latest available version for best results.
+       This optional package is used to create man pages.  It has a
+       number of prerequisite packages of its own.  Check the web
+       site.
       </para>
      </listitem>
     </varlistentry>
 
     <varlistentry>
-     <term><ulink url="http://xmlsoft.org/">Libxml2</ulink> for <command>xmllint</command></term>
+     <term><ulink url="http://jadetex.sourceforge.net">JadeTeX</ulink></term>
      <listitem>
       <para>
-       This library and the <command>xmllint</command> tool it contains are
-       used for processing XML.  Many developers will already
-       have <application>Libxml2</application> installed, because it is also
-       used when building the PostgreSQL code.  Note, however,
-       that <command>xmllint</command> might need to be installed from a
-       separate subpackage.
+       If you want to, you can also install
+       <productname>JadeTeX</productname> to use
+       <productname>TeX</productname> as a formatting backend for
+       <productname>Jade</productname>.
+       <application>JadeTeX</application> can create Postscript or
+       <acronym>PDF</acronym> files (the latter with bookmarks).
       </para>
-     </listitem>
-     </varlistentry>
 
-    <varlistentry>
-     <term><ulink url="http://xmlsoft.org/XSLT/">Libxslt</ulink> for <command>xsltproc</command></term>
-     <listitem>
       <para>
-       <command>xsltproc</command> is an XSLT processor, that is, a program to
-       convert XML to other formats using XSLT stylesheets.
-      </para>
-     </listitem>
-    </varlistentry>
-
-    <varlistentry>
-     <term><ulink url="https://xmlgraphics.apache.org/fop/">FOP</ulink></term>
-     <listitem>
-      <para>
-       This is a program for converting, among other things, XML to PDF.
+       However, the output from <application>JadeTeX</application> is
+       inferior to what you get from the <acronym>RTF</acronym>
+       backend.  Particular problem areas are tables and various
+       artifacts of vertical and horizontal spacing.  Also, there is
+       no opportunity to manually polish the results.
       </para>
      </listitem>
     </varlistentry>
@@ -145,47 +168,71 @@
   <para>
    We have documented experience with several installation methods for
    the various tools that are needed to process the documentation.
-   These will be described below.  There might be some other packaged
+   These will be described below.  There may be some other packaged
    distributions for these tools. Please report package status to the
    documentation mailing list, and we will include that information
    here.
   </para>
 
-  <para>
-   You can get away with not installing DocBook XML and the DocBook XSLT
-   stylesheets locally, because the required files will be downloaded from the
-   Internet and cached locally.  This may in fact be the preferred solution if
-   your operating system packages provide only an old version of especially
-   the stylesheets or if no packages are available at all.  See
-   the <option>--nonet</option> option for <command>xmllint</command>
-   and <command>xsltproc</command> for more information.
-  </para>
-
   <sect2>
-   <title>Installation on Fedora, RHEL, and Derivatives</title>
+   <title><productname>Linux</productname> <acronym>RPM</acronym> Installation</title>
 
    <para>
-    To install the required packages, use:
-<programlisting>
-yum install docbook-dtds docbook-style-xsl fop libxslt
-</programlisting>
+    Most vendors provide a complete RPM set for DocBook processing in
+    their distribution.  Look for an <quote>SGML</quote> option while
+    installing, or the following packages:
+    <filename>sgml-common</filename>, <filename>docbook</filename>,
+    <filename>stylesheets</filename>, <filename>openjade</filename>
+    (or <filename>jade</filename>).  Possibly
+    <filename>sgml-tools</filename> will be needed as well.  If your
+    distributor does not provide these then you should be able to make
+    use of the packages from some other, reasonably compatible vendor.
    </para>
   </sect2>
 
   <sect2>
-   <title>Installation on FreeBSD</title>
+   <title>FreeBSD Installation</title>
 
    <para>
-    To install the required packages with <command>pkg</command>, use:
-<programlisting>
-pkg install docbook-xml docbook-xsl fop libxslt
-</programlisting>
+    The FreeBSD Documentation Project is itself a heavy user of
+    DocBook, so it comes as no surprise that there is a full set of
+    <quote>ports</quote> of the documentation tools available on
+    FreeBSD.  The following ports need to be installed to build the
+    documentation on FreeBSD.
+    <itemizedlist>
+     <listitem>
+      <para><filename>textproc/sp</filename></para>
+     </listitem>
+     <listitem>
+      <para><filename>textproc/openjade</filename></para>
+     </listitem>
+     <listitem>
+      <para><filename>textproc/iso8879</filename></para>
+     </listitem>
+     <listitem>
+      <para><filename>textproc/dsssl-docbook-modular</filename></para>
+     </listitem>
+    </itemizedlist>
+    Apparently, there is no port for the DocBook V4.2 SGML DTD
+    available right now.  You will need to install it manually.
    </para>
 
    <para>
-    When building the documentation from the <filename>doc</filename>
-    directory you'll need to use <command>gmake</command>, because the
-    makefile provided is not suitable for FreeBSD's <command>make</command>.
+    A number of things from <filename>/usr/ports/print</filename>
+    (<filename>tex</filename>, <filename>jadetex</filename>) might
+    also be of interest.
+   </para>
+
+   <para>
+    It's possible that the ports do not update the main catalog file
+    in <filename>/usr/local/share/sgml/catalog</filename>.  Be sure to
+    have the following line in there:
+<programlisting>
+CATALOG "/usr/local/share/sgml/docbook/4.2/docbook.cat"
+</programlisting>
+    If you do not want to edit the file you can also set the
+    environment variable <envar>SGML_CATALOG_FILES</envar> to a
+    colon-separated list of catalog files (such as the one above).
    </para>
 
    <para>
@@ -203,30 +250,235 @@ pkg install docbook-xml docbook-xsl fop libxslt
     available for <productname>Debian GNU/Linux</productname>.
     To install, simply use:
 <programlisting>
-apt-get install docbook-xml docbook-xsl fop libxml2-utils xsltproc
+apt-get install jade
+apt-get install docbook
+apt-get install docbook-stylesheets
 </programlisting>
    </para>
   </sect2>
 
   <sect2>
-   <title>macOS</title>
+   <title>Manual Installation from Source</title>
 
    <para>
-    On macOS, you can build the HTML and man documentation without installing
-    anything extra.  If you want to build PDFs or want to install a local copy
-    of DocBook, you can get those from your preferred package manager.
+    The manual installation process of the DocBook tools is somewhat
+    complex, so if you have pre-built packages available, use them.
+    We describe here only a standard setup, with reasonably standard
+    installation paths, and no <quote>fancy</quote> features.  For
+    details, you should study the documentation of the respective
+    package, and read <acronym>SGML</acronym> introductory material.
    </para>
 
-   <para>
-    If you use MacPorts, the following will get you set up:
+   <sect3>
+    <title>Installing OpenJade</title>
+
+    <procedure>
+      <step>
+       <para>
+        The installation of OpenJade offers a GNU-style
+        <literal>./configure; make; make install</literal> build
+        process.  Details can be found in the OpenJade source
+        distribution. In a nutshell:
+<synopsis>
+./configure --enable-default-catalog=/usr/local/share/sgml/catalog
+make
+make install
+</synopsis>
+        Be sure to remember where you put the <quote>default
+        catalog</quote>; you will need it below.  You can also leave
+        it off, but then you will have to set the environment variable
+        <envar>SGML_CATALOG_FILES</envar> to point to the file
+        whenever you use <application>jade</application> later on.
+        (This method is also an option if OpenJade is already
+        installed and you want to install the rest of the toolchain
+        locally.)
+       </para>
+      </step>
+
+      <step id="doc-openjade-install">
+       <para>
+        Additionally, you should install the files
+        <filename>dsssl.dtd</filename>, <filename>fot.dtd</filename>,
+        <filename>style-sheet.dtd</filename>, and
+        <filename>catalog</filename> from the
+        <filename>dsssl</filename> directory somewhere, perhaps into
+        <filename>/usr/local/share/sgml/dsssl</filename>.  It's
+        probably easiest to copy the entire directory:
+<synopsis>
+cp -R dsssl /usr/local/share/sgml
+</synopsis>
+       </para>
+      </step>
+
+      <step>
+       <para>
+        Finally, create the file
+        <filename>/usr/local/share/sgml/catalog</filename> and add
+        this line to it:
 <programlisting>
-sudo port install docbook-xml-4.2 docbook-xsl fop
+CATALOG "dsssl/catalog"
 </programlisting>
-    If you use Homebrew, use this:
+        (This is a relative path reference to the file installed in
+        <xref linkend="doc-openjade-install">.  Be sure to adjust it
+        if you chose your installation layout differently.)
+       </para>
+      </step>
+     </procedure>
+   </sect3>
+
+   <sect3>
+    <title>Installing the <productname>DocBook</productname> <acronym>DTD</acronym> Kit</title>
+
+    <procedure>
+     <step>
+      <para>
+       Obtain the <ulink url="http://www.docbook.org/sgml/4.2/docbook-4.2.zip">
+       DocBook V4.2 distribution</ulink>.
+      </para>
+     </step>
+
+     <step>
+      <para>
+       Create the directory
+       <filename>/usr/local/share/sgml/docbook-4.2</filename> and change
+       to it. (The exact location is irrelevant, but this one is
+       reasonable within the layout we are following here.)
+<screen>
+<prompt>$ </prompt><userinput>mkdir /usr/local/share/sgml/docbook-4.2</userinput>
+<prompt>$ </prompt><userinput>cd /usr/local/share/sgml/docbook-4.2</userinput>
+</screen>
+      </para>
+     </step>
+
+     <step>
+      <para>
+       Unpack the archive.
+<screen>
+<prompt>$ </prompt><userinput>unzip -a ...../docbook-4.2.zip</userinput>
+</screen>
+       (The archive will unpack its files into the current directory.)
+      </para>
+     </step>
+
+     <step>
+      <para>
+       Edit the file
+       <filename>/usr/local/share/sgml/catalog</filename> (or whatever
+       you told jade during installation) and put a line like this
+       into it:
 <programlisting>
-brew install docbook docbook-xsl fop
+CATALOG "docbook-4.2/docbook.cat"
 </programlisting>
-   </para>
+      </para>
+     </step>
+
+     <step>
+      <para>
+       Download the <ulink url="http://www.oasis-open.org/cover/ISOEnts.zip">
+       ISO 8879 character entities archive</ulink>, unpack it, and put the
+       files in the same directory you put the DocBook files in.
+<screen>
+<prompt>$ </prompt><userinput>cd /usr/local/share/sgml/docbook-4.2</userinput>
+<prompt>$ </prompt><userinput>unzip ...../ISOEnts.zip</userinput>
+</screen>
+      </para>
+     </step>
+
+     <step>
+      <para>
+       Run the following command in the directory with the DocBook and ISO files:
+<programlisting>
+perl -pi -e 's/iso-(.*).gml/ISO\1/g' docbook.cat
+</programlisting>
+       (This fixes a mixup between the names used in the DocBook
+       catalog file and the actual names of the ISO character entity
+       files.)
+      </para>
+     </step>
+    </procedure>
+   </sect3>
+
+   <sect3>
+    <title>Installing the DocBook <acronym>DSSSL</acronym> Style Sheets</title>
+
+    <para>
+     To install the style sheets, unzip and untar the distribution and
+     move it to a suitable place, for example
+     <filename>/usr/local/share/sgml</filename>.  (The archive will
+     automatically create a subdirectory.)
+<screen>
+<prompt>$</prompt> <userinput>gunzip docbook-dsssl-1.<replaceable>xx</>.tar.gz</userinput>
+<prompt>$</prompt> <userinput>tar -C /usr/local/share/sgml -xf docbook-dsssl-1.<replaceable>xx</>.tar</userinput>
+</screen>
+    </para>
+
+    <para>
+     The usual catalog entry in
+     <filename>/usr/local/share/sgml/catalog</filename> can also be
+     made:
+<programlisting>
+CATALOG "docbook-dsssl-1.<replaceable>xx</>/catalog"
+</programlisting>
+     Because stylesheets change rather often, and it's sometimes
+     beneficial to try out alternative versions,
+     <productname>PostgreSQL</productname> doesn't use this catalog
+     entry.  See <xref linkend="docguide-toolsets-configure"> for
+     information about how to select the stylesheets instead.
+    </para>
+   </sect3>
+
+   <sect3>
+    <title>Installing <productname>JadeTeX</productname></title>
+
+    <para>
+     To install and use <productname>JadeTeX</productname>, you will
+     need a working installation of <productname>TeX</productname> and
+     <productname>LaTeX2e</productname>, including the supported
+     <productname>tools</productname> and
+     <productname>graphics</productname> packages,
+     <productname>Babel</productname>,
+     <productname><acronym>AMS</acronym> fonts</productname> and
+     <productname>AMS-LaTeX</productname>, the
+     <productname><acronym>PSNFSS</acronym></productname> extension
+     and companion kit of <quote>the 35 fonts</quote>, the
+     <productname>dvips</productname> program for generating
+     <productname>PostScript</productname>, the macro packages
+     <productname>fancyhdr</productname>,
+     <productname>hyperref</productname>,
+     <productname>minitoc</productname>,
+     <productname>url</productname> and
+     <productname>ot2enc</productname>.  All of these can be found on
+     your friendly neighborhood <ulink url="http://www.ctan.org">
+     <acronym>CTAN site</acronym></ulink>.
+     The installation of the <application>TeX</application> base
+     system is far beyond the scope of this introduction.  Binary
+     packages should be available for any system that can run
+     <application>TeX</application>.
+    </para>
+
+    <para>
+     Before you can use <application>JadeTeX</application> with the
+     <productname>PostgreSQL</productname> documentation sources, you
+     will need to increase the size of
+     <application>TeX</application>'s internal data structures.
+     Details on this can be found in the <application>JadeTeX</application>
+     installation instructions.
+    </para>
+
+    <para>
+     Once that is finished you can install <application>JadeTeX</application>:
+<screen>
+<prompt>$</prompt> <userinput>gunzip jadetex-<replaceable>xxx</replaceable>.tar.gz</userinput>
+<prompt>$</prompt> <userinput>tar xf jadetex-<replaceable>xxx</replaceable>.tar</userinput>
+<prompt>$</prompt> <userinput>cd jadetex</userinput>
+<prompt>$</prompt> <userinput>make install</userinput>
+<prompt>$</prompt> <userinput>mktexlsr</userinput>
+</screen>
+     The last two need to be done as <systemitem>root</systemitem>.
+    </para>
+
+   </sect3>
+
   </sect2>
 
   <sect2 id="docguide-toolsets-configure">
@@ -239,14 +491,25 @@ brew install docbook docbook-xsl fop
    Check the output near the end of the run, it should look something
    like this:
 <screen>
-checking for xmllint... xmllint
-checking for DocBook XML V4.2... yes
-checking for dbtoepub... dbtoepub
-checking for xsltproc... xsltproc
-checking for fop... fop
+<computeroutput>
+checking for onsgmls... onsgmls
+checking for openjade... openjade
+checking for DocBook V4.2... yes
+checking for DocBook stylesheets... /usr/lib/sgml/stylesheets/nwalsh-modular
+checking for sgmlspl... sgmlspl
+</computeroutput>
 </screen>
-   If <filename>xmllint</filename> was not found then some of the following
-   tests will be skipped.
+   If neither <filename>onsgmls</filename> nor
+   <filename>nsgmls</filename> were found then you will not see the
+   remaining 4 lines.  <filename>nsgmls</filename> is part of the Jade
+   package.  If <quote>DocBook V4.2</quote> was not found then you did
+   not install the DocBook DTD kit in a place where jade can find it,
+   or you have not set up the catalog files correctly.  See the
+   installation hints above.  The DocBook stylesheets are looked for
+   in a number of relatively standard places, but if you have them
+   some other place then you should set the environment variable
+   <envar>DOCBOOKSTYLE</envar> to the location and rerun
+   <filename>configure</filename> afterwards.
   </para>
 
   </sect2>
@@ -268,109 +531,363 @@ checking for fop... fop
    <para>
     To build the <acronym>HTML</acronym> version of the documentation:
 <screen>
-<prompt>doc/src/sgml$ </prompt><userinput>make html</userinput>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake html</userinput>
 </screen>
-    This is also the default target.  The output appears in the
-    subdirectory <filename>html</filename>.
+    This is also the default target.
    </para>
 
    <para>
-    To produce HTML documentation with the stylesheet used on <ulink
-    url="https://www.postgresql.org/docs/current">postgresql.org</ulink> instead of the
-    default simple style use:
-<screen>
-<prompt>doc/src/sgml$ </prompt><userinput>make STYLE=website html</userinput>
-</screen>
+    When the HTML documentation is built, the process also generates
+    the linking information for the index entries.  Thus, if you want
+    your documentation to have a concept index at the end, you need to
+    build the HTML documentation once, and then build the
+    documentation again in whatever format you like.
    </para>
+
+   <para>
+    To allow for easier handling in the final distribution, the files
+    comprising the HTML documentation are stored in a tar archive that
+    is unpacked at installation time.  To create the
+    <acronym>HTML</acronym> documentation package, use the commands
+<programlisting>
+cd doc/src
+gmake postgres.tar.gz
+</programlisting>
+    In the distribution, these archives live in the
+    <filename>doc</filename> directory and are installed by default
+    with <command>gmake install</command>.
+  </para>
  </sect2>
 
  <sect2>
   <title>Manpages</title>
 
   <para>
-   We use the DocBook XSL stylesheets to
+   We use the <application>docbook2man</application> utility to
    convert <productname>DocBook</productname>
    <sgmltag>refentry</sgmltag> pages to *roff output suitable for man
-   pages.  To create the man pages, use the command:
-<screen>
-<prompt>doc/src/sgml$ </prompt><userinput>make man</userinput>
-</screen>
+   pages.  The man pages are also distributed as a tar archive,
+   similar to the <acronym>HTML</acronym> version.  To create the man
+   page package, use the commands
+<programlisting>
+cd doc/src
+gmake man.tar.gz
+</programlisting>
+   which will result in a tar file being generated in the
+   <filename>doc/src</filename> directory.
+  </para>
+
+  <para>
+   To generate quality man pages, it might be necessary to use a
+   hacked version of the conversion utility or do some manual
+   postprocessing.  All man pages should be manually inspected before
+   distribution.
   </para>
  </sect2>
 
   <sect2>
-   <title>PDF</title>
+   <title>Print Output via <application>JadeTex</application></title>
 
    <para>
-    To produce a PDF rendition of the documentation
-    using <productname>FOP</productname>, you can use one of the following
-    commands, depending on the preferred paper format:
+    If you want to use <application>JadeTex</application> to produce a
+    printable rendition of the documentation, you can use one of the
+    following commands:
 
     <itemizedlist>
      <listitem>
       <para>
-       For A4 format:
+       To make a <acronym>DVI</acronym> version:
 <screen>
-<prompt>doc/src/sgml$ </prompt><userinput>make postgres-A4.pdf</userinput>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake postgres.dvi</userinput>
 </screen>
       </para>
      </listitem>
 
      <listitem>
       <para>
-       For U.S. letter format:
+       To generate Postscript from the <acronym>DVI</acronym>:
 <screen>
-<prompt>doc/src/sgml$ </prompt><userinput>make postgres-US.pdf</userinput>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake postgres.ps</userinput>
 </screen>
+      </para>
+     </listitem>
+  
+     <listitem>
+      <para>
+       To make a <acronym>PDF</acronym>:
+<screen>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake postgres.pdf</userinput>
+</screen>
+       (Of course you can also make a <acronym>PDF</acronym> version
+       from the Postscript, but if you generate <acronym>PDF</acronym>
+       directly, it will have hyperlinks and other enhanced features.)
       </para>
      </listitem>
     </itemizedlist>
    </para>
+  </sect2>
+
+  <sect2>
+   <title>Print Output via <acronym>RTF</acronym></title>
 
    <para>
-    Because the PostgreSQL documentation is fairly
-    big, <productname>FOP</productname> will require a significant amount of
-    memory.  Because of that, on some systems, the build will fail with a
-    memory-related error message.  This can usually be fixed by configuring
-    Java heap settings in the configuration
-    file <filename>~/.foprc</filename>, for example:
-<programlisting>
-# FOP binary distribution
-FOP_OPTS='-Xmx1000m'
-# Debian
-JAVA_ARGS='-Xmx1000m'
-# Red Hat
-ADDITIONAL_FLAGS='-Xmx1000m'
-</programlisting>
-    There is a minimum amount of memory that is required, and to some extent
-    more memory appears to make things a bit faster.  On systems with very
-    little memory (less than 1 GB), the build will either be very slow due to
-    swapping or will not work at all.
+    You can also create a printable version of the <productname>PostgreSQL</productname>
+    documentation by converting it to <acronym>RTF</acronym> and
+    applying minor formatting corrections using an office suite.
+    Depending on the capabilities of the particular office suite, you
+    can then convert the documentation to Postscript of
+    <acronym>PDF</acronym>.  The procedure below illustrates this
+    process using <productname>Applixware</productname>.
    </para>
 
-   <para>
-    Other XSL-FO processors can also be used manually, but the automated build
-    process only supports FOP.
-   </para>
+   <note>
+    <para>
+     It appears that current versions of the <productname>PostgreSQL</productname> documentation
+     trigger some bug in or exceed the size limit of OpenJade.  If the
+     build process of the <acronym>RTF</acronym> version hangs for a
+     long time and the output file still has size 0, then you may have
+     hit that problem.  (But keep in mind that a normal build takes 5
+     to 10 minutes, so don't abort too soon.)
+    </para>
+   </note>
+
+   <procedure>
+    <title><productname>Applixware</productname> <acronym>RTF</acronym> Cleanup</title>
+
+    <para>
+     <application>OpenJade</application> omits specifying a default
+     style for body text. In the past, this undiagnosed problem led to
+     a long process of table of contents generation. However, with
+     great help from the <productname>Applixware</productname> folks
+     the symptom was diagnosed and a workaround is available.
+    </para>
+
+    <step performance="required">
+     <para>
+      Generate the <acronym>RTF</acronym> version by typing:
+<screen>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake postgres.rtf</userinput>
+</screen>
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+      Repair the RTF file to correctly specify all styles, in
+      particular the default style. If the document contains
+      <sgmltag>refentry</sgmltag> sections, one must also replace
+      formatting hints which tie a preceding paragraph to the current
+      paragraph, and instead tie the current paragraph to the
+      following one. A utility, <command>fixrtf</command>, is
+      available in <filename>doc/src/sgml</filename> to accomplish
+      these repairs:
+
+<screen>
+<prompt>doc/src/sgml$ </prompt><userinput>./fixrtf --refentry postgres.rtf</userinput>
+</screen>
+     </para>
+
+     <para>
+      The script adds <literal>{\s0 Normal;}</literal> as the zeroth
+      style in the document. According to
+      <productname>Applixware</productname>, the RTF standard would
+      prohibit adding an implicit zeroth style, though Microsoft Word
+      happens to handle this case. For repairing
+      <sgmltag>refentry</sgmltag> sections, the script replaces
+      <literal>\keepn</literal> tags with <literal>\keep</literal>.
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+      Open a new document in <productname>Applixware Words</productname> and
+      then import the <acronym>RTF</acronym> file.
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+      Generate a new table of contents (ToC) using
+      <productname>Applixware</productname>.
+     </para>
+
+     <substeps>
+      <step>
+       <para>
+        Select the existing ToC lines, from the beginning of the first
+        character on the first line to the last character of the last
+        line.
+       </para>
+      </step>
+
+      <step>
+       <para>
+        Build a new ToC using
+        <menuchoice><guimenu>Tools</guimenu><guisubmenu>Book
+        Building</guisubmenu><guimenuitem>Create Table of
+        Contents</guimenuitem></menuchoice>. Select the first three
+        levels of headers for inclusion in the ToC. This will replace
+        the existing lines imported in the RTF with a native
+        <productname>Applixware</productname> ToC.
+       </para>
+      </step>
+
+      <step>
+       <para>
+        Adjust the ToC formatting by using
+        <menuchoice><guimenu>Format</guimenu><guimenuitem>Style</guimenuitem></menuchoice>,
+        selecting each of the three ToC styles, and adjusting the
+        indents for <literal>First</literal> and
+        <literal>Left</literal>. Use the following values:
+
+        <informaltable>
+         <tgroup cols="3">
+          <thead>
+           <row>
+            <entry>Style</entry>
+            <entry>First Indent (inches)</entry>
+            <entry>Left Indent (inches)</entry>
+           </row>
+          </thead>
+
+          <tbody>
+           <row>
+            <entry><literal>TOC-Heading 1</literal></entry>
+            <entry><literal>0.4</literal></entry>
+            <entry><literal>0.4</literal></entry>
+           </row>
+
+           <row>
+            <entry><literal>TOC-Heading 2</literal></entry>
+            <entry><literal>0.8</literal></entry>
+            <entry><literal>0.8</literal></entry>
+           </row>
+
+           <row>
+            <entry><literal>TOC-Heading 3</literal></entry>
+            <entry><literal>1.2</literal></entry>
+            <entry><literal>1.2</literal></entry>
+           </row>
+          </tbody>
+         </tgroup>
+        </informaltable>
+       </para>
+      </step>
+     </substeps>
+    </step>
+
+    <step performance="required">
+     <para>
+      Work through the document to:
+
+      <itemizedlist>
+       <listitem>
+        <para>
+         Adjust page breaks.
+        </para>
+       </listitem>
+
+       <listitem>
+        <para>
+         Adjust table column widths.
+        </para>
+       </listitem>
+      </itemizedlist>
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+      Replace the right-justified page numbers in the Examples and
+      Figures portions of the ToC with correct values. This only takes
+      a few minutes.
+     </para>
+    </step>
+
+    <step performance="optional">
+     <para>
+       Delete the index section from the document if it is empty.
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+       Regenerate and adjust the table of contents.
+     </para>
+
+      <substeps>
+       <step>
+        <para>
+         Select the ToC field.
+        </para>
+       </step>
+
+       <step>
+        <para>
+         Select <menuchoice><guimenu>Tools</guimenu><guisubmenu>Book
+         Building</guisubmenu><guimenuitem>Create Table of
+         Contents</guimenuitem></menuchoice>.
+        </para>
+       </step>
+
+       <step>
+        <para>
+         Unbind the ToC by selecting
+         <menuchoice><guimenu>Tools</guimenu><guisubmenu>Field
+         Editing</guisubmenu><guimenuitem>Unprotect</guimenuitem></menuchoice>.
+        </para>
+       </step>
+
+       <step>
+        <para>
+         Delete the first line in the ToC, which is an entry for the
+         ToC itself.
+        </para>
+       </step>
+      </substeps>
+    </step>
+
+    <step performance="required">
+     <para>
+      Save the document as native <productname>Applixware
+      Words</productname> format to allow easier last minute editing
+      later.
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+      <quote>Print</quote> the document
+      to a file in Postscript format.
+     </para>
+    </step>
+   </procedure>
   </sect2>
 
   <sect2>
    <title>Plain Text Files</title>
 
    <para>
-    The installation instructions are also distributed as plain text,
-    in case they are needed in a situation where better reading tools
-    are not available.  The <filename>INSTALL</filename> file
-    corresponds to <xref linkend="installation"/>, with some minor
+    Several files are distributed as plain text, for reading during
+    the installation process. The <filename>INSTALL</filename> file
+    corresponds to <xref linkend="installation">, with some minor
     changes to account for the different context.  To recreate the
     file, change to the directory <filename>doc/src/sgml</filename>
-    and enter <userinput>make INSTALL</userinput>.
+    and enter <userinput>gmake INSTALL</userinput>.  This will create
+    a file <filename>INSTALL.html</filename> that can be saved as text
+    with <productname>Netscape Navigator</productname> and put into
+    the place of the existing file.
+    <productname>Netscape</productname> seems to offer the best
+    quality for <acronym>HTML</acronym> to text conversions (over
+    <application>lynx</application> and
+    <application>w3m</application>).
    </para>
 
    <para>
-    In the past, the release notes and regression testing instructions
-    were also distributed as plain text, but this practice has been
-    discontinued.
+    The file <filename>HISTORY</filename> can be created similarly,
+    using the command <userinput>gmake HISTORY</userinput>.  For the
+    file <filename>src/test/regress/README</filename> the command is
+    <userinput>gmake regress_README</userinput>.
    </para>
   </sect2>
 
@@ -382,7 +899,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
     method to just check the correct syntax of the documentation
     files, which only takes a few seconds:
 <screen>
-<prompt>doc/src/sgml$ </prompt><userinput>make check</userinput>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake check</userinput>
 </screen>
    </para>
   </sect2>
@@ -443,8 +960,10 @@ ADDITIONAL_FLAGS='-Xmx1000m'
 (setq sgml-indent-step 1)
 (setq sgml-indent-data t)
 (setq sgml-parent-document nil)
+(setq sgml-default-dtd-file "./reference.ced")
 (setq sgml-exposed-tags nil)
 (setq sgml-catalog-files '("/usr/local/share/sgml/catalog"))
+(setq sgml-ecat-files nil)
 
 (autoload 'sgml-mode "psgml" "Major mode to edit SGML files." t )
 </programlisting>
@@ -461,7 +980,41 @@ ADDITIONAL_FLAGS='-Xmx1000m'
     </para>
 
     <para>
-     You might find that when using <productname>PSGML</productname>, a
+     Currently, each <acronym>SGML</acronym> source file has the
+     following block at the end of the file:
+
+<programlisting>
+&lt;!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:t
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+--&gt;
+</programlisting>
+     This will set up a number of editing mode parameters even if you
+     do not set up your <filename>~/.emacs</filename> file, but it is
+     a bit unfortunate, since if you followed the installation
+     instructions above, then the catalog path will not match your
+     location.  Hence you might need to turn off local variables:
+<programlisting>
+(setq inhibit-local-variables t)
+</programlisting>
+    </para>
+
+    <para>
+     The <productname>PostgreSQL</productname> distribution includes a
+     parsed DTD definitions file <filename>reference.ced</filename>.
+     You may find that when using <productname>PSGML</productname>, a
      comfortable way of working with these separate files of book
      parts is to insert a proper <literal>DOCTYPE</literal>
      declaration while you're editing them.  If you are working on
@@ -482,7 +1035,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
    </sect2>
 
    <sect2>
-    <title>Other Emacs Modes</title>
+    <title>Other Emacs modes</title>
 
     <para>
      <productname>GNU Emacs</productname> ships with a different
@@ -490,14 +1043,12 @@ ADDITIONAL_FLAGS='-Xmx1000m'
      <productname>PSGML</productname>, but it's less confusing and
      lighter weight.  Also, it offers syntax highlighting (font lock),
      which can be very helpful.
-     <filename>src/tools/editors/emacs.samples</filename> contains
-     sample settings for this mode.
     </para>
 
     <para>
      Norm Walsh offers a
      <ulink url="http://nwalsh.com/emacs/docbookide/index.html">major mode</ulink>
-     specifically for DocBook which also has font-lock and a number of features to
+     specifically for DocBook which also has font-lock and a number of features to 
      reduce typing.
     </para>
    </sect2>
@@ -526,7 +1077,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
    <para>
     Reference pages that describe executable commands should contain
     the following sections, in this order.  Sections that do not apply
-    can be omitted.  Additional top-level sections should only be used
+    may be omitted.  Additional top-level sections should only be used
     in special circumstances; often that information belongs in the
     <quote>Usage</quote> section.
 
@@ -552,7 +1103,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
        </para>
       </listitem>
      </varlistentry>
-
+     
      <varlistentry>
       <term>Description</term>
       <listitem>
@@ -561,17 +1112,17 @@ ADDITIONAL_FLAGS='-Xmx1000m'
        </para>
       </listitem>
      </varlistentry>
-
+     
      <varlistentry>
       <term>Options</term>
       <listitem>
        <para>
         A list describing each command-line option.  If there are a
-        lot of options, subsections can be used.
+        lot of options, subsections may be used.
        </para>
       </listitem>
      </varlistentry>
-
+     
      <varlistentry>
       <term>Exit Status</term>
       <listitem>
@@ -582,7 +1133,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
        </para>
       </listitem>
      </varlistentry>
-
+     
      <varlistentry>
       <term>Usage</term>
       <listitem>
@@ -594,7 +1145,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
        </para>
       </listitem>
      </varlistentry>
-
+     
      <varlistentry>
       <term>Environment</term>
       <listitem>
@@ -605,7 +1156,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
        </para>
       </listitem>
      </varlistentry>
-
+     
      <varlistentry>
       <term>Files</term>
       <listitem>
@@ -616,7 +1167,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
        </para>
       </listitem>
      </varlistentry>
-
+     
      <varlistentry>
       <term>Diagnostics</term>
       <listitem>
@@ -629,7 +1180,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
        </para>
       </listitem>
      </varlistentry>
-
+     
      <varlistentry>
       <term>Notes</term>
       <listitem>
@@ -640,7 +1191,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
        </para>
       </listitem>
      </varlistentry>
-
+     
      <varlistentry>
       <term>Examples</term>
       <listitem>
@@ -649,7 +1200,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
        </para>
       </listitem>
      </varlistentry>
-
+     
      <varlistentry>
       <term>History</term>
       <listitem>
@@ -660,16 +1211,7 @@ ADDITIONAL_FLAGS='-Xmx1000m'
        </para>
       </listitem>
      </varlistentry>
-
-     <varlistentry>
-      <term>Author</term>
-      <listitem>
-       <para>
-        Author (only used in the contrib section)
-       </para>
-      </listitem>
-     </varlistentry>
-
+     
      <varlistentry>
       <term>See Also</term>
       <listitem>
@@ -706,3 +1248,20 @@ ADDITIONAL_FLAGS='-Xmx1000m'
 
  </sect1>
 </appendix>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

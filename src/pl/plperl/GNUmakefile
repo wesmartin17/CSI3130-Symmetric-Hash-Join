@@ -1,127 +1,107 @@
 # Makefile for PL/Perl
-# src/pl/plperl/GNUmakefile
+# $PostgreSQL: pgsql/src/pl/plperl/GNUmakefile,v 1.25 2005/07/13 17:12:56 tgl Exp $
 
 subdir = src/pl/plperl
 top_builddir = ../../..
 include $(top_builddir)/src/Makefile.global
 
-ifeq ($(PORTNAME), win32)
-override CPPFLAGS += -DPLPERL_HAVE_UID_GID
-# Perl on win32 contains /* within comment all over the header file,
-# so disable this warning.
-override CPPFLAGS += -Wno-comment
+ifeq ($(perl_useshrplib),true)
+shared_libperl = yes
+endif
+ifeq ($(perl_useshrplib),yes)
+shared_libperl = yes
 endif
 
-# Note: we need to make sure that the CORE directory is included last,
-# probably because it sometimes contains some header files with names
-# that clash with some of ours, or with some that we include, notably on
-# Windows.
-override CPPFLAGS := -I. -I$(srcdir) $(CPPFLAGS) $(perl_embed_ccflags) -I$(perl_archlibexp)/CORE
+# If we don't have a shared library and the platform doesn't allow it
+# to work without, we have to skip it.
+ifneq (,$(findstring yes, $(shared_libperl)$(allow_nonpic_in_shlib)))
+
+ifeq ($(PORTNAME), win32)
+perl_archlibexp := $(subst \,/,$(perl_archlibexp))
+perl_privlibexp := $(subst \,/,$(perl_privlibexp))
+perl_embed_ldflags := -L$(perl_archlibexp)/CORE -lperl58
+override CPPFLAGS += -DPLPERL_HAVE_UID_GID
+endif
+
+override CPPFLAGS := -I$(srcdir) $(CPPFLAGS) -I$(perl_archlibexp)/CORE
 
 rpathdir = $(perl_archlibexp)/CORE
 
-PGFILEDESC = "PL/Perl - procedural language"
 
 NAME = plperl
+SO_MAJOR_VERSION = 0
+SO_MINOR_VERSION = 0
 
-OBJS = plperl.o SPI.o Util.o $(WIN32RES)
+OBJS = plperl.o spi_internal.o SPI.o
 
-DATA = plperl.control plperl--1.0.sql plperl--unpackaged--1.0.sql \
-       plperlu.control plperlu--1.0.sql plperlu--unpackaged--1.0.sql
+SHLIB_LINK = $(perl_embed_ldflags) $(BE_DLLLIBS)
 
-PERLCHUNKS = plc_perlboot.pl plc_trusted.pl
-
-# Perl on win32 ships with import libraries only for Microsoft Visual C++,
-# which are not compatible with mingw gcc. Therefore we need to build a
-# new import library to link with.
-ifeq ($(PORTNAME), win32)
-
-perlwithver := $(subst -l,,$(filter -l%, $(perl_embed_ldflags)))
-PERLDLL := $(dir $(subst ',,$(PERL)))$(perlwithver).dll
-# we no longer want to include the original -l spec in SHLIB_LINK
-override perl_embed_ldflags :=
-
-OBJS += lib$(perlwithver).a
-
-lib$(perlwithver).a: $(perlwithver).def
-	dlltool --dllname $(perlwithver).dll --def $(perlwithver).def --output-lib lib$(perlwithver).a
-
-$(perlwithver).def: $(PERLDLL)
-	pexports $^ > $@
-
-endif # win32
-
-
-SHLIB_LINK = $(perl_embed_ldflags)
-
-REGRESS_OPTS = --dbname=$(PL_TESTDB) --load-extension=plperl  --load-extension=plperlu
-REGRESS = plperl plperl_lc plperl_trigger plperl_shared plperl_elog plperl_util plperl_init plperlu plperl_array
-# if Perl can support two interpreters in one backend,
-# test plperl-and-plperlu cases
-ifneq ($(PERL),)
-ifeq ($(shell $(PERL) -V:usemultiplicity), usemultiplicity='define';)
-	REGRESS += plperl_plperlu
-endif
-endif
-
-# where to find xsubpp for building XS.
-XSUBPPDIR = $(shell $(PERL) -e 'use List::Util qw(first); print first { -r "$$_/ExtUtils/xsubpp" } @INC')
+REGRESS_OPTS = --dbname=$(PL_TESTDB) --load-language=plperl
+REGRESS = plperl plperl_trigger plperl_shared plperl_elog
 
 include $(top_srcdir)/src/Makefile.shlib
 
-plperl.o: perlchunks.h plperl_opmask.h plperl_helpers.h
-
-plperl_opmask.h: plperl_opmask.pl
-	@if [ x"$(perl_privlibexp)" = x"" ]; then echo "configure switch --with-perl was not specified."; exit 1; fi
-	$(PERL) $< $@
-
-perlchunks.h: $(PERLCHUNKS)
-	@if [ x"$(perl_privlibexp)" = x"" ]; then echo "configure switch --with-perl was not specified."; exit 1; fi
-	$(PERL) $(srcdir)/text2macro.pl --strip='^(\#.*|\s*)$$' $^ > $@
 
 all: all-lib
 
-%.c: %.xs
-	@if [ x"$(perl_privlibexp)" = x"" ]; then echo "configure switch --with-perl was not specified."; exit 1; fi
-# xsubpp -output option is required for coverage+vpath, but requires Perl 5.9.3
-ifeq ($(enable_coverage)$(vpath_build),yesyes)
-	$(PERL) $(XSUBPPDIR)/ExtUtils/xsubpp -typemap $(perl_privlibexp)/ExtUtils/typemap -output $@ $<
+SPI.c: SPI.xs
+	$(PERL) $(perl_privlibexp)/ExtUtils/xsubpp -typemap $(perl_privlibexp)/ExtUtils/typemap $< >$@
+
+# When doing a VPATH build, copy over the .sql and .out files so that the
+# test script can find them.  See comments in src/test/regress/GNUmakefile.
+ifdef VPATH
+
+ifneq ($(PORTNAME),win32)
+abs_srcdir := $(shell cd $(srcdir) && pwd)
+abs_builddir := $(shell pwd)
 else
-	$(PERL) $(XSUBPPDIR)/ExtUtils/xsubpp -typemap $(perl_privlibexp)/ExtUtils/typemap $< >$@
+abs_srcdir := $(shell cd $(srcdir) && pwd -W)
+abs_builddir := $(shell pwd -W)
 endif
 
+test_files_src := $(wildcard $(srcdir)/sql/*.sql) $(wildcard $(srcdir)/expected/*.out)
+test_files_build := $(patsubst $(srcdir)/%, $(abs_builddir)/%, $(test_files_src))
 
-install: all install-lib install-data
+all: $(test_files_build)
+$(test_files_build): $(abs_builddir)/%: $(srcdir)/%
+	ln -s $< $@
 
-installdirs: installdirs-lib
-	$(MKDIR_P) '$(DESTDIR)$(datadir)/extension' '$(DESTDIR)$(includedir_server)'
+endif
 
-uninstall: uninstall-lib uninstall-data
+install: all installdirs
+ifeq ($(enable_shared), yes)
+	$(INSTALL_SHLIB) $(shlib) $(DESTDIR)$(pkglibdir)/plperl$(DLSUFFIX)
+else
+	@echo "*****"; \
+	 echo "* PL/Perl was not installed due to lack of shared library support."; \
+	 echo "*****"
+endif
 
-install-data: installdirs
-	$(INSTALL_DATA) $(addprefix $(srcdir)/, $(DATA)) '$(DESTDIR)$(datadir)/extension/'
-	$(INSTALL_DATA) $(srcdir)/plperl.h $(srcdir)/ppport.h '$(DESTDIR)$(includedir_server)'
+installdirs:
+	$(mkinstalldirs) $(DESTDIR)$(pkglibdir)
 
-uninstall-data:
-	rm -f $(addprefix '$(DESTDIR)$(datadir)/extension'/, $(notdir $(DATA)))
-	rm -f $(addprefix '$(DESTDIR)$(includedir_server)'/, plperl.h ppport.h)
-
-.PHONY: install-data uninstall-data
-
-
-check: submake
-	$(pg_regress_check) $(REGRESS_OPTS) $(REGRESS)
+uninstall:
+	rm -f $(DESTDIR)$(pkglibdir)/plperl$(DLSUFFIX)
 
 installcheck: submake
-	$(pg_regress_installcheck) $(REGRESS_OPTS) $(REGRESS)
+	$(SHELL) $(top_builddir)/src/test/regress/pg_regress $(REGRESS_OPTS) $(REGRESS)
 
 .PHONY: submake
 submake:
-	$(MAKE) -C $(top_builddir)/src/test/regress pg_regress$(X)
+	$(MAKE) -C $(top_builddir)/src/test/regress pg_regress
 
 clean distclean maintainer-clean: clean-lib
-	rm -f SPI.c Util.c $(OBJS) perlchunks.h plperl_opmask.h
-	rm -rf $(pg_regress_clean_files)
-ifeq ($(PORTNAME), win32)
-	rm -f $(perlwithver).def
-endif
+	rm -f SPI.c $(OBJS)
+	rm -rf results
+	rm -f regression.diffs regression.out
+
+else # can't build
+
+all:
+	@echo ""; \
+	 echo "*** Cannot build PL/Perl because libperl is not a shared library."; \
+	 echo "*** You might have to rebuild your Perl installation.  Refer to"; \
+	 echo "*** the documentation for details."; \
+	 echo ""
+
+endif # can't build

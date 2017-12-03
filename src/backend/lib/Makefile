@@ -4,7 +4,7 @@
 #    Makefile for lib (miscellaneous stuff)
 #
 # IDENTIFICATION
-#    src/backend/lib/Makefile
+#    $PostgreSQL: pgsql/src/backend/lib/Makefile,v 1.19 2004/04/25 18:23:56 neilc Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -12,7 +12,19 @@ subdir = src/backend/lib
 top_builddir = ../../..
 include $(top_builddir)/src/Makefile.global
 
-OBJS = binaryheap.o bipartite_match.o dshash.o hyperloglog.o ilist.o \
-	   knapsack.o pairingheap.o rbtree.o stringinfo.o
+OBJS = dllist.o stringinfo.o
 
-include $(top_srcdir)/src/backend/common.mk
+all: SUBSYS.o
+
+SUBSYS.o: $(OBJS)
+	$(LD) $(LDREL) $(LDOUT) SUBSYS.o $(OBJS)
+
+depend dep:
+	$(CC) -MM $(CFLAGS) *.c >depend
+
+clean: 
+	rm -f SUBSYS.o $(OBJS) 
+
+ifeq (depend,$(wildcard depend))
+include depend
+endif

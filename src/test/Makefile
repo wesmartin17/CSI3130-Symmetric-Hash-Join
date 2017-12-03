@@ -1,33 +1,15 @@
 #-------------------------------------------------------------------------
 #
-# Makefile for src/test
+# Makefile.inc--
+#    Makefile for test suites
 #
 # Copyright (c) 1994, Regents of the University of California
 #
-# src/test/Makefile
+#
+# IDENTIFICATION
+#    $PostgreSQL: pgsql/src/test/Makefile,v 1.4 2003/11/29 19:52:13 pgsql Exp $
 #
 #-------------------------------------------------------------------------
 
-subdir = src/test
-top_builddir = ../..
-include $(top_builddir)/src/Makefile.global
-
-SUBDIRS = perl regress isolation modules authentication recovery subscription
-
-# We don't build or execute examples/, locale/, or thread/ by default,
-# but we do want "make clean" etc to recurse into them.  Likewise for
-# ldap/ and ssl/, because these test suites are not secure to run on a
-# multi-user system.
-ALWAYS_SUBDIRS = examples ldap locale thread ssl
-
-# We want to recurse to all subdirs for all standard targets, except that
-# installcheck and install should not recurse into the subdirectory "modules".
-
-recurse_alldirs_targets := $(filter-out installcheck install, $(standard_targets))
-installable_dirs := $(filter-out modules, $(SUBDIRS))
-
-$(call recurse,$(recurse_alldirs_targets))
-$(call recurse,installcheck, $(installable_dirs))
-$(call recurse,install, $(installable_dirs))
-
-$(recurse_always)
+.DEFAULT:
+	$(MAKE) -C regress $@

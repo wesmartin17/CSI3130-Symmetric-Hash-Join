@@ -1,60 +1,22 @@
 /*
- * Dynamic loading support for macOS (Darwin)
+ * These routines were taken from the Apache source, but were made
+ * available with a PostgreSQL-compatible license.	Kudos Wilfredo
+ * Sánchez <wsanchez@apple.com>.
  *
- * If dlopen() is available (Darwin 10.3 and later), we just use it.
- * Otherwise we emulate it with the older, now deprecated, NSLinkModule API.
- *
- * src/backend/port/dynloader/darwin.c
+ * $PostgreSQL: pgsql/src/backend/port/dynloader/darwin.c,v 1.10 2004/01/07 18:56:27 neilc Exp $
  */
 #include "postgres.h"
 
-#ifdef HAVE_DLOPEN
-#include <dlfcn.h>
-#else
 #include <mach-o/dyld.h>
-#endif
 
 #include "dynloader.h"
 
 
-#ifdef HAVE_DLOPEN
-
-void *
-pg_dlopen(const char *filename)
-{
-	return dlopen(filename, RTLD_NOW | RTLD_GLOBAL);
-}
-
-void
-pg_dlclose(void *handle)
-{
-	dlclose(handle);
-}
-
-PGFunction
-pg_dlsym(void *handle, const char *funcname)
-{
-	/* Do not prepend an underscore: see dlopen(3) */
-	return dlsym(handle, funcname);
-}
-
-char *
-pg_dlerror(void)
-{
-	return dlerror();
-}
-#else							/* !HAVE_DLOPEN */
-
-/*
- * These routines were taken from the Apache source, but were made
- * available with a PostgreSQL-compatible license.  Kudos Wilfredo
- * SÃ¡nchez <wsanchez@apple.com>.
- */
-
 static NSObjectFileImageReturnCode cofiff_result = NSObjectFileImageFailure;
 
+
 void *
-pg_dlopen(const char *filename)
+pg_dlopen(char *filename)
 {
 	NSObjectFileImage image;
 
@@ -69,23 +31,19 @@ pg_dlopen(const char *filename)
 void
 pg_dlclose(void *handle)
 {
-	NSUnLinkModule(handle, NSUNLINKMODULE_OPTION_NONE);
+	NSUnLinkModule(handle, FALSE);
 }
 
 PGFunction
-pg_dlsym(void *handle, const char *funcname)
+pg_dlsym(void *handle, char *funcname)
 {
-	NSSymbol symbol;
+	NSSymbol	symbol;
 	char	   *symname = (char *) malloc(strlen(funcname) + 2);
-
-	if (!symname)
-		return NULL;
 
 	sprintf(symname, "_%s", funcname);
 	if (NSIsSymbolNameDefined(symname))
 	{
 		symbol = NSLookupAndBindSymbol(symname);
-
 		free(symname);
 		return (PGFunction) NSAddressOfSymbol(symbol);
 	}
@@ -134,5 +92,3 @@ pg_dlerror(void)
 
 	return (char *) errorString;
 }
-
-#endif							/* HAVE_DLOPEN */

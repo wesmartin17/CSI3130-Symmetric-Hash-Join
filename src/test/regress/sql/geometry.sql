@@ -59,6 +59,10 @@ SELECT '' AS thirty, p.f1, l.s, p.f1 ## l.s AS closest
    FROM LSEG_TBL l, POINT_TBL p;
 
 --
+-- Lines
+--
+
+--
 -- Boxes
 --
 
@@ -79,15 +83,11 @@ SELECT '' AS twenty, b.f1 / p.f1 AS rotation
    FROM BOX_TBL b, POINT_TBL p
    WHERE (p.f1 <-> point '(0,0)') >= 1;
 
-SELECT f1::box
-	FROM POINT_TBL;
-
-SELECT bound_box(a.f1, b.f1)
-	FROM BOX_TBL a, BOX_TBL b;
-
 --
 -- Paths
 --
+
+SET geqo TO 'off';
 
 SELECT '' AS eight, npoints(f1) AS npoints, f1 AS path FROM PATH_TBL;
 
@@ -101,15 +101,17 @@ SELECT '' AS eight, p1.f1 + point '(10,10)' AS dist_add
 SELECT '' AS eight, p1.f1 * point '(2,-1)' AS dist_mul
    FROM PATH_TBL p1;
 
+RESET geqo;
+
 --
 -- Polygons
 --
 
 -- containment
-SELECT '' AS twentyfour, p.f1, poly.f1, poly.f1 @> p.f1 AS contains
+SELECT '' AS twentyfour, p.f1, poly.f1, poly.f1 ~ p.f1 AS contains
    FROM POLYGON_TBL poly, POINT_TBL p;
 
-SELECT '' AS twentyfour, p.f1, poly.f1, p.f1 <@ poly.f1 AS contained
+SELECT '' AS twentyfour, p.f1, poly.f1, p.f1 @ poly.f1 AS contained
    FROM POLYGON_TBL poly, POINT_TBL p;
 
 SELECT '' AS four, npoints(f1) AS npoints, f1 AS polygon
@@ -150,4 +152,4 @@ SELECT '' AS two, circle(f1)
 SELECT '' AS twentyfour, c1.f1 AS circle, p1.f1 AS point, (p1.f1 <-> c1.f1) AS distance
    FROM CIRCLE_TBL c1, POINT_TBL p1
    WHERE (p1.f1 <-> c1.f1) > 0
-   ORDER BY distance, area(c1.f1), p1.f1[0];
+   ORDER BY distance, circle using <, point using <<;

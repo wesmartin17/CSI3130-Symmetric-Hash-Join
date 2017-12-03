@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/px.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/px.c,v 1.15 2005/10/15 02:49:06 momjian Exp $
  */
 
 #include "postgres.h"
@@ -48,16 +48,16 @@ static const struct error_desc px_err_list[] = {
 	{PXE_BAD_OPTION, "Unknown option"},
 	{PXE_BAD_FORMAT, "Badly formatted type"},
 	{PXE_KEY_TOO_BIG, "Key was too big"},
-	{PXE_CIPHER_INIT, "Cipher cannot be initialized ?"},
+	{PXE_CIPHER_INIT, "Cipher cannot be initalized ?"},
 	{PXE_HASH_UNUSABLE_FOR_HMAC, "This hash algorithm is unusable for HMAC"},
 	{PXE_DEV_READ_ERROR, "Error reading from random device"},
+	{PXE_OSSL_RAND_ERROR, "OpenSSL PRNG error"},
 	{PXE_BUG, "pgcrypto bug"},
 	{PXE_ARGUMENT_ERROR, "Illegal argument to function"},
 	{PXE_UNKNOWN_SALT_ALGO, "Unknown salt algorithm"},
 	{PXE_BAD_SALT_ROUNDS, "Incorrect number of rounds"},
 	{PXE_MCRYPT_INTERNAL, "mcrypt internal error"},
 	{PXE_NO_RANDOM, "No strong random source"},
-	{PXE_DECRYPT_FAILED, "Decryption failed"},
 	{PXE_PGP_CORRUPT_DATA, "Wrong key or corrupt data"},
 	{PXE_PGP_CORRUPT_ARMOR, "Corrupt ascii-armor"},
 	{PXE_PGP_UNSUPPORTED_COMPR, "Unsupported compression algorithm"},
@@ -66,8 +66,12 @@ static const struct error_desc px_err_list[] = {
 	{PXE_PGP_COMPRESSION_ERROR, "Compression error"},
 	{PXE_PGP_NOT_TEXT, "Not text data"},
 	{PXE_PGP_UNEXPECTED_PKT, "Unexpected packet in key data"},
+	{PXE_PGP_NO_BIGNUM,
+		"public-key functions disabled - "
+	"pgcrypto needs OpenSSL for bignums"},
 	{PXE_PGP_MATH_FAILED, "Math operation failed"},
 	{PXE_PGP_SHORT_ELGAMAL_KEY, "Elgamal keys must be at least 1024 bits long"},
+	{PXE_PGP_RSA_UNSUPPORTED, "pgcrypto does not support RSA keys"},
 	{PXE_PGP_UNKNOWN_PUBALGO, "Unknown public-key encryption algorithm"},
 	{PXE_PGP_WRONG_KEY, "Wrong key"},
 	{PXE_PGP_MULTIPLE_KEYS,
@@ -82,41 +86,11 @@ static const struct error_desc px_err_list[] = {
 	{PXE_PGP_UNSUPPORTED_PUBALGO, "Unsupported public key algorithm"},
 	{PXE_PGP_MULTIPLE_SUBKEYS, "Several subkeys not supported"},
 
+	/* fake this as PXE_PGP_CORRUPT_DATA */
+	{PXE_MBUF_SHORT_READ, "Corrupt data"},
+
 	{0, NULL},
 };
-
-/*
- * Call ereport(ERROR, ...), with an error code and message corresponding to
- * the PXE_* error code given as argument.
- *
- * This is similar to px_strerror(err), but for some errors, we fill in the
- * error code and detail fields more appropriately.
- */
-void
-px_THROW_ERROR(int err)
-{
-	if (err == PXE_NO_RANDOM)
-	{
-#ifdef HAVE_STRONG_RANDOM
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("could not generate a random number")));
-#else
-		ereport(ERROR,
-				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("generating random data is not supported by this build"),
-				 errdetail("This functionality requires a source of strong random numbers"),
-				 errhint("You need to rebuild PostgreSQL using --enable-strong-random")));
-#endif
-	}
-	else
-	{
-		/* For other errors, use the message from the above list. */
-		ereport(ERROR,
-				(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),
-				 errmsg("%s", px_strerror(err))));
-	}
-}
 
 const char *
 px_strerror(int err)
@@ -129,15 +103,9 @@ px_strerror(int err)
 	return "Bad error code";
 }
 
-/* memset that must not be optimized away */
-void
-px_memset(void *ptr, int c, size_t len)
-{
-	memset(ptr, c, len);
-}
 
 const char *
-px_resolve_alias(const PX_Alias *list, const char *name)
+px_resolve_alias(const PX_Alias * list, const char *name)
 {
 	while (list->name)
 	{
@@ -177,28 +145,30 @@ px_debug(const char *fmt,...)
  */
 
 static unsigned
-combo_encrypt_len(PX_Combo *cx, unsigned dlen)
+combo_encrypt_len(PX_Combo * cx, unsigned dlen)
 {
 	return dlen + 512;
 }
 
 static unsigned
-combo_decrypt_len(PX_Combo *cx, unsigned dlen)
+combo_decrypt_len(PX_Combo * cx, unsigned dlen)
 {
 	return dlen;
 }
 
 static int
-combo_init(PX_Combo *cx, const uint8 *key, unsigned klen,
+combo_init(PX_Combo * cx, const uint8 *key, unsigned klen,
 		   const uint8 *iv, unsigned ivlen)
 {
 	int			err;
-	unsigned	ks,
+	unsigned	bs,
+				ks,
 				ivs;
 	PX_Cipher  *c = cx->cipher;
 	uint8	   *ivbuf = NULL;
 	uint8	   *keybuf;
 
+	bs = px_cipher_block_size(c);
 	ks = px_cipher_key_size(c);
 
 	ivs = px_cipher_iv_size(c);
@@ -228,12 +198,13 @@ combo_init(PX_Combo *cx, const uint8 *key, unsigned klen,
 }
 
 static int
-combo_encrypt(PX_Combo *cx, const uint8 *data, unsigned dlen,
+combo_encrypt(PX_Combo * cx, const uint8 *data, unsigned dlen,
 			  uint8 *res, unsigned *rlen)
 {
 	int			err = 0;
 	uint8	   *bbuf;
 	unsigned	bs,
+				maxlen,
 				bpos,
 				i,
 				pad;
@@ -241,6 +212,7 @@ combo_encrypt(PX_Combo *cx, const uint8 *data, unsigned dlen,
 	PX_Cipher  *c = cx->cipher;
 
 	bbuf = NULL;
+	maxlen = *rlen;
 	bs = px_cipher_block_size(c);
 
 	/* encrypt */
@@ -297,7 +269,7 @@ out:
 }
 
 static int
-combo_decrypt(PX_Combo *cx, const uint8 *data, unsigned dlen,
+combo_decrypt(PX_Combo * cx, const uint8 *data, unsigned dlen,
 			  uint8 *res, unsigned *rlen)
 {
 	unsigned	bs,
@@ -306,18 +278,6 @@ combo_decrypt(PX_Combo *cx, const uint8 *data, unsigned dlen,
 	unsigned	pad_ok;
 
 	PX_Cipher  *c = cx->cipher;
-
-	/* decide whether zero-length input is allowed */
-	if (dlen == 0)
-	{
-		/* with padding, empty ciphertext is not allowed */
-		if (cx->padding)
-			return PXE_DECRYPT_FAILED;
-
-		/* without padding, report empty result */
-		*rlen = 0;
-		return 0;
-	}
 
 	bs = px_cipher_block_size(c);
 	if (bs > 1 && (dlen % bs) != 0)
@@ -354,11 +314,11 @@ block_error:
 }
 
 static void
-combo_free(PX_Combo *cx)
+combo_free(PX_Combo * cx)
 {
 	if (cx->cipher)
 		px_cipher_free(cx->cipher);
-	px_memset(cx, 0, sizeof(*cx));
+	memset(cx, 0, sizeof(*cx));
 	px_free(cx);
 }
 
@@ -391,7 +351,7 @@ parse_cipher_name(char *full, char **cipher, char **pad)
 		if (p2 != NULL)
 		{
 			*p2++ = 0;
-			if (strcmp(p, "pad") == 0)
+			if (!strcmp(p, "pad"))
 				*pad = p2;
 			else
 				return PXE_BAD_OPTION;
@@ -407,7 +367,7 @@ parse_cipher_name(char *full, char **cipher, char **pad)
 /* provider */
 
 int
-px_find_combo(const char *name, PX_Combo **res)
+px_find_combo(const char *name, PX_Combo ** res)
 {
 	int			err;
 	char	   *buf,
@@ -436,9 +396,9 @@ px_find_combo(const char *name, PX_Combo **res)
 
 	if (s_pad != NULL)
 	{
-		if (strcmp(s_pad, "pkcs") == 0)
+		if (!strcmp(s_pad, "pkcs"))
 			cx->padding = 1;
-		else if (strcmp(s_pad, "none") == 0)
+		else if (!strcmp(s_pad, "none"))
 			cx->padding = 0;
 		else
 			goto err1;

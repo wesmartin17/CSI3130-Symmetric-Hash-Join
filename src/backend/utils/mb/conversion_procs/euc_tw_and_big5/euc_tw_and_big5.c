@@ -2,11 +2,11 @@
  *
  *	  EUC_TW, BIG5 and MULE_INTERNAL
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/utils/mb/conversion_procs/euc_tw_and_big5/euc_tw_and_big5.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/mb/conversion_procs/euc_tw_and_big5/euc_tw_and_big5.c,v 1.10.2.1 2006/05/21 20:05:48 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -17,14 +17,19 @@
 
 #define ENCODING_GROWTH_RATE 4
 
-PG_MODULE_MAGIC;
-
 PG_FUNCTION_INFO_V1(euc_tw_to_big5);
 PG_FUNCTION_INFO_V1(big5_to_euc_tw);
 PG_FUNCTION_INFO_V1(euc_tw_to_mic);
 PG_FUNCTION_INFO_V1(mic_to_euc_tw);
 PG_FUNCTION_INFO_V1(big5_to_mic);
 PG_FUNCTION_INFO_V1(mic_to_big5);
+
+extern Datum euc_tw_to_big5(PG_FUNCTION_ARGS);
+extern Datum big5_to_euc_tw(PG_FUNCTION_ARGS);
+extern Datum euc_tw_to_mic(PG_FUNCTION_ARGS);
+extern Datum mic_to_euc_tw(PG_FUNCTION_ARGS);
+extern Datum big5_to_mic(PG_FUNCTION_ARGS);
+extern Datum mic_to_big5(PG_FUNCTION_ARGS);
 
 /* ----------
  * conv_proc(
@@ -50,9 +55,11 @@ euc_tw_to_big5(PG_FUNCTION_ARGS)
 	int			len = PG_GETARG_INT32(4);
 	unsigned char *buf;
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_EUC_TW, PG_BIG5);
+	Assert(PG_GETARG_INT32(0) == PG_EUC_TW);
+	Assert(PG_GETARG_INT32(1) == PG_BIG5);
+	Assert(len >= 0);
 
-	buf = palloc(len * ENCODING_GROWTH_RATE + 1);
+	buf = palloc(len * ENCODING_GROWTH_RATE);
 	euc_tw2mic(src, buf, len);
 	mic2big5(buf, dest, strlen((char *) buf));
 	pfree(buf);
@@ -68,9 +75,11 @@ big5_to_euc_tw(PG_FUNCTION_ARGS)
 	int			len = PG_GETARG_INT32(4);
 	unsigned char *buf;
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_BIG5, PG_EUC_TW);
+	Assert(PG_GETARG_INT32(0) == PG_BIG5);
+	Assert(PG_GETARG_INT32(1) == PG_EUC_TW);
+	Assert(len >= 0);
 
-	buf = palloc(len * ENCODING_GROWTH_RATE + 1);
+	buf = palloc(len * ENCODING_GROWTH_RATE);
 	big52mic(src, buf, len);
 	mic2euc_tw(buf, dest, strlen((char *) buf));
 	pfree(buf);
@@ -85,7 +94,9 @@ euc_tw_to_mic(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_EUC_TW, PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(0) == PG_EUC_TW);
+	Assert(PG_GETARG_INT32(1) == PG_MULE_INTERNAL);
+	Assert(len >= 0);
 
 	euc_tw2mic(src, dest, len);
 
@@ -99,7 +110,9 @@ mic_to_euc_tw(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_MULE_INTERNAL, PG_EUC_TW);
+	Assert(PG_GETARG_INT32(0) == PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(1) == PG_EUC_TW);
+	Assert(len >= 0);
 
 	mic2euc_tw(src, dest, len);
 
@@ -113,7 +126,9 @@ big5_to_mic(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_BIG5, PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(0) == PG_BIG5);
+	Assert(PG_GETARG_INT32(1) == PG_MULE_INTERNAL);
+	Assert(len >= 0);
 
 	big52mic(src, dest, len);
 
@@ -127,7 +142,9 @@ mic_to_big5(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_MULE_INTERNAL, PG_BIG5);
+	Assert(PG_GETARG_INT32(0) == PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(1) == PG_BIG5);
+	Assert(len >= 0);
 
 	mic2big5(src, dest, len);
 
@@ -154,22 +171,21 @@ euc_tw2mic(const unsigned char *euc, unsigned char *p, int len)
 										(const char *) euc, len);
 			if (c1 == SS2)
 			{
-				c1 = euc[1];	/* plane No. */
+				c1 = euc[1];		/* plane No. */
 				if (c1 == 0xa1)
 					*p++ = LC_CNS11643_1;
 				else if (c1 == 0xa2)
 					*p++ = LC_CNS11643_2;
 				else
 				{
-					/* other planes are MULE private charsets */
-					*p++ = LCPRV2_B;
+					*p++ = 0x9d;	/* LCPRV2 */
 					*p++ = c1 - 0xa3 + LC_CNS11643_3;
 				}
 				*p++ = euc[2];
 				*p++ = euc[3];
 			}
 			else
-			{					/* CNS11643-1 */
+			{						/* CNS11643-1 */
 				*p++ = LC_CNS11643_1;
 				*p++ = c1;
 				*p++ = euc[1];
@@ -229,9 +245,9 @@ mic2euc_tw(const unsigned char *mic, unsigned char *p, int len)
 			*p++ = mic[1];
 			*p++ = mic[2];
 		}
-		else if (c1 == LCPRV2_B &&
+		else if (c1 == 0x9d &&
 				 mic[1] >= LC_CNS11643_3 && mic[1] <= LC_CNS11643_7)
-		{
+		{						/* LCPRV2? */
 			*p++ = SS2;
 			*p++ = mic[1] - LC_CNS11643_3 + 0xa3;
 			*p++ = mic[2];
@@ -280,10 +296,11 @@ big52mic(const unsigned char *big5, unsigned char *p, int len)
 		cnsBuf = BIG5toCNS(big5buf, &lc);
 		if (lc != 0)
 		{
-			/* Planes 3 and 4 are MULE private charsets */
 			if (lc == LC_CNS11643_3 || lc == LC_CNS11643_4)
-				*p++ = LCPRV2_B;
-			*p++ = lc;			/* Plane No. */
+			{
+				*p++ = 0x9d;	/* LCPRV2 */
+			}
+			*p++ = lc;		/* Plane No. */
 			*p++ = (cnsBuf >> 8) & 0x00ff;
 			*p++ = cnsBuf & 0x00ff;
 		}
@@ -325,9 +342,10 @@ mic2big5(const unsigned char *mic, unsigned char *p, int len)
 		if (l < 0)
 			report_invalid_encoding(PG_MULE_INTERNAL,
 									(const char *) mic, len);
-		if (c1 == LC_CNS11643_1 || c1 == LC_CNS11643_2 || c1 == LCPRV2_B)
+		/* 0x9d means LCPRV2 */
+		if (c1 == LC_CNS11643_1 || c1 == LC_CNS11643_2 || c1 == 0x9d)
 		{
-			if (c1 == LCPRV2_B)
+			if (c1 == 0x9d)
 			{
 				c1 = mic[1];	/* get plane no. */
 				cnsBuf = (mic[2] << 8) | mic[3];

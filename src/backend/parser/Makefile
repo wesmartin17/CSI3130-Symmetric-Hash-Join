@@ -2,7 +2,7 @@
 #
 # Makefile for parser
 #
-# src/backend/parser/Makefile
+# $PostgreSQL: pgsql/src/backend/parser/Makefile,v 1.42 2003/11/29 19:51:51 pgsql Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -10,15 +10,23 @@ subdir = src/backend/parser
 top_builddir = ../../..
 include $(top_builddir)/src/Makefile.global
 
-override CPPFLAGS := -I. -I$(srcdir) $(CPPFLAGS)
+override CPPFLAGS := -I$(srcdir) $(CPPFLAGS)
 
-OBJS= analyze.o gram.o scan.o parser.o \
-      parse_agg.o parse_clause.o parse_coerce.o parse_collate.o parse_cte.o \
-      parse_enr.o parse_expr.o parse_func.o parse_node.o parse_oper.o \
-      parse_param.o parse_relation.o parse_target.o parse_type.o \
-      parse_utilcmd.o scansup.o
+OBJS= analyze.o gram.o keywords.o parser.o parse_agg.o parse_clause.o \
+      parse_expr.o parse_func.o parse_node.o parse_oper.o parse_relation.o \
+      parse_type.o parse_coerce.o parse_target.o scansup.o
 
-include $(top_srcdir)/src/backend/common.mk
+FLEXFLAGS = -CF
+
+
+all: SUBSYS.o
+
+SUBSYS.o: $(OBJS)
+	$(LD) $(LDREL) $(LDOUT) $@ $^
+
+
+# scan is compiled as part of gram
+gram.o: $(srcdir)/scan.c
 
 
 # There is no correct way to write a rule that generates two files.
@@ -28,22 +36,34 @@ include $(top_srcdir)/src/backend/common.mk
 # important, otherwise make will choose the built-in rule for
 # gram.y=>gram.c.
 
-gram.h: gram.c ;
+$(srcdir)/gram.c: $(srcdir)/parse.h ;
 
-gram.c: BISONFLAGS += -d
-gram.c: BISON_CHECK_CMD = $(PERL) $(srcdir)/check_keywords.pl $< $(top_srcdir)/src/include/parser/kwlist.h
+$(srcdir)/parse.h: gram.y
+ifdef YACC
+	$(YACC) -d $(YFLAGS) $<
+	mv -f y.tab.c $(srcdir)/gram.c
+	mv -f y.tab.h $(srcdir)/parse.h
+else
+	@$(missing) bison $< $@
+endif
 
 
-scan.c: FLEXFLAGS = -CF -p -p
-scan.c: FLEX_NO_BACKUP=yes
-scan.c: FLEX_FIX_WARNING=yes
+$(srcdir)/scan.c: scan.l
+ifdef FLEX
+	$(FLEX) $(FLEXFLAGS) -o'$@' $<
+else
+	@$(missing) flex $< $@
+endif
 
 
 # Force these dependencies to be known even without dependency info built:
-gram.o scan.o parser.o: gram.h
+
+gram.o keywords.o parser.o: $(srcdir)/parse.h
 
 
-# gram.c, gram.h, and scan.c are in the distribution tarball, so they
+# gram.c, parse.h, and scan.c are in the distribution tarball, so they
 # are not cleaned here.
-clean distclean maintainer-clean:
-	rm -f lex.backup
+clean: 
+	rm -f SUBSYS.o $(OBJS)
+# And the garbage that might have been left behind by partial build:
+	@rm -f y.tab.c y.tab.h lex.yy.c

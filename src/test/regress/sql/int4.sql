@@ -1,5 +1,7 @@
 --
 -- INT4
+-- WARNING: int4 operators never check for over/underflow!
+-- Some of these answers are consequently numerically incorrect.
 --
 
 CREATE TABLE INT4_TBL(f1 int4);
@@ -123,35 +125,3 @@ SELECT 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 AS ten;
 SELECT 2 + 2 / 2 AS three;
 
 SELECT (2 + 2) / 2 AS two;
-
--- corner case
-SELECT (-1::int4<<31)::text;
-SELECT ((-1::int4<<31)+1)::text;
-
--- check sane handling of INT_MIN overflow cases
-SELECT (-2147483648)::int4 * (-1)::int4;
-SELECT (-2147483648)::int4 / (-1)::int4;
-SELECT (-2147483648)::int4 % (-1)::int4;
-SELECT (-2147483648)::int4 * (-1)::int2;
-SELECT (-2147483648)::int4 / (-1)::int2;
-SELECT (-2147483648)::int4 % (-1)::int2;
-
--- check rounding when casting from float
-SELECT x, x::int4 AS int4_value
-FROM (VALUES (-2.5::float8),
-             (-1.5::float8),
-             (-0.5::float8),
-             (0.0::float8),
-             (0.5::float8),
-             (1.5::float8),
-             (2.5::float8)) t(x);
-
--- check rounding when casting from numeric
-SELECT x, x::int4 AS int4_value
-FROM (VALUES (-2.5::numeric),
-             (-1.5::numeric),
-             (-0.5::numeric),
-             (0.0::numeric),
-             (0.5::numeric),
-             (1.5::numeric),
-             (2.5::numeric)) t(x);

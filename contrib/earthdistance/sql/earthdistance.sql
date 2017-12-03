@@ -1,16 +1,15 @@
 --
---  Test earthdistance extension
---
--- In this file we also do some testing of extension create/drop scenarios.
--- That's really exercising the core database's dependency logic, so ideally
--- we'd do it in the core regression tests, but we can't for lack of suitable
--- guaranteed-available extensions.  earthdistance is a good test case because
--- it has a dependency on the cube extension.
+--  Test earth distance functions
 --
 
-CREATE EXTENSION earthdistance;  -- fail, must install cube first
-CREATE EXTENSION cube;
-CREATE EXTENSION earthdistance;
+--
+-- first, define the datatype.  Turn off echoing so that expected file
+-- does not depend on contents of earthdistance.sql or cube.sql.
+--
+\set ECHO none
+\i ../cube/cube.sql
+\i earthdistance.sql
+\set ECHO all
 
 --
 -- The radius of the Earth we are using.
@@ -223,28 +222,28 @@ SELECT cube_ll_coord(earth_box(ll_to_earth(0,0),10*earth()),1)::numeric(20,5),
 --
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,1))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,1))*1.00001) @
        ll_to_earth(0,1);
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.1))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.1))*1.00001) @
        ll_to_earth(0,0.1);
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.01))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.01))*1.00001) @
        ll_to_earth(0,0.01);
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.001))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.001))*1.00001) @
        ll_to_earth(0,0.001);
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.0001))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.0001))*1.00001) @
        ll_to_earth(0,0.0001);
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0.0001,0.0001))*1.00001) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0.0001,0.0001))*1.00001) @
        ll_to_earth(0.0001,0.0001);
 SELECT earth_box(ll_to_earth(45,45),
-       earth_distance(ll_to_earth(45,45),ll_to_earth(45.0001,45.0001))*1.00001) @>
+       earth_distance(ll_to_earth(45,45),ll_to_earth(45.0001,45.0001))*1.00001) @
        ll_to_earth(45.0001,45.0001);
 SELECT earth_box(ll_to_earth(90,180),
-       earth_distance(ll_to_earth(90,180),ll_to_earth(90.0001,180.0001))*1.00001) @>
+       earth_distance(ll_to_earth(90,180),ll_to_earth(90.0001,180.0001))*1.00001) @
        ll_to_earth(90.0001,180.0001);
 
 --
@@ -254,28 +253,28 @@ SELECT earth_box(ll_to_earth(90,180),
 --
 
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,1))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,1))*.57735) @
        ll_to_earth(0,1);
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.1))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.1))*.57735) @
        ll_to_earth(0,0.1);
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.01))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.01))*.57735) @
        ll_to_earth(0,0.01);
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.001))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.001))*.57735) @
        ll_to_earth(0,0.001);
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.0001))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0,0.0001))*.57735) @
        ll_to_earth(0,0.0001);
 SELECT earth_box(ll_to_earth(0,0),
-       earth_distance(ll_to_earth(0,0),ll_to_earth(0.0001,0.0001))*.57735) @>
+       earth_distance(ll_to_earth(0,0),ll_to_earth(0.0001,0.0001))*.57735) @
        ll_to_earth(0.0001,0.0001);
 SELECT earth_box(ll_to_earth(45,45),
-       earth_distance(ll_to_earth(45,45),ll_to_earth(45.0001,45.0001))*.57735) @>
+       earth_distance(ll_to_earth(45,45),ll_to_earth(45.0001,45.0001))*.57735) @
        ll_to_earth(45.0001,45.0001);
 SELECT earth_box(ll_to_earth(90,180),
-       earth_distance(ll_to_earth(90,180),ll_to_earth(90.0001,180.0001))*.57735) @>
+       earth_distance(ll_to_earth(90,180),ll_to_earth(90.0001,180.0001))*.57735) @
        ll_to_earth(90.0001,180.0001);
 
 --
@@ -298,62 +297,3 @@ SELECT is_point(ll_to_earth(-30,-90));
 SELECT cube_dim(ll_to_earth(-30,-90)) <= 3;
 SELECT abs(cube_distance(ll_to_earth(-30,-90), '(0)'::cube) / earth() - 1) <
        '10e-12'::float8;
-
---
--- Now we are going to test extension create/drop scenarios.
---
-
--- list what's installed
-\dT
-
-drop extension cube;  -- fail, earthdistance requires it
-
-drop extension earthdistance;
-
-drop type cube;  -- fail, extension cube requires it
-
--- list what's installed
-\dT
-
-create table foo (f1 cube, f2 int);
-
-drop extension cube;  -- fail, foo.f1 requires it
-
-drop table foo;
-
-drop extension cube;
-
--- list what's installed
-\dT
-\df
-\do
-
-create schema c;
-
-create extension cube with schema c;
-
--- list what's installed
-\dT public.*
-\df public.*
-\do public.*
-\dT c.*
-
-create table foo (f1 c.cube, f2 int);
-
-drop extension cube;  -- fail, foo.f1 requires it
-
-drop schema c;  -- fail, cube requires it
-
-drop extension cube cascade;
-
-\d foo
-
--- list what's installed
-\dT public.*
-\df public.*
-\do public.*
-\dT c.*
-\df c.*
-\do c.*
-
-drop schema c;

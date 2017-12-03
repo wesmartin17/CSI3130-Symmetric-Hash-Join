@@ -3,21 +3,17 @@
  * path.c
  *	  portable path handling routines
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/port/path.c
+ *	  $PostgreSQL: pgsql/src/port/path.c,v 1.61.2.4 2006/02/01 12:42:00 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 
-#ifndef FRONTEND
-#include "postgres.h"
-#else
-#include "postgres_fe.h"
-#endif
+#include "c.h"
 
 #include <ctype.h>
 #include <sys/stat.h>
@@ -39,9 +35,15 @@
 
 
 #ifndef WIN32
-#define IS_PATH_VAR_SEP(ch) ((ch) == ':')
+#define IS_DIR_SEP(ch)	((ch) == '/')
 #else
-#define IS_PATH_VAR_SEP(ch) ((ch) == ';')
+#define IS_DIR_SEP(ch)	((ch) == '/' || (ch) == '\\')
+#endif
+
+#ifndef WIN32
+#define IS_PATH_SEP(ch) ((ch) == ':')
+#else
+#define IS_PATH_SEP(ch) ((ch) == ';')
 #endif
 
 static void make_relative_path(char *ret_path, const char *target_path,
@@ -53,7 +55,7 @@ static void trim_trailing_separator(char *path);
 /*
  * skip_drive
  *
- * On Windows, a path may begin with "C:" or "//network/".  Advance over
+ * On Windows, a path may begin with "C:" or "//network/".	Advance over
  * this and point to the effective start of the path.
  */
 #ifdef WIN32
@@ -67,7 +69,7 @@ skip_drive(const char *path)
 		while (*path && !IS_DIR_SEP(*path))
 			path++;
 	}
-	else if (isalpha((unsigned char) path[0]) && path[1] == ':')
+	else if (isalpha(path[0]) && path[1] == ':')
 	{
 		path += 2;
 	}
@@ -77,21 +79,6 @@ skip_drive(const char *path)
 
 #define skip_drive(path)	(path)
 #endif
-
-/*
- *	has_drive_prefix
- *
- * Return true if the given pathname has a drive prefix.
- */
-bool
-has_drive_prefix(const char *path)
-{
-#ifdef WIN32
-	return skip_drive(path) != path;
-#else
-	return false;
-#endif
-}
 
 /*
  *	first_dir_separator
@@ -111,19 +98,19 @@ first_dir_separator(const char *filename)
 }
 
 /*
- *	first_path_var_separator
+ *	first_path_separator
  *
  * Find the location of the first path separator (i.e. ':' on
  * Unix, ';' on Windows), return NULL if not found.
  */
 char *
-first_path_var_separator(const char *pathlist)
+first_path_separator(const char *pathlist)
 {
 	const char *p;
 
 	/* skip_drive is not needed */
 	for (p = pathlist; *p; p++)
-		if (IS_PATH_VAR_SEP(*p))
+		if (IS_PATH_SEP(*p))
 			return (char *) p;
 	return NULL;
 }
@@ -176,39 +163,7 @@ make_native_path(char *filename)
 
 
 /*
- * This function cleans up the paths for use with either cmd.exe or Msys
- * on Windows. We need them to use filenames without spaces, for which a
- * short filename is the safest equivalent, eg:
- *		C:/Progra~1/
- */
-void
-cleanup_path(char *path)
-{
-#ifdef WIN32
-	char	   *ptr;
-
-	/*
-	 * GetShortPathName() will fail if the path does not exist, or short names
-	 * are disabled on this file system.  In both cases, we just return the
-	 * original path.  This is particularly useful for --sysconfdir, which
-	 * might not exist.
-	 */
-	GetShortPathName(path, path, MAXPGPATH - 1);
-
-	/* Replace '\' with '/' */
-	for (ptr = path; *ptr; ptr++)
-	{
-		if (*ptr == '\\')
-			*ptr = '/';
-	}
-#endif
-}
-
-
-/*
  * join_path_components - join two path components, inserting a slash
- *
- * We omit the slash if either given component is empty.
  *
  * ret_path is the output area (must be of size MAXPGPATH)
  *
@@ -219,25 +174,40 @@ join_path_components(char *ret_path,
 					 const char *head, const char *tail)
 {
 	if (ret_path != head)
-		strlcpy(ret_path, head, MAXPGPATH);
+		StrNCpy(ret_path, head, MAXPGPATH);
 
 	/*
-	 * Remove any leading "." in the tail component.
-	 *
-	 * Note: we used to try to remove ".." as well, but that's tricky to get
-	 * right; now we just leave it to be done by canonicalize_path() later.
+	 * Remove any leading "." and ".." in the tail component, adjusting head
+	 * as needed.
 	 */
-	while (tail[0] == '.' && IS_DIR_SEP(tail[1]))
-		tail += 2;
-
-	if (*tail)
+	for (;;)
 	{
-		/* only separate with slash if head wasn't empty */
-		snprintf(ret_path + strlen(ret_path), MAXPGPATH - strlen(ret_path),
-				 "%s%s",
-				 (*(skip_drive(head)) != '\0') ? "/" : "",
-				 tail);
+		if (tail[0] == '.' && IS_DIR_SEP(tail[1]))
+		{
+			tail += 2;
+		}
+		else if (tail[0] == '.' && tail[1] == '\0')
+		{
+			tail += 1;
+			break;
+		}
+		else if (tail[0] == '.' && tail[1] == '.' && IS_DIR_SEP(tail[2]))
+		{
+			trim_directory(ret_path);
+			tail += 3;
+		}
+		else if (tail[0] == '.' && tail[1] == '.' && tail[2] == '\0')
+		{
+			trim_directory(ret_path);
+			tail += 2;
+			break;
+		}
+		else
+			break;
 	}
+	if (*tail)
+		snprintf(ret_path + strlen(ret_path), MAXPGPATH - strlen(ret_path),
+				 "/%s", tail);
 }
 
 
@@ -311,7 +281,7 @@ canonicalize_path(char *path)
 	 * Remove any trailing uses of "." and process ".." ourselves
 	 *
 	 * Note that "/../.." should reduce to just "/", while "../.." has to be
-	 * kept as-is.  In the latter case we put back mistakenly trimmed ".."
+	 * kept as-is.	In the latter case we put back mistakenly trimmed ".."
 	 * components below.  Also note that we want a Windows drive spec to be
 	 * visible to trim_directory(), but it's not part of the logic that's
 	 * looking at the name components; hence distinction between path and
@@ -340,7 +310,7 @@ canonicalize_path(char *path)
 		}
 		else if (pending_strips > 0 && *spath != '\0')
 		{
-			/* trim a regular directory name canceled by ".." */
+			/* trim a regular directory name cancelled by ".." */
 			trim_directory(path);
 			pending_strips--;
 			/* foo/.. should become ".", not empty */
@@ -395,40 +365,6 @@ path_contains_parent_reference(const char *path)
 }
 
 /*
- * Detect whether a path is only in or below the current working directory.
- * An absolute path that matches the current working directory should
- * return false (we only want relative to the cwd).  We don't allow
- * "/../" even if that would keep us under the cwd (it is too hard to
- * track that).
- */
-bool
-path_is_relative_and_below_cwd(const char *path)
-{
-	if (is_absolute_path(path))
-		return false;
-	/* don't allow anything above the cwd */
-	else if (path_contains_parent_reference(path))
-		return false;
-#ifdef WIN32
-
-	/*
-	 * On Win32, a drive letter _not_ followed by a slash, e.g. 'E:abc', is
-	 * relative to the cwd on that drive, or the drive's root directory if
-	 * that drive has no cwd.  Because the path itself cannot tell us which is
-	 * the case, we have to assume the worst, i.e. that it is not below the
-	 * cwd.  We could use GetFullPathName() to find the full path but that
-	 * could change if the current directory for the drive changes underneath
-	 * us, so we just disallow it.
-	 */
-	else if (isalpha((unsigned char) path[0]) && path[1] == ':' &&
-			 !IS_DIR_SEP(path[2]))
-		return false;
-#endif
-	else
-		return true;
-}
-
-/*
  * Detect whether path1 is a prefix of path2 (including equality).
  *
  * This is pretty trivial, but it seems better to export a function than
@@ -452,8 +388,8 @@ path_is_prefix_of_path(const char *path1, const char *path2)
 const char *
 get_progname(const char *argv0)
 {
-	const char *nodir_name;
-	char	   *progname;
+	const char  *nodir_name;
+	char		*progname;
 
 	nodir_name = last_dir_separator(argv0);
 	if (nodir_name)
@@ -462,14 +398,14 @@ get_progname(const char *argv0)
 		nodir_name = skip_drive(argv0);
 
 	/*
-	 * Make a copy in case argv[0] is modified by ps_status. Leaks memory, but
-	 * called only once.
+	 *	Make a copy in case argv[0] is modified by ps_status.
+	 *	Leaks memory, but called only once.
 	 */
 	progname = strdup(nodir_name);
 	if (progname == NULL)
 	{
 		fprintf(stderr, "%s: out of memory\n", nodir_name);
-		abort();				/* This could exit the postmaster */
+		exit(1);			/* This could exit the postmaster */
 	}
 
 #if defined(__CYGWIN__) || defined(WIN32)
@@ -484,22 +420,15 @@ get_progname(const char *argv0)
 
 
 /*
- * dir_strcmp: strcmp except any two DIR_SEP characters are considered equal,
- * and we honor filesystem case insensitivity if known
+ * dir_strcmp: strcmp except any two DIR_SEP characters are considered equal
  */
 static int
 dir_strcmp(const char *s1, const char *s2)
 {
 	while (*s1 && *s2)
 	{
-		if (
-#ifndef WIN32
-			*s1 != *s2
-#else
-		/* On windows, paths are case-insensitive */
-			pg_tolower((unsigned char) *s1) != pg_tolower((unsigned char) *s2)
-#endif
-			&& !(IS_DIR_SEP(*s1) && IS_DIR_SEP(*s2)))
+		if (*s1 != *s2 &&
+			!(IS_DIR_SEP(*s1) && IS_DIR_SEP(*s2)))
 			return (int) *s1 - (int) *s2;
 		s1++, s2++;
 	}
@@ -564,7 +493,7 @@ make_relative_path(char *ret_path, const char *target_path,
 	 * Set up my_exec_path without the actual executable name, and
 	 * canonicalize to simplify comparison to bin_path.
 	 */
-	strlcpy(ret_path, my_exec_path, MAXPGPATH);
+	StrNCpy(ret_path, my_exec_path, MAXPGPATH);
 	trim_directory(ret_path);	/* remove my executable name */
 	canonicalize_path(ret_path);
 
@@ -573,7 +502,7 @@ make_relative_path(char *ret_path, const char *target_path,
 	 */
 	tail_start = (int) strlen(ret_path) - tail_len;
 	if (tail_start > 0 &&
-		IS_DIR_SEP(ret_path[tail_start - 1]) &&
+		IS_DIR_SEP(ret_path[tail_start-1]) &&
 		dir_strcmp(ret_path + tail_start, bin_path + prefix_len) == 0)
 	{
 		ret_path[tail_start] = '\0';
@@ -584,116 +513,8 @@ make_relative_path(char *ret_path, const char *target_path,
 	}
 
 no_match:
-	strlcpy(ret_path, target_path, MAXPGPATH);
+	StrNCpy(ret_path, target_path, MAXPGPATH);
 	canonicalize_path(ret_path);
-}
-
-
-/*
- * make_absolute_path
- *
- * If the given pathname isn't already absolute, make it so, interpreting
- * it relative to the current working directory.
- *
- * Also canonicalizes the path.  The result is always a malloc'd copy.
- *
- * In backend, failure cases result in ereport(ERROR); in frontend,
- * we write a complaint on stderr and return NULL.
- *
- * Note: interpretation of relative-path arguments during postmaster startup
- * should happen before doing ChangeToDataDir(), else the user will probably
- * not like the results.
- */
-char *
-make_absolute_path(const char *path)
-{
-	char	   *new;
-
-	/* Returning null for null input is convenient for some callers */
-	if (path == NULL)
-		return NULL;
-
-	if (!is_absolute_path(path))
-	{
-		char	   *buf;
-		size_t		buflen;
-
-		buflen = MAXPGPATH;
-		for (;;)
-		{
-			buf = malloc(buflen);
-			if (!buf)
-			{
-#ifndef FRONTEND
-				ereport(ERROR,
-						(errcode(ERRCODE_OUT_OF_MEMORY),
-						 errmsg("out of memory")));
-#else
-				fprintf(stderr, _("out of memory\n"));
-				return NULL;
-#endif
-			}
-
-			if (getcwd(buf, buflen))
-				break;
-			else if (errno == ERANGE)
-			{
-				free(buf);
-				buflen *= 2;
-				continue;
-			}
-			else
-			{
-				int			save_errno = errno;
-
-				free(buf);
-				errno = save_errno;
-#ifndef FRONTEND
-				elog(ERROR, "could not get current working directory: %m");
-#else
-				fprintf(stderr, _("could not get current working directory: %s\n"),
-						strerror(errno));
-				return NULL;
-#endif
-			}
-		}
-
-		new = malloc(strlen(buf) + strlen(path) + 2);
-		if (!new)
-		{
-			free(buf);
-#ifndef FRONTEND
-			ereport(ERROR,
-					(errcode(ERRCODE_OUT_OF_MEMORY),
-					 errmsg("out of memory")));
-#else
-			fprintf(stderr, _("out of memory\n"));
-			return NULL;
-#endif
-		}
-		sprintf(new, "%s/%s", buf, path);
-		free(buf);
-	}
-	else
-	{
-		new = strdup(path);
-		if (!new)
-		{
-#ifndef FRONTEND
-			ereport(ERROR,
-					(errcode(ERRCODE_OUT_OF_MEMORY),
-					 errmsg("out of memory")));
-#else
-			fprintf(stderr, _("out of memory\n"));
-			return NULL;
-#endif
-		}
-	}
-
-	/* Make sure punctuation is canonical, too */
-	canonicalize_path(new);
-
-	return new;
 }
 
 
@@ -779,15 +600,6 @@ get_doc_path(const char *my_exec_path, char *ret_path)
 }
 
 /*
- *	get_html_path
- */
-void
-get_html_path(const char *my_exec_path, char *ret_path)
-{
-	make_relative_path(ret_path, HTMLDIR, PGBINDIR, my_exec_path);
-}
-
-/*
  *	get_man_path
  */
 void
@@ -811,23 +623,15 @@ get_home_path(char *ret_path)
 	struct passwd pwdstr;
 	struct passwd *pwd = NULL;
 
-	(void) pqGetpwuid(geteuid(), &pwdstr, pwdbuf, sizeof(pwdbuf), &pwd);
-	if (pwd == NULL)
+	if (pqGetpwuid(geteuid(), &pwdstr, pwdbuf, sizeof(pwdbuf), &pwd) != 0)
 		return false;
-	strlcpy(ret_path, pwd->pw_dir, MAXPGPATH);
+	StrNCpy(ret_path, pwd->pw_dir, MAXPGPATH);
 	return true;
 #else
-	char	   *tmppath;
+	char		tmppath[MAX_PATH];
 
-	/*
-	 * Note: We use getenv() here because the more modern SHGetFolderPath()
-	 * would force the backend to link with shell32.lib, which eats valuable
-	 * desktop heap.  XXX This function is used only in psql, which already
-	 * brings in shell32 via libpq.  Moving this function to its own file
-	 * would keep it out of the backend, freeing it from this concern.
-	 */
-	tmppath = getenv("APPDATA");
-	if (!tmppath)
+	ZeroMemory(tmppath, sizeof(tmppath));
+	if (SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, tmppath) != S_OK)
 		return false;
 	snprintf(ret_path, MAXPGPATH, "%s/postgresql", tmppath);
 	return true;
@@ -840,20 +644,59 @@ get_home_path(char *ret_path)
  *
  * Modify the given string in-place to name the parent directory of the
  * named file.
- *
- * If the input is just a file name with no directory part, the result is
- * an empty string, not ".".  This is appropriate when the next step is
- * join_path_components(), but might need special handling otherwise.
- *
- * Caution: this will not produce desirable results if the string ends
- * with "..".  For most callers this is not a problem since the string
- * is already known to name a regular file.  If in doubt, apply
- * canonicalize_path() first.
  */
 void
 get_parent_directory(char *path)
 {
 	trim_directory(path);
+}
+
+
+/*
+ *	set_pglocale_pgservice
+ *
+ *	Set application-specific locale and service directory
+ *
+ *	This function takes an argv[0] rather than a full path.
+ */
+void
+set_pglocale_pgservice(const char *argv0, const char *app)
+{
+	char		path[MAXPGPATH];
+	char		my_exec_path[MAXPGPATH];
+	char		env_path[MAXPGPATH + sizeof("PGSYSCONFDIR=")];	/* longer than
+																 * PGLOCALEDIR */
+
+	/* don't set LC_ALL in the backend */
+	if (strcmp(app, "postgres") != 0)
+		setlocale(LC_ALL, "");
+
+	if (find_my_exec(argv0, my_exec_path) < 0)
+		return;
+
+#ifdef ENABLE_NLS
+	get_locale_path(my_exec_path, path);
+	bindtextdomain(app, path);
+	textdomain(app);
+
+	if (getenv("PGLOCALEDIR") == NULL)
+	{
+		/* set for libpq to use */
+		snprintf(env_path, sizeof(env_path), "PGLOCALEDIR=%s", path);
+		canonicalize_path(env_path + 12);
+		putenv(strdup(env_path));
+	}
+#endif
+
+	if (getenv("PGSYSCONFDIR") == NULL)
+	{
+		get_etc_path(my_exec_path, path);
+
+		/* set for libpq to use */
+		snprintf(env_path, sizeof(env_path), "PGSYSCONFDIR=%s", path);
+		canonicalize_path(env_path + 13);
+		putenv(strdup(env_path));
+	}
 }
 
 

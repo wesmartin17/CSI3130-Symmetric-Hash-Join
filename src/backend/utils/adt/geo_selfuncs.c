@@ -4,12 +4,12 @@
  *	  Selectivity routines registered in the operator catalog in the
  *	  "oprrest" and "oprjoin" attributes.
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/utils/adt/geo_selfuncs.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/adt/geo_selfuncs.c,v 1.24 2004/12/31 22:01:22 pgsql Exp $
  *
  *	XXX These are totally bogus.  Perhaps someone will make them do
  *	something reasonable, someday.
@@ -18,24 +18,23 @@
  */
 #include "postgres.h"
 
-#include "utils/builtins.h"
 #include "utils/geo_decls.h"
 
 
 /*
- *	Selectivity functions for geometric operators.  These are bogus -- unless
- *	we know the actual key distribution in the index, we can't make a good
- *	prediction of the selectivity of these operators.
+ *	Selectivity functions for rtrees.  These are bogus -- unless we know
+ *	the actual key distribution in the index, we can't make a good prediction
+ *	of the selectivity of these operators.
  *
  *	Note: the values used here may look unreasonably small.  Perhaps they
  *	are.  For now, we want to make sure that the optimizer will make use
- *	of a geometric index if one is available, so the selectivity had better
+ *	of an r-tree index if one is available, so the selectivity had better
  *	be fairly small.
  *
- *	In general, GiST needs to search multiple subtrees in order to guarantee
+ *	In general, rtrees need to search multiple subtrees in order to guarantee
  *	that all occurrences of the same key have been found.  Because of this,
  *	the estimated cost for scanning the index ought to be higher than the
- *	output selectivity would indicate.  gistcostestimate(), over in selfuncs.c,
+ *	output selectivity would indicate.	rtcostestimate(), over in selfuncs.c,
  *	ought to be adjusted accordingly --- but until we can generate somewhat
  *	realistic numbers here, it hardly matters...
  */

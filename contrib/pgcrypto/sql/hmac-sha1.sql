@@ -42,3 +42,5 @@ SELECT encode(hmac(
 'Test Using Larger Than Block-Size Key and Larger Than One Block-Size Data',
 decode('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
 'sha1'), 'hex');
+
+

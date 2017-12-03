@@ -24,21 +24,8 @@ INSERT INTO test_schema_1.abc DEFAULT VALUES;
 SELECT * FROM test_schema_1.abc;
 SELECT * FROM test_schema_1.abc_view;
 
-ALTER SCHEMA test_schema_1 RENAME TO test_schema_renamed;
-SELECT COUNT(*) FROM pg_class WHERE relnamespace =
-    (SELECT oid FROM pg_namespace WHERE nspname = 'test_schema_1');
-
--- test IF NOT EXISTS cases
-CREATE SCHEMA test_schema_renamed; -- fail, already exists
-CREATE SCHEMA IF NOT EXISTS test_schema_renamed; -- ok with notice
-CREATE SCHEMA IF NOT EXISTS test_schema_renamed -- fail, disallowed
-       CREATE TABLE abc (
-              a serial,
-              b int UNIQUE
-       );
-
-DROP SCHEMA test_schema_renamed CASCADE;
+DROP SCHEMA test_schema_1 CASCADE;
 
 -- verify that the objects were dropped
 SELECT COUNT(*) FROM pg_class WHERE relnamespace =
-    (SELECT oid FROM pg_namespace WHERE nspname = 'test_schema_renamed');
+    (SELECT oid FROM pg_namespace WHERE nspname = 'test_schema_1');

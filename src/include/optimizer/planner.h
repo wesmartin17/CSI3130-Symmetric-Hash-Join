@@ -4,61 +4,26 @@
  *	  prototypes for planner.c.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/optimizer/planner.h
+ * $PostgreSQL: pgsql/src/include/optimizer/planner.h,v 1.34 2005/10/15 02:49:45 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #ifndef PLANNER_H
 #define PLANNER_H
 
+#include "nodes/params.h"
+#include "nodes/parsenodes.h"
 #include "nodes/plannodes.h"
-#include "nodes/relation.h"
 
 
-/* Hook for plugins to get control in planner() */
-typedef PlannedStmt *(*planner_hook_type) (Query *parse,
-										   int cursorOptions,
-										   ParamListInfo boundParams);
-extern PGDLLIMPORT planner_hook_type planner_hook;
+extern ParamListInfo PlannerBoundParamList;		/* current boundParams */
 
-/* Hook for plugins to get control when grouping_planner() plans upper rels */
-typedef void (*create_upper_paths_hook_type) (PlannerInfo *root,
-											  UpperRelationKind stage,
-											  RelOptInfo *input_rel,
-											  RelOptInfo *output_rel);
-extern PGDLLIMPORT create_upper_paths_hook_type create_upper_paths_hook;
-
-
-extern PlannedStmt *planner(Query *parse, int cursorOptions,
+extern Plan *planner(Query *parse, bool isCursor, int cursorOptions,
 		ParamListInfo boundParams);
-extern PlannedStmt *standard_planner(Query *parse, int cursorOptions,
-				 ParamListInfo boundParams);
+extern Plan *subquery_planner(Query *parse, double tuple_fraction,
+				 List **subquery_pathkeys);
 
-extern PlannerInfo *subquery_planner(PlannerGlobal *glob, Query *parse,
-				 PlannerInfo *parent_root,
-				 bool hasRecursion, double tuple_fraction);
-
-extern bool is_dummy_plan(Plan *plan);
-
-extern RowMarkType select_rowmark_type(RangeTblEntry *rte,
-					LockClauseStrength strength);
-
-extern void mark_partial_aggref(Aggref *agg, AggSplit aggsplit);
-
-extern Path *get_cheapest_fractional_path(RelOptInfo *rel,
-							 double tuple_fraction);
-
-extern Expr *expression_planner(Expr *expr);
-
-extern Expr *preprocess_phv_expression(PlannerInfo *root, Expr *expr);
-
-extern bool plan_cluster_use_sort(Oid tableOid, Oid indexOid);
-
-extern List *get_partitioned_child_rels(PlannerInfo *root, Index rti);
-extern List *get_partitioned_child_rels_for_join(PlannerInfo *root,
-									Relids join_relids);
-
-#endif							/* PLANNER_H */
+#endif   /* PLANNER_H */

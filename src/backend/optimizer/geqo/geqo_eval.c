@@ -3,10 +3,10 @@
  * geqo_eval.c
  *	  Routines to evaluate query trees
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/backend/optimizer/geqo/geqo_eval.c
+ * $PostgreSQL: pgsql/src/backend/optimizer/geqo/geqo_eval.c,v 1.77.2.1 2005/11/22 18:23:10 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -32,15 +32,6 @@
 #include "utils/memutils.h"
 
 
-/* A "clump" of already-joined relations within gimme_tree */
-typedef struct
-{
-	RelOptInfo *joinrel;		/* joinrel for the set of relations */
-	int			size;			/* number of input relations in clump */
-} Clump;
-
-static List *merge_clump(PlannerInfo *root, List *clumps, Clump *new_clump,
-			bool force);
 static bool desirable_join(PlannerInfo *root,
 			   RelOptInfo *outer_rel, RelOptInfo *inner_rel);
 
@@ -49,12 +40,9 @@ static bool desirable_join(PlannerInfo *root,
  * geqo_eval
  *
  * Returns cost of a query tree as an individual of the population.
- *
- * If no legal join order can be extracted from the proposed tour,
- * returns DBL_MAX.
  */
 Cost
-geqo_eval(PlannerInfo *root, Gene *tour, int num_gene)
+geqo_eval(Gene *tour, int num_gene, GeqoEvalData *evaldata)
 {
 	MemoryContext mycontext;
 	MemoryContext oldcxt;
@@ -62,6 +50,20 @@ geqo_eval(PlannerInfo *root, Gene *tour, int num_gene)
 	Cost		fitness;
 	int			savelength;
 	struct HTAB *savehash;
+
+	/*
+	 * Because gimme_tree considers both left- and right-sided trees, there is
+	 * no difference between a tour (a,b,c,d,...) and a tour (b,a,c,d,...) ---
+	 * the same join orders will be considered. To avoid redundant cost
+	 * calculations, we simply reject tours where tour[0] > tour[1], assigning
+	 * them an artificially bad fitness.
+	 *
+	 * init_tour() is aware of this rule and so we should never reject a tour
+	 * during the initial filling of the pool.	It seems difficult to persuade
+	 * the recombination logic never to break the rule, however.
+	 */
+	if (num_gene >= 2 && tour[0] > tour[1])
+		return DBL_MAX;
 
 	/*
 	 * Create a private memory context that will hold all temp storage
@@ -74,7 +76,9 @@ geqo_eval(PlannerInfo *root, Gene *tour, int num_gene)
 	 */
 	mycontext = AllocSetContextCreate(CurrentMemoryContext,
 									  "GEQO",
-									  ALLOCSET_DEFAULT_SIZES);
+									  ALLOCSET_DEFAULT_MINSIZE,
+									  ALLOCSET_DEFAULT_INITSIZE,
+									  ALLOCSET_DEFAULT_MAXSIZE);
 	oldcxt = MemoryContextSwitchTo(mycontext);
 
 	/*
@@ -82,38 +86,30 @@ geqo_eval(PlannerInfo *root, Gene *tour, int num_gene)
 	 * not already contain some entries.  The newly added entries will be
 	 * recycled by the MemoryContextDelete below, so we must ensure that the
 	 * list is restored to its former state before exiting.  We can do this by
-	 * truncating the list to its original length.  NOTE this assumes that any
+	 * truncating the list to its original length.	NOTE this assumes that any
 	 * added entries are appended at the end!
 	 *
 	 * We also must take care not to mess up the outer join_rel_hash, if there
-	 * is one.  We can do this by just temporarily setting the link to NULL.
+	 * is one.	We can do this by just temporarily setting the link to NULL.
 	 * (If we are dealing with enough join rels, which we very likely are, a
 	 * new hash table will get built and used locally.)
-	 *
-	 * join_rel_level[] shouldn't be in use, so just Assert it isn't.
 	 */
-	savelength = list_length(root->join_rel_list);
-	savehash = root->join_rel_hash;
-	Assert(root->join_rel_level == NULL);
+	savelength = list_length(evaldata->root->join_rel_list);
+	savehash = evaldata->root->join_rel_hash;
 
-	root->join_rel_hash = NULL;
+	evaldata->root->join_rel_hash = NULL;
 
 	/* construct the best path for the given combination of relations */
-	joinrel = gimme_tree(root, tour, num_gene);
+	joinrel = gimme_tree(tour, num_gene, evaldata);
 
 	/*
-	 * compute fitness, if we found a valid join
+	 * compute fitness
 	 *
 	 * XXX geqo does not currently support optimization for partial result
-	 * retrieval, nor do we take any cognizance of possible use of
-	 * parameterized paths --- how to fix?
+	 * retrieval --- how to fix?
 	 */
 	if (joinrel)
-	{
-		Path	   *best_path = joinrel->cheapest_total_path;
-
-		fitness = best_path->total_cost;
-	}
+		fitness = joinrel->cheapest_total_path->total_cost;
 	else
 		fitness = DBL_MAX;
 
@@ -121,9 +117,9 @@ geqo_eval(PlannerInfo *root, Gene *tour, int num_gene)
 	 * Restore join_rel_list to its former state, and put back original
 	 * hashtable if any.
 	 */
-	root->join_rel_list = list_truncate(root->join_rel_list,
-										savelength);
-	root->join_rel_hash = savehash;
+	evaldata->root->join_rel_list = list_truncate(evaldata->root->join_rel_list,
+												  savelength);
+	evaldata->root->join_rel_hash = savehash;
 
 	/* release all the memory acquired within gimme_tree */
 	MemoryContextSwitchTo(oldcxt);
@@ -138,185 +134,117 @@ geqo_eval(PlannerInfo *root, Gene *tour, int num_gene)
  *	  order.
  *
  *	 'tour' is the proposed join order, of length 'num_gene'
+ *	 'evaldata' contains the context we need
  *
  * Returns a new join relation whose cheapest path is the best plan for
- * this join order.  NB: will return NULL if join order is invalid and
- * we can't modify it into a valid order.
+ * this join order.  NB: will return NULL if join order is invalid.
  *
  * The original implementation of this routine always joined in the specified
  * order, and so could only build left-sided plans (and right-sided and
  * mixtures, as a byproduct of the fact that make_join_rel() is symmetric).
  * It could never produce a "bushy" plan.  This had a couple of big problems,
- * of which the worst was that there are situations involving join order
- * restrictions where the only valid plans are bushy.
+ * of which the worst was that as of 7.4, there are situations involving IN
+ * subqueries where the only valid plans are bushy.
  *
  * The present implementation takes the given tour as a guideline, but
- * postpones joins that are illegal or seem unsuitable according to some
- * heuristic rules.  This allows correct bushy plans to be generated at need,
- * and as a nice side-effect it seems to materially improve the quality of the
- * generated plans.  Note however that since it's just a heuristic, it can
- * still fail in some cases.  (In particular, we might clump together
- * relations that actually mustn't be joined yet due to LATERAL restrictions;
- * since there's no provision for un-clumping, this must lead to failure.)
+ * postpones joins that seem unsuitable according to some heuristic rules.
+ * This allows correct bushy plans to be generated at need, and as a nice
+ * side-effect it seems to materially improve the quality of the generated
+ * plans.
  */
 RelOptInfo *
-gimme_tree(PlannerInfo *root, Gene *tour, int num_gene)
+gimme_tree(Gene *tour, int num_gene, GeqoEvalData *evaldata)
 {
-	GeqoPrivateData *private = (GeqoPrivateData *) root->join_search_private;
-	List	   *clumps;
+	RelOptInfo **stack;
+	int			stack_depth;
+	RelOptInfo *joinrel;
 	int			rel_count;
 
 	/*
-	 * Sometimes, a relation can't yet be joined to others due to heuristics
-	 * or actual semantic restrictions.  We maintain a list of "clumps" of
-	 * successfully joined relations, with larger clumps at the front. Each
-	 * new relation from the tour is added to the first clump it can be joined
-	 * to; if there is none then it becomes a new clump of its own. When we
-	 * enlarge an existing clump we check to see if it can now be merged with
-	 * any other clumps.  After the tour is all scanned, we forget about the
-	 * heuristics and try to forcibly join any remaining clumps.  If we are
-	 * unable to merge all the clumps into one, fail.
+	 * Create a stack to hold not-yet-joined relations.
 	 */
-	clumps = NIL;
+	stack = (RelOptInfo **) palloc(num_gene * sizeof(RelOptInfo *));
+	stack_depth = 0;
 
+	/*
+	 * Push each relation onto the stack in the specified order.  After
+	 * pushing each relation, see whether the top two stack entries are
+	 * joinable according to the desirable_join() heuristics.  If so, join
+	 * them into one stack entry, and try again to combine with the next stack
+	 * entry down (if any).  When the stack top is no longer joinable,
+	 * continue to the next input relation.  After we have pushed the last
+	 * input relation, the heuristics are disabled and we force joining all
+	 * the remaining stack entries.
+	 *
+	 * If desirable_join() always returns true, this produces a straight
+	 * left-to-right join just like the old code.  Otherwise we may produce a
+	 * bushy plan or a left/right-sided plan that really corresponds to some
+	 * tour other than the one given.  To the extent that the heuristics are
+	 * helpful, however, this will be a better plan than the raw tour.
+	 *
+	 * Also, when a join attempt fails (because of IN-clause constraints), we
+	 * may be able to recover and produce a workable plan, where the old code
+	 * just had to give up.  This case acts the same as a false result from
+	 * desirable_join().
+	 */
 	for (rel_count = 0; rel_count < num_gene; rel_count++)
 	{
 		int			cur_rel_index;
-		RelOptInfo *cur_rel;
-		Clump	   *cur_clump;
 
-		/* Get the next input relation */
+		/* Get the next input relation and push it */
 		cur_rel_index = (int) tour[rel_count];
-		cur_rel = (RelOptInfo *) list_nth(private->initial_rels,
-										  cur_rel_index - 1);
+		stack[stack_depth] = (RelOptInfo *) list_nth(evaldata->initial_rels,
+													 cur_rel_index - 1);
+		stack_depth++;
 
-		/* Make it into a single-rel clump */
-		cur_clump = (Clump *) palloc(sizeof(Clump));
-		cur_clump->joinrel = cur_rel;
-		cur_clump->size = 1;
-
-		/* Merge it into the clumps list, using only desirable joins */
-		clumps = merge_clump(root, clumps, cur_clump, false);
-	}
-
-	if (list_length(clumps) > 1)
-	{
-		/* Force-join the remaining clumps in some legal order */
-		List	   *fclumps;
-		ListCell   *lc;
-
-		fclumps = NIL;
-		foreach(lc, clumps)
+		/*
+		 * While it's feasible, pop the top two stack entries and replace with
+		 * their join.
+		 */
+		while (stack_depth >= 2)
 		{
-			Clump	   *clump = (Clump *) lfirst(lc);
+			RelOptInfo *outer_rel = stack[stack_depth - 2];
+			RelOptInfo *inner_rel = stack[stack_depth - 1];
 
-			fclumps = merge_clump(root, fclumps, clump, true);
-		}
-		clumps = fclumps;
-	}
-
-	/* Did we succeed in forming a single join relation? */
-	if (list_length(clumps) != 1)
-		return NULL;
-
-	return ((Clump *) linitial(clumps))->joinrel;
-}
-
-/*
- * Merge a "clump" into the list of existing clumps for gimme_tree.
- *
- * We try to merge the clump into some existing clump, and repeat if
- * successful.  When no more merging is possible, insert the clump
- * into the list, preserving the list ordering rule (namely, that
- * clumps of larger size appear earlier).
- *
- * If force is true, merge anywhere a join is legal, even if it causes
- * a cartesian join to be performed.  When force is false, do only
- * "desirable" joins.
- */
-static List *
-merge_clump(PlannerInfo *root, List *clumps, Clump *new_clump, bool force)
-{
-	ListCell   *prev;
-	ListCell   *lc;
-
-	/* Look for a clump that new_clump can join to */
-	prev = NULL;
-	foreach(lc, clumps)
-	{
-		Clump	   *old_clump = (Clump *) lfirst(lc);
-
-		if (force ||
-			desirable_join(root, old_clump->joinrel, new_clump->joinrel))
-		{
-			RelOptInfo *joinrel;
+			/*
+			 * Don't pop if heuristics say not to join now.  However, once we
+			 * have exhausted the input, the heuristics can't prevent popping.
+			 */
+			if (rel_count < num_gene - 1 &&
+				!desirable_join(evaldata->root, outer_rel, inner_rel))
+				break;
 
 			/*
 			 * Construct a RelOptInfo representing the join of these two input
-			 * relations.  Note that we expect the joinrel not to exist in
-			 * root->join_rel_list yet, and so the paths constructed for it
-			 * will only include the ones we want.
+			 * relations.  These are always inner joins. Note that we expect
+			 * the joinrel not to exist in root->join_rel_list yet, and so the
+			 * paths constructed for it will only include the ones we want.
 			 */
-			joinrel = make_join_rel(root,
-									old_clump->joinrel,
-									new_clump->joinrel);
+			joinrel = make_join_rel(evaldata->root, outer_rel, inner_rel,
+									JOIN_INNER);
 
-			/* Keep searching if join order is not valid */
-			if (joinrel)
-			{
-				/* Create paths for partition-wise joins. */
-				generate_partition_wise_join_paths(root, joinrel);
+			/* Can't pop stack here if join order is not valid */
+			if (!joinrel)
+				break;
 
-				/* Create GatherPaths for any useful partial paths for rel */
-				generate_gather_paths(root, joinrel);
+			/* Find and save the cheapest paths for this rel */
+			set_cheapest(joinrel);
 
-				/* Find and save the cheapest paths for this joinrel */
-				set_cheapest(joinrel);
-
-				/* Absorb new clump into old */
-				old_clump->joinrel = joinrel;
-				old_clump->size += new_clump->size;
-				pfree(new_clump);
-
-				/* Remove old_clump from list */
-				clumps = list_delete_cell(clumps, lc, prev);
-
-				/*
-				 * Recursively try to merge the enlarged old_clump with
-				 * others.  When no further merge is possible, we'll reinsert
-				 * it into the list.
-				 */
-				return merge_clump(root, clumps, old_clump, force);
-			}
+			/* Pop the stack and replace the inputs with their join */
+			stack_depth--;
+			stack[stack_depth - 1] = joinrel;
 		}
-		prev = lc;
 	}
 
-	/*
-	 * No merging is possible, so add new_clump as an independent clump, in
-	 * proper order according to size.  We can be fast for the common case
-	 * where it has size 1 --- it should always go at the end.
-	 */
-	if (clumps == NIL || new_clump->size == 1)
-		return lappend(clumps, new_clump);
+	/* Did we succeed in forming a single join relation? */
+	if (stack_depth == 1)
+		joinrel = stack[0];
+	else
+		joinrel = NULL;
 
-	/* Check if it belongs at the front */
-	lc = list_head(clumps);
-	if (new_clump->size > ((Clump *) lfirst(lc))->size)
-		return lcons(new_clump, clumps);
+	pfree(stack);
 
-	/* Else search for the place to insert it */
-	for (;;)
-	{
-		ListCell   *nxt = lnext(lc);
-
-		if (nxt == NULL || new_clump->size > ((Clump *) lfirst(nxt))->size)
-			break;				/* it belongs after 'lc', before 'nxt' */
-		lc = nxt;
-	}
-	lappend_cell(clumps, lc, new_clump);
-
-	return clumps;
+	return joinrel;
 }
 
 /*
@@ -326,13 +254,27 @@ static bool
 desirable_join(PlannerInfo *root,
 			   RelOptInfo *outer_rel, RelOptInfo *inner_rel)
 {
+	ListCell   *l;
+
 	/*
-	 * Join if there is an applicable join clause, or if there is a join order
-	 * restriction forcing these rels to be joined.
+	 * Join if there is an applicable join clause.
 	 */
-	if (have_relevant_joinclause(root, outer_rel, inner_rel) ||
-		have_join_order_restriction(root, outer_rel, inner_rel))
+	if (have_relevant_joinclause(outer_rel, inner_rel))
 		return true;
+
+	/*
+	 * Join if the rels are members of the same IN sub-select.	This is needed
+	 * to improve the odds that we will find a valid solution in a case where
+	 * an IN sub-select has a clauseless join.
+	 */
+	foreach(l, root->in_info_list)
+	{
+		InClauseInfo *ininfo = (InClauseInfo *) lfirst(l);
+
+		if (bms_is_subset(outer_rel->relids, ininfo->righthand) &&
+			bms_is_subset(inner_rel->relids, ininfo->righthand))
+			return true;
+	}
 
 	/* Otherwise postpone the join till later. */
 	return false;

@@ -4,10 +4,10 @@
  *	  prototypes for clauses.c.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/optimizer/clauses.h
+ * $PostgreSQL: pgsql/src/include/optimizer/clauses.h,v 1.80 2005/10/15 02:49:45 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -19,19 +19,20 @@
 
 #define is_opclause(clause)		((clause) != NULL && IsA(clause, OpExpr))
 #define is_funcclause(clause)	((clause) != NULL && IsA(clause, FuncExpr))
+#define is_subplan(clause)		((clause) != NULL && IsA(clause, SubPlan))
 
 typedef struct
 {
-	int			numWindowFuncs; /* total number of WindowFuncs found */
-	Index		maxWinRef;		/* windowFuncs[] is indexed 0 .. maxWinRef */
-	List	  **windowFuncs;	/* lists of WindowFuncs for each winref */
-} WindowFuncLists;
+	int			numAggs;		/* total number of aggregate calls */
+	int			numDistinctAggs;	/* number that use DISTINCT */
+	Size		transitionSpace;	/* for pass-by-ref transition data */
+} AggClauseCounts;
+
 
 extern Expr *make_opclause(Oid opno, Oid opresulttype, bool opretset,
-			  Expr *leftop, Expr *rightop,
-			  Oid opcollid, Oid inputcollid);
-extern Node *get_leftop(const Expr *clause);
-extern Node *get_rightop(const Expr *clause);
+			  Expr *leftop, Expr *rightop);
+extern Node *get_leftop(Expr *clause);
+extern Node *get_rightop(Expr *clause);
 
 extern bool not_clause(Node *clause);
 extern Expr *make_notclause(Expr *notclause);
@@ -47,42 +48,57 @@ extern Expr *make_ands_explicit(List *andclauses);
 extern List *make_ands_implicit(Expr *clause);
 
 extern bool contain_agg_clause(Node *clause);
-extern void get_agg_clause_costs(PlannerInfo *root, Node *clause,
-					 AggSplit aggsplit, AggClauseCosts *costs);
+extern void count_agg_clauses(Node *clause, AggClauseCounts *counts);
 
-extern bool contain_window_function(Node *clause);
-extern WindowFuncLists *find_window_functions(Node *clause, Index maxWinRef);
-
-extern double expression_returns_set_rows(Node *clause);
+extern bool expression_returns_set(Node *clause);
 
 extern bool contain_subplans(Node *clause);
 
 extern bool contain_mutable_functions(Node *clause);
 extern bool contain_volatile_functions(Node *clause);
-extern bool contain_volatile_functions_not_nextval(Node *clause);
-extern char max_parallel_hazard(Query *parse);
-extern bool is_parallel_safe(PlannerInfo *root, Node *node);
 extern bool contain_nonstrict_functions(Node *clause);
-extern bool contain_leaked_vars(Node *clause);
-
-extern Relids find_nonnullable_rels(Node *clause);
-extern List *find_nonnullable_vars(Node *clause);
-extern List *find_forced_null_vars(Node *clause);
-extern Var *find_forced_null_var(Node *clause);
 
 extern bool is_pseudo_constant_clause(Node *clause);
 extern bool is_pseudo_constant_clause_relids(Node *clause, Relids relids);
+extern List *pull_constant_clauses(List *quals, List **constantQual);
+
+extern bool has_distinct_clause(Query *query);
+extern bool has_distinct_on_clause(Query *query);
 
 extern int	NumRelids(Node *clause);
+extern void CommuteClause(OpExpr *clause);
 
-extern void CommuteOpExpr(OpExpr *clause);
-extern void CommuteRowCompareExpr(RowCompareExpr *clause);
+extern Node *strip_implicit_coercions(Node *node);
 
-extern Node *eval_const_expressions(PlannerInfo *root, Node *node);
+extern void set_coercionform_dontcare(Node *node);
 
-extern Node *estimate_expression_value(PlannerInfo *root, Node *node);
+extern Node *eval_const_expressions(Node *node);
 
-extern Query *inline_set_returning_function(PlannerInfo *root,
-							  RangeTblEntry *rte);
+extern Node *estimate_expression_value(Node *node);
 
-#endif							/* CLAUSES_H */
+extern bool expression_tree_walker(Node *node, bool (*walker) (),
+											   void *context);
+extern Node *expression_tree_mutator(Node *node, Node *(*mutator) (),
+												 void *context);
+
+/* flags bits for query_tree_walker and query_tree_mutator */
+#define QTW_IGNORE_RT_SUBQUERIES	0x01		/* subqueries in rtable */
+#define QTW_IGNORE_JOINALIASES		0x02		/* JOIN alias var lists */
+#define QTW_DONT_COPY_QUERY			0x04		/* do not copy top Query */
+
+extern bool query_tree_walker(Query *query, bool (*walker) (),
+										  void *context, int flags);
+extern Query *query_tree_mutator(Query *query, Node *(*mutator) (),
+											 void *context, int flags);
+
+extern bool range_table_walker(List *rtable, bool (*walker) (),
+										   void *context, int flags);
+extern List *range_table_mutator(List *rtable, Node *(*mutator) (),
+											 void *context, int flags);
+
+extern bool query_or_expression_tree_walker(Node *node, bool (*walker) (),
+												   void *context, int flags);
+extern Node *query_or_expression_tree_mutator(Node *node, Node *(*mutator) (),
+												   void *context, int flags);
+
+#endif   /* CLAUSES_H */

@@ -9,15 +9,19 @@
  * See utils/resowner/README for more info.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/utils/resowner.h
+ * $PostgreSQL: pgsql/src/include/utils/resowner.h,v 1.5 2004/12/31 22:03:46 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
 #ifndef RESOWNER_H
 #define RESOWNER_H
+
+#include "storage/buf.h"
+#include "utils/catcache.h"
+#include "utils/rel.h"
 
 
 /*
@@ -30,13 +34,13 @@ typedef struct ResourceOwnerData *ResourceOwner;
 /*
  * Globally known ResourceOwners
  */
-extern PGDLLIMPORT ResourceOwner CurrentResourceOwner;
-extern PGDLLIMPORT ResourceOwner CurTransactionResourceOwner;
-extern PGDLLIMPORT ResourceOwner TopTransactionResourceOwner;
+extern DLLIMPORT ResourceOwner CurrentResourceOwner;
+extern DLLIMPORT ResourceOwner CurTransactionResourceOwner;
+extern DLLIMPORT ResourceOwner TopTransactionResourceOwner;
 
 /*
  * Resource releasing is done in three phases: pre-locks, locks, and
- * post-locks.  The pre-lock phase must release any resources that are
+ * post-locks.	The pre-lock phase must release any resources that are
  * visible to other backends (such as pinned buffers); this ensures that
  * when we release a lock that another backend may be waiting on, it will
  * see us as being fully out of our transaction.  The post-lock phase
@@ -54,9 +58,9 @@ typedef enum
  *	by providing a callback of this form.
  */
 typedef void (*ResourceReleaseCallback) (ResourceReleasePhase phase,
-										 bool isCommit,
-										 bool isTopLevel,
-										 void *arg);
+													 bool isCommit,
+													 bool isTopLevel,
+													 void *arg);
 
 
 /*
@@ -79,4 +83,28 @@ extern void RegisterResourceReleaseCallback(ResourceReleaseCallback callback,
 extern void UnregisterResourceReleaseCallback(ResourceReleaseCallback callback,
 								  void *arg);
 
-#endif							/* RESOWNER_H */
+/* support for buffer refcount management */
+extern void ResourceOwnerEnlargeBuffers(ResourceOwner owner);
+extern void ResourceOwnerRememberBuffer(ResourceOwner owner, Buffer buffer);
+extern void ResourceOwnerForgetBuffer(ResourceOwner owner, Buffer buffer);
+
+/* support for catcache refcount management */
+extern void ResourceOwnerEnlargeCatCacheRefs(ResourceOwner owner);
+extern void ResourceOwnerRememberCatCacheRef(ResourceOwner owner,
+								 HeapTuple tuple);
+extern void ResourceOwnerForgetCatCacheRef(ResourceOwner owner,
+							   HeapTuple tuple);
+extern void ResourceOwnerEnlargeCatCacheListRefs(ResourceOwner owner);
+extern void ResourceOwnerRememberCatCacheListRef(ResourceOwner owner,
+									 CatCList *list);
+extern void ResourceOwnerForgetCatCacheListRef(ResourceOwner owner,
+								   CatCList *list);
+
+/* support for relcache refcount management */
+extern void ResourceOwnerEnlargeRelationRefs(ResourceOwner owner);
+extern void ResourceOwnerRememberRelationRef(ResourceOwner owner,
+								 Relation rel);
+extern void ResourceOwnerForgetRelationRef(ResourceOwner owner,
+							   Relation rel);
+
+#endif   /* RESOWNER_H */

@@ -1,16 +1,11 @@
 <!--
-doc/src/sgml/ref/notify.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/notify.sgml,v 1.27 2005/01/04 00:39:53 tgl Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-notify">
- <indexterm zone="sql-notify">
-  <primary>NOTIFY</primary>
- </indexterm>
-
+<refentry id="SQL-NOTIFY">
  <refmeta>
-  <refentrytitle>NOTIFY</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="sql-notify-title">NOTIFY</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -19,9 +14,13 @@ PostgreSQL documentation
   <refpurpose>generate a notification</refpurpose>
  </refnamediv>
 
+ <indexterm zone="sql-notify">
+  <primary>NOTIFY</primary>
+ </indexterm>
+
  <refsynopsisdiv>
 <synopsis>
-NOTIFY <replaceable class="parameter">channel</replaceable> [ , <replaceable class="parameter">payload</replaceable> ]
+NOTIFY <replaceable class="PARAMETER">name</replaceable>        
 </synopsis>
  </refsynopsisdiv>
 
@@ -29,48 +28,43 @@ NOTIFY <replaceable class="parameter">channel</replaceable> [ , <replaceable cla
   <title>Description</title>
 
   <para>
-   The <command>NOTIFY</command> command sends a notification event together
-   with an optional <quote>payload</quote> string to each client application that
-   has previously executed
-   <command>LISTEN <replaceable class="parameter">channel</replaceable></command>
-   for the specified channel name in the current database.
-   Notifications are visible to all users.
+   The <command>NOTIFY</command> command sends a notification event to each
+   client application that has previously executed
+   <command>LISTEN <replaceable class="parameter">name</replaceable></command>
+   for the specified notification name in the current database.
   </para>
 
   <para>
-   <command>NOTIFY</command> provides a simple
+   <command>NOTIFY</command> provides a simple form of signal or
    interprocess communication mechanism for a collection of processes
    accessing the same <productname>PostgreSQL</productname> database.
-   A payload string can be sent along with the notification, and
-   higher-level mechanisms for passing structured data can be built by using
-   tables in the database to pass additional data from notifier to listener(s).
+   Higher-level mechanisms can be built by using tables in the database to
+   pass additional data (beyond a mere notification name) from notifier to
+   listener(s).
   </para>
 
   <para>
-   The information passed to the client for a notification event includes the
-   notification channel
-   name, the notifying session's server process <acronym>PID</acronym>, and the
-   payload string, which is an empty string if it has not been specified.
+   The information passed to the client for a notification event includes the notification
+   name and the notifying session's server process <acronym>PID</>.  It is up to the
+   database designer to define the notification names that will be used in a given
+   database and what each one means.
   </para>
 
   <para>
-   It is up to the database designer to define the channel names that will
-   be used in a given database and what each one means.
-   Commonly, the channel name is the same as the name of some table in
+   Commonly, the notification name is the same as the name of some table in
    the database, and the notify event essentially means, <quote>I changed this table,
    take a look at it to see what's new</quote>.  But no such association is enforced by
    the <command>NOTIFY</command> and <command>LISTEN</command> commands.  For
-   example, a database designer could use several different channel names
-   to signal different sorts of changes to a single table.  Alternatively,
-   the payload string could be used to differentiate various cases.
+   example, a database designer could use several different notification names
+   to signal different sorts of changes to a single table.
   </para>
 
   <para>
    When <command>NOTIFY</command> is used to signal the occurrence of changes
    to a particular table, a useful programming technique is to put the
-   <command>NOTIFY</command> in a statement trigger that is triggered by table updates.
+   <command>NOTIFY</command> in a rule that is triggered by table updates.
    In this way, notification happens automatically when the table is changed,
-   and the application programmer cannot accidentally forget to do it.
+   and the application programmer can't accidentally forget to do it.
   </para>
 
   <para>
@@ -94,32 +88,34 @@ NOTIFY <replaceable class="parameter">channel</replaceable> [ , <replaceable cla
   </para>
 
   <para>
-   If the same channel name is signaled multiple times from the same
-   transaction with identical payload strings, the
-   database server can decide to deliver a single notification only.
-   On the other hand, notifications with distinct payload strings will
-   always be delivered as distinct notifications. Similarly, notifications from
-   different transactions will never get folded into one notification.
-   Except for dropping later instances of duplicate notifications,
-   <command>NOTIFY</command> guarantees that notifications from the same
-   transaction get delivered in the order they were sent.  It is also
-   guaranteed that messages from different transactions are delivered in
-   the order in which the transactions committed.
+   <command>NOTIFY</command> behaves like Unix signals in one important
+   respect: if the same notification name is signaled multiple times in quick
+   succession, recipients may get only one notification event for several executions
+   of <command>NOTIFY</command>.  So it is a bad idea to depend on the number
+   of notifications received.  Instead, use <command>NOTIFY</command> to wake up
+   applications that need to pay attention to something, and use a database
+   object (such as a sequence) to keep track of what happened or how many times
+   it happened.
   </para>
 
   <para>
    It is common for a client that executes <command>NOTIFY</command>
-   to be listening on the same notification channel itself.  In that case
+   to be listening on the same notification name itself.  In that case
    it will get back a notification event, just like all the other
    listening sessions.  Depending on the application logic, this could
    result in useless work, for example, reading a database table to
    find the same updates that that session just wrote out.  It is
    possible to avoid such extra work by noticing whether the notifying
-   session's server process <acronym>PID</acronym> (supplied in the
+   session's server process <acronym>PID</> (supplied in the
    notification event message) is the same as one's own session's
-   <acronym>PID</acronym> (available from <application>libpq</application>).  When they
+   <acronym>PID</> (available from <application>libpq</>).  When they
    are the same, the notification event is one's own work bouncing
-   back, and can be ignored.
+   back, and can be ignored.  (Despite what was said in the preceding
+   paragraph, this is a safe technique.
+   <productname>PostgreSQL</productname> keeps self-notifications
+   separate from notifications arriving from other sessions, so you
+   cannot miss an outside notification by ignoring your own
+   notifications.)
   </para>
  </refsect1>
 
@@ -128,69 +124,14 @@ NOTIFY <replaceable class="parameter">channel</replaceable> [ , <replaceable cla
 
   <variablelist>
    <varlistentry>
-    <term><replaceable class="parameter">channel</replaceable></term>
+    <term><replaceable class="PARAMETER">name</replaceable></term>
     <listitem>
      <para>
-      Name of the notification channel to be signaled (any identifier).
-     </para>
-    </listitem>
-   </varlistentry>
-   <varlistentry>
-    <term><replaceable class="parameter">payload</replaceable></term>
-    <listitem>
-     <para>
-      The <quote>payload</quote> string to be communicated along with the
-      notification.  This must be specified as a simple string literal.
-      In the default configuration it must be shorter than 8000 bytes.
-      (If binary data or large amounts of information need to be communicated,
-      it's best to put it in a database table and send the key of the record.)
+      Name of the notification to be signaled (any identifier).
      </para>
     </listitem>
    </varlistentry>
   </variablelist>
- </refsect1>
-
- <refsect1>
-  <title>Notes</title>
-
-  <para>
-   There is a queue that holds notifications that have been sent but not
-   yet processed by all listening sessions.  If this queue becomes full,
-   transactions calling <command>NOTIFY</command> will fail at commit.
-   The queue is quite large (8GB in a standard installation) and should be
-   sufficiently sized for almost every use case. However, no cleanup can take
-   place if a session executes <command>LISTEN</command> and then enters a
-   transaction for a very long time. Once the queue is half full you will see
-   warnings in the log file pointing you to the session that is preventing
-   cleanup. In this case you should make sure that this session ends its
-   current transaction so that cleanup can proceed.
-  </para>
-  <para>
-   The function <function>pg_notification_queue_usage</function> returns the
-   fraction of the queue that is currently occupied by pending notifications.
-   See <xref linkend="functions-info"/> for more information.
-  </para>
-  <para>
-   A transaction that has executed <command>NOTIFY</command> cannot be
-   prepared for two-phase commit.
-  </para>
-
-  <refsect2>
-   <title>pg_notify</title>
-
-   <indexterm>
-    <primary>pg_notify</primary>
-   </indexterm>
-
-   <para>
-    To send a notification you can also use the function
-    <literal><function>pg_notify</function>(<type>text</type>,
-    <type>text</type>)</literal>. The function takes the channel name as the
-    first argument and the payload as the second. The function is much easier
-    to use than the <command>NOTIFY</command> command if you need to work with
-    non-constant channel names and payloads.
-   </para>
-  </refsect2>
  </refsect1>
 
  <refsect1>
@@ -204,13 +145,8 @@ NOTIFY <replaceable class="parameter">channel</replaceable> [ , <replaceable cla
 LISTEN virtual;
 NOTIFY virtual;
 Asynchronous notification "virtual" received from server process with PID 8448.
-NOTIFY virtual, 'This is the payload';
-Asynchronous notification "virtual" with payload "This is the payload" received from server process with PID 8448.
-
-LISTEN foo;
-SELECT pg_notify('fo' || 'o', 'pay' || 'load');
-Asynchronous notification "foo" with payload "payload" received from server process with PID 14728.
-</programlisting></para>
+</programlisting>
+  </para>
  </refsect1>
 
  <refsect1>
@@ -226,8 +162,25 @@ Asynchronous notification "foo" with payload "payload" received from server proc
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-listen"/></member>
-   <member><xref linkend="sql-unlisten"/></member>
+   <member><xref linkend="sql-listen" endterm="sql-listen-title"></member>
+   <member><xref linkend="sql-unlisten" endterm="sql-unlisten-title"></member>
   </simplelist>
  </refsect1>
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

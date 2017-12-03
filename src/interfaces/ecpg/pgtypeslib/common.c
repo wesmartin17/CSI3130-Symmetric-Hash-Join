@@ -1,5 +1,3 @@
-/* src/interfaces/ecpg/pgtypeslib/common.c */
-
 #include "postgres_fe.h"
 
 #include "extern.h"
@@ -12,17 +10,17 @@ pgtypes_alloc(long size)
 
 	if (!new)
 		errno = ENOMEM;
-	return new;
+	return (new);
 }
 
 char *
-pgtypes_strdup(const char *str)
+pgtypes_strdup(char *str)
 {
 	char	   *new = (char *) strdup(str);
 
 	if (!new)
 		errno = ENOMEM;
-	return new;
+	return (new);
 }
 
 int

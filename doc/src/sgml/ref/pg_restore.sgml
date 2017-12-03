@@ -1,10 +1,6 @@
-<!-- doc/src/sgml/ref/pg_restore.sgml -->
+<!-- $PostgreSQL: pgsql/doc/src/sgml/ref/pg_restore.sgml,v 1.56 2005/11/01 21:09:50 tgl Exp $ -->
 
-<refentry id="app-pgrestore">
- <indexterm zone="app-pgrestore">
-  <primary>pg_restore</primary>
- </indexterm>
-
+<refentry id="APP-PGRESTORE">
  <refmeta>
   <refentrytitle>pg_restore</refentrytitle>
   <manvolnum>1</manvolnum>
@@ -15,17 +11,19 @@
   <refname>pg_restore</refname>
 
   <refpurpose>
-   restore a <productname>PostgreSQL</productname> database from an
-   archive file created by <application>pg_dump</application>
+   restore a <productname>PostgreSQL</productname> database from an archive file created by pg_dump
   </refpurpose>
  </refnamediv>
+
+ <indexterm zone="app-pgrestore">
+  <primary>pg_restore</primary>
+ </indexterm>
 
  <refsynopsisdiv>
   <cmdsynopsis>
    <command>pg_restore</command>
-   <arg rep="repeat"><replaceable>connection-option</replaceable></arg>
    <arg rep="repeat"><replaceable>option</replaceable></arg>
-   <arg choice="opt"><replaceable>filename</replaceable></arg>
+   <arg><replaceable>filename</replaceable></arg>
   </cmdsynopsis>
  </refsynopsisdiv>
 
@@ -36,7 +34,7 @@
   <para>
    <application>pg_restore</application> is a utility for restoring a
    <productname>PostgreSQL</productname> database from an archive
-   created by <xref linkend="app-pgdump"/> in one of the non-plain-text
+   created by <xref linkend="app-pgdump"> in one of the non-plain-text
    formats.  It will issue the commands necessary to reconstruct the
    database to the state it was in at the time it was saved.  The
    archive files also allow <application>pg_restore</application> to
@@ -47,11 +45,10 @@
 
   <para>
    <application>pg_restore</application> can operate in two modes.
-   If a database name is specified, <application>pg_restore</application>
-   connects to that database and restores archive contents directly into
+   If a database name is specified, the archive is restored directly into
    the database.  Otherwise, a script containing the SQL
    commands necessary to rebuild the database is created and written
-   to a file or standard output.  This script output is equivalent to
+   to a file or standard output.  The script output is equivalent to
    the plain text output format of <application>pg_dump</application>.
    Some of the options controlling the output are therefore analogous to
    <application>pg_dump</application> options.
@@ -79,8 +76,7 @@
       <term><replaceable class="parameter">filename</replaceable></term>
       <listitem>
        <para>
-       Specifies the location of the archive file (or directory, for a
-       directory-format archive) to be restored.
+       Specifies the location of the archive file to be restored.
        If not specified, the standard input is used.
        </para>
       </listitem>
@@ -92,13 +88,6 @@
       <listitem>
        <para>
         Restore only the data, not the schema (data definitions).
-        Table data, large objects, and sequence values are restored,
-        if present in the archive.
-       </para>
-
-       <para>
-        This option is similar to, but for historical reasons not identical
-        to, specifying <option>--section=data</option>.
        </para>
       </listitem>
      </varlistentry>
@@ -109,9 +98,6 @@
       <listitem>
        <para>
         Clean (drop) database objects before recreating them.
-        (Unless <option>--if-exists</option> is used,
-        this might generate some harmless error messages, if any objects
-        were not present in the destination database.)
        </para>
       </listitem>
      </varlistentry>
@@ -121,16 +107,11 @@
       <term><option>--create</option></term>
       <listitem>
        <para>
-        Create the database before restoring into it.
-        If <option>--clean</option> is also specified, drop and
-        recreate the target database before connecting to it.
-       </para>
-
-       <para>
-        When this option is used, the database named with <option>-d</option>
-        is used only to issue the initial <command>DROP DATABASE</command> and
-        <command>CREATE DATABASE</command> commands.  All data is restored into the
-        database name that appears in the archive.
+        Create the database before restoring into it.  (When this
+        option is used, the database named with <option>-d</option> is
+        used only to issue the initial <command>CREATE DATABASE</>
+        command.  All data is restored into the database name that
+        appears in the archive.)
        </para>
       </listitem>
      </varlistentry>
@@ -153,7 +134,7 @@
       <listitem>
        <para>
         Exit if an error is encountered while sending SQL commands to
-        the database. The default is to continue and to display a count of
+        the database. The default is to continue and to display a count of 
         errors at the end of the restoration.
        </para>
       </listitem>
@@ -183,36 +164,41 @@
 
        <variablelist>
         <varlistentry>
-         <term><literal>c</literal></term>
-         <term><literal>custom</literal></term>
+         <term><literal>t</></term>
+         <listitem>
+          <para>
+           The archive is a <command>tar</command> archive. Using this
+           archive format allows reordering and/or exclusion of schema
+           elements at the time the database is restored. It is also
+           possible to limit which data is reloaded at restore time.
+          </para>
+         </listitem>
+        </varlistentry>
+
+        <varlistentry>
+         <term><literal>c</></term>
          <listitem>
           <para>
            The archive is in the custom format of
-           <application>pg_dump</application>.
+           <application>pg_dump</application>. This is the most
+           flexible format in that it allows reordering of data load
+           as well as schema elements.  This format is also compressed
+           by default.
           </para>
          </listitem>
         </varlistentry>
+       </variablelist>
+       </para>
+      </listitem>
+     </varlistentry>
 
-        <varlistentry>
-         <term><literal>d</literal></term>
-         <term><literal>directory</literal></term>
-         <listitem>
-          <para>
-           The archive is a directory archive.
-          </para>
-         </listitem>
-        </varlistentry>
-
-        <varlistentry>
-         <term><literal>t</literal></term>
-         <term><literal>tar</literal></term>
-         <listitem>
-          <para>
-           The archive is a <command>tar</command> archive.
-          </para>
-         </listitem>
-        </varlistentry>
-       </variablelist></para>
+     <varlistentry>
+      <term><option>-i</option></term>
+      <term><option>--ignore-version</option></term>
+      <listitem>
+       <para>
+        Ignore database version checks.
+       </para>
       </listitem>
      </varlistentry>
 
@@ -221,49 +207,7 @@
       <term><option>--index=<replaceable class="parameter">index</replaceable></option></term>
       <listitem>
        <para>
-        Restore definition of named index only.  Multiple indexes
-        may be specified with multiple <option>-I</option> switches.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>-j <replaceable class="parameter">number-of-jobs</replaceable></option></term>
-      <term><option>--jobs=<replaceable class="parameter">number-of-jobs</replaceable></option></term>
-      <listitem>
-       <para>
-        Run the most time-consuming parts
-        of <application>pg_restore</application> &mdash; those which load data,
-        create indexes, or create constraints &mdash; using multiple
-        concurrent jobs.  This option can dramatically reduce the time
-        to restore a large database to a server running on a
-        multiprocessor machine.
-       </para>
-
-       <para>
-        Each job is one process or one thread, depending on the
-        operating system, and uses a separate connection to the
-        server.
-       </para>
-
-       <para>
-        The optimal value for this option depends on the hardware
-        setup of the server, of the client, and of the network.
-        Factors include the number of CPU cores and the disk setup.  A
-        good place to start is the number of CPU cores on the server,
-        but values larger than that can also lead to faster restore
-        times in many cases.  Of course, values that are too high will
-        lead to decreased performance because of thrashing.
-       </para>
-
-       <para>
-        Only the custom and directory archive formats are supported
-        with this option.
-        The input must be a regular file or directory (not, for example, a
-        pipe).  This option is ignored when emitting a script rather
-        than connecting directly to a database server.  Also, multiple
-        jobs cannot be used together with the
-        option <option>--single-transaction</option>.
+        Restore definition of named index only.
        </para>
       </listitem>
      </varlistentry>
@@ -273,10 +217,9 @@
       <term><option>--list</option></term>
       <listitem>
        <para>
-        List the table of contents of the archive. The output of this operation
-        can be used as input to the <option>-L</option> option.  Note that
-        if filtering switches such as <option>-n</option> or <option>-t</option> are
-        used with <option>-l</option>, they will restrict the items listed.
+        List the contents of the archive. The output of this operation
+        can be used with the <option>-L</option> option to restrict
+        and reorder the items that are restored.
        </para>
       </listitem>
      </varlistentry>
@@ -286,46 +229,23 @@
       <term><option>--use-list=<replaceable class="parameter">list-file</replaceable></option></term>
       <listitem>
        <para>
-        Restore only those archive elements that are listed in <replaceable
-        class="parameter">list-file</replaceable>, and restore them in the
-        order they appear in the file.  Note that
-        if filtering switches such as <option>-n</option> or <option>-t</option> are
-        used with <option>-L</option>, they will further restrict the items restored.
-       </para>
-       <para><replaceable class="parameter">list-file</replaceable> is normally created by
-        editing the output of a previous <option>-l</option> operation.
-        Lines can be moved or removed, and can also
-        be commented out by placing a semicolon (<literal>;</literal>) at the
-        start of the line.  See below for examples.
+        Restore elements in <replaceable class="PARAMETER">
+        list-file</replaceable> only, and in the
+        order they appear in the file. Lines can be moved and may also
+        be commented out by placing a <literal>;</literal> at the
+        start of the line.  (See below for examples.)
        </para>
       </listitem>
      </varlistentry>
 
      <varlistentry>
-      <term><option>-n <replaceable class="parameter">schema</replaceable></option></term>
+      <term><option>-n <replaceable class="parameter">namespace</replaceable></option></term>
       <term><option>--schema=<replaceable class="parameter">schema</replaceable></option></term>
       <listitem>
        <para>
-        Restore only objects that are in the named schema.  Multiple schemas
-        may be specified with multiple <option>-n</option> switches.  This can be
+        Restore only objects that are in the named schema.  This can be
         combined with the <option>-t</option> option to restore just a
         specific table.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>-N <replaceable class="parameter">schema</replaceable></option></term>
-      <term><option>--exclude-schema=<replaceable class="parameter">schema</replaceable></option></term>
-      <listitem>
-       <para>
-        Do not restore objects that are in the named schema.  Multiple schemas
-        to be excluded may be specified with multiple <option>-N</option> switches.
-       </para>
-
-       <para>
-        When both <option>-n</option> and <option>-N</option> are given for the same
-        schema name, the <option>-N</option> switch wins and the schema is excluded.
        </para>
       </listitem>
      </varlistentry>
@@ -338,7 +258,7 @@
         Do not output commands to set
         ownership of objects to match the original database.
         By default, <application>pg_restore</application> issues
-        <command>ALTER OWNER</command> or
+        <command>ALTER OWNER</> or 
         <command>SET SESSION AUTHORIZATION</command>
         statements to set ownership of created schema elements.
         These statements will fail unless the initial connection to the
@@ -357,8 +277,7 @@
        <para>
         Restore the named function only.  Be careful to spell the function
         name and arguments exactly as they appear in the dump file's table
-        of contents.  Multiple functions may be specified with multiple
-        <option>-P</option> switches.
+        of contents.
        </para>
       </listitem>
      </varlistentry>
@@ -379,18 +298,10 @@
       <term><option>--schema-only</option></term>
       <listitem>
        <para>
-        Restore only the schema (data definitions), not data,
-        to the extent that schema entries are present in the archive.
-       </para>
-       <para>
-        This option is the inverse of <option>--data-only</option>.
-        It is similar to, but for historical reasons not identical to,
-        specifying
-        <option>--section=pre-data --section=post-data</option>.
-       </para>
-       <para>
-        (Do not confuse this with the <option>--schema</option> option, which
-        uses the word <quote>schema</quote> in a different meaning.)
+        Restore only the schema (data definitions), not the data (table
+        contents).  Sequence current values will not be restored, either.
+        (Do not confuse this with the <option>--schema</> option, which
+        uses the word <quote>schema</> in a different meaning.)
        </para>
       </listitem>
      </varlistentry>
@@ -401,7 +312,7 @@
       <listitem>
        <para>
         Specify the superuser user name to use when disabling triggers.
-        This is relevant only if <option>--disable-triggers</option> is used.
+        This is only relevant if <option>--disable-triggers</> is used.
        </para>
       </listitem>
      </varlistentry>
@@ -411,39 +322,8 @@
       <term><option>--table=<replaceable class="parameter">table</replaceable></option></term>
       <listitem>
        <para>
-        Restore definition and/or data of only the named table.
-        For this purpose, <quote>table</quote> includes views, materialized views,
-        sequences, and foreign tables.  Multiple tables
-        can be selected by writing multiple <option>-t</option> switches.
-        This option can be combined with the <option>-n</option> option to
-        specify table(s) in a particular schema.
+        Restore definition and/or data of named table only.
        </para>
-
-       <note>
-        <para>
-         When <option>-t</option> is specified, <application>pg_restore</application>
-         makes no attempt to restore any other database objects that the
-         selected table(s) might depend upon.  Therefore, there is no
-         guarantee that a specific-table restore into a clean database will
-         succeed.
-        </para>
-       </note>
-
-       <note>
-        <para>
-         This flag does not behave identically to the <option>-t</option>
-         flag of <application>pg_dump</application>.  There is not currently
-         any provision for wild-card matching in <application>pg_restore</application>,
-         nor can you include a schema name within its <option>-t</option>.
-        </para>
-       </note>
-
-       <note>
-        <para>
-         In versions prior to <productname>PostgreSQL</productname> 9.6, this flag
-         matched only tables, not any other type of relation.
-        </para>
-       </note>
       </listitem>
      </varlistentry>
 
@@ -452,8 +332,7 @@
       <term><option>--trigger=<replaceable class="parameter">trigger</replaceable></option></term>
       <listitem>
        <para>
-        Restore named trigger only.  Multiple triggers may be specified with
-        multiple <option>-T</option> switches.
+        Restore named trigger only.
        </para>
       </listitem>
      </varlistentry>
@@ -469,16 +348,6 @@
      </varlistentry>
 
      <varlistentry>
-       <term><option>-V</option></term>
-       <term><option>--version</option></term>
-       <listitem>
-       <para>
-       Print the <application>pg_restore</application> version and exit.
-       </para>
-       </listitem>
-     </varlistentry>
-
-     <varlistentry>
       <term><option>-x</option></term>
       <term><option>--no-privileges</option></term>
       <term><option>--no-acl</option></term>
@@ -490,24 +359,25 @@
      </varlistentry>
 
      <varlistentry>
-      <term><option>-1</option></term>
-      <term><option>--single-transaction</option></term>
+      <term><option>-X use-set-session-authorization</option></term>
+      <term><option>--use-set-session-authorization</option></term>
       <listitem>
        <para>
-        Execute the restore as a single transaction (that is, wrap the
-        emitted commands in <command>BEGIN</command>/<command>COMMIT</command>).  This
-        ensures that either all the commands complete successfully, or no
-        changes are applied. This option implies
-        <option>--exit-on-error</option>.
+        Output SQL-standard <command>SET SESSION AUTHORIZATION</> commands
+        instead of <command>ALTER OWNER</> commands to determine object
+        ownership.  This makes the dump more standards compatible, but
+        depending on the history of the objects in the dump, may not restore
+        properly.
        </para>
       </listitem>
      </varlistentry>
 
      <varlistentry>
-      <term><option>--disable-triggers</option></term>
+      <term><option>-X disable-triggers</></term>
+      <term><option>--disable-triggers</></term>
       <listitem>
        <para>
-        This option is relevant only when performing a data-only restore.
+        This option is only relevant when performing a data-only restore.
         It instructs <application>pg_restore</application> to execute commands
         to temporarily disable triggers on the target tables while
         the data is reloaded.  Use this if you have referential
@@ -517,164 +387,12 @@
 
        <para>
         Presently, the commands emitted for
-        <option>--disable-triggers</option> must be done as superuser.  So you
-        should also specify a superuser name with <option>-S</option> or,
-        preferably, run <application>pg_restore</application> as a
-        <productname>PostgreSQL</productname> superuser.
+        <option>--disable-triggers</> must be done as superuser.  So, you
+        should also specify a superuser name with <option>-S</>, or
+        preferably run <application>pg_restore</application> as a
+        <productname>PostgreSQL</> superuser.
        </para>
       </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>--enable-row-security</option></term>
-      <listitem>
-       <para>
-        This option is relevant only when restoring the contents of a table
-        which has row security.  By default, <application>pg_restore</application> will set
-        <xref linkend="guc-row-security"/> to off, to ensure
-        that all data is restored in to the table.  If the user does not have
-        sufficient privileges to bypass row security, then an error is thrown.
-        This parameter instructs <application>pg_restore</application> to set
-        <xref linkend="guc-row-security"/> to on instead, allowing the user to attempt to restore
-        the contents of the table with row security enabled.  This might still
-        fail if the user does not have the right to insert the rows from the
-        dump into the table.
-       </para>
-
-       <para>
-        Note that this option currently also requires the dump be in <command>INSERT</command>
-        format, as <command>COPY FROM</command> does not support row security.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>--if-exists</option></term>
-      <listitem>
-       <para>
-        Use conditional commands (i.e. add an <literal>IF EXISTS</literal>
-        clause) when cleaning database objects.  This option is not valid
-        unless <option>--clean</option> is also specified.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>--no-data-for-failed-tables</option></term>
-      <listitem>
-       <para>
-        By default, table data is restored even if the creation command
-        for the table failed (e.g., because it already exists).
-        With this option, data for such a table is skipped.
-        This behavior is useful if the target database already
-        contains the desired table contents.  For example,
-        auxiliary tables for <productname>PostgreSQL</productname> extensions
-        such as <productname>PostGIS</productname> might already be loaded in
-        the target database; specifying this option prevents duplicate
-        or obsolete data from being loaded into them.
-       </para>
-
-       <para>
-        This option is effective only when restoring directly into a
-        database, not when producing SQL script output.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>--no-publications</option></term>
-      <listitem>
-       <para>
-        Do not output commands to restore publications, even if the archive
-        contains them.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>--no-security-labels</option></term>
-      <listitem>
-       <para>
-        Do not output commands to restore security labels,
-        even if the archive contains them.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>--no-subscriptions</option></term>
-      <listitem>
-       <para>
-        Do not output commands to restore subscriptions, even if the archive
-        contains them.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>--no-tablespaces</option></term>
-      <listitem>
-       <para>
-        Do not output commands to select tablespaces.
-        With this option, all objects will be created in whichever
-        tablespace is the default during restore.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-       <term><option>--section=<replaceable class="parameter">sectionname</replaceable></option></term>
-       <listitem>
-         <para>
-          Only restore the named section. The section name can be
-          <option>pre-data</option>, <option>data</option>, or <option>post-data</option>.
-          This option can be specified more than once to select multiple
-          sections. The default is to restore all sections.
-         </para>
-         <para>
-          The data section contains actual table data as well as large-object
-          definitions.
-          Post-data items consist of definitions of indexes, triggers, rules
-          and constraints other than validated check constraints.
-          Pre-data items consist of all other data definition items.
-         </para>
-       </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>--strict-names</option></term>
-      <listitem>
-       <para>
-        Require that each schema
-        (<option>-n</option>/<option>--schema</option>) and table
-        (<option>-t</option>/<option>--table</option>) qualifier match at
-        least one schema/table in the backup file.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>--use-set-session-authorization</option></term>
-      <listitem>
-       <para>
-        Output SQL-standard <command>SET SESSION AUTHORIZATION</command> commands
-        instead of <command>ALTER OWNER</command> commands to determine object
-        ownership.  This makes the dump more standards-compatible, but
-        depending on the history of the objects in the dump, might not restore
-        properly.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-       <term><option>-?</option></term>
-       <term><option>--help</option></term>
-       <listitem>
-       <para>
-       Show help about <application>pg_restore</application> command line
-       arguments, and exit.
-       </para>
-       </listitem>
      </varlistentry>
 
     </variablelist>
@@ -714,67 +432,22 @@
 
      <varlistentry>
       <term><option>-U <replaceable>username</replaceable></option></term>
-      <term><option>--username=<replaceable class="parameter">username</replaceable></option></term>
       <listitem>
        <para>
-        User name to connect as.
-       </para>
-      </listitem>
-     </varlistentry>
-
-     <varlistentry>
-      <term><option>-w</option></term>
-      <term><option>--no-password</option></term>
-      <listitem>
-       <para>
-        Never issue a password prompt.  If the server requires
-        password authentication and a password is not available by
-        other means such as a <filename>.pgpass</filename> file, the
-        connection attempt will fail.  This option can be useful in
-        batch jobs and scripts where no user is present to enter a
-        password.
+        Connect as the given user
        </para>
       </listitem>
      </varlistentry>
 
      <varlistentry>
       <term><option>-W</option></term>
-      <term><option>--password</option></term>
       <listitem>
        <para>
-        Force <application>pg_restore</application> to prompt for a
-        password before connecting to a database.
-       </para>
-
-       <para>
-        This option is never essential, since
-        <application>pg_restore</application> will automatically prompt
-        for a password if the server demands password authentication.
-        However, <application>pg_restore</application> will waste a
-        connection attempt finding out that the server wants a password.
-        In some cases it is worth typing <option>-W</option> to avoid the extra
-        connection attempt.
+        Force a password prompt.  This should happen automatically if
+        the server requires password authentication.
        </para>
       </listitem>
      </varlistentry>
-
-     <varlistentry>
-      <term><option>--role=<replaceable class="parameter">rolename</replaceable></option></term>
-      <listitem>
-       <para>
-        Specifies a role name to be used to perform the restore.
-        This option causes <application>pg_restore</application> to issue a
-        <command>SET ROLE</command> <replaceable class="parameter">rolename</replaceable>
-        command after connecting to the database. It is useful when the
-        authenticated user (specified by <option>-U</option>) lacks privileges
-        needed by <application>pg_restore</application>, but can switch to a role with
-        the required rights.  Some installations have a policy against
-        logging in directly as a superuser, and use of this option allows
-        restores to be performed without violating the policy.
-       </para>
-      </listitem>
-     </varlistentry>
-
     </variablelist>
    </para>
  </refsect1>
@@ -786,7 +459,6 @@
   <variablelist>
    <varlistentry>
     <term><envar>PGHOST</envar></term>
-    <term><envar>PGOPTIONS</envar></term>
     <term><envar>PGPORT</envar></term>
     <term><envar>PGUSER</envar></term>
 
@@ -797,14 +469,6 @@
     </listitem>
    </varlistentry>
   </variablelist>
-
-  <para>
-   This utility, like most other <productname>PostgreSQL</productname> utilities,
-   also uses the environment variables supported by <application>libpq</application>
-   (see <xref linkend="libpq-envars"/>).  However, it does not read
-   <envar>PGDATABASE</envar> when a database name is not supplied.
-  </para>
-
  </refsect1>
 
 
@@ -817,9 +481,7 @@
    internally executes <acronym>SQL</acronym> statements. If you have
    problems running <application>pg_restore</application>, make sure
    you are able to select information from the database using, for
-   example, <xref linkend="app-psql"/>.  Also, any default connection
-   settings and environment variables used by the
-   <application>libpq</application> front-end library will apply.
+   example, <xref linkend="app-psql">.
   </para>
  </refsect1>
 
@@ -829,11 +491,11 @@
 
   <para>
    If your installation has any local additions to the
-   <literal>template1</literal> database, be careful to load the output of
+   <literal>template1</> database, be careful to load the output of
    <application>pg_restore</application> into a truly empty database;
    otherwise you are likely to get errors due to duplicate definitions
    of the added objects.  To make an empty database without any local
-   additions, copy from <literal>template0</literal> not <literal>template1</literal>, for example:
+   additions, copy from <literal>template0</> not <literal>template1</>, for example:
 <programlisting>
 CREATE DATABASE foo WITH TEMPLATE template0;
 </programlisting>
@@ -846,20 +508,18 @@ CREATE DATABASE foo WITH TEMPLATE template0;
     <listitem>
      <para>
       When restoring data to a pre-existing table and the option
-      <option>--disable-triggers</option> is used,
+      <option>--disable-triggers</> is used,
       <application>pg_restore</application> emits commands
-      to disable triggers on user tables before inserting the data, then emits commands to
+      to disable triggers on user tables before inserting the data then emits commands to
       re-enable them after the data has been inserted.  If the restore is stopped in the
-      middle, the system catalogs might be left in the wrong state.
+      middle, the system catalogs may be left in the wrong state.
      </para>
     </listitem>
 
     <listitem>
-     <para><application>pg_restore</application> cannot restore large objects
-      selectively;  for instance, only those for a specific table.  If
-      an archive contains large objects, then all large objects will be
-      restored, or none of them if they are excluded via <option>-L</option>,
-      <option>-t</option>, or other options.
+     <para>
+      <application>pg_restore</application> will not restore large objects for a single table. If
+      an archive contains large objects, then all large objects will be restored.
      </para>
     </listitem>
 
@@ -867,15 +527,13 @@ CREATE DATABASE foo WITH TEMPLATE template0;
   </para>
 
   <para>
-   See also the <xref linkend="app-pgdump"/> documentation for details on
+   See also the <xref linkend="app-pgdump"> documentation for details on
    limitations of <application>pg_dump</application>.
   </para>
 
   <para>
-   Once restored, it is wise to run <command>ANALYZE</command> on each
-   restored table so the optimizer has useful statistics; see
-   <xref linkend="vacuum-for-statistics"/> and
-   <xref linkend="autovacuum"/> for more information.
+   Once restored, it is wise to run <command>ANALYZE</> on each
+   restored table so the optimizer has useful statistics.
   </para>
 
  </refsect1>
@@ -885,78 +543,61 @@ CREATE DATABASE foo WITH TEMPLATE template0;
   <title>Examples</title>
 
   <para>
-   Assume we have dumped a database called <literal>mydb</literal> into a
-   custom-format dump file:
+   To dump a database called <literal>mydb</> to a <filename>tar</filename>
+   file:
 
 <screen>
-<prompt>$</prompt> <userinput>pg_dump -Fc mydb &gt; db.dump</userinput>
+<prompt>$</prompt> <userinput>pg_dump -Ft mydb &gt; db.tar</userinput>
 </screen>
   </para>
 
   <para>
-   To drop the database and recreate it from the dump:
+   To reload this dump into an
+   existing database called <literal>newdb</>:
 
 <screen>
-<prompt>$</prompt> <userinput>dropdb mydb</userinput>
-<prompt>$</prompt> <userinput>pg_restore -C -d postgres db.dump</userinput>
+<prompt>$</prompt> <userinput>pg_restore -d newdb db.tar</userinput>
 </screen>
-
-   The database named in the <option>-d</option> switch can be any database existing
-   in the cluster; <application>pg_restore</application> only uses it to issue the
-   <command>CREATE DATABASE</command> command for <literal>mydb</literal>.  With
-   <option>-C</option>, data is always restored into the database name that appears
-   in the dump file.
-  </para>
-
-  <para>
-   To reload the dump into a new database called <literal>newdb</literal>:
-
-<screen>
-<prompt>$</prompt> <userinput>createdb -T template0 newdb</userinput>
-<prompt>$</prompt> <userinput>pg_restore -d newdb db.dump</userinput>
-</screen>
-
-   Notice we don't use <option>-C</option>, and instead connect directly to the
-   database to be restored into.  Also note that we clone the new database
-   from <literal>template0</literal> not <literal>template1</literal>, to ensure it is
-   initially empty.
   </para>
 
   <para>
    To reorder database items, it is first necessary to dump the table of
    contents of the archive:
 <screen>
-<prompt>$</prompt> <userinput>pg_restore -l db.dump &gt; db.list</userinput>
+<prompt>$</prompt> <userinput>pg_restore -l archive.file &gt; archive.list</userinput>
 </screen>
-   The listing file consists of a header and one line for each item, e.g.:
+   The listing file consists of a header and one line for each item, e.g.,
 <programlisting>
 ;
-; Archive created at Mon Sep 14 13:55:39 2009
-;     dbname: DBDEMOS
-;     TOC Entries: 81
-;     Compression: 9
-;     Dump Version: 1.10-0
+; Archive created at Fri Jul 28 22:28:36 2000
+;     dbname: birds
+;     TOC Entries: 74
+;     Compression: 0
+;     Dump Version: 1.4-0
 ;     Format: CUSTOM
-;     Integer: 4 bytes
-;     Offset: 8 bytes
-;     Dumped from database version: 8.3.5
-;     Dumped by pg_dump version: 8.3.8
 ;
 ;
 ; Selected TOC Entries:
 ;
-3; 2615 2200 SCHEMA - public pasha
-1861; 0 0 COMMENT - SCHEMA public pasha
-1862; 0 0 ACL - public pasha
-317; 1247 17715 TYPE public composite pasha
-319; 1247 25899 DOMAIN public domain0 pasha
+2; 145344 TABLE species postgres
+3; 145344 ACL species
+4; 145359 TABLE nt_header postgres
+5; 145359 ACL nt_header
+6; 145402 TABLE species_records postgres
+7; 145402 ACL species_records
+8; 145416 TABLE ss_old postgres
+9; 145416 ACL ss_old
+10; 145433 TABLE map_resolutions postgres
+11; 145433 ACL map_resolutions
+12; 145443 TABLE hs_old postgres
+13; 145443 ACL hs_old
 </programlisting>
    Semicolons start a comment, and the numbers at the start of lines refer to the
    internal archive ID assigned to each item.
   </para>
 
   <para>
-   Lines in the file can be commented out, deleted, and reordered. For example:
+   Lines in the file can be commented out, deleted, and reordered. For example,
 <programlisting>
 10; 145433 TABLE map_resolutions postgres
 ;2; 145344 TABLE species postgres
@@ -967,18 +608,46 @@ CREATE DATABASE foo WITH TEMPLATE template0;
    could be used as input to <application>pg_restore</application> and would only restore
    items 10 and 6, in that order:
 <screen>
-<prompt>$</prompt> <userinput>pg_restore -L db.list db.dump</userinput>
-</screen></para>
+<prompt>$</prompt> <userinput>pg_restore -L archive.list archive.file</userinput>
+</screen>
+  </para>
 
+ </refsect1>
+
+ <refsect1>
+  <title>History</title>
+
+  <para>
+   The <application>pg_restore</application> utility first appeared in
+   <productname>PostgreSQL</productname> 7.1.
+  </para>
  </refsect1>
 
  <refsect1>
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="app-pgdump"/></member>
-   <member><xref linkend="app-pg-dumpall"/></member>
-   <member><xref linkend="app-psql"/></member>
+   <member><xref linkend="app-pgdump"></member>
+   <member><xref linkend="app-pg-dumpall"></member>
+   <member><xref linkend="app-psql"></member>
+   <member>Environment Variables (<xref linkend="libpq-envars">)</member>
   </simplelist>
  </refsect1>
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

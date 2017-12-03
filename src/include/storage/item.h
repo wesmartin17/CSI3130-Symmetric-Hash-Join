@@ -4,10 +4,10 @@
  *	  POSTGRES disk item definitions.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/storage/item.h
+ * $PostgreSQL: pgsql/src/include/storage/item.h,v 1.15 2004/12/31 22:03:42 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -16,4 +16,4 @@
 
 typedef Pointer Item;
 
-#endif							/* ITEM_H */
+#endif   /* ITEM_H */

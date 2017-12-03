@@ -1,8 +1,5 @@
-/* src/interfaces/ecpg/pgtypeslib/numeric.c */
-
 #include "postgres_fe.h"
 #include <ctype.h>
-#include <float.h>
 #include <limits.h>
 
 #include "extern.h"
@@ -40,7 +37,7 @@ apply_typmod(numeric *var, long typmod)
 
 	/* Do nothing if we have a default typmod (-1) */
 	if (typmod < (long) (VARHDRSZ))
-		return 0;
+		return (0);
 
 	typmod -= VARHDRSZ;
 	precision = (typmod >> 16) & 0xffff;
@@ -100,7 +97,7 @@ apply_typmod(numeric *var, long typmod)
 
 	var->rscale = scale;
 	var->dscale = scale;
-	return 0;
+	return (0);
 }
 #endif
 
@@ -132,23 +129,7 @@ PGTYPESnumeric_new(void)
 		return NULL;
 
 	if (alloc_var(var, 0) < 0)
-	{
-		free(var);
 		return NULL;
-	}
-
-	return var;
-}
-
-decimal *
-PGTYPESdecimal_new(void)
-{
-	decimal    *var;
-
-	if ((var = (decimal *) pgtypes_alloc(sizeof(decimal))) == NULL)
-		return NULL;
-
-	memset(var, 0, sizeof(decimal));
 
 	return var;
 }
@@ -162,7 +143,7 @@ PGTYPESdecimal_new(void)
 static int
 set_var_from_str(char *str, char **ptr, numeric *dest)
 {
-	bool		have_dp = false;
+	bool		have_dp = FALSE;
 	int			i = 0;
 
 	errno = 0;
@@ -172,25 +153,6 @@ set_var_from_str(char *str, char **ptr, numeric *dest)
 		if (!isspace((unsigned char) *(*ptr)))
 			break;
 		(*ptr)++;
-	}
-
-	if (pg_strncasecmp(*ptr, "NaN", 3) == 0)
-	{
-		*ptr += 3;
-		dest->sign = NUMERIC_NAN;
-
-		/* Should be nothing left but spaces */
-		while (*(*ptr))
-		{
-			if (!isspace((unsigned char) *(*ptr)))
-			{
-				errno = PGTYPES_NUM_BAD_NUMERIC;
-				return -1;
-			}
-			(*ptr)++;
-		}
-
-		return 0;
 	}
 
 	if (alloc_var(dest, strlen((*ptr))) < 0)
@@ -214,7 +176,7 @@ set_var_from_str(char *str, char **ptr, numeric *dest)
 
 	if (*(*ptr) == '.')
 	{
-		have_dp = true;
+		have_dp = TRUE;
 		(*ptr)++;
 	}
 
@@ -241,7 +203,7 @@ set_var_from_str(char *str, char **ptr, numeric *dest)
 				errno = PGTYPES_NUM_BAD_NUMERIC;
 				return -1;
 			}
-			have_dp = true;
+			have_dp = TRUE;
 			(*ptr)++;
 		}
 		else
@@ -263,7 +225,8 @@ set_var_from_str(char *str, char **ptr, numeric *dest)
 			return -1;
 		}
 		(*ptr) = endptr;
-		if (exponent >= INT_MAX / 2 || exponent <= -(INT_MAX / 2))
+		if (exponent > NUMERIC_MAX_PRECISION ||
+			exponent < -NUMERIC_MAX_PRECISION)
 		{
 			errno = PGTYPES_NUM_BAD_NUMERIC;
 			return -1;
@@ -296,7 +259,7 @@ set_var_from_str(char *str, char **ptr, numeric *dest)
 		dest->weight = 0;
 
 	dest->rscale = dest->dscale;
-	return 0;
+	return (0);
 }
 
 
@@ -314,15 +277,6 @@ get_str_from_var(numeric *var, int dscale)
 	char	   *cp;
 	int			i;
 	int			d;
-
-	if (var->sign == NUMERIC_NAN)
-	{
-		str = (char *) pgtypes_alloc(4);
-		if (str == NULL)
-			return NULL;
-		sprintf(str, "NaN");
-		return str;
-	}
 
 	/*
 	 * Check if we must round up before printing the value and do so.
@@ -411,41 +365,26 @@ PGTYPESnumeric_from_asc(char *str, char **endptr)
 	char	   *realptr;
 	char	  **ptr = (endptr != NULL) ? endptr : &realptr;
 
-	if (!value)
-		return NULL;
+	if (!value)	
+		return (NULL);
 
 	ret = set_var_from_str(str, ptr, value);
 	if (ret)
 	{
-		PGTYPESnumeric_free(value);
-		return NULL;
+		free(value);
+		return (NULL);
 	}
 
-	return value;
+	return (value);
 }
 
 char *
 PGTYPESnumeric_to_asc(numeric *num, int dscale)
 {
-	numeric    *numcopy = PGTYPESnumeric_new();
-	char	   *s;
-
-	if (numcopy == NULL)
-		return NULL;
-
-	if (PGTYPESnumeric_copy(num, numcopy) < 0)
-	{
-		PGTYPESnumeric_free(numcopy);
-		return NULL;
-	}
-
 	if (dscale < 0)
 		dscale = num->dscale;
 
-	/* get_str_from_var may change its argument */
-	s = get_str_from_var(numcopy, dscale);
-	PGTYPESnumeric_free(numcopy);
-	return s;
+	return (get_str_from_var(num, dscale));
 }
 
 /* ----------
@@ -470,12 +409,6 @@ void
 PGTYPESnumeric_free(numeric *var)
 {
 	digitbuf_free(var->buf);
-	free(var);
-}
-
-void
-PGTYPESdecimal_free(decimal *var)
-{
 	free(var);
 }
 
@@ -974,7 +907,7 @@ PGTYPESnumeric_sub(numeric *var1, numeric *var2, numeric *result)
  * mul_var() -
  *
  *	Multiplication on variable level. Product of var1 * var2 is stored
- *	in result.  Accuracy of result is determined by global_rscale.
+ *	in result.	Accuracy of result is determined by global_rscale.
  * ----------
  */
 int
@@ -1078,6 +1011,7 @@ select_div_scale(numeric *var1, numeric *var2, int *rscale)
 	NumericDigit firstdigit1,
 				firstdigit2;
 	int			res_dscale;
+	int			res_rscale;
 
 	/*
 	 * The result scale of a division isn't specified in any SQL standard. For
@@ -1129,7 +1063,7 @@ select_div_scale(numeric *var1, numeric *var2, int *rscale)
 	res_dscale = Min(res_dscale, NUMERIC_MAX_DISPLAY_SCALE);
 
 	/* Select result scale */
-	*rscale = res_dscale + 4;
+	*rscale = res_rscale = res_dscale + 4;
 
 	return res_dscale;
 }
@@ -1366,17 +1300,18 @@ done:
 int
 PGTYPESnumeric_cmp(numeric *var1, numeric *var2)
 {
+
 	/* use cmp_abs function to calculate the result */
 
-	/* both are positive: normal comparison with cmp_abs */
+	/* both are positive: normal comparation with cmp_abs */
 	if (var1->sign == NUMERIC_POS && var2->sign == NUMERIC_POS)
 		return cmp_abs(var1, var2);
 
-	/* both are negative: return the inverse of the normal comparison */
+	/* both are negative: return the inverse of the normal comparation */
 	if (var1->sign == NUMERIC_NEG && var2->sign == NUMERIC_NEG)
 	{
 		/*
-		 * instead of inverting the result, we invert the parameter ordering
+		 * instead of inverting the result, we invert the paramter ordering
 		 */
 		return cmp_abs(var2, var1);
 	}
@@ -1497,63 +1432,32 @@ PGTYPESnumeric_copy(numeric *src, numeric *dst)
 int
 PGTYPESnumeric_from_double(double d, numeric *dst)
 {
-	char		buffer[DBL_DIG + 100];
+	char		buffer[100];
 	numeric    *tmp;
-	int			i;
 
-	if (sprintf(buffer, "%.*g", DBL_DIG, d) <= 0)
+	if (sprintf(buffer, "%f", d) == 0)
 		return -1;
 
 	if ((tmp = PGTYPESnumeric_from_asc(buffer, NULL)) == NULL)
 		return -1;
-	i = PGTYPESnumeric_copy(tmp, dst);
-	PGTYPESnumeric_free(tmp);
-	if (i != 0)
+	if (PGTYPESnumeric_copy(tmp, dst) != 0)
 		return -1;
-
-	errno = 0;
+	PGTYPESnumeric_free(tmp);
 	return 0;
 }
 
 static int
-numericvar_to_double(numeric *var, double *dp)
+numericvar_to_double_no_overflow(numeric *var, double *dp)
 {
 	char	   *tmp;
 	double		val;
 	char	   *endptr;
-	numeric    *varcopy = PGTYPESnumeric_new();
 
-	if (varcopy == NULL)
+	if ((tmp = get_str_from_var(var, var->dscale)) == NULL)
 		return -1;
 
-	if (PGTYPESnumeric_copy(var, varcopy) < 0)
-	{
-		PGTYPESnumeric_free(varcopy);
-		return -1;
-	}
-
-	tmp = get_str_from_var(varcopy, varcopy->dscale);
-	PGTYPESnumeric_free(varcopy);
-
-	if (tmp == NULL)
-		return -1;
-
-	/*
-	 * strtod does not reset errno to 0 in case of success.
-	 */
-	errno = 0;
+	/* unlike float8in, we ignore ERANGE from strtod */
 	val = strtod(tmp, &endptr);
-	if (errno == ERANGE)
-	{
-		free(tmp);
-		if (val == 0)
-			errno = PGTYPES_NUM_UNDERFLOW;
-		else
-			errno = PGTYPES_NUM_OVERFLOW;
-		return -1;
-	}
-
-	/* can't free tmp yet, endptr points still into it */
 	if (*endptr != '\0')
 	{
 		/* shouldn't happen ... */
@@ -1561,8 +1465,8 @@ numericvar_to_double(numeric *var, double *dp)
 		errno = PGTYPES_NUM_BAD_NUMERIC;
 		return -1;
 	}
-	free(tmp);
 	*dp = val;
+	free(tmp);
 	return 0;
 }
 
@@ -1570,8 +1474,9 @@ int
 PGTYPESnumeric_to_double(numeric *nv, double *dp)
 {
 	double		tmp;
+	int			i;
 
-	if (numericvar_to_double(nv, &tmp) != 0)
+	if ((i = numericvar_to_double_no_overflow(nv, &tmp)) != 0)
 		return -1;
 	*dp = tmp;
 	return 0;
@@ -1599,29 +1504,28 @@ PGTYPESnumeric_to_int(numeric *nv, int *ip)
 int
 PGTYPESnumeric_to_long(numeric *nv, long *lp)
 {
-	char	   *s = PGTYPESnumeric_to_asc(nv, 0);
-	char	   *endptr;
+	int			i;
+	long		l = 0;
 
-	if (s == NULL)
-		return -1;
-
-	errno = 0;
-	*lp = strtol(s, &endptr, 10);
-	if (endptr == s)
+	for (i = 1; i < nv->weight + 2; i++)
 	{
-		/* this should not happen actually */
-		free(s);
+		l *= 10;
+		l += nv->buf[i];
+	}
+	if (nv->buf[i] >= 5)
+	{
+		/* round up */
+		l++;
+	}
+	if (l > LONG_MAX || l < 0)
+	{
+		errno = PGTYPES_NUM_OVERFLOW;
 		return -1;
 	}
-	free(s);
-	if (errno == ERANGE)
-	{
-		if (*lp == LONG_MIN)
-			errno = PGTYPES_NUM_UNDERFLOW;
-		else
-			errno = PGTYPES_NUM_OVERFLOW;
-		return -1;
-	}
+
+	if (nv->sign == NUMERIC_NEG)
+		l *= -1;
+	*lp = l;
 	return 0;
 }
 

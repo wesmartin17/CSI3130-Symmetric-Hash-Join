@@ -1,19 +1,18 @@
-<!-- doc/src/sgml/ref/set_constraints.sgml -->
-<refentry id="sql-set-constraints">
- <indexterm zone="sql-set-constraints">
-  <primary>SET CONSTRAINTS</primary>
- </indexterm>
-
+<!-- $PostgreSQL: pgsql/doc/src/sgml/ref/set_constraints.sgml,v 1.12 2004/09/10 18:39:53 tgl Exp $ -->
+<refentry id="SQL-SET-CONSTRAINTS">
  <refmeta>
-  <refentrytitle>SET CONSTRAINTS</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="SQL-SET-CONSTRAINTS-title">SET CONSTRAINTS</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
  <refnamediv>
   <refname>SET CONSTRAINTS</refname>
-  <refpurpose>set constraint check timing for the current transaction</refpurpose>
+  <refpurpose>set constraint checking modes for the current transaction</refpurpose>
  </refnamediv>
+
+ <indexterm zone="sql-set-constraints">
+  <primary>SET CONSTRAINTS</primary>
+ </indexterm>
 
  <refsynopsisdiv>
 <synopsis>
@@ -46,11 +45,10 @@ SET CONSTRAINTS { ALL | <replaceable class="parameter">name</replaceable> [, ...
 
   <para>
    <command>SET CONSTRAINTS</command> with a list of constraint names changes
-   the mode of just those constraints (which must all be deferrable).  Each
-   constraint name can be schema-qualified.  The
-   current schema search path is used to find the first matching name if
-   no schema name is specified.  <command>SET CONSTRAINTS ALL</command>
-   changes the mode of all deferrable constraints.
+   the mode of just those constraints (which must all be deferrable).  If
+   there are multiple constraints matching any given name, all are affected.
+   <command>SET CONSTRAINTS ALL</command> changes the mode of all deferrable
+   constraints.
   </para>
 
   <para>
@@ -67,20 +65,9 @@ SET CONSTRAINTS { ALL | <replaceable class="parameter">name</replaceable> [, ...
   </para>
 
   <para>
-   Currently, only <literal>UNIQUE</literal>, <literal>PRIMARY KEY</literal>,
-   <literal>REFERENCES</literal> (foreign key), and <literal>EXCLUDE</literal>
-   constraints are affected by this setting.
-   <literal>NOT NULL</literal> and <literal>CHECK</literal> constraints are
-   always checked immediately when a row is inserted or modified
-   (<emphasis>not</emphasis> at the end of the statement).
-   Uniqueness and exclusion constraints that have not been declared
-   <literal>DEFERRABLE</literal> are also checked immediately.
-  </para>
-
-  <para>
-   The firing of triggers that are declared as <quote>constraint triggers</quote>
-   is also controlled by this setting &mdash; they fire at the same time
-   that the associated constraint should be checked.
+   Currently, only foreign key constraints are affected by this
+   setting. Check and unique constraints are always effectively
+   not deferrable.
   </para>
  </refsect1>
 
@@ -88,19 +75,11 @@ SET CONSTRAINTS { ALL | <replaceable class="parameter">name</replaceable> [, ...
   <title>Notes</title>
 
   <para>
-   Because <productname>PostgreSQL</productname> does not require constraint
-   names to be unique within a schema (but only per-table), it is possible
-   that there is more than one match for a specified constraint name.
-   In this case <command>SET CONSTRAINTS</command> will act on all matches.
-   For a non-schema-qualified name, once a match or matches have been found in
-   some schema in the search path, schemas appearing later in the path are not
-   searched.
-  </para>
-
-  <para>
    This command only alters the behavior of constraints within the
-   current transaction.  Issuing this outside of a transaction block
-   emits a warning and otherwise has no effect.
+   current transaction. Thus, if you execute this command outside of a
+   transaction block
+   (<command>BEGIN</command>/<command>COMMIT</command> pair), it will
+   not appear to have any effect.
   </para>
  </refsect1>
 
@@ -110,12 +89,33 @@ SET CONSTRAINTS { ALL | <replaceable class="parameter">name</replaceable> [, ...
   <para>
    This command complies with the behavior defined in the SQL
    standard, except for the limitation that, in
-   <productname>PostgreSQL</productname>, it does not apply to
-   <literal>NOT NULL</literal> and <literal>CHECK</literal> constraints.
-   Also, <productname>PostgreSQL</productname> checks non-deferrable
-   uniqueness constraints immediately, not at end of statement as the
-   standard would suggest.
+   <productname>PostgreSQL</productname>, it only applies to
+   foreign-key constraints.
   </para>
 
+  <para>
+   The SQL standard says that constraint names appearing in <command>SET
+   CONSTRAINTS</command> can be schema-qualified.  This is not yet
+   supported by <productname>PostgreSQL</productname>: the names must
+   be unqualified, and all constraints matching the command will be
+   affected no matter which schema they are in.
+  </para>
  </refsect1>
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

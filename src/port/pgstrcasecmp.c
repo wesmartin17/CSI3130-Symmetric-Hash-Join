@@ -13,14 +13,10 @@
  *
  * NB: this code should match downcase_truncate_identifier() in scansup.c.
  *
- * We also provide strict ASCII-only case conversion functions, which can
- * be used to implement C/POSIX case folding semantics no matter what the
- * C library thinks the locale is.
  *
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
- *
- * src/port/pgstrcasecmp.c
+ * $PostgreSQL: pgsql/src/port/pgstrcasecmp.c,v 1.5 2004/12/31 22:03:53 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -44,12 +40,12 @@ pg_strcasecmp(const char *s1, const char *s2)
 		{
 			if (ch1 >= 'A' && ch1 <= 'Z')
 				ch1 += 'a' - 'A';
-			else if (IS_HIGHBIT_SET(ch1) && isupper(ch1))
+			else if (ch1 >= 0x80 && isupper(ch1))
 				ch1 = tolower(ch1);
 
 			if (ch2 >= 'A' && ch2 <= 'Z')
 				ch2 += 'a' - 'A';
-			else if (IS_HIGHBIT_SET(ch2) && isupper(ch2))
+			else if (ch2 >= 0x80 && isupper(ch2))
 				ch2 = tolower(ch2);
 
 			if (ch1 != ch2)
@@ -77,12 +73,12 @@ pg_strncasecmp(const char *s1, const char *s2, size_t n)
 		{
 			if (ch1 >= 'A' && ch1 <= 'Z')
 				ch1 += 'a' - 'A';
-			else if (IS_HIGHBIT_SET(ch1) && isupper(ch1))
+			else if (ch1 >= 0x80 && isupper(ch1))
 				ch1 = tolower(ch1);
 
 			if (ch2 >= 'A' && ch2 <= 'Z')
 				ch2 += 'a' - 'A';
-			else if (IS_HIGHBIT_SET(ch2) && isupper(ch2))
+			else if (ch2 >= 0x80 && isupper(ch2))
 				ch2 = tolower(ch2);
 
 			if (ch1 != ch2)
@@ -98,7 +94,7 @@ pg_strncasecmp(const char *s1, const char *s2, size_t n)
  * Fold a character to upper case.
  *
  * Unlike some versions of toupper(), this is safe to apply to characters
- * that aren't lower case letters.  Note however that the whole thing is
+ * that aren't upper case letters.  Note however that the whole thing is
  * a bit bogus for multibyte character sets.
  */
 unsigned char
@@ -106,7 +102,7 @@ pg_toupper(unsigned char ch)
 {
 	if (ch >= 'a' && ch <= 'z')
 		ch += 'A' - 'a';
-	else if (IS_HIGHBIT_SET(ch) && islower(ch))
+	else if (ch >= 0x80 && islower(ch))
 		ch = toupper(ch);
 	return ch;
 }
@@ -115,7 +111,7 @@ pg_toupper(unsigned char ch)
  * Fold a character to lower case.
  *
  * Unlike some versions of tolower(), this is safe to apply to characters
- * that aren't upper case letters.  Note however that the whole thing is
+ * that aren't lower case letters.  Note however that the whole thing is
  * a bit bogus for multibyte character sets.
  */
 unsigned char
@@ -123,29 +119,7 @@ pg_tolower(unsigned char ch)
 {
 	if (ch >= 'A' && ch <= 'Z')
 		ch += 'a' - 'A';
-	else if (IS_HIGHBIT_SET(ch) && isupper(ch))
+	else if (ch >= 0x80 && isupper(ch))
 		ch = tolower(ch);
-	return ch;
-}
-
-/*
- * Fold a character to upper case, following C/POSIX locale rules.
- */
-unsigned char
-pg_ascii_toupper(unsigned char ch)
-{
-	if (ch >= 'a' && ch <= 'z')
-		ch += 'A' - 'a';
-	return ch;
-}
-
-/*
- * Fold a character to lower case, following C/POSIX locale rules.
- */
-unsigned char
-pg_ascii_tolower(unsigned char ch)
-{
-	if (ch >= 'A' && ch <= 'Z')
-		ch += 'a' - 'A';
 	return ch;
 }

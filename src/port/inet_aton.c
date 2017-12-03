@@ -1,4 +1,4 @@
-/* src/port/inet_aton.c
+/* $PostgreSQL: pgsql/src/port/inet_aton.c,v 1.8 2005/10/15 02:49:51 momjian Exp $
  *
  *	This inet_aton() function was taken from the GNU C library and
  *	incorporated into Postgres for those systems which do not have this
@@ -6,7 +6,7 @@
  *
  *	The function was been extracted whole from the file inet_aton.c in
  *	Release 5.3.12 of the Linux C library, which is derived from the
- *	GNU C library, by Bryan Henderson in October 1996.  The copyright
+ *	GNU C library, by Bryan Henderson in October 1996.	The copyright
  *	notice from that file is below.
  */
 
@@ -22,14 +22,18 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *	  notice, this list of conditions and the following disclaimer in the
  *	  documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *	  must display the following acknowledgement:
+ *		This product includes software developed by the University of
+ *		California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *	  may be used to endorse or promote products derived from this software
  *	  without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -40,10 +44,10 @@
 
 #include "c.h"
 
+#ifndef WIN32_CLIENT_ONLY
 #include <netinet/in.h>
 #include <ctype.h>
-
-#include "port/pg_bswap.h"
+#endif
 
 /*
  * Check whether "cp" is a valid ascii representation
@@ -53,7 +57,7 @@
  * cannot distinguish between failure and a local broadcast address.
  */
 int
-inet_aton(const char *cp, struct in_addr *addr)
+inet_aton(const char *cp, struct in_addr * addr)
 {
 	unsigned int val;
 	int			base,
@@ -122,28 +126,28 @@ inet_aton(const char *cp, struct in_addr *addr)
 	switch (n)
 	{
 
-		case 1:					/* a -- 32 bits */
+		case 1:			/* a -- 32 bits */
 			break;
 
-		case 2:					/* a.b -- 8.24 bits */
+		case 2:			/* a.b -- 8.24 bits */
 			if (val > 0xffffff)
 				return 0;
 			val |= parts[0] << 24;
 			break;
 
-		case 3:					/* a.b.c -- 8.8.16 bits */
+		case 3:			/* a.b.c -- 8.8.16 bits */
 			if (val > 0xffff)
 				return 0;
 			val |= (parts[0] << 24) | (parts[1] << 16);
 			break;
 
-		case 4:					/* a.b.c.d -- 8.8.8.8 bits */
+		case 4:			/* a.b.c.d -- 8.8.8.8 bits */
 			if (val > 0xff)
 				return 0;
 			val |= (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8);
 			break;
 	}
 	if (addr)
-		addr->s_addr = pg_hton32(val);
+		addr->s_addr = htonl(val);
 	return 1;
 }

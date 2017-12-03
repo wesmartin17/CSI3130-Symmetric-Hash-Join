@@ -1,18 +1,12 @@
-# contrib/tablefunc/Makefile
-
 MODULES = tablefunc
-
-EXTENSION = tablefunc
-DATA = tablefunc--1.0.sql tablefunc--unpackaged--1.0.sql
-PGFILEDESC = "tablefunc - various functions that return tables"
-
+DATA_built = tablefunc.sql
+DOCS = README.tablefunc
 REGRESS = tablefunc
 
-LDFLAGS_SL += $(filter -lm, $(LIBS))
+SHLIB_LINK += $(filter -lm, $(LIBS))
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/tablefunc

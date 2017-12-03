@@ -1,114 +1,59 @@
 /*
  * psql - the PostgreSQL interactive terminal
  *
- * Copyright (c) 2000-2017, PostgreSQL Global Development Group
+ * Copyright (c) 2000-2005, PostgreSQL Global Development Group
  *
- * src/bin/psql/describe.h
+ * $PostgreSQL: pgsql/src/bin/psql/describe.h,v 1.29 2005/08/14 18:49:30 tgl Exp $
  */
 #ifndef DESCRIBE_H
 #define DESCRIBE_H
 
+#include "settings.h"
 
 /* \da */
-extern bool describeAggregates(const char *pattern, bool verbose, bool showSystem);
-
-/* \dA */
-extern bool describeAccessMethods(const char *pattern, bool verbose);
+extern bool describeAggregates(const char *pattern, bool verbose);
 
 /* \db */
 extern bool describeTablespaces(const char *pattern, bool verbose);
 
-/* \df, \dfa, \dfn, \dft, \dfw, etc. */
-extern bool describeFunctions(const char *functypes, const char *pattern, bool verbose, bool showSystem);
+/* \df */
+extern bool describeFunctions(const char *pattern, bool verbose);
 
 /* \dT */
-extern bool describeTypes(const char *pattern, bool verbose, bool showSystem);
+extern bool describeTypes(const char *pattern, bool verbose);
 
 /* \do */
-extern bool describeOperators(const char *pattern, bool verbose, bool showSystem);
+extern bool describeOperators(const char *pattern);
 
 /* \du, \dg */
-extern bool describeRoles(const char *pattern, bool verbose, bool showSystem);
-
-/* \drds */
-extern bool listDbRoleSettings(const char *pattern1, const char *pattern2);
+extern bool describeRoles(const char *pattern);
 
 /* \z (or \dp) */
 extern bool permissionsList(const char *pattern);
 
-/* \ddp */
-extern bool listDefaultACLs(const char *pattern);
-
 /* \dd */
-extern bool objectDescription(const char *pattern, bool showSystem);
+extern bool objectDescription(const char *pattern);
 
 /* \d foo */
-extern bool describeTableDetails(const char *pattern, bool verbose, bool showSystem);
-
-/* \dF */
-extern bool listTSConfigs(const char *pattern, bool verbose);
-
-/* \dFp */
-extern bool listTSParsers(const char *pattern, bool verbose);
-
-/* \dFd */
-extern bool listTSDictionaries(const char *pattern, bool verbose);
-
-/* \dFt */
-extern bool listTSTemplates(const char *pattern, bool verbose);
+extern bool describeTableDetails(const char *pattern, bool verbose);
 
 /* \l */
-extern bool listAllDbs(const char *pattern, bool verbose);
+extern bool listAllDbs(bool verbose);
 
 /* \dt, \di, \ds, \dS, etc. */
-extern bool listTables(const char *tabtypes, const char *pattern, bool verbose, bool showSystem);
+extern bool listTables(const char *tabtypes, const char *pattern, bool verbose);
 
 /* \dD */
-extern bool listDomains(const char *pattern, bool verbose, bool showSystem);
+extern bool listDomains(const char *pattern);
 
 /* \dc */
-extern bool listConversions(const char *pattern, bool verbose, bool showSystem);
+extern bool listConversions(const char *pattern);
 
 /* \dC */
-extern bool listCasts(const char *pattern, bool verbose);
-
-/* \dO */
-extern bool listCollations(const char *pattern, bool verbose, bool showSystem);
+extern bool listCasts(const char *pattern);
 
 /* \dn */
-extern bool listSchemas(const char *pattern, bool verbose, bool showSystem);
+extern bool listSchemas(const char *pattern, bool verbose);
 
-/* \dew */
-extern bool listForeignDataWrappers(const char *pattern, bool verbose);
 
-/* \des */
-extern bool listForeignServers(const char *pattern, bool verbose);
-
-/* \deu */
-extern bool listUserMappings(const char *pattern, bool verbose);
-
-/* \det */
-extern bool listForeignTables(const char *pattern, bool verbose);
-
-/* \dL */
-extern bool listLanguages(const char *pattern, bool verbose, bool showSystem);
-
-/* \dx */
-extern bool listExtensions(const char *pattern);
-
-/* \dx+ */
-extern bool listExtensionContents(const char *pattern);
-
-/* \dy */
-extern bool listEventTriggers(const char *pattern, bool verbose);
-
-/* \dRp */
-bool		listPublications(const char *pattern);
-
-/* \dRp+ */
-bool		describePublications(const char *pattern);
-
-/* \dRs */
-bool		describeSubscriptions(const char *pattern, bool verbose);
-
-#endif							/* DESCRIBE_H */
+#endif   /* DESCRIBE_H */

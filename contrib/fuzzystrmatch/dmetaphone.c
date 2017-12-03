@@ -1,8 +1,6 @@
 /*
  * This is a port of the Double Metaphone algorithm for use in PostgreSQL.
  *
- * contrib/fuzzystrmatch/dmetaphone.c
- *
  * Double Metaphone computes 2 "sounds like" strings - a primary and an
  * alternate. In most cases they are the same, but for foreign names
  * especially they can be a bit different, depending on pronunciation.
@@ -10,7 +8,7 @@
  * Information on using Double Metaphone can be found at
  *	 http://www.codeproject.com/string/dmetaphone1.asp
  * and the original article describing it can be found at
- *	 http://drdobbs.com/184401251
+ *	 http://www.cuj.com/documents/s=8038/cuj0006philips/
  *
  * For PostgreSQL we provide 2 functions - one for the primary and one for
  * the alternate. That way the functions are pure text->text mappings that
@@ -46,6 +44,12 @@
  * fast enough for my needs, but it could maybe be optimized a bit to remove
  * that behaviour.
  *
+ */
+
+
+/*
+ * $Revision: 1.6 $
+ * $Id: dmetaphone.c,v 1.6 2005/10/15 02:49:05 momjian Exp $
  */
 
 
@@ -93,36 +97,39 @@ The remaining code is authored by Andrew Dunstan <amdunstan@ncshp.org> and
 ***********************************************************************/
 
 
+
+
+
 /* include these first, according to the docs */
 #ifndef DMETAPHONE_MAIN
 
 #include "postgres.h"
-
-#include "utils/builtins.h"
+#include "fmgr.h"
+#include "utils/elog.h"
 
 /* turn off assertions for embedded function */
 #define NDEBUG
+#endif
 
-#else							/* DMETAPHONE_MAIN */
-
-/* we need these if we didn't get them from postgres.h */
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-
-#endif							/* DMETAPHONE_MAIN */
-
 #include <assert.h>
-#include <ctype.h>
+
+extern Datum dmetaphone(PG_FUNCTION_ARGS);
+extern Datum dmetaphone_alt(PG_FUNCTION_ARGS);
 
 /* prototype for the main function we got from the perl module */
-static void DoubleMetaphone(char *, char **);
+static void
+			DoubleMetaphone(char *, char **);
 
 #ifndef DMETAPHONE_MAIN
 
 /*
  * The PostgreSQL visible dmetaphone function.
+ *
  */
 
 PG_FUNCTION_INFO_V1(dmetaphone);
@@ -130,28 +137,48 @@ PG_FUNCTION_INFO_V1(dmetaphone);
 Datum
 dmetaphone(PG_FUNCTION_ARGS)
 {
-	text	   *arg;
+	text	   *arg,
+			   *result;
+	int			alen,
+				rsize;
 	char	   *aptr,
 			   *codes[2],
-			   *code;
+			   *code,
+			   *rptr;
 
 #ifdef DMETAPHONE_NOSTRICT
 	if (PG_ARGISNULL(0))
-		PG_RETURN_NULL();
+		PG_RETURNNULL();
 #endif
-	arg = PG_GETARG_TEXT_PP(0);
-	aptr = text_to_cstring(arg);
+	arg = PG_GETARG_TEXT_P(0);
+	alen = VARSIZE(arg) - VARHDRSZ;
 
+	/*
+	 * Postgres' string values might not have trailing nuls. The VARSIZE will
+	 * not include the nul in any case so we copy things out and add a
+	 * trailing nul. When we copy back we ignore the nul (and we don't make
+	 * space for it).
+	 */
+
+	aptr = palloc(alen + 1);
+	memcpy(aptr, VARDATA(arg), alen);
+	aptr[alen] = 0;
 	DoubleMetaphone(aptr, codes);
 	code = codes[0];
 	if (!code)
 		code = "";
-
-	PG_RETURN_TEXT_P(cstring_to_text(code));
+	rsize = VARHDRSZ + strlen(code);
+	result = (text *) palloc(rsize);
+	memset(result, 0, rsize);
+	rptr = VARDATA(result);
+	memcpy(rptr, code, strlen(code));
+	VARATT_SIZEP(result) = rsize;
+	PG_RETURN_TEXT_P(result);
 }
 
 /*
  * The PostgreSQL visible dmetaphone_alt function.
+ *
  */
 
 PG_FUNCTION_INFO_V1(dmetaphone_alt);
@@ -159,24 +186,35 @@ PG_FUNCTION_INFO_V1(dmetaphone_alt);
 Datum
 dmetaphone_alt(PG_FUNCTION_ARGS)
 {
-	text	   *arg;
+	text	   *arg,
+			   *result;
+	int			alen,
+				rsize;
 	char	   *aptr,
 			   *codes[2],
-			   *code;
+			   *code,
+			   *rptr;
 
 #ifdef DMETAPHONE_NOSTRICT
 	if (PG_ARGISNULL(0))
-		PG_RETURN_NULL();
+		PG_RETURNNULL();
 #endif
-	arg = PG_GETARG_TEXT_PP(0);
-	aptr = text_to_cstring(arg);
-
+	arg = PG_GETARG_TEXT_P(0);
+	alen = VARSIZE(arg) - VARHDRSZ;
+	aptr = palloc(alen + 1);
+	memcpy(aptr, VARDATA(arg), alen);
+	aptr[alen] = 0;
 	DoubleMetaphone(aptr, codes);
 	code = codes[1];
 	if (!code)
 		code = "";
-
-	PG_RETURN_TEXT_P(cstring_to_text(code));
+	rsize = VARHDRSZ + strlen(code);
+	result = (text *) palloc(rsize);
+	memset(result, 0, rsize);
+	rptr = VARDATA(result);
+	memcpy(rptr, code, strlen(code));
+	VARATT_SIZEP(result) = rsize;
+	PG_RETURN_TEXT_P(result);
 }
 
 
@@ -197,7 +235,7 @@ dmetaphone_alt(PG_FUNCTION_ARGS)
  * in a case like this.
  */
 
-#define META_FREE(x) ((void)true)	/* pfree((x)) */
+#define META_FREE(x)			/* pfree((x)) */
 #else							/* not defined DMETAPHONE_MAIN */
 
 /* use the standard malloc library when not running in PostgreSQL */
@@ -209,7 +247,7 @@ dmetaphone_alt(PG_FUNCTION_ARGS)
 					  (v = (t*)realloc((v),((n)*sizeof(t))))
 
 #define META_FREE(x) free((x))
-#endif							/* defined DMETAPHONE_MAIN */
+#endif   /* defined DMETAPHONE_MAIN */
 
 
 
@@ -223,7 +261,7 @@ typedef struct
 	int			free_string_on_destroy;
 }
 
-metastring;
+			metastring;
 
 /*
  * remaining perl module funcs unchanged except for declaring them static
@@ -232,7 +270,7 @@ metastring;
  */
 
 static metastring *
-NewMetaString(const char *init_str)
+NewMetaString(char *init_str)
 {
 	metastring *s;
 	char		empty_string[] = "";
@@ -249,7 +287,7 @@ NewMetaString(const char *init_str)
 	META_MALLOC(s->str, s->bufsize, char);
 	assert(s->str != NULL);
 
-	memcpy(s->str, init_str, s->length + 1);
+	strncpy(s->str, init_str, s->length + 1);
 	s->free_string_on_destroy = 1;
 
 	return s;
@@ -257,7 +295,7 @@ NewMetaString(const char *init_str)
 
 
 static void
-DestroyMetaString(metastring *s)
+DestroyMetaString(metastring * s)
 {
 	if (s == NULL)
 		return;
@@ -270,7 +308,7 @@ DestroyMetaString(metastring *s)
 
 
 static void
-IncreaseBuffer(metastring *s, int chars_needed)
+IncreaseBuffer(metastring * s, int chars_needed)
 {
 	META_REALLOC(s->str, (s->bufsize + chars_needed + 10), char);
 	assert(s->str != NULL);
@@ -279,17 +317,17 @@ IncreaseBuffer(metastring *s, int chars_needed)
 
 
 static void
-MakeUpper(metastring *s)
+MakeUpper(metastring * s)
 {
 	char	   *i;
 
 	for (i = s->str; *i; i++)
-		*i = toupper((unsigned char) *i);
+		*i = toupper(*i);
 }
 
 
 static int
-IsVowel(metastring *s, int pos)
+IsVowel(metastring * s, int pos)
 {
 	char		c;
 
@@ -306,7 +344,7 @@ IsVowel(metastring *s, int pos)
 
 
 static int
-SlavoGermanic(metastring *s)
+SlavoGermanic(metastring * s)
 {
 	if ((char *) strstr(s->str, "W"))
 		return 1;
@@ -322,7 +360,7 @@ SlavoGermanic(metastring *s)
 
 
 static char
-GetAt(metastring *s, int pos)
+GetAt(metastring * s, int pos)
 {
 	if ((pos < 0) || (pos >= s->length))
 		return '\0';
@@ -332,7 +370,7 @@ GetAt(metastring *s, int pos)
 
 
 static void
-SetAt(metastring *s, int pos, char c)
+SetAt(metastring * s, int pos, char c)
 {
 	if ((pos < 0) || (pos >= s->length))
 		return;
@@ -345,7 +383,7 @@ SetAt(metastring *s, int pos, char c)
    Caveats: the START value is 0 based
 */
 static int
-StringAt(metastring *s, int start, int length,...)
+StringAt(metastring * s, int start, int length,...)
 {
 	char	   *test;
 	char	   *pos;
@@ -361,12 +399,9 @@ StringAt(metastring *s, int start, int length,...)
 	{
 		test = va_arg(ap, char *);
 		if (*test && (strncmp(pos, test, length) == 0))
-		{
-			va_end(ap);
 			return 1;
-		}
 	}
-	while (strcmp(test, "") != 0);
+	while (strcmp(test, ""));
 
 	va_end(ap);
 
@@ -375,7 +410,7 @@ StringAt(metastring *s, int start, int length,...)
 
 
 static void
-MetaphAdd(metastring *s, const char *new_str)
+MetaphAdd(metastring * s, char *new_str)
 {
 	int			add_length;
 
@@ -463,7 +498,7 @@ DoubleMetaphone(char *str, char **codes)
 					current += 1;
 				break;
 
-			case '\xc7':		/* C with cedilla */
+			case 'Ç':
 				MetaphAdd(primary, "S");
 				MetaphAdd(secondary, "S");
 				current += 1;
@@ -977,7 +1012,7 @@ DoubleMetaphone(char *str, char **codes)
 					}
 				}
 
-				if (GetAt(original, current + 1) == 'J')	/* it could happen! */
+				if (GetAt(original, current + 1) == 'J')		/* it could happen! */
 					current += 2;
 				else
 					current += 1;
@@ -1039,7 +1074,7 @@ DoubleMetaphone(char *str, char **codes)
 				MetaphAdd(secondary, "N");
 				break;
 
-			case '\xd1':		/* N with tilde */
+			case 'Ñ':
 				current += 1;
 				MetaphAdd(primary, "N");
 				MetaphAdd(secondary, "N");

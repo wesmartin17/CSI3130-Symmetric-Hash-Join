@@ -4,7 +4,7 @@
 #    Makefile for access/nbtree
 #
 # IDENTIFICATION
-#    src/backend/access/nbtree/Makefile
+#    $PostgreSQL: pgsql/src/backend/access/nbtree/Makefile,v 1.14 2003/11/29 19:51:40 pgsql Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -13,6 +13,20 @@ top_builddir = ../../../..
 include $(top_builddir)/src/Makefile.global
 
 OBJS = nbtcompare.o nbtinsert.o nbtpage.o nbtree.o nbtsearch.o \
-       nbtutils.o nbtsort.o nbtvalidate.o nbtxlog.o
+       nbtutils.o nbtsort.o nbtxlog.o
 
-include $(top_srcdir)/src/backend/common.mk
+all: SUBSYS.o
+
+SUBSYS.o: $(OBJS)
+	$(LD) $(LDREL) $(LDOUT) SUBSYS.o $(OBJS)
+
+depend dep:
+	$(CC) -MM $(CFLAGS) *.c >depend
+
+clean: 
+	rm -f SUBSYS.o $(OBJS)
+
+ifeq (depend,$(wildcard depend))
+include depend
+endif
+

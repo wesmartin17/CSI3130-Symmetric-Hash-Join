@@ -4,7 +4,6 @@
 #define NUMERIC_POS						0x0000
 #define NUMERIC_NEG						0x4000
 #define NUMERIC_NAN						0xC000
-#define NUMERIC_NULL						0xF000
 #define NUMERIC_MAX_PRECISION			1000
 #define NUMERIC_MAX_DISPLAY_SCALE		NUMERIC_MAX_PRECISION
 #define NUMERIC_MIN_DISPLAY_SCALE		0
@@ -31,18 +30,16 @@ typedef struct
 	int			rscale;			/* result scale */
 	int			dscale;			/* display scale */
 	int			sign;			/* NUMERIC_POS, NUMERIC_NEG, or NUMERIC_NAN */
-	NumericDigit digits[DECSIZE];	/* decimal digits */
+	NumericDigit digits[DECSIZE];		/* decimal digits */
 } decimal;
 
 #ifdef __cplusplus
-extern "C"
+extern		"C"
 {
 #endif
 
 numeric    *PGTYPESnumeric_new(void);
-decimal    *PGTYPESdecimal_new(void);
 void		PGTYPESnumeric_free(numeric *);
-void		PGTYPESdecimal_free(decimal *);
 numeric    *PGTYPESnumeric_from_asc(char *, char **);
 char	   *PGTYPESnumeric_to_asc(numeric *, int);
 int			PGTYPESnumeric_add(numeric *, numeric *, numeric *);
@@ -64,4 +61,4 @@ int			PGTYPESnumeric_from_decimal(decimal *, numeric *);
 }
 #endif
 
-#endif							/* PGTYPES_NUMERIC */
+#endif   /* PGTYPES_NUMERIC */

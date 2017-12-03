@@ -1,9 +1,9 @@
 /*
  * psql - the PostgreSQL interactive terminal
  *
- * Copyright (c) 2000-2017, PostgreSQL Global Development Group
+ * Copyright (c) 2000-2005, PostgreSQL Global Development Group
  *
- * src/bin/psql/copy.h
+ * $PostgreSQL: pgsql/src/bin/psql/copy.h,v 1.17 2005/01/01 05:43:08 momjian Exp $
  */
 #ifndef COPY_H
 #define COPY_H
@@ -12,13 +12,11 @@
 
 
 /* handler for \copy */
-extern bool do_copy(const char *args);
+bool		do_copy(const char *args);
 
 /* lower level processors for copy in/out streams */
 
-extern bool handleCopyOut(PGconn *conn, FILE *copystream,
-			  PGresult **res);
-extern bool handleCopyIn(PGconn *conn, FILE *copystream, bool isbinary,
-			 PGresult **res);
+bool		handleCopyOut(PGconn *conn, FILE *copystream);
+bool		handleCopyIn(PGconn *conn, FILE *copystream);
 
 #endif

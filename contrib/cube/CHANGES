@@ -1,28 +1,4 @@
-********************************************************************************
-Changes that were made in July 2006 by Joshua Reich I.
-********************************************************************************
-
-Code Cleanup:
-
-Update the calling convention for all external facing functions. By external
-facing, I mean all functions that are directly referenced in cube.sql. Prior
-to my update, all functions used the older V0 calling convention. They now
-use V1.
-
-New Functions:
-
-cube(float[]), which makes a zero volume cube from a float array
-
-cube(float[], float[]), which allows the user to create a cube from
-two float arrays; one for the upper right and one for the lower left
-coordinate.
-
-cube_subset(cube, int4[]), to allow you to reorder or choose a subset of
-dimensions from a cube, using index values specified in the array.
-
-********************************************************************************
 Changes that were made in August/September 2002 by Bruno Wolff III.
-********************************************************************************
 
 Note that this was based on a 7.3 development version and changes may not
 directly work with earlier versions.
@@ -89,7 +65,7 @@ cube_enlarge
 cube takes text input and returns a cube. This is useful for making cubes
 from computed strings.
 
-cube_dim returns the number of dimensions stored in the data structure
+cube_dim returns the number of dimensions stored in the the data structure
 for a cube. This is useful for constraints on the dimensions of a cube.
 
 cube_ll_coord returns the nth coordinate value for the lower left corner

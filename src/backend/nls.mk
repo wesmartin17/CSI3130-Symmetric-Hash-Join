@@ -1,22 +1,16 @@
-# src/backend/nls.mk
-CATALOG_NAME     = postgres
-AVAIL_LANGUAGES  = de es fr id it ja ko pl pt_BR ru zh_CN
-GETTEXT_FILES    = + gettext-files
-GETTEXT_TRIGGERS = $(BACKEND_COMMON_GETTEXT_TRIGGERS) \
-    GUC_check_errmsg GUC_check_errdetail GUC_check_errhint \
-    write_stderr yyerror parser_yyerror report_invalid_record:2
-GETTEXT_FLAGS    = $(BACKEND_COMMON_GETTEXT_FLAGS) \
-    GUC_check_errmsg:1:c-format \
-    GUC_check_errdetail:1:c-format \
-    GUC_check_errhint:1:c-format \
-    write_stderr:1:c-format \
-    report_invalid_record:2:c-format
+# $PostgreSQL: pgsql/src/backend/nls.mk,v 1.20 2005/10/04 11:14:03 petere Exp $
+CATALOG_NAME	:= postgres
+AVAIL_LANGUAGES	:= af cs de es fr hr hu it ko nb pt_BR ro ru sk sl sv tr zh_CN zh_TW
+GETTEXT_FILES	:= + gettext-files
+# you can add "elog:2" and "errmsg_internal" to this list if you want to
+# include internal messages in the translation list.
+GETTEXT_TRIGGERS:= _ errmsg errdetail errhint errcontext write_stderr yyerror
 
 gettext-files: distprep
-	find $(srcdir) $(srcdir)/../common $(srcdir)/../port -name '*.c' -print | LC_ALL=C sort >$@
+	find $(srcdir)/ $(srcdir)/../port/ -name '*.c' -print >$@
 
-my-clean:
+my-maintainer-clean:
 	rm -f gettext-files
 
-.PHONY: my-clean
-clean: my-clean
+.PHONY: my-maintainer-clean
+maintainer-clean: my-maintainer-clean

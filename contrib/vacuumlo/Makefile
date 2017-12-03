@@ -1,17 +1,15 @@
-# contrib/vacuumlo/Makefile
-
-PGFILEDESC = "vacuumlo - removes orphaned large objects"
-PGAPPICON = win32
+# $PostgreSQL: pgsql/contrib/vacuumlo/Makefile,v 1.15 2005/09/27 17:13:13 tgl Exp $
 
 PROGRAM = vacuumlo
-OBJS	= vacuumlo.o $(WIN32RES)
+OBJS	= vacuumlo.o
 
 PG_CPPFLAGS = -I$(libpq_srcdir)
 PG_LIBS = $(libpq_pgport)
 
+DOCS = README.vacuumlo
+
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/vacuumlo

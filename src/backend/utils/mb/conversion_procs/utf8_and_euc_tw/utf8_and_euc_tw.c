@@ -2,11 +2,11 @@
  *
  *	  EUC_TW <--> UTF8
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/utils/mb/conversion_procs/utf8_and_euc_tw/utf8_and_euc_tw.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/mb/conversion_procs/utf8_and_euc_tw/utf8_and_euc_tw.c,v 1.12.2.1 2006/05/21 20:05:49 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -17,10 +17,11 @@
 #include "../../Unicode/euc_tw_to_utf8.map"
 #include "../../Unicode/utf8_to_euc_tw.map"
 
-PG_MODULE_MAGIC;
-
 PG_FUNCTION_INFO_V1(euc_tw_to_utf8);
 PG_FUNCTION_INFO_V1(utf8_to_euc_tw);
+
+extern Datum euc_tw_to_utf8(PG_FUNCTION_ARGS);
+extern Datum utf8_to_euc_tw(PG_FUNCTION_ARGS);
 
 /* ----------
  * conv_proc(
@@ -39,13 +40,12 @@ euc_tw_to_utf8(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_EUC_TW, PG_UTF8);
+	Assert(PG_GETARG_INT32(0) == PG_EUC_TW);
+	Assert(PG_GETARG_INT32(1) == PG_UTF8);
+	Assert(len >= 0);
 
-	LocalToUtf(src, len, dest,
-			   &euc_tw_to_unicode_tree,
-			   NULL, 0,
-			   NULL,
-			   PG_EUC_TW);
+	LocalToUtf(src, dest, LUmapEUC_TW,
+			   sizeof(LUmapEUC_TW) / sizeof(pg_local_to_utf), PG_EUC_TW, len);
 
 	PG_RETURN_VOID();
 }
@@ -57,13 +57,12 @@ utf8_to_euc_tw(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_UTF8, PG_EUC_TW);
+	Assert(PG_GETARG_INT32(0) == PG_UTF8);
+	Assert(PG_GETARG_INT32(1) == PG_EUC_TW);
+	Assert(len >= 0);
 
-	UtfToLocal(src, len, dest,
-			   &euc_tw_from_unicode_tree,
-			   NULL, 0,
-			   NULL,
-			   PG_EUC_TW);
+	UtfToLocal(src, dest, ULmapEUC_TW,
+			   sizeof(ULmapEUC_TW) / sizeof(pg_utf_to_local), PG_EUC_TW, len);
 
 	PG_RETURN_VOID();
 }

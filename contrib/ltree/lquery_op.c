@@ -1,15 +1,11 @@
 /*
  * op function for ltree and lquery
  * Teodor Sigaev <teodor@stack.net>
- * contrib/ltree/lquery_op.c
  */
-#include "postgres.h"
 
-#include <ctype.h>
-
-#include "catalog/pg_collation.h"
-#include "utils/formatting.h"
 #include "ltree.h"
+#include <ctype.h>
+#include "utils/array.h"
 
 PG_FUNCTION_INFO_V1(ltq_regex);
 PG_FUNCTION_INFO_V1(ltq_rregex);
@@ -27,30 +23,29 @@ typedef struct
 	int			nt;
 	int			posq;
 	int			post;
-} FieldNot;
+}	FieldNot;
 
 static char *
-getlexeme(char *start, char *end, int *len)
+getlexem(char *start, char *end, int *len)
 {
 	char	   *ptr;
-	int			charlen;
 
-	while (start < end && (charlen = pg_mblen(start)) == 1 && t_iseq(start, '_'))
-		start += charlen;
+	while (start < end && *start == '_')
+		start++;
 
 	ptr = start;
-	if (ptr >= end)
+	if (ptr == end)
 		return NULL;
 
-	while (ptr < end && !((charlen = pg_mblen(ptr)) == 1 && t_iseq(ptr, '_')))
-		ptr += charlen;
+	while (ptr < end && *ptr != '_')
+		ptr++;
 
 	*len = ptr - start;
 	return start;
 }
 
 bool
-			compare_subnode(ltree_level *t, char *qn, int len, int (*cmpptr) (const char *, const char *, size_t), bool anyend)
+			compare_subnode(ltree_level * t, char *qn, int len, int (*cmpptr) (const char *, const char *, size_t), bool anyend)
 {
 	char	   *endt = t->name + t->len;
 	char	   *endq = qn + len;
@@ -59,11 +54,11 @@ bool
 				lenq;
 	bool		isok;
 
-	while ((qn = getlexeme(qn, endq, &lenq)) != NULL)
+	while ((qn = getlexem(qn, endq, &lenq)) != NULL)
 	{
 		tn = t->name;
 		isok = false;
-		while ((tn = getlexeme(tn, endt, &lent)) != NULL)
+		while ((tn = getlexem(tn, endt, &lent)) != NULL)
 		{
 			if (
 				(
@@ -87,23 +82,8 @@ bool
 	return true;
 }
 
-int
-ltree_strncasecmp(const char *a, const char *b, size_t s)
-{
-	char	   *al = str_tolower(a, s, DEFAULT_COLLATION_OID);
-	char	   *bl = str_tolower(b, s, DEFAULT_COLLATION_OID);
-	int			res;
-
-	res = strncmp(al, bl, s);
-
-	pfree(al);
-	pfree(bl);
-
-	return res;
-}
-
 static bool
-checkLevel(lquery_level *curq, ltree_level *curt)
+checkLevel(lquery_level * curq, ltree_level * curt)
 {
 	int			(*cmpptr) (const char *, const char *, size_t);
 	lquery_variant *curvar = LQL_FIRST(curq);
@@ -111,9 +91,9 @@ checkLevel(lquery_level *curq, ltree_level *curt)
 
 	for (i = 0; i < curq->numvar; i++)
 	{
-		cmpptr = (curvar->flag & LVAR_INCASE) ? ltree_strncasecmp : strncmp;
+		cmpptr = (curvar->flag & LVAR_INCASE) ? pg_strncasecmp : strncmp;
 
-		if (curvar->flag & LVAR_SUBLEXEME)
+		if (curvar->flag & LVAR_SUBLEXEM)
 		{
 			if (compare_subnode(curt, curvar->name, curvar->len, cmpptr, (curvar->flag & LVAR_ANYEND)))
 				return true;
@@ -147,14 +127,14 @@ static struct
 {
 	bool		muse;
 	uint32		high_pos;
-}			SomeStack =
+}	SomeStack =
 
 {
 	false, 0,
 };
 
 static bool
-checkCond(lquery_level *curq, int query_numlevel, ltree_level *curt, int tree_numlevel, FieldNot *ptr)
+checkCond(lquery_level * curq, int query_numlevel, ltree_level * curt, int tree_numlevel, FieldNot * ptr)
 {
 	uint32		low_pos = 0,
 				high_pos = 0,
@@ -302,8 +282,8 @@ checkCond(lquery_level *curq, int query_numlevel, ltree_level *curt, int tree_nu
 Datum
 ltq_regex(PG_FUNCTION_ARGS)
 {
-	ltree	   *tree = PG_GETARG_LTREE_P(0);
-	lquery	   *query = PG_GETARG_LQUERY_P(1);
+	ltree	   *tree = PG_GETARG_LTREE(0);
+	lquery	   *query = PG_GETARG_LQUERY(1);
 	bool		res = false;
 
 	if (query->flag & LQUERY_HASNOT)
@@ -338,25 +318,21 @@ ltq_rregex(PG_FUNCTION_ARGS)
 Datum
 lt_q_regex(PG_FUNCTION_ARGS)
 {
-	ltree	   *tree = PG_GETARG_LTREE_P(0);
+	ltree	   *tree = PG_GETARG_LTREE(0);
 	ArrayType  *_query = PG_GETARG_ARRAYTYPE_P(1);
 	lquery	   *query = (lquery *) ARR_DATA_PTR(_query);
 	bool		res = false;
 	int			num = ArrayGetNItems(ARR_NDIM(_query), ARR_DIMS(_query));
 
-	if (ARR_NDIM(_query) > 1)
+	if (ARR_NDIM(_query) != 1)
 		ereport(ERROR,
 				(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
 				 errmsg("array must be one-dimensional")));
-	if (array_contains_nulls(_query))
-		ereport(ERROR,
-				(errcode(ERRCODE_NULL_VALUE_NOT_ALLOWED),
-				 errmsg("array must not contain nulls")));
 
 	while (num > 0)
 	{
 		if (DatumGetBool(DirectFunctionCall2(ltq_regex,
-											 PointerGetDatum(tree), PointerGetDatum(query))))
+							 PointerGetDatum(tree), PointerGetDatum(query))))
 		{
 
 			res = true;

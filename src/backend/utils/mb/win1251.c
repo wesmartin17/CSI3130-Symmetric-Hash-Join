@@ -4,7 +4,7 @@
  *
  * Tatsuo Ishii
  *
- * src/backend/utils/mb/win1251.c
+ * $PostgreSQL: pgsql/src/backend/utils/mb/win1251.c,v 1.2 2003/11/29 22:39:59 pgsql Exp $
  */
 
 #include <stdio.h>

@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,11 +26,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/pgp-pubenc.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/pgp-pubenc.c,v 1.4 2005/10/15 02:49:06 momjian Exp $
  */
 #include "postgres.h"
 
 #include "px.h"
+#include "mbuf.h"
 #include "pgp.h"
 
 /*
@@ -39,7 +40,7 @@
 static int
 pad_eme_pkcs1_v15(uint8 *data, int data_len, int res_len, uint8 **res_p)
 {
-#ifdef HAVE_STRONG_RANDOM
+	int			res;
 	uint8	   *buf,
 			   *p;
 	int			pad_len = res_len - 2 - data_len;
@@ -49,11 +50,11 @@ pad_eme_pkcs1_v15(uint8 *data, int data_len, int res_len, uint8 **res_p)
 
 	buf = px_alloc(res_len);
 	buf[0] = 0x02;
-
-	if (!pg_strong_random((char *) buf + 1, pad_len))
+	res = px_get_random_bytes(buf + 1, pad_len);
+	if (res < 0)
 	{
 		px_free(buf);
-		return PXE_NO_RANDOM;
+		return res;
 	}
 
 	/* pad must not contain zero bytes */
@@ -62,15 +63,19 @@ pad_eme_pkcs1_v15(uint8 *data, int data_len, int res_len, uint8 **res_p)
 	{
 		if (*p == 0)
 		{
-			if (!pg_strong_random((char *) p, 1))
-			{
-				px_memset(buf, 0, res_len);
-				px_free(buf);
+			res = px_get_random_bytes(p, 1);
+			if (res < 0)
 				break;
-			}
 		}
 		if (*p != 0)
 			p++;
+	}
+
+	if (res < 0)
+	{
+		memset(buf, 0, res_len);
+		px_free(buf);
+		return res;
 	}
 
 	buf[pad_len + 1] = 0;
@@ -78,14 +83,10 @@ pad_eme_pkcs1_v15(uint8 *data, int data_len, int res_len, uint8 **res_p)
 	*res_p = buf;
 
 	return 0;
-
-#else
-	return PXE_NO_RANDOM;
-#endif
 }
 
 static int
-create_secmsg(PGP_Context *ctx, PGP_MPI **msg_p, int full_bytes)
+create_secmsg(PGP_Context * ctx, PGP_MPI ** msg_p, int full_bytes)
 {
 	uint8	   *secmsg;
 	int			res,
@@ -122,10 +123,10 @@ create_secmsg(PGP_Context *ctx, PGP_MPI **msg_p, int full_bytes)
 
 	if (padded)
 	{
-		px_memset(padded, 0, full_bytes);
+		memset(padded, 0, full_bytes);
 		px_free(padded);
 	}
-	px_memset(secmsg, 0, klen + 3);
+	memset(secmsg, 0, klen + 3);
 	px_free(secmsg);
 
 	if (res >= 0)
@@ -135,7 +136,7 @@ create_secmsg(PGP_Context *ctx, PGP_MPI **msg_p, int full_bytes)
 }
 
 static int
-encrypt_and_write_elgamal(PGP_Context *ctx, PGP_PubKey *pk, PushFilter *pkt)
+encrypt_and_write_elgamal(PGP_Context * ctx, PGP_PubKey * pk, PushFilter * pkt)
 {
 	int			res;
 	PGP_MPI    *m = NULL,
@@ -166,7 +167,7 @@ err:
 }
 
 static int
-encrypt_and_write_rsa(PGP_Context *ctx, PGP_PubKey *pk, PushFilter *pkt)
+encrypt_and_write_rsa(PGP_Context * ctx, PGP_PubKey * pk, PushFilter * pkt)
 {
 	int			res;
 	PGP_MPI    *m = NULL,
@@ -192,21 +193,19 @@ err:
 }
 
 int
-pgp_write_pubenc_sesskey(PGP_Context *ctx, PushFilter *dst)
+pgp_write_pubenc_sesskey(PGP_Context * ctx, PushFilter * dst)
 {
 	int			res;
 	PGP_PubKey *pk = ctx->pub_key;
 	uint8		ver = 3;
 	PushFilter *pkt = NULL;
-	uint8		algo;
+	uint8		algo = pk->algo;
 
 	if (pk == NULL)
 	{
 		px_debug("no pubkey?\n");
 		return PXE_BUG;
 	}
-
-	algo = pk->algo;
 
 	/*
 	 * now write packet

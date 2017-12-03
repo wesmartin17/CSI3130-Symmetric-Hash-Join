@@ -3,43 +3,72 @@
  * sequence.h
  *	  prototypes for sequence.c.
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/commands/sequence.h
+ * $PostgreSQL: pgsql/src/include/commands/sequence.h,v 1.33 2005/10/02 23:50:12 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
 #ifndef SEQUENCE_H
 #define SEQUENCE_H
 
-#include "access/xlogreader.h"
-#include "catalog/objectaddress.h"
-#include "fmgr.h"
-#include "lib/stringinfo.h"
 #include "nodes/parsenodes.h"
-#include "parser/parse_node.h"
-#include "storage/relfilenode.h"
+#include "access/xlog.h"
+#include "fmgr.h"
 
 
-typedef struct FormData_pg_sequence_data
+/*
+ * On a machine with no 64-bit-int C datatype, sizeof(int64) will not be 8,
+ * but we need this struct type to line up with the way that a sequence
+ * table is defined --- and pg_type will say that int8 is 8 bytes anyway.
+ * So, we need padding.  Ugly but necessary.
+ */
+typedef struct FormData_pg_sequence
 {
+	NameData	sequence_name;
+#ifndef INT64_IS_BUSTED
 	int64		last_value;
+	int64		increment_by;
+	int64		max_value;
+	int64		min_value;
+	int64		cache_value;
 	int64		log_cnt;
+#else
+	int32		last_value;
+	int32		pad1;
+	int32		increment_by;
+	int32		pad2;
+	int32		max_value;
+	int32		pad3;
+	int32		min_value;
+	int32		pad4;
+	int32		cache_value;
+	int32		pad5;
+	int32		log_cnt;
+	int32		pad6;
+#endif
+	bool		is_cycled;
 	bool		is_called;
-} FormData_pg_sequence_data;
+} FormData_pg_sequence;
 
-typedef FormData_pg_sequence_data *Form_pg_sequence_data;
+typedef FormData_pg_sequence *Form_pg_sequence;
 
 /*
  * Columns of a sequence relation
  */
 
-#define SEQ_COL_LASTVAL			1
-#define SEQ_COL_LOG				2
-#define SEQ_COL_CALLED			3
+#define SEQ_COL_NAME			1
+#define SEQ_COL_LASTVAL			2
+#define SEQ_COL_INCBY			3
+#define SEQ_COL_MAXVALUE		4
+#define SEQ_COL_MINVALUE		5
+#define SEQ_COL_CACHE			6
+#define SEQ_COL_LOG				7
+#define SEQ_COL_CYCLE			8
+#define SEQ_COL_CALLED			9
 
-#define SEQ_COL_FIRSTCOL		SEQ_COL_LASTVAL
+#define SEQ_COL_FIRSTCOL		SEQ_COL_NAME
 #define SEQ_COL_LASTCOL			SEQ_COL_CALLED
 
 /* XLOG stuff */
@@ -51,19 +80,30 @@ typedef struct xl_seq_rec
 	/* SEQUENCE TUPLE DATA FOLLOWS AT THE END */
 } xl_seq_rec;
 
-extern int64 nextval_internal(Oid relid, bool check_permissions);
 extern Datum nextval(PG_FUNCTION_ARGS);
-extern List *sequence_options(Oid relid);
+extern Datum nextval_oid(PG_FUNCTION_ARGS);
+extern Datum currval_oid(PG_FUNCTION_ARGS);
+extern Datum setval_oid(PG_FUNCTION_ARGS);
+extern Datum setval3_oid(PG_FUNCTION_ARGS);
+extern Datum lastval(PG_FUNCTION_ARGS);
 
-extern ObjectAddress DefineSequence(ParseState *pstate, CreateSeqStmt *stmt);
-extern ObjectAddress AlterSequence(ParseState *pstate, AlterSeqStmt *stmt);
-extern void DeleteSequenceTuple(Oid relid);
-extern void ResetSequence(Oid seq_relid);
-extern void ResetSequenceCaches(void);
+extern void DefineSequence(CreateSeqStmt *stmt);
+extern void AlterSequence(AlterSeqStmt *stmt);
 
-extern void seq_redo(XLogReaderState *rptr);
-extern void seq_desc(StringInfo buf, XLogReaderState *rptr);
-extern const char *seq_identify(uint8 info);
-extern void seq_mask(char *pagedata, BlockNumber blkno);
+extern void seq_redo(XLogRecPtr lsn, XLogRecord *rptr);
+extern void seq_desc(char *buf, uint8 xl_info, char *rec);
 
-#endif							/* SEQUENCE_H */
+/* Set the upper and lower bounds of a sequence */
+#ifndef INT64_IS_BUSTED
+#ifdef HAVE_LL_CONSTANTS
+#define SEQ_MAXVALUE	((int64) 0x7FFFFFFFFFFFFFFFLL)
+#else
+#define SEQ_MAXVALUE	((int64) 0x7FFFFFFFFFFFFFFF)
+#endif
+#else							/* INT64_IS_BUSTED */
+#define SEQ_MAXVALUE	((int64) 0x7FFFFFFF)
+#endif   /* INT64_IS_BUSTED */
+
+#define SEQ_MINVALUE	(-SEQ_MAXVALUE)
+
+#endif   /* SEQUENCE_H */

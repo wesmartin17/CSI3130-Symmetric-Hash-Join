@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/px-hmac.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/px-hmac.c,v 1.7 2005/07/11 15:07:59 tgl Exp $
  */
 
 #include "postgres.h"
@@ -37,26 +37,28 @@
 #define HMAC_OPAD 0x5C
 
 static unsigned
-hmac_result_size(PX_HMAC *h)
+hmac_result_size(PX_HMAC * h)
 {
 	return px_md_result_size(h->md);
 }
 
 static unsigned
-hmac_block_size(PX_HMAC *h)
+hmac_block_size(PX_HMAC * h)
 {
 	return px_md_block_size(h->md);
 }
 
 static void
-hmac_init(PX_HMAC *h, const uint8 *key, unsigned klen)
+hmac_init(PX_HMAC * h, const uint8 *key, unsigned klen)
 {
 	unsigned	bs,
+				hlen,
 				i;
 	uint8	   *keybuf;
 	PX_MD	   *md = h->md;
 
 	bs = px_md_block_size(md);
+	hlen = px_md_result_size(md);
 	keybuf = px_alloc(bs);
 	memset(keybuf, 0, bs);
 
@@ -75,14 +77,14 @@ hmac_init(PX_HMAC *h, const uint8 *key, unsigned klen)
 		h->p.opad[i] = keybuf[i] ^ HMAC_OPAD;
 	}
 
-	px_memset(keybuf, 0, bs);
+	memset(keybuf, 0, bs);
 	px_free(keybuf);
 
 	px_md_update(md, h->p.ipad, bs);
 }
 
 static void
-hmac_reset(PX_HMAC *h)
+hmac_reset(PX_HMAC * h)
 {
 	PX_MD	   *md = h->md;
 	unsigned	bs = px_md_block_size(md);
@@ -92,13 +94,13 @@ hmac_reset(PX_HMAC *h)
 }
 
 static void
-hmac_update(PX_HMAC *h, const uint8 *data, unsigned dlen)
+hmac_update(PX_HMAC * h, const uint8 *data, unsigned dlen)
 {
 	px_md_update(h->md, data, dlen);
 }
 
 static void
-hmac_finish(PX_HMAC *h, uint8 *dst)
+hmac_finish(PX_HMAC * h, uint8 *dst)
 {
 	PX_MD	   *md = h->md;
 	unsigned	bs,
@@ -117,20 +119,20 @@ hmac_finish(PX_HMAC *h, uint8 *dst)
 	px_md_update(md, buf, hlen);
 	px_md_finish(md, dst);
 
-	px_memset(buf, 0, hlen);
+	memset(buf, 0, hlen);
 	px_free(buf);
 }
 
 static void
-hmac_free(PX_HMAC *h)
+hmac_free(PX_HMAC * h)
 {
 	unsigned	bs;
 
 	bs = px_md_block_size(h->md);
 	px_md_free(h->md);
 
-	px_memset(h->p.ipad, 0, bs);
-	px_memset(h->p.opad, 0, bs);
+	memset(h->p.ipad, 0, bs);
+	memset(h->p.opad, 0, bs);
 	px_free(h->p.ipad);
 	px_free(h->p.opad);
 	px_free(h);
@@ -140,7 +142,7 @@ hmac_free(PX_HMAC *h)
 /* PUBLIC FUNCTIONS */
 
 int
-px_find_hmac(const char *name, PX_HMAC **res)
+px_find_hmac(const char *name, PX_HMAC ** res)
 {
 	int			err;
 	PX_MD	   *md;

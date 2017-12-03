@@ -1,7 +1,4 @@
-src/test/locale/README
-
-Locales
-=======
+$PostgreSQL: pgsql/src/test/locale/README,v 1.5 2003/11/29 19:52:14 pgsql Exp $
 
 This directory contains a set of tests for locales.  I provided one C
 program test-ctype.c to test CTYPE support in libc and the installed
@@ -9,9 +6,9 @@ locale data.  Then there are test-sort.pl and test-sort.py that test
 collating.
 
 To run a test for some locale run
-    make check-$locale
+    gmake check-$locale
 for example
-    make check-koi8-r
+    gmake check-koi8-r
 
 Currently, there are only tests for a few locales available.  The script
 'runall' calls test-ctype to test libc and locale data, test-sort.pl
@@ -24,5 +21,5 @@ a Makefile (and other files) similar to koi8-r/*.  Actually, the simplest
 the files.
 
 Oleg.
-----
+---- 
     Oleg Broytmann     http://members.xoom.com/phd2/     phd2@earthling.net

@@ -1,4 +1,9 @@
 --
+-- checkpoint so that if we have a crash in the tests, replay of the
+-- just-completed CREATE DATABASE won't discard the core dump file
+--
+checkpoint;
+--
 -- Create the tables used in the test queries
 --
 -- T_pkey1 is the primary key table for T_dta1. Entries from T_pkey1
@@ -31,92 +36,27 @@ create table T_dta2 (
     ref2	char(20)
 );
 --
--- Function to check key existence in T_pkey1
+-- Function to check key existance in T_pkey1
 --
-create function check_pkey1_exists(int4, bpchar) returns bool as E'
+create function check_pkey1_exists(int4, bpchar) returns bool as '
     if {![info exists GD]} {
         set GD(plan) [spi_prepare				\\
 	    "select 1 from T_pkey1				\\
 	        where key1 = \\$1 and key2 = \\$2"		\\
-	    {int4 bpchar}]
+    	    {int4 bpchar}]
     }
-
+    
     set n [spi_execp -count 1 $GD(plan) [list $1 $2]]
 
     if {$n > 0} {
         return "t"
     }
     return "f"
-' language pltcl;
--- dump trigger data
-CREATE TABLE trigger_test (
-	i int,
-	v text,
-	dropme text,
-	test_skip boolean DEFAULT false,
-	test_return_null boolean DEFAULT false,
-	test_argisnull boolean DEFAULT false
-);
--- Make certain dropped attributes are handled correctly
-ALTER TABLE trigger_test DROP dropme;
-CREATE VIEW trigger_test_view AS SELECT i, v FROM trigger_test;
-CREATE FUNCTION trigger_data() returns trigger language pltcl as $_$
-	if {$TG_table_name eq "trigger_test" && $TG_level eq "ROW" && $TG_op ne "DELETE"} {
-		# Special case tests
-		if {$NEW(test_return_null) eq "t" } {
-			return_null
-		}
-		if {$NEW(test_argisnull) eq "t" } {
-			set should_error [argisnull 1]
-		}
-		if {$NEW(test_skip) eq "t" } {
-			elog NOTICE "SKIPPING OPERATION $TG_op"
-			return SKIP
-		}
-	}
-
-	if { [info exists TG_relid] } {
-	set TG_relid "bogus:12345"
-	}
-
-	set dnames [info locals {[a-zA-Z]*} ]
-
-	foreach key [lsort $dnames] {
-
-		if { [array exists $key] } {
-			set str "{"
-			foreach akey [lsort [ array names $key ] ] {
-				if {[string length $str] > 1} { set str "$str, " }
-				set cmd "($akey)"
-				set cmd "set val \$$key$cmd"
-				eval $cmd
-				set str "$str$akey: $val"
-			}
-			set str "$str}"
-		elog NOTICE "$key: $str"
-		} else {
-			set val [eval list "\$$key" ]
-		elog NOTICE "$key: $val"
-		}
-	}
-
-
-	return OK
-
-$_$;
-CREATE TRIGGER show_trigger_data_trig
-BEFORE INSERT OR UPDATE OR DELETE ON trigger_test
-FOR EACH ROW EXECUTE PROCEDURE trigger_data(23,'skidoo');
-CREATE TRIGGER statement_trigger
-BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON trigger_test
-FOR EACH STATEMENT EXECUTE PROCEDURE trigger_data(42,'statement trigger');
-CREATE TRIGGER show_trigger_data_view_trig
-INSTEAD OF INSERT OR UPDATE OR DELETE ON trigger_test_view
-FOR EACH ROW EXECUTE PROCEDURE trigger_data(24,'skidoo view');
+' language 'pltcl';
 --
 -- Trigger function on every change to T_pkey1
 --
-create function trig_pkey1_before() returns trigger as E'
+create function trig_pkey1_before() returns trigger as '
     #
     # Create prepared plans on the first call
     #
@@ -198,7 +138,7 @@ create function trig_pkey1_before() returns trigger as E'
     # Anything is fine - let operation pass through
     #
     return OK
-' language pltcl;
+' language 'pltcl';
 create trigger pkey1_before before insert or update or delete on T_pkey1
 	for each row execute procedure
 	trig_pkey1_before();
@@ -206,7 +146,7 @@ create trigger pkey1_before before insert or update or delete on T_pkey1
 -- Trigger function to check for duplicate keys in T_pkey2
 -- and to force key2 to be upper case only without leading whitespaces
 --
-create function trig_pkey2_before() returns trigger as E'
+create function trig_pkey2_before() returns trigger as '
     #
     # Prepare plan on first call
     #
@@ -235,7 +175,7 @@ create function trig_pkey2_before() returns trigger as E'
     # Return modified tuple in NEW
     #
     return [array get NEW]
-' language pltcl;
+' language 'pltcl';
 create trigger pkey2_before before insert or update on T_pkey2
 	for each row execute procedure
 	trig_pkey2_before();
@@ -245,7 +185,7 @@ create trigger pkey2_before before insert or update on T_pkey2
 -- in T_pkey2 are done so the trigger for primkey check on T_dta2
 -- fired on our updates will see the new key values in T_pkey2.
 --
-create function trig_pkey2_after() returns trigger as E'
+create function trig_pkey2_after() returns trigger as '
     #
     # Prepare plans on first call
     #
@@ -321,14 +261,14 @@ create function trig_pkey2_after() returns trigger as E'
     }
 
     return OK
-' language pltcl;
+' language 'pltcl';
 create trigger pkey2_after after update or delete on T_pkey2
 	for each row execute procedure
 	trig_pkey2_after();
 --
 -- Generic trigger function to check references in T_dta1 and T_dta2
 --
-create function check_primkey() returns trigger as E'
+create function check_primkey() returns trigger as '
     #
     # For every trigger/relation pair we create
     # a saved plan and hold them in GD
@@ -415,29 +355,16 @@ create function check_primkey() returns trigger as E'
     # Anything is fine
     #
     return OK
-' language pltcl;
+' language 'pltcl';
 create trigger dta1_before before insert or update on T_dta1
 	for each row execute procedure
 	check_primkey('ref1', 'ref2', 'T_pkey1', 'key1', 'key2');
 create trigger dta2_before before insert or update on T_dta2
 	for each row execute procedure
 	check_primkey('ref1', 'ref2', 'T_pkey2', 'key1', 'key2');
-create function tcl_composite_arg_ref1(T_dta1) returns int as '
-    return $1(ref1)
-' language pltcl;
-create function tcl_composite_arg_ref2(T_dta1) returns text as '
-    return $1(ref2)
-' language pltcl;
-create function tcl_argisnull(text) returns bool as '
-    argisnull 1
-' language pltcl;
-create function tcl_lastoid(tabname text) returns int8 as '
-    spi_exec "insert into $1 default values"
-    spi_lastoid
-' language pltcl;
 create function tcl_int4add(int4,int4) returns int4 as '
     return [expr $1 + $2]
-' language pltcl;
+' language 'pltcl';
 -- We use split(n) as a quick-and-dirty way of parsing the input array
 -- value, which comes in as a string like '{1,2}'.  There are better ways...
 create function tcl_int4_accum(int4[], int4) returns int4[] as '
@@ -445,12 +372,12 @@ create function tcl_int4_accum(int4[], int4) returns int4[] as '
     set newsum [expr {[lindex $state 1] + $2}]
     set newcnt [expr {[lindex $state 2] + 1}]
     return "{$newsum,$newcnt}"
-' language pltcl;
+' language 'pltcl';
 create function tcl_int4_avg(int4[]) returns int4 as '
     set state [split $1 "{,}"]
     if {[lindex $state 2] == 0} { return_null }
     return [expr {[lindex $state 1] / [lindex $state 2]}]
-' language pltcl;
+' language 'pltcl';
 create aggregate tcl_avg (
 		sfunc = tcl_int4_accum,
 		basetype = int4,
@@ -469,218 +396,9 @@ create function tcl_int4lt(int4,int4) returns bool as '
         return t
     }
     return f
-' language pltcl;
-create function tcl_int4le(int4,int4) returns bool as '
-    if {$1 <= $2} {
-        return t
-    }
-    return f
-' language pltcl;
-create function tcl_int4eq(int4,int4) returns bool as '
-    if {$1 == $2} {
-        return t
-    }
-    return f
-' language pltcl;
-create function tcl_int4ge(int4,int4) returns bool as '
-    if {$1 >= $2} {
-        return t
-    }
-    return f
-' language pltcl;
-create function tcl_int4gt(int4,int4) returns bool as '
-    if {$1 > $2} {
-        return t
-    }
-    return f
-' language pltcl;
+' language 'pltcl';
 create operator @< (
 		leftarg = int4,
 		rightarg = int4,
 		procedure = tcl_int4lt
 	);
-create operator @<= (
-		leftarg = int4,
-		rightarg = int4,
-		procedure = tcl_int4le
-	);
-create operator @= (
-		leftarg = int4,
-		rightarg = int4,
-		procedure = tcl_int4eq
-	);
-create operator @>= (
-		leftarg = int4,
-		rightarg = int4,
-		procedure = tcl_int4ge
-	);
-create operator @> (
-		leftarg = int4,
-		rightarg = int4,
-		procedure = tcl_int4gt
-	);
-create function tcl_int4cmp(int4,int4) returns int4 as '
-    if {$1 < $2} {
-        return -1
-    }
-    if {$1 > $2} {
-        return 1
-    }
-    return 0
-' language pltcl;
-CREATE OPERATOR CLASS tcl_int4_ops
-	FOR TYPE int4 USING btree AS
-	OPERATOR 1  @<,
-	OPERATOR 2  @<=,
-	OPERATOR 3  @=,
-	OPERATOR 4  @>=,
-	OPERATOR 5  @>,
-	FUNCTION 1  tcl_int4cmp(int4,int4) ;
---
--- Test usage of Tcl's "clock" command.  In recent Tcl versions this
--- command fails without working "unknown" support, so it's a good canary
--- for initialization problems.
---
-create function tcl_date_week(int4,int4,int4) returns text as $$
-    return [clock format [clock scan "$2/$3/$1"] -format "%U"]
-$$ language pltcl immutable;
-select tcl_date_week(2010,1,26);
- tcl_date_week 
----------------
- 04
-(1 row)
-
-select tcl_date_week(2001,10,24);
- tcl_date_week 
----------------
- 42
-(1 row)
-
--- test pltcl event triggers
-create function tclsnitch() returns event_trigger language pltcl as $$
-  elog NOTICE "tclsnitch: $TG_event $TG_tag"
-$$;
-create event trigger tcl_a_snitch on ddl_command_start execute procedure tclsnitch();
-create event trigger tcl_b_snitch on ddl_command_end execute procedure tclsnitch();
-create function foobar() returns int language sql as $$select 1;$$;
-NOTICE:  tclsnitch: ddl_command_start CREATE FUNCTION
-NOTICE:  tclsnitch: ddl_command_end CREATE FUNCTION
-alter function foobar() cost 77;
-NOTICE:  tclsnitch: ddl_command_start ALTER FUNCTION
-NOTICE:  tclsnitch: ddl_command_end ALTER FUNCTION
-drop function foobar();
-NOTICE:  tclsnitch: ddl_command_start DROP FUNCTION
-NOTICE:  tclsnitch: ddl_command_end DROP FUNCTION
-create table foo();
-NOTICE:  tclsnitch: ddl_command_start CREATE TABLE
-NOTICE:  tclsnitch: ddl_command_end CREATE TABLE
-drop table foo;
-NOTICE:  tclsnitch: ddl_command_start DROP TABLE
-NOTICE:  tclsnitch: ddl_command_end DROP TABLE
-drop event trigger tcl_a_snitch;
-drop event trigger tcl_b_snitch;
-create function tcl_test_cube_squared(in int, out squared int, out cubed int) as $$
-    return [list squared [expr {$1 * $1}] cubed [expr {$1 * $1 * $1}]]
-$$ language pltcl;
-create function tcl_test_squared_rows(int,int) returns table (x int, y int) as $$
-    for {set i $1} {$i < $2} {incr i} {
-        return_next [list y [expr {$i * $i}] x $i]
-    }
-$$ language pltcl;
-create function tcl_test_sequence(int,int) returns setof int as $$
-    for {set i $1} {$i < $2} {incr i} {
-        return_next $i
-    }
-$$ language pltcl;
-create function tcl_eval(string text) returns text as $$
-    eval $1
-$$ language pltcl;
--- test use of errorCode in error handling
-create function tcl_error_handling_test(text) returns text
-language pltcl
-as $function$
-    if {[catch $1 err]} {
-        # If not a Postgres error, just return the basic error message
-        if {[lindex $::errorCode 0] != "POSTGRES"} {
-            return $err
-        }
-
-        # Get rid of keys that can't be expected to remain constant
-        array set myArray $::errorCode
-        unset myArray(POSTGRES)
-        unset -nocomplain myArray(funcname)
-        unset -nocomplain myArray(filename)
-        unset -nocomplain myArray(lineno)
-
-        # Format into something nicer
-        set vals []
-        foreach {key} [lsort [array names myArray]] {
-            set value [string map {"\n" "\n\t"} $myArray($key)]
-            lappend vals "$key: $value"
-        }
-        return [join $vals "\n"]
-    } else {
-        return "no error"
-    }
-$function$;
--- test spi_exec and spi_execp with -array
-create function tcl_spi_exec(
-    prepare boolean,
-    action text
-)
-returns void language pltcl AS $function$
-set query "select * from (values (1,'foo'),(2,'bar'),(3,'baz')) v(col1,col2)"
-if {$1 == "t"} {
-    set prep [spi_prepare $query {}]
-    spi_execp -array A $prep {
-        elog NOTICE "col1 $A(col1), col2 $A(col2)"
-
-        switch $A(col1) {
-            2 {
-                elog NOTICE "action: $2"
-                switch $2 {
-                    break {
-                        break
-                    }
-                    continue {
-                        continue
-                    }
-                    return {
-                        return
-                    }
-                    error {
-                        error "error message"
-                    }
-                }
-                error "should not get here"
-            }
-        }
-    }
-} else {
-    spi_exec -array A $query {
-        elog NOTICE "col1 $A(col1), col2 $A(col2)"
-
-        switch $A(col1) {
-            2 {
-                elog NOTICE "action: $2"
-                switch $2 {
-                    break {
-                        break
-                    }
-                    continue {
-                        continue
-                    }
-                    return {
-                        return
-                    }
-                    error {
-                        error "error message"
-                    }
-                }
-                error "should not get here"
-            }
-        }
-    }
-}
-elog NOTICE "end of function"
-$function$;

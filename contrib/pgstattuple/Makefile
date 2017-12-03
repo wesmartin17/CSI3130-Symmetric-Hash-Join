@@ -1,20 +1,20 @@
-# contrib/pgstattuple/Makefile
+#-------------------------------------------------------------------------
+#
+# pgstattuple Makefile
+#
+# $PostgreSQL: pgsql/contrib/pgstattuple/Makefile,v 1.4 2005/09/27 17:13:09 tgl Exp $
+#
+#-------------------------------------------------------------------------
+
+SRCS		= pgstattuple.c
 
 MODULE_big	= pgstattuple
-OBJS		= pgstattuple.o pgstatindex.o pgstatapprox.o $(WIN32RES)
-
-EXTENSION = pgstattuple
-DATA = pgstattuple--1.4.sql pgstattuple--1.4--1.5.sql \
-	pgstattuple--1.3--1.4.sql pgstattuple--1.2--1.3.sql \
-	pgstattuple--1.1--1.2.sql pgstattuple--1.0--1.1.sql \
-	pgstattuple--unpackaged--1.0.sql
-PGFILEDESC = "pgstattuple - tuple-level statistics"
-
-REGRESS = pgstattuple
+OBJS		= $(SRCS:.c=.o)
+DOCS		= README.pgstattuple README.pgstattuple.euc_jp
+DATA_built	= pgstattuple.sql
 
 ifdef USE_PGXS
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
+PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
 else
 subdir = contrib/pgstattuple
@@ -22,3 +22,4 @@ top_builddir = ../..
 include $(top_builddir)/src/Makefile.global
 include $(top_srcdir)/contrib/contrib-global.mk
 endif
+

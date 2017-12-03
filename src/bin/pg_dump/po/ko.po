@@ -3,1799 +3,317 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: PostgreSQL 9.6\n"
-"Report-Msgid-Bugs-To: pgsql-bugs@postgresql.org\n"
-"POT-Creation-Date: 2016-09-26 14:02+0900\n"
-"PO-Revision-Date: 2016-09-26 18:26+0900\n"
+"Project-Id-Version: PostgreSQL 8.0\n"
+"POT-Creation-Date: 2004-12-17 01:33+0000\n"
+"PO-Revision-Date: 2004-12-18 01:36+0900\n"
 "Last-Translator: Ioseph Kim <ioseph@uri.sarang.net>\n"
-"Language-Team: Korean Team <pgsql-kr@postgresql.kr>\n"
-"Language: ko\n"
+"Language-Team: Korean <pgsql-kr@postgresql.or.kr>\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
+"Content-Type: text/plain; charset=euc-kr\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=1; plural=0;\n"
-
-#: ../../common/exec.c:127 ../../common/exec.c:241 ../../common/exec.c:284
-#, c-format
-msgid "could not identify current directory: %s"
-msgstr "í˜„ì¬ ë””ë ‰í„°ë¦¬ë¥¼ ì•Œ ìˆ˜ ì—†ìŒ: %s"
-
-#: ../../common/exec.c:146
-#, c-format
-msgid "invalid binary \"%s\""
-msgstr "ì˜ëª»ëœ ë°”ì´ë„ˆë¦¬ íŒŒì¼ \"%s\""
-
-#: ../../common/exec.c:195
-#, c-format
-msgid "could not read binary \"%s\""
-msgstr "\"%s\" ë°”ì´ë„ˆë¦¬ íŒŒì¼ì„ ì½ì„ ìˆ˜ ì—†ìŒ"
-
-#: ../../common/exec.c:202
-#, c-format
-msgid "could not find a \"%s\" to execute"
-msgstr "ì‹¤í–‰ í•  \"%s\" íŒŒì¼ì„ ì°¾ì„ ìˆ˜ ì—†ìŒ"
-
-#: ../../common/exec.c:257 ../../common/exec.c:293
-#, c-format
-msgid "could not change directory to \"%s\": %s"
-msgstr "\"%s\" ë””ë ‰í„°ë¦¬ë¡œ ë°”ê¿€ ìˆ˜ ì—†ìŒ: %s"
-
-#: ../../common/exec.c:272
-#, c-format
-msgid "could not read symbolic link \"%s\""
-msgstr "\"%s\" ì‹¬ë²Œë¦­ ë§í¬ë¥¼ ì½ì„ ìˆ˜ ì—†ìŒ"
-
-#: ../../common/exec.c:523
-#, c-format
-msgid "pclose failed: %s"
-msgstr "pclose ì‹¤íŒ¨: %s"
-
-#: ../../common/fe_memutils.c:35 ../../common/fe_memutils.c:75
-#: ../../common/fe_memutils.c:98 pg_backup_db.c:158 pg_backup_db.c:213
-#: pg_backup_db.c:272 pg_backup_db.c:314
-#, c-format
-msgid "out of memory\n"
-msgstr "ë©”ëª¨ë¦¬ ë¶€ì¡±\n"
-
-#: ../../common/fe_memutils.c:92
-#, c-format
-msgid "cannot duplicate null pointer (internal error)\n"
-msgstr "null í¬ì¸í„°ë¥¼ ì¤‘ë³µí•  ìˆ˜ ì—†ìŒ (ë‚´ë¶€ ì˜¤ë¥˜)\n"
-
-#: ../../common/wait_error.c:47
-#, c-format
-msgid "command not executable"
-msgstr "ëª…ë ¹ì„ ì‹¤í–‰í•  ìˆ˜ ì—†ìŒ"
-
-#: ../../common/wait_error.c:51
-#, c-format
-msgid "command not found"
-msgstr "í•´ë‹¹ ëª…ë ¹ì–´ ì—†ìŒ"
-
-#: ../../common/wait_error.c:56
-#, c-format
-msgid "child process exited with exit code %d"
-msgstr "í•˜ìœ„ í”„ë¡œì„¸ìŠ¤ê°€ ì¢…ë£Œë˜ì—ˆìŒ, ì¢…ë£Œ ì½”ë“œ %d"
-
-#: ../../common/wait_error.c:63
-#, c-format
-msgid "child process was terminated by exception 0x%X"
-msgstr "0x%X ì˜ˆì™¸ì²˜ë¦¬ë¡œ í•˜ìœ„ í”„ë¡œì„¸ìŠ¤ê°€ ì¢…ë£Œë˜ì—ˆìŒ"
-
-#: ../../common/wait_error.c:73
-#, c-format
-msgid "child process was terminated by signal %s"
-msgstr "%s ì‹œê·¸ë„ ê°ì§€ë¡œ í•˜ìœ„ í”„ë¡œì„¸ìŠ¤ê°€ ì¢…ë£Œë˜ì—ˆìŒ"
-
-#: ../../common/wait_error.c:77
-#, c-format
-msgid "child process was terminated by signal %d"
-msgstr "í•˜ìœ„ í”„ë¡œì„¸ìŠ¤ê°€ ì¢…ë£Œë˜ì—ˆìŒ, ì‹œê·¸ë„ %d"
-
-#: ../../common/wait_error.c:82
-#, c-format
-msgid "child process exited with unrecognized status %d"
-msgstr "í•˜ìœ„ í”„ë¡œì„¸ìŠ¤ê°€ ì¢…ë£Œë˜ì—ˆìŒ, ì•Œìˆ˜ ì—†ëŠ” ìƒíƒœ %d"
-
-#: common.c:121
-#, c-format
-msgid "reading extensions\n"
-msgstr "í™•ì¥ ê¸°ëŠ¥ ì½ëŠ” ì¤‘\n"
-
-#: common.c:126
-#, c-format
-msgid "identifying extension members\n"
-msgstr "í™•ì¥ ë©¤ë²„ë¥¼ ì‹ë³„ ì¤‘\n"
-
-#: common.c:130
-#, c-format
-msgid "reading schemas\n"
-msgstr "ìŠ¤í‚¤ë§ˆë“¤ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:141
-#, c-format
-msgid "reading user-defined tables\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ í…Œì´ë¸”ë“¤ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:149
-#, c-format
-msgid "reading user-defined functions\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ í•¨ìˆ˜ë“¤ ì½ëŠ” ì¤‘\n"
-
-#: common.c:155
-#, c-format
-msgid "reading user-defined types\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ ìë£Œí˜•ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:161
-#, c-format
-msgid "reading procedural languages\n"
-msgstr "í”„ë¡œì‹œì¥¬ì–¼ ì–¸ì–´ë¥¼ ì½ëŠ” ì¤‘\n"
-
-#: common.c:165
-#, c-format
-msgid "reading user-defined aggregate functions\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ ì§‘ê³„ í•¨ìˆ˜ë¥¼ ì½ëŠ” ì¤‘\n"
-
-#: common.c:169
-#, c-format
-msgid "reading user-defined operators\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ ì—°ì‚°ìë¥¼ ì½ëŠ” ì¤‘\n"
-
-#: common.c:174
-#, c-format
-msgid "reading user-defined access methods\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ ì ‘ê·¼ ë°©ë²•ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:178
-#, c-format
-msgid "reading user-defined operator classes\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ ì—°ì‚°ì í´ë˜ìŠ¤ë¥¼ ì½ëŠ” ì¤‘\n"
-
-#: common.c:182
-#, c-format
-msgid "reading user-defined operator families\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ ì—°ì‚°ì ë¶€ë¥˜ë“¤ ì½ëŠ” ì¤‘\n"
-
-#: common.c:186
-#, c-format
-msgid "reading user-defined text search parsers\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ í…ìŠ¤íŠ¸ ê²€ìƒ‰ íŒŒì„œë¥¼ ì½ëŠ” ì¤‘\n"
-
-#: common.c:190
-#, c-format
-msgid "reading user-defined text search templates\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ í…ìŠ¤íŠ¸ ê²€ìƒ‰ í…œí”Œë¦¿ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:194
-#, c-format
-msgid "reading user-defined text search dictionaries\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ í…ìŠ¤íŠ¸ ê²€ìƒ‰ ì‚¬ì „ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:198
-#, c-format
-msgid "reading user-defined text search configurations\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ í…ìŠ¤íŠ¸ ê²€ìƒ‰ êµ¬ì„±ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:202
-#, c-format
-msgid "reading user-defined foreign-data wrappers\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ ì™¸ë¶€ ë°ì´í„° ë˜í¼ë¥¼ ì½ëŠ” ì¤‘\n"
-
-#: common.c:206
-#, c-format
-msgid "reading user-defined foreign servers\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ ì™¸ë¶€ ì„œë²„ë¥¼ ì½ëŠ” ì¤‘\n"
-
-#: common.c:210
-#, c-format
-msgid "reading default privileges\n"
-msgstr "ê¸°ë³¸ ì ‘ê·¼ ê¶Œí•œ ì½ëŠ” ì¤‘\n"
-
-#: common.c:214
-#, c-format
-msgid "reading user-defined collations\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ ê¸€ì ì •ë ¬(collation) ì½ëŠ” ì¤‘\n"
-
-#: common.c:219
-#, c-format
-msgid "reading user-defined conversions\n"
-msgstr "ì‚¬ìš©ì ì •ì˜ ì¸ì½”ë”© ë³€í™˜ê·œì¹™ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:223
-#, c-format
-msgid "reading type casts\n"
-msgstr "í˜•ë³€í™˜ì(type cast)ë“¤ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:227
-#, c-format
-msgid "reading transforms\n"
-msgstr "ë³€í™˜ì(transform) ì½ëŠ” ì¤‘\n"
-
-#: common.c:231
-#, c-format
-msgid "reading table inheritance information\n"
-msgstr "í…Œì´ë¸” ìƒì† ì •ë³´ë¥¼ ì½ëŠ” ì¤‘\n"
-
-#: common.c:235
-#, c-format
-msgid "reading event triggers\n"
-msgstr "ì´ë²¤íŠ¸ íŠ¸ë¦¬ê±°ë“¤ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:240
-#, c-format
-msgid "finding extension tables\n"
-msgstr "í™•ì¥ í…Œì´ë¸”ì„ ì°¾ëŠ” ì¤‘\n"
-
-#: common.c:245
-#, c-format
-msgid "finding inheritance relationships\n"
-msgstr "ìƒì† ê´€ê³„ë¥¼ ì¡°ì‚¬ì¤‘\n"
-
-#: common.c:249
-#, c-format
-msgid "reading column info for interesting tables\n"
-msgstr "ì¬ë¯¸ë‚œ í…Œì´ë¸”ë“¤(interesting tables)ì„ ìœ„í•´ ì—´ ì •ë³´ë¥¼ ì½ëŠ” ì¤‘\n"
-
-#: common.c:253
-#, c-format
-msgid "flagging inherited columns in subtables\n"
-msgstr "í•˜ìœ„ í…Œì´ë¸”ì—ì„œ ìƒì†ëœ ì—´ êµ¬ë¶„ì¤‘\n"
-
-#: common.c:257
-#, c-format
-msgid "reading indexes\n"
-msgstr "ì¸ë±ìŠ¤ë“¤ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:261
-#, c-format
-msgid "reading constraints\n"
-msgstr "ì œì•½ ì¡°ê±´ë“¤ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:265
-#, c-format
-msgid "reading triggers\n"
-msgstr "íŠ¸ë¦¬ê±°ë“¤ì„ ì½ëŠ” ì¤‘\n"
-
-#: common.c:269
-#, c-format
-msgid "reading rewrite rules\n"
-msgstr "ë£°(rule) ì½ëŠ” ì¤‘\n"
-
-#: common.c:273
-#, c-format
-msgid "reading policies\n"
-msgstr "ì •ì±… ì½ëŠ” ì¤‘\n"
-
-#: common.c:908
-#, c-format
-msgid "failed sanity check, parent OID %u of table \"%s\" (OID %u) not found\n"
-msgstr ""
-"ì•ˆì „ ê²€ì‚¬ ì‹¤íŒ¨, OID %uì¸ ë¶€ëª¨ ê°œì²´ê°€ ì—†ìŒ. í•´ë‹¹ í…Œì´ë¸” \"%s\" (OID %u)\n"
-
-#: common.c:950
-#, c-format
-msgid "could not parse numeric array \"%s\": too many numbers\n"
-msgstr "\"%s\" ìˆ«ì ë°°ì—´ì„ ë¶„ì„í•  ìˆ˜ ì—†ìŒ: ë„ˆë¬´ ìˆ«ìê°€ ìˆìŠµë‹ˆë‹¤\n"
-
-#: common.c:965
-#, c-format
-msgid "could not parse numeric array \"%s\": invalid character in number\n"
-msgstr "\"%s\" ìˆ«ì ë°°ì—´ì„ ë¶„ì„í•  ìˆ˜ ì—†ìŒ: ìˆ«ìì•ˆì— ì´ìƒí•œ ê¸€ìê°€ ìˆìŠµë‹ˆë‹¤\n"
-
-#. translator: this is a module name
-#: compress_io.c:78
-msgid "compress_io"
-msgstr "compress_io"
-
-#: compress_io.c:114
-#, c-format
-msgid "invalid compression code: %d\n"
-msgstr "ì˜ëª»ëœ ì••ì¶• ìˆ˜ìœ„: %d\n"
-
-#: compress_io.c:138 compress_io.c:174 compress_io.c:192 compress_io.c:519
-#: compress_io.c:562
-#, c-format
-msgid "not built with zlib support\n"
-msgstr "zlib ì§€ì› ê¸°ëŠ¥ì´ ì—†ìŒ\n"
-
-#: compress_io.c:242 compress_io.c:344
-#, c-format
-msgid "could not initialize compression library: %s\n"
-msgstr "ì••ì¶• ë¼ì´ë¸ŒëŸ¬ë¦¬ë¥¼ ì´ˆê¸°í™” í•  ìˆ˜ ì—†ìŒ: %s\n"
-
-#: compress_io.c:263
-#, c-format
-msgid "could not close compression stream: %s\n"
-msgstr "ì••ì¶• ìŠ¤íŠ¸ë¦¼ì„ ë‹«ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: compress_io.c:281
-#, c-format
-msgid "could not compress data: %s\n"
-msgstr "ìë£Œë¥¼ ì••ì¶•í•  ìˆ˜ ì—†ìŒ: %s\n"
-
-#: compress_io.c:361 compress_io.c:377
-#, c-format
-msgid "could not uncompress data: %s\n"
-msgstr "ìë£Œ ì••ì¶•ì„ í’€ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: %s\n"
-
-#: compress_io.c:385
-#, c-format
-msgid "could not close compression library: %s\n"
-msgstr "ì••ì¶• ë¼ì´ë¸ŒëŸ¬ë¦¬ë¥¼ ë‹«ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: compress_io.c:596 compress_io.c:632 pg_backup_custom.c:591
-#: pg_backup_tar.c:561
-#, c-format
-msgid "could not read from input file: %s\n"
-msgstr "ì…ë ¥ íŒŒì¼ì„ ì½ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: compress_io.c:635 pg_backup_custom.c:588 pg_backup_directory.c:548
-#: pg_backup_tar.c:797 pg_backup_tar.c:821
-#, c-format
-msgid "could not read from input file: end of file\n"
-msgstr "ì…ë ¥ íŒŒì¼ì„ ì½ì„ ìˆ˜ ì—†ìŒ: íŒŒì¼ ë\n"
-
-#: parallel.c:163
-msgid "parallel archiver"
-msgstr "ë³‘ë ¬ ì•„ì¹´ì´ë²„"
-
-# # search5 ë
-# # advance ë¶€ë¶„
-#: parallel.c:227
-#, c-format
-msgid "%s: WSAStartup failed: %d\n"
-msgstr "%s: WSAStartup ì‘ì—… ì‹¤íŒ¨: %d\n"
-
-#: parallel.c:930
-#, c-format
-msgid "could not create communication channels: %s\n"
-msgstr "í†µì‹  ì²´ë„ì„ ë§Œë“¤ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: parallel.c:993
-#, c-format
-msgid "could not create worker process: %s\n"
-msgstr "ì‘ì—…ì í”„ë¡œì„¸ìŠ¤ë¥¼ ë§Œë“¤ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: parallel.c:1188
-#, c-format
-msgid ""
-"could not obtain lock on relation \"%s\"\n"
-"This usually means that someone requested an ACCESS EXCLUSIVE lock on the "
-"table after the pg_dump parent process had gotten the initial ACCESS SHARE "
-"lock on the table.\n"
-msgstr ""
-"\"%s\" ë¦´ë ˆì´ì…˜ì„ ì„ ì í•  ìˆ˜ ì—†ìŒ\n"
-"ì´ ìƒí™©ì€ ì¼ë°˜ì ìœ¼ë¡œ ë‹¤ë¥¸ ì„¸ì…˜ì—ì„œ í•´ë‹¹ í…Œì´ë¸”ì„ ì´ë¯¸ ë¤í”„í•˜ê³  ìˆê±°ë‚˜ "
-"ê¸°íƒ€ ë‹¤ë¥¸ ì´ìœ ë¡œ ë‹¤ë¥¸ ì„¸ì…˜ì— ì˜í•´ì„œ ì„ ì  ëœ ê²½ìš°ì…ë‹ˆë‹¤.\n"
-
-#: parallel.c:1258
-#, c-format
-msgid "unrecognized command received from master: \"%s\"\n"
-msgstr "ë§ˆìŠ¤í„°ì—ì„œ ì•Œ ìˆ˜ ì—†ëŠ” ëª…ë ¹ì„ ë°›ìŒ: \"%s\"\n"
-
-#: parallel.c:1296
-#, c-format
-msgid "a worker process died unexpectedly\n"
-msgstr "ì‘ì—… í”„ë¡œì„¸ìŠ¤ê°€ ì˜ˆìƒì¹˜ ì•Šê²Œ ì¢…ë£Œë¨\n"
-
-#: parallel.c:1322 parallel.c:1328
-#, c-format
-msgid "invalid message received from worker: \"%s\"\n"
-msgstr "ì‘ì—… í”„ë¡œì„¸ìŠ¤ë¡œë¶€í„° ì˜ëª»ëœ ë©”ì‹œì§€ë¥¼ ë°›ìŒ: \"%s\"\n"
-
-#: parallel.c:1385 parallel.c:1436
-#, c-format
-msgid "error processing a parallel work item\n"
-msgstr "ë³‘ë ¬ ì‘ì—… ì•„ì´í…œ ì²˜ë¦¬ ì˜¤ë¥˜\n"
-
-#: parallel.c:1465 parallel.c:1583
-#, c-format
-msgid "could not write to the communication channel: %s\n"
-msgstr "í†µì‹  ì²´ë„ì—ì— ì“¸ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: parallel.c:1543
-#, c-format
-msgid "select() failed: %s\n"
-msgstr "select() ì‹¤íŒ¨: %s\n"
-
-#: parallel.c:1668
-#, c-format
-msgid "pgpipe: could not create socket: error code %d\n"
-msgstr "pgpipe: ì†Œì¼“ì„ ë§Œë“¤ ìˆ˜ ì—†ìŒ: ì˜¤ë¥˜ ì½”ë“œ %d\n"
-
-#: parallel.c:1679
-#, c-format
-msgid "pgpipe: could not bind: error code %d\n"
-msgstr "pgpipe: ë°”ì¸ë”© í•  ìˆ˜ ì—†ìŒ: ì˜¤ë¥˜ ì½”ë“œ %d\n"
-
-#: parallel.c:1686
-#, c-format
-msgid "pgpipe: could not listen: error code %d\n"
-msgstr "pgpipe: ë¦¬ìŠ¨ í•  ìˆ˜ ì—†ìŒ: ì˜¤ë¥˜ ì½”ë“œ %d\n"
-
-#: parallel.c:1693
-#, c-format
-msgid "pgpipe: getsockname() failed: error code %d\n"
-msgstr "pgpipe: getsockname() ì‹¤íŒ¨: ì˜¤ë¥˜ ì½”ë“œ %d\n"
-
-#: parallel.c:1704
-#, c-format
-msgid "pgpipe: could not create second socket: error code %d\n"
-msgstr "pgpipe: ë‘ë²ˆì§¸ ì†Œì¼“ì„ ë§Œë“¤ ìˆ˜ ì—†ìŒ: ì˜¤ë¥˜ ì½”ë“œ %d\n"
-
-#: parallel.c:1713
-#, c-format
-msgid "pgpipe: could not connect socket: error code %d\n"
-msgstr "pgpipe: ì†Œì¼“ ì ‘ì† ì‹¤íŒ¨: ì˜¤ë¥˜ ì½”ë“œ %d\n"
-
-#: parallel.c:1722
-#, c-format
-msgid "pgpipe: could not accept connection: error code %d\n"
-msgstr "pgpipe: ì ‘ì†ì„ ìŠ¹ì¸í•  ìˆ˜ ì—†ìŒ: ì˜¤ë¥˜ ì½”ë“œ %d\n"
-
-#. translator: this is a module name
-#: pg_backup_archiver.c:55
-msgid "archiver"
-msgstr "ì•„ì¹´ì´ë²„"
-
-#: pg_backup_archiver.c:234 pg_backup_archiver.c:1519
-#, c-format
-msgid "could not close output file: %s\n"
-msgstr "ì¶œë ¥ íŒŒì¼ì„ ë‹«ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_archiver.c:280 pg_backup_archiver.c:285
-#, c-format
-msgid "WARNING: archive items not in correct section order\n"
-msgstr "ê²½ê³ : ì•„ì¹´ì´ë¸Œ ì•„ì´í…œì˜ ìˆœì„œê°€ ì„¹ì…˜ì—ì„œ ë¹„ì •ìƒì ì„\n"
-
-#: pg_backup_archiver.c:291
-#, c-format
-msgid "unexpected section code %d\n"
-msgstr "ì˜ˆìƒì¹˜ ëª»í•œ ì„¹ì…˜ ì½”ë“œ %d\n"
-
-#: pg_backup_archiver.c:327
-#, c-format
-msgid "-C and -1 are incompatible options\n"
-msgstr "-Cì™€ -1ì€ í•¨ê»˜ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_archiver.c:337
-#, c-format
-msgid "parallel restore is not supported with this archive file format\n"
-msgstr "ì´ ì•„ì¹´ì´ë¸Œ íŒŒì¼ í˜•ì‹ì—ì„œëŠ” ë³‘ë ¬ ë³µì›ì´ ì§€ì›ë˜ì§€ ì•ŠìŒ\n"
-
-#: pg_backup_archiver.c:341
-#, c-format
-msgid ""
-"parallel restore is not supported with archives made by pre-8.0 pg_dump\n"
-msgstr "8.0 ì´ì „ pg_dumpë¡œ ë§Œë“  ì•„ì¹´ì´ë¸Œì—ì„œëŠ” ë³‘ë ¬ ë³µì›ì´ ì§€ì›ë˜ì§€ ì•ŠìŒ\n"
-
-#: pg_backup_archiver.c:359
-#, c-format
-msgid ""
-"cannot restore from compressed archive (compression not supported in this "
-"installation)\n"
-msgstr ""
-"ì••ì¶•ëœ ìë£ŒíŒŒì¼ì„ ë³µì›ìš©ìœ¼ë¡œ ì‚¬ìš©í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤(ì••ì¶•ê¸°ëŠ¥ì„ ì§€ì›í•˜ì§€ ì•Šê³  ì»´íŒŒ"
-"ì¼ë˜ì—ˆìŒ)\n"
-
-#: pg_backup_archiver.c:376
-#, c-format
-msgid "connecting to database for restore\n"
-msgstr "ë¦¬ìŠ¤í† ì–´ ì‘ì—…ì„ ìœ„í•´ ë°ì´í„°ë² ì´ìŠ¤ì— ì ‘ì†í•©ë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:378
-#, c-format
-msgid "direct database connections are not supported in pre-1.3 archives\n"
-msgstr "pre-1.3 archiveì—ì„œ ì§í†µ ë°ì´í„°ë² ì´ìŠ¤ ì ‘ì†ì€ ì§€ì›ë˜ì§€ ì•ŠìŠµë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:423
-#, c-format
-msgid "implied data-only restore\n"
-msgstr "ì•”ì‹œëœ ìë£Œë§Œ ë³µì›í•˜ê¸° - ì•„ì£¼ ë‚˜ìœ ë²ˆì—­\n"
-
-#: pg_backup_archiver.c:493
-#, c-format
-msgid "dropping %s %s\n"
-msgstr "%s %s ì‚­ì œí•˜ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:646
-#, c-format
-msgid "setting owner and privileges for %s \"%s.%s\"\n"
-msgstr "%s \"%s.%s\" ê°ì²´ì˜ ì†Œìœ ì£¼ì™€ ì ‘ê·¼ ê¶Œí•œì„ ì§€ì •í•˜ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:649
-#, c-format
-msgid "setting owner and privileges for %s \"%s\"\n"
-msgstr "%s \"%s\" ê°ì²´ì˜ ì†Œìœ ì£¼ì™€ ì ‘ê·¼ ê¶Œí•œì„ ì§€ì •í•˜ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:715 pg_backup_archiver.c:717
-#, c-format
-msgid "warning from original dump file: %s\n"
-msgstr "ì›ë³¸ ë¤í”„ íŒŒì¼ì—ì„œ ë°œìƒí•œ ê²½ê³ : %s\n"
-
-#: pg_backup_archiver.c:726
-#, c-format
-msgid "creating %s \"%s.%s\"\n"
-msgstr "%s \"%s.%s\" ë§Œë“œëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:729
-#, c-format
-msgid "creating %s \"%s\"\n"
-msgstr "%s \"%s\" ë§Œë“œëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:781
-#, c-format
-msgid "connecting to new database \"%s\"\n"
-msgstr "\"%s\" ìƒˆ ë°ì´í„°ë² ì´ìŠ¤ì— ì ‘ì†í•©ë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:809
-#, c-format
-msgid "processing %s\n"
-msgstr "%s ì²˜ë¦¬ ì¤‘\n"
-
-#: pg_backup_archiver.c:829
-#, c-format
-msgid "processing data for table \"%s.%s\"\n"
-msgstr "\"%s.%s\" í…Œì´ë¸”ì˜ ìë£Œë¥¼ ì²˜ë¦¬ ì¤‘\n"
-
-#: pg_backup_archiver.c:891
-#, c-format
-msgid "executing %s %s\n"
-msgstr "ì‹¤í–‰ì¤‘: %s %s\n"
-
-#: pg_backup_archiver.c:930
-#, c-format
-msgid "disabling triggers for %s\n"
-msgstr "%s ìë£Œ ë³µì›ì„ í•˜ë©´ì„œ íŠ¸ë¦¬ê±° ì‘ë™ì„ ë¹„í™œì„±í™” í•©ë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:958
-#, c-format
-msgid "enabling triggers for %s\n"
-msgstr "%s íŠ¸ë¦¬ê±° ì‘ë™ì„ í™œì„±í™” í•©ë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:988
-#, c-format
-msgid ""
-"internal error -- WriteData cannot be called outside the context of a "
-"DataDumper routine\n"
-msgstr ""
-"ë‚´ë¶€ ì˜¤ë¥˜ -- WriteDataê°€ DataDumper ë£¨í‹´ ì˜ì—­ ë°–ì—ì„œ í˜¸ì¶œ ë  ìˆ˜ ì—†ìŠµë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:1157
-#, c-format
-msgid "large-object output not supported in chosen format\n"
-msgstr "ì„ íƒí•œ íŒŒì¼ í˜•íƒœë¡œëŠ” large-objectë¥¼ ë¤í”„í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:1215
-#, c-format
-msgid "restored %d large object\n"
-msgid_plural "restored %d large objects\n"
-msgstr[0] "%dê°œì˜ í° ê°œì²´ê°€ ë³µì›ë¨\n"
-
-#: pg_backup_archiver.c:1236 pg_backup_tar.c:739
-#, c-format
-msgid "restoring large object with OID %u\n"
-msgstr "%u OID large objectë¥¼ ë³µì›ì¤‘\n"
-
-#: pg_backup_archiver.c:1248
-#, c-format
-msgid "could not create large object %u: %s"
-msgstr "%u large objectë¥¼ ë§Œë“¤ ìˆ˜ ì—†ìŒ: %s"
-
-#: pg_backup_archiver.c:1253 pg_dump.c:3050
-#, c-format
-msgid "could not open large object %u: %s"
-msgstr "%u large objectë¥¼ ì—´ ìˆ˜ ì—†ìŒ: %s"
-
-#: pg_backup_archiver.c:1311
-#, c-format
-msgid "could not open TOC file \"%s\": %s\n"
-msgstr "TOC íŒŒì¼ \"%s\"ì„(ë¥¼) ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_archiver.c:1352
-#, c-format
-msgid "WARNING: line ignored: %s\n"
-msgstr "ê²½ê³ : ì¤„ ë¬´ì‹œë¨: %s\n"
-
-#: pg_backup_archiver.c:1359
-#, c-format
-msgid "could not find entry for ID %d\n"
-msgstr "%d IDì— ëŒ€í•œ í•­ëª©ì„ ì°¾ì§€ ëª»í–ˆìŒ\n"
-
-#: pg_backup_archiver.c:1380 pg_backup_directory.c:230
-#: pg_backup_directory.c:597
-#, c-format
-msgid "could not close TOC file: %s\n"
-msgstr "TOC íŒŒì¼ì„ ë‹«ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_archiver.c:1489 pg_backup_custom.c:162 pg_backup_directory.c:341
-#: pg_backup_directory.c:583 pg_backup_directory.c:641
-#: pg_backup_directory.c:661
-#, c-format
-msgid "could not open output file \"%s\": %s\n"
-msgstr "\"%s\" ì¶œë ¥ íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_archiver.c:1492 pg_backup_custom.c:169
-#, c-format
-msgid "could not open output file: %s\n"
-msgstr "ì¶œë ¥ íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_archiver.c:1598
-#, c-format
-msgid "wrote %lu byte of large object data (result = %lu)\n"
-msgid_plural "wrote %lu bytes of large object data (result = %lu)\n"
-msgstr[0] "%luë°”ì´íŠ¸ì˜ í° ê°œì²´ ë°ì´í„°ë¥¼ ì”€(ê²°ê³¼ = %lu)\n"
-
-#: pg_backup_archiver.c:1604
-#, c-format
-msgid "could not write to large object (result: %lu, expected: %lu)\n"
-msgstr "large objectë¥¼ ì“¸ ìˆ˜ ì—†ìŒ (ê²°ê³¼ê°’: %lu, ì˜ˆìƒê°’: %lu)\n"
-
-#: pg_backup_archiver.c:1697
-#, c-format
-msgid "Error while INITIALIZING:\n"
-msgstr "ì´ˆê¸°í™” ì‘ì—… ì¤‘ ì˜¤ë¥˜:\n"
-
-#: pg_backup_archiver.c:1702
-#, c-format
-msgid "Error while PROCESSING TOC:\n"
-msgstr "TOC ì²˜ë¦¬í•˜ëŠ” ì¤‘ ì˜¤ë¥˜:\n"
-
-#: pg_backup_archiver.c:1707
-#, c-format
-msgid "Error while FINALIZING:\n"
-msgstr "ë’· ë§ˆë¬´ë¦¬ ì‘ì—… ì¤‘ ì˜¤ë¥˜:\n"
-
-#: pg_backup_archiver.c:1712
-#, c-format
-msgid "Error from TOC entry %d; %u %u %s %s %s\n"
-msgstr "%d TOC í•­ëª©ì—ì„œ ì˜¤ë¥˜ë°œê²¬; %u %u %s %s %s\n"
-
-#: pg_backup_archiver.c:1785
-#, c-format
-msgid "bad dumpId\n"
-msgstr "ì˜ëª»ëœ dumpID\n"
-
-#: pg_backup_archiver.c:1806
-#, c-format
-msgid "bad table dumpId for TABLE DATA item\n"
-msgstr "TABLE DATA ì•„ì´í…œì— ëŒ€í•œ ì˜ëª»ëœ í…Œì´ë¸” dumpId\n"
-
-#: pg_backup_archiver.c:1898
-#, c-format
-msgid "unexpected data offset flag %d\n"
-msgstr "ì˜ˆìƒì¹˜ ëª»í•œ ìë£Œ ì˜µì…‹ í”Œë˜ê·¸ %d\n"
-
-#: pg_backup_archiver.c:1911
-#, c-format
-msgid "file offset in dump file is too large\n"
-msgstr "ë¤í”„ íŒŒì¼ì—ì„œ íŒŒì¼ ì˜µì…‹ ê°’ì´ ë„ˆë¬´ í½ë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:2024
-#, c-format
-msgid "attempting to ascertain archive format\n"
-msgstr "ì•„ì¹´ì´ë¸Œ í¬ë©§ì„ ê²°ì •í•©ë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:2050 pg_backup_archiver.c:2060
-#, c-format
-msgid "directory name too long: \"%s\"\n"
-msgstr "ë””ë ‰í„°ë¦¬ ì´ë¦„ì´ ë„ˆë¬´ ê¸º: \"%s\"\n"
-
-#: pg_backup_archiver.c:2068
-#, c-format
-msgid ""
-"directory \"%s\" does not appear to be a valid archive (\"toc.dat\" does not "
-"exist)\n"
-msgstr "\"%s\" ë””ë ‰í„°ë¦¬ê°€ ì•Œë§ì€ ì•„ì¹´ì´ë¸Œìš©ì´ ì•„ë‹˜ (\"toc.dat\" íŒŒì¼ì´ ì—†ìŒ)\n"
-
-#: pg_backup_archiver.c:2076 pg_backup_custom.c:181 pg_backup_custom.c:770
-#: pg_backup_directory.c:214 pg_backup_directory.c:399
-#, c-format
-msgid "could not open input file \"%s\": %s\n"
-msgstr "\"%s\" ì…ë ¥ íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_archiver.c:2084 pg_backup_custom.c:188
-#, c-format
-msgid "could not open input file: %s\n"
-msgstr "ì…ë ¥ íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_archiver.c:2091
-#, c-format
-msgid "could not read input file: %s\n"
-msgstr "ì…ë ¥ íŒŒì¼ì„ ì½ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_archiver.c:2093
-#, c-format
-msgid "input file is too short (read %lu, expected 5)\n"
-msgstr "ì…ë ¥ íŒŒì¼ì´ ë„ˆë¬´ ì§§ìŠµë‹ˆë‹¤ (%lu ì½ì—ˆìŒ, ì˜ˆìƒì¹˜ 5)\n"
-
-#: pg_backup_archiver.c:2176
-#, c-format
-msgid "input file appears to be a text format dump. Please use psql.\n"
-msgstr "ì…ë ¥ íŒŒì¼ì€ ì¼ë°˜ í…ìŠ¤íŠ¸ ë¤í”„ íŒŒì¼ì…ë‹ˆë‹¤. psql ëª…ë ¹ì„ ì‚¬ìš©í•˜ì„¸ìš”.\n"
-
-#: pg_backup_archiver.c:2182
-#, c-format
-msgid "input file does not appear to be a valid archive (too short?)\n"
-msgstr "ì…ë ¥ íŒŒì¼ì—ì„œ íƒ€ë‹¹í•œ ì•„ì¹´ì´ë¸Œë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤(ë„ˆë¬´ ì§§ì€ì§€?)\n"
-
-#: pg_backup_archiver.c:2188
-#, c-format
-msgid "input file does not appear to be a valid archive\n"
-msgstr "ì…ë ¥ íŒŒì¼ì—ì„œ íƒ€ë‹¹í•œ ì•„ì¹´ì´ë¸Œë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:2208
-#, c-format
-msgid "could not close input file: %s\n"
-msgstr "ì…ë ¥ íŒŒì¼ì„ ë‹«ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_archiver.c:2225
-#, c-format
-msgid "allocating AH for %s, format %d\n"
-msgstr "%s ìœ„í•œ AHë¥¼ í• ë‹¹í•˜ëŠ” ì¤‘, í¬ë©§ %d\n"
-
-#: pg_backup_archiver.c:2330
-#, c-format
-msgid "unrecognized file format \"%d\"\n"
-msgstr "ì•Œ ìˆ˜ ì—†ëŠ” íŒŒì¼ í¬ë©§: \"%d\"\n"
-
-#: pg_backup_archiver.c:2486
-#, c-format
-msgid "entry ID %d out of range -- perhaps a corrupt TOC\n"
-msgstr "%d ID í•­ëª©ì€ ë²”ìœ„ë¥¼ ë²—ì–´ë‚¬ìŒ -- TOC ì •ë³´ê°€ ì†ìƒëœ ë“¯ í•©ë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:2602
-#, c-format
-msgid "read TOC entry %d (ID %d) for %s %s\n"
-msgstr "%d TOC í•­ëª© (%d ID) ì½ê¸°, í•´ë‹¹ê°œì²´: %s %s\n"
-
-#: pg_backup_archiver.c:2636
-#, c-format
-msgid "unrecognized encoding \"%s\"\n"
-msgstr "ì•Œ ìˆ˜ ì—†ëŠ” ì¸ì½”ë”©: \"%s\"\n"
-
-#: pg_backup_archiver.c:2641
-#, c-format
-msgid "invalid ENCODING item: %s\n"
-msgstr "ì˜ëª»ëœ ENCODING í•­ëª©: %s\n"
-
-#: pg_backup_archiver.c:2659
-#, c-format
-msgid "invalid STDSTRINGS item: %s\n"
-msgstr "ì˜ëª»ëœ STDSTRINGS í•­ëª©: %s\n"
-
-#: pg_backup_archiver.c:2674
-#, c-format
-msgid "schema \"%s\" not found\n"
-msgstr "\"%s\" ìŠ¤í‚¤ë§ˆë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_archiver.c:2681
-#, c-format
-msgid "table \"%s\" not found\n"
-msgstr "\"%s\" í…Œì´ë¸”ì„ ì°¾ì„ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_archiver.c:2688
-#, c-format
-msgid "index \"%s\" not found\n"
-msgstr "\"%s\" ì¸ë±ìŠ¤ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_archiver.c:2695
-#, c-format
-msgid "function \"%s\" not found\n"
-msgstr "\"%s\" í•¨ìˆ˜ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_archiver.c:2702
-#, c-format
-msgid "trigger \"%s\" not found\n"
-msgstr "\"%s\" íŠ¸ë¦¬ê±°ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_archiver.c:2934
-#, c-format
-msgid "could not set session user to \"%s\": %s"
-msgstr "\"%s\" ì‚¬ìš©ìë¡œ ì„¸ì…˜ ì‚¬ìš©ìë¥¼ ì§€ì •í•  ìˆ˜ ì—†ìŒ: %s"
-
-#: pg_backup_archiver.c:2966
-#, c-format
-msgid "could not set default_with_oids: %s"
-msgstr "default_with_oids ì„¤ì • í•  ìˆ˜ ì—†ìŒ: %s"
-
-#: pg_backup_archiver.c:3111
-#, c-format
-msgid "could not set search_path to \"%s\": %s"
-msgstr "search_pathë¥¼ \"%s\"(ìœ¼)ë¡œ ì§€ì •í•  ìˆ˜ ì—†ìŒ: %s"
-
-#: pg_backup_archiver.c:3173
-#, c-format
-msgid "could not set default_tablespace to %s: %s"
-msgstr "default_tablespaceë¡œ %s(ìœ¼)ë¡œ ì§€ì •í•  ìˆ˜ ì—†ìŒ: %s"
-
-#: pg_backup_archiver.c:3260 pg_backup_archiver.c:3454
-#, c-format
-msgid "WARNING: don't know how to set owner for object type %s\n"
-msgstr "ê²½ê³ : %s ê°œì²´ì˜ ì†Œìœ ì£¼ë¥¼ ì§€ì •í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:3536
-#, c-format
-msgid "did not find magic string in file header\n"
-msgstr "íŒŒì¼ í—¤ë”ì—ì„œ ë§¤ì§ ë¬¸ìì—´ì„ ì°¾ì§€ ëª»í–ˆìŠµë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:3549
-#, c-format
-msgid "unsupported version (%d.%d) in file header\n"
-msgstr "íŒŒì¼ í—¤ë”ì— ìˆëŠ” %d.%d ë²„ì „ì€ ì§€ì›ë˜ì§€ ì•ŠìŠµë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:3554
-#, c-format
-msgid "sanity check on integer size (%lu) failed\n"
-msgstr "ì •ìˆ˜ í¬ê¸° (%lu) ì•ˆì „ì„± ê²€ì‚¬ ì‹¤íŒ¨\n"
-
-#: pg_backup_archiver.c:3558
-#, c-format
-msgid ""
-"WARNING: archive was made on a machine with larger integers, some operations "
-"might fail\n"
-msgstr ""
-"ê²½ê³ : ì´ ì•„ì¹´ì´ë¸ŒëŠ” í° ì •ìˆ˜ë¥¼ ì§€ì›í•˜ëŠ” ì‹œìŠ¤í…œì—ì„œ ë§Œë“¤ì–´ì¡ŒìŠµë‹ˆë‹¤. ê·¸ë˜ì„œ ëª‡ "
-"ë™ì‘ì´ ì‹¤íŒ¨í•  ìˆ˜ë„ ìˆìŠµë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:3568
-#, c-format
-msgid "expected format (%d) differs from format found in file (%d)\n"
-msgstr "ì˜ˆìƒë˜ëŠ” í¬ë©§ (%d)ì™€ ë°œê²¬ëœ íŒŒì¼ í¬ë©§ (%d)ì´ ì„œë¡œ í‹€ë¦½ë‹ˆë‹¤\n"
-
-#: pg_backup_archiver.c:3584
-#, c-format
-msgid ""
-"WARNING: archive is compressed, but this installation does not support "
-"compression -- no data will be available\n"
-msgstr ""
-"ê²½ê³ : ì•„ì¹´ì´ë¸ŒëŠ” ì••ì¶•ë˜ì–´ìˆì§€ë§Œ, ì´ í”„ë¡œê·¸ë¨ì—ì„œëŠ” ì••ì¶•ê¸°ëŠ¥ì„ ì§€ì›í•˜ì§€ ëª»í•©ë‹ˆ"
-"ë‹¤ -- ì´ ì•ˆì— ìˆëŠ” ìë£Œë¥¼ ëª¨ë‘ ì‚¬ìš©í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n"
-
-#: pg_backup_archiver.c:3602
-#, c-format
-msgid "WARNING: invalid creation date in header\n"
-msgstr "ê²½ê³ : í—¤ë”ì— ì˜ëª»ëœ ìƒì„± ë‚ ì§œê°€ ìˆìŒ\n"
-
-#: pg_backup_archiver.c:3677
-#, c-format
-msgid "entering restore_toc_entries_prefork\n"
-msgstr "restore_toc_entries_prefork ì‹œì‘ í•¨\n"
-
-#: pg_backup_archiver.c:3721
-#, c-format
-msgid "processing item %d %s %s\n"
-msgstr "%d %s %s í•­ëª©ì„ ì²˜ë¦¬í•˜ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:3773
-#, c-format
-msgid "entering restore_toc_entries_parallel\n"
-msgstr "restore_toc_entries_parallelì„ ì‹œì‘í•˜ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:3821
-#, c-format
-msgid "entering main parallel loop\n"
-msgstr "ê¸°ë³¸ ë³‘ë ¬ ë£¨í”„ë¥¼ ì‹œì‘í•˜ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:3832
-#, c-format
-msgid "skipping item %d %s %s\n"
-msgstr "%d %s %s í•­ëª©ì„ ê±´ë„ˆë›°ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:3842
-#, c-format
-msgid "launching item %d %s %s\n"
-msgstr "%d %s %s í•­ëª©ì„ ì‹œì‘í•˜ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:3898
-#, c-format
-msgid "finished main parallel loop\n"
-msgstr "ê¸°ë³¸ ë³‘ë ¬ ë£¨í”„ ë§ˆì¹¨\n"
-
-#: pg_backup_archiver.c:3907
-#, c-format
-msgid "entering restore_toc_entries_postfork\n"
-msgstr "restore_toc_entries_postfork ì‹œì‘í•˜ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:3926
-#, c-format
-msgid "processing missed item %d %s %s\n"
-msgstr "ëˆ„ë½ëœ í•­ëª© %d %s %sì„(ë¥¼) ì²˜ë¦¬í•˜ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:4075
-#, c-format
-msgid "no item ready\n"
-msgstr "ì¤€ë¹„ëœ í•­ëª©ì´ ì—†ìŒ\n"
-
-#: pg_backup_archiver.c:4123
-#, c-format
-msgid "could not find slot of finished worker\n"
-msgstr "ì™„ë£Œëœ ì‘ì—…ìì˜ ìŠ¬ë¡¯ì„ ì°¾ì„ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_archiver.c:4125
-#, c-format
-msgid "finished item %d %s %s\n"
-msgstr "%d %s %s í•­ëª© ë§ˆì¹¨\n"
-
-#: pg_backup_archiver.c:4138
-#, c-format
-msgid "worker process failed: exit code %d\n"
-msgstr "ì‘ì—…ì í”„ë¡œì„¸ìŠ¤ ì‹¤íŒ¨: ì¢…ë£Œ ì½”ë“œ %d\n"
-
-#: pg_backup_archiver.c:4300
-#, c-format
-msgid "transferring dependency %d -> %d to %d\n"
-msgstr "%d -&gt; %d - %d(ìœ¼)ë¡œ ì¢…ì†ì„± ë³€ê²½ ì¤‘\n"
-
-#: pg_backup_archiver.c:4373
-#, c-format
-msgid "reducing dependencies for %d\n"
-msgstr "%dì— ëŒ€í•œ ì¢…ì†ì„±ì„ ì¤„ì´ëŠ” ì¤‘\n"
-
-#: pg_backup_archiver.c:4412
-#, c-format
-msgid "table \"%s\" could not be created, will not restore its data\n"
-msgstr "\"%s\" í…Œì´ë¸”ì„ ë§Œë“¤ ìˆ˜ ì—†ì–´, í•´ë‹¹ ìë£ŒëŠ” ë³µì›ë˜ì§€ ì•Šì„ ê²ƒì…ë‹ˆë‹¤\n"
-
-#. translator: this is a module name
-#: pg_backup_custom.c:94
-msgid "custom archiver"
-msgstr "custom ì•„ì¹´ì´ë²„"
-
-#: pg_backup_custom.c:384 pg_backup_null.c:150
-#, c-format
-msgid "invalid OID for large object\n"
-msgstr "ì˜ëª»ëœ large objectìš© OID\n"
-
-#: pg_backup_custom.c:455
-#, c-format
-msgid "unrecognized data block type (%d) while searching archive\n"
-msgstr "ì•„ì¹´ì´ë¸Œ ê²€ìƒ‰í•˜ëŠ” ë™ì•ˆ ì•Œ ìˆ˜ ì—†ëŠ” ìë£Œ ë¸”ëŸ­ í˜•íƒœ(%d)ë¥¼ ë°œê²¬í•¨\n"
-
-#: pg_backup_custom.c:466
-#, c-format
-msgid "error during file seek: %s\n"
-msgstr "íŒŒì¼ seek ì‘ì—…í•˜ëŠ” ë„ì¤‘ ì˜¤ë¥˜ê°€ ë°œìƒí–ˆìŠµë‹ˆë‹¤: %s\n"
-
-#: pg_backup_custom.c:476
-#, c-format
-msgid ""
-"could not find block ID %d in archive -- possibly due to out-of-order "
-"restore request, which cannot be handled due to lack of data offsets in "
-"archive\n"
-msgstr ""
-"ì•„ì¹´ì´ë¸Œì—ì„œ ë¸”ë¡ ID %dì„(ë¥¼) ì°¾ì§€ ëª»í–ˆìŠµë‹ˆë‹¤. ë³µì› ìš”ì²­ì´ ì˜ëª»ëœ ê²ƒ ê°™ìŠµë‹ˆ"
-"ë‹¤. ì•„ì¹´ì´ë¸Œì˜ ë°ì´í„° ì˜¤í”„ì…‹ì´ ë¶€ì¡±í•˜ì—¬ ìš”ì²­ì„ ì²˜ë¦¬í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n"
-
-#: pg_backup_custom.c:481
-#, c-format
-msgid ""
-"could not find block ID %d in archive -- possibly due to out-of-order "
-"restore request, which cannot be handled due to non-seekable input file\n"
-msgstr ""
-"ì•„ì¹´ì´ë¸Œì—ì„œ ë¸”ë¡ ID %dì„(ë¥¼) ì°¾ì§€ ëª»í–ˆìŠµë‹ˆë‹¤. ë³µì› ìš”ì²­ì´ ì˜ëª»ëœ ê²ƒ ê°™ìŠµë‹ˆ"
-"ë‹¤. ì…ë ¥ íŒŒì¼ì„ ê²€ìƒ‰í•  ìˆ˜ ì—†ìœ¼ë¯€ë¡œ ìš”ì²­ì„ ì²˜ë¦¬í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n"
-
-#: pg_backup_custom.c:486
-#, c-format
-msgid "could not find block ID %d in archive -- possibly corrupt archive\n"
-msgstr ""
-"ì•„ì¹´ì´ë¸Œì—ì„œ ë¸”ë¡ ID %dì„(ë¥¼) ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤. ì•„ì¹´ì´ë¸Œê°€ ì†ìƒëœ ê²ƒ ê°™ìŠµë‹ˆ"
-"ë‹¤.\n"
-
-#: pg_backup_custom.c:493
-#, c-format
-msgid "found unexpected block ID (%d) when reading data -- expected %d\n"
-msgstr "ìë£Œë¥¼ ì½ëŠ” ë™ì•ˆ ì˜ˆìƒì¹˜ ëª»í•œ ID (%d) ë°œê²¬ë¨ -- ì˜ˆìƒê°’ %d\n"
-
-#: pg_backup_custom.c:507
-#, c-format
-msgid "unrecognized data block type %d while restoring archive\n"
-msgstr "ì•„ì¹´ì´ë¸Œ ë³µì›í•˜ëŠ” ì¤‘ì—, ì•Œ ìˆ˜ ì—†ëŠ” ìë£Œ ë¸”ëŸ­ í˜•íƒœ %d ë¥¼ ë°œê²¬í•¨\n"
-
-#: pg_backup_custom.c:709 pg_backup_custom.c:759 pg_backup_custom.c:908
-#: pg_backup_tar.c:1088
-#, c-format
-msgid "could not determine seek position in archive file: %s\n"
-msgstr "ì•„ì¹´ì´ë¸Œ íŒŒì¼ì—ì„œ ê²€ìƒ‰ ìœ„ì¹˜ë¥¼ í™•ì¸í•  ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_custom.c:727 pg_backup_custom.c:764
-#, c-format
-msgid "could not close archive file: %s\n"
-msgstr "ìë£Œ íŒŒì¼ì„ ë‹«ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_custom.c:746
-#, c-format
-msgid "can only reopen input archives\n"
-msgstr "ì…ë ¥ ì•„ì¹´ì´ë¸Œë§Œ ë‹¤ì‹œ ì—´ ìˆ˜ ìˆìŒ\n"
-
-#: pg_backup_custom.c:753
-#, c-format
-msgid "parallel restore from standard input is not supported\n"
-msgstr "í‘œì¤€ ì…ë ¥ì„ ì´ìš©í•œ ë³‘ë ¬ ë³µì› ì‘ì—…ì€ ì§€ì›í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤\n"
-
-#: pg_backup_custom.c:755
-#, c-format
-msgid "parallel restore from non-seekable file is not supported\n"
-msgstr "ì‹œì‘ ìœ„ì¹˜ë¥¼ ì„ì˜ë¡œ ì§€ì •í•  ìˆ˜ ì—†ëŠ” íŒŒì¼ë¡œëŠ” ë³‘ë ¬ ë³µì› ì‘ì—…ì„ í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n"
-
-#: pg_backup_custom.c:774
-#, c-format
-msgid "could not set seek position in archive file: %s\n"
-msgstr "ì•„ì¹´ì´ë¸Œ íŒŒì¼ì—ì„œ ê²€ìƒ‰ ìœ„ì¹˜ë¥¼ ì„¤ì •í•  ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_custom.c:792
-#, c-format
-msgid "compressor active\n"
-msgstr "ì••ì¶•ê¸° ì‚¬ìš©\n"
-
-#: pg_backup_custom.c:912
-#, c-format
-msgid "WARNING: ftell mismatch with expected position -- ftell used\n"
-msgstr "ê²½ê³ : ftell ê°’ê³¼, ì˜ˆìƒë˜ëŠ” ìœ„ì¹˜ê°’ì´ í‹€ë¦¼ -- ftell ê°’ì´ ì‚¬ìš©ë¨\n"
-
-#. translator: this is a module name
-#: pg_backup_db.c:31
-msgid "archiver (db)"
-msgstr "ë¤í”„ë°›ì„ DB"
-
-#: pg_backup_db.c:47
-#, c-format
-msgid "could not get server_version from libpq\n"
-msgstr "libpqì—ì„œ server_verion ê°’ì„ êµ¬í•  ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_db.c:58 pg_dumpall.c:2067
-#, c-format
-msgid "server version: %s; %s version: %s\n"
-msgstr "ì„œë²„ ë²„ì „: %s; %s ë²„ì „: %s\n"
-
-#: pg_backup_db.c:60 pg_dumpall.c:2069
-#, c-format
-msgid "aborting because of server version mismatch\n"
-msgstr "ì„œë²„ ë²„ì „ì´ ì¼ì¹˜í•˜ì§€ ì•Šì•„ ì¤‘ë‹¨í•˜ëŠ” ì¤‘\n"
-
-#: pg_backup_db.c:149
-#, c-format
-msgid "connecting to database \"%s\" as user \"%s\"\n"
-msgstr "\"%s\" ë°ì´í„°ë² ì´ìŠ¤ë¥¼ \"%s\" ì‚¬ìš©ìë¡œ ì ‘ì†í•©ë‹ˆë‹¤\n"
-
-#: pg_backup_db.c:156 pg_backup_db.c:208 pg_backup_db.c:270 pg_backup_db.c:312
-#: pg_dumpall.c:1893 pg_dumpall.c:2005
-msgid "Password: "
-msgstr "ì•”í˜¸: "
-
-#: pg_backup_db.c:189
-#, c-format
-msgid "failed to reconnect to database\n"
-msgstr "ë°ì´í„°ë² ì´ìŠ¤ ì¬ì ‘ì† ì‹¤íŒ¨\n"
-
-#: pg_backup_db.c:194
-#, c-format
-msgid "could not reconnect to database: %s"
-msgstr "ë°ì´í„°ë² ì´ìŠ¤ ì¬ì ‘ì†ì„ í•  ìˆ˜ ì—†ìŒ: %s"
-
-#: pg_backup_db.c:210
-#, c-format
-msgid "connection needs password\n"
-msgstr "ì—°ê²°í•˜ë ¤ë©´ ì•”í˜¸ í•„ìš”\n"
-
-#: pg_backup_db.c:264
-#, c-format
-msgid "already connected to a database\n"
-msgstr "ë°ì´í„°ë² ì´ìŠ¤ì— ì´ë¯¸ ì ‘ì†í•´ ìˆìŒ\n"
-
-#: pg_backup_db.c:304
-#, c-format
-msgid "failed to connect to database\n"
-msgstr "ë°ì´í„°ë² ì´ìŠ¤ ì ‘ì† ì‹¤íŒ¨\n"
-
-#: pg_backup_db.c:321
-#, c-format
-msgid "connection to database \"%s\" failed: %s"
-msgstr "\"%s\" ë°ì´í„°ë² ì´ìŠ¤ì— ì ‘ì† í•  ìˆ˜ ì—†ìŒ: %s"
-
-#: pg_backup_db.c:391
-#, c-format
-msgid "%s"
-msgstr "%s"
-
-#: pg_backup_db.c:398
-#, c-format
-msgid "query failed: %s"
-msgstr "ì¿¼ë¦¬ ì‹¤íŒ¨: %s"
-
-#: pg_backup_db.c:400
-#, c-format
-msgid "query was: %s\n"
-msgstr "ì‚¬ìš©í•œ ì¿¼ë¦¬: %s\n"
-
-#: pg_backup_db.c:442
-#, c-format
-msgid "query returned %d row instead of one: %s\n"
-msgid_plural "query returned %d rows instead of one: %s\n"
-msgstr[0] "ì¿¼ë¦¬ì—ì„œ í•œ ê°œê°€ ì•„ë‹Œ %dê°œì˜ í–‰ì„ ë°˜í™˜: %s\n"
-
-#: pg_backup_db.c:487
-#, c-format
-msgid "%s: %s    Command was: %s\n"
-msgstr "%s: %s    ì‚¬ìš©ëœ ëª…ë ¹: %s\n"
-
-#: pg_backup_db.c:543 pg_backup_db.c:617 pg_backup_db.c:624
-msgid "could not execute query"
-msgstr "ì¿¼ë¦¬ë¥¼ ì‹¤í–‰ í•  ìˆ˜ ì—†ìŒ"
-
-#: pg_backup_db.c:596
-#, c-format
-msgid "error returned by PQputCopyData: %s"
-msgstr "PQputCopyDataì— ì˜í•´ì„œ ì˜¤ë¥˜ê°€ ë°˜í™˜ë˜ì—ˆìŒ: %s"
-
-#: pg_backup_db.c:645
-#, c-format
-msgid "error returned by PQputCopyEnd: %s"
-msgstr "PQputCopyEndì— ì˜í•´ì„œ ì˜¤ë¥˜ê°€ ë°˜í™˜ë˜ì—ˆìŒ: %s"
-
-#: pg_backup_db.c:651
-#, c-format
-msgid "COPY failed for table \"%s\": %s"
-msgstr "\"%s\" í…Œì´ë¸”ì„ ìœ„í•œ COPY ì‹¤íŒ¨: %s"
-
-#: pg_backup_db.c:657 pg_dump.c:1787
-#, c-format
-msgid "WARNING: unexpected extra results during COPY of table \"%s\"\n"
-msgstr "ê²½ê³ : \"%s\" í…Œì´ë¸” COPY ì‘ì—… ì¤‘ ì˜ëª»ëœ ë¶€ê°€ ê²°ê³¼ê°€ ìˆìŒ\n"
-
-#: pg_backup_db.c:669
-msgid "could not start database transaction"
-msgstr "ë°ì´í„°ë² ì´ìŠ¤ íŠ¸ëœì­ì…˜ì„ ì‹œì‘í•  ìˆ˜ ì—†ìŒ"
-
-#: pg_backup_db.c:677
-msgid "could not commit database transaction"
-msgstr "ë°ì´í„°ë² ì´ìŠ¤ íŠ¸ëœì­ì…˜ì„ commit í•  ìˆ˜ ì—†ìŒ"
-
-#. translator: this is a module name
-#: pg_backup_directory.c:64
-msgid "directory archiver"
-msgstr "ë””ë ‰í„°ë¦¬ ì•„ì¹´ì´ë²„"
-
-#: pg_backup_directory.c:162
-#, c-format
-msgid "no output directory specified\n"
-msgstr "ìë£Œê°€ ì €ì¥ë  ë””ë ‰í„°ë¦¬ë¥¼ ì§€ì •í•˜ì§€ ì•Šì•˜ìŒ\n"
-
-#: pg_backup_directory.c:191
-#, c-format
-msgid "could not read directory \"%s\": %s\n"
-msgstr "\"%s\" ë””ë ‰í„°ë¦¬ë¥¼ ì½ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_directory.c:195
-#, c-format
-msgid "could not close directory \"%s\": %s\n"
-msgstr "\"%s\" ë””ë ‰í„°ë¦¬ë¥¼ ë‹«ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_directory.c:201
-#, c-format
-msgid "could not create directory \"%s\": %s\n"
-msgstr "\"%s\" ë””ë ‰í„°ë¦¬ë¥¼ ë§Œë“¤ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_directory.c:412
-#, c-format
-msgid "could not close data file: %s\n"
-msgstr "ìë£Œ íŒŒì¼ì„ ë‹«ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_directory.c:453
-#, c-format
-msgid "could not open large object TOC file \"%s\" for input: %s\n"
-msgstr "ì…ë ¥ìš© large object TOC íŒŒì¼(\"%s\")ì„ ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_directory.c:464
-#, c-format
-msgid "invalid line in large object TOC file \"%s\": \"%s\"\n"
-msgstr "large object TOC íŒŒì¼(\"%s\")ì„ ë‹«ì„ ìˆ˜ ì—†ìŒ: \"%s\"\n"
-
-#: pg_backup_directory.c:473
-#, c-format
-msgid "error reading large object TOC file \"%s\"\n"
-msgstr "large object TOC íŒŒì¼(\"%s\")ì„ ë‹«ì„ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_directory.c:477
-#, c-format
-msgid "could not close large object TOC file \"%s\": %s\n"
-msgstr "large object TOC íŒŒì¼(\"%s\")ì„ ë‹«ì„ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_directory.c:684
-#, c-format
-msgid "could not write to blobs TOC file\n"
-msgstr "blob TOC íŒŒì¼ì— ì“¸ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_directory.c:716
-#, c-format
-msgid "file name too long: \"%s\"\n"
-msgstr "íŒŒì¼ ì´ë¦„ì´ ë„ˆë¬´ ê¸º: \"%s\"\n"
-
-#: pg_backup_directory.c:802
-#, c-format
-msgid "error during backup\n"
-msgstr "ë°±ì—… ì¤‘ ì˜¤ë¥˜\n"
-
-#: pg_backup_null.c:75
-#, c-format
-msgid "this format cannot be read\n"
-msgstr "ì´ íŒŒì¼ í˜•íƒœëŠ” ì½ì„ ìˆ˜ ì—†ìŒ\n"
-
-#. translator: this is a module name
-#: pg_backup_tar.c:102
-msgid "tar archiver"
-msgstr "tar ì•„ì¹´ì´ë²„"
-
-#: pg_backup_tar.c:183
-#, c-format
-msgid "could not open TOC file \"%s\" for output: %s\n"
-msgstr "ì¶œë ¥ìš© TOC íŒŒì¼ \"%s\"ì„(ë¥¼) ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_tar.c:191
-#, c-format
-msgid "could not open TOC file for output: %s\n"
-msgstr "ì¶œë ¥ìš© TOC íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_tar.c:212 pg_backup_tar.c:368
-#, c-format
-msgid "compression is not supported by tar archive format\n"
-msgstr "tar ì¶œë ¥ í¬ë©§ì—ì„œ ì••ì¶• ê¸°ëŠ¥ì„ ì§€ì›í•˜ì§€ ì•ŠìŒ\n"
-
-#: pg_backup_tar.c:220
-#, c-format
-msgid "could not open TOC file \"%s\" for input: %s\n"
-msgstr "ì…ë ¥ìš© TOC íŒŒì¼(\"%s\")ì„ ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_tar.c:227
-#, c-format
-msgid "could not open TOC file for input: %s\n"
-msgstr "ì…ë ¥ìš© TOC íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_tar.c:354
-#, c-format
-msgid "could not find file \"%s\" in archive\n"
-msgstr "ì•„ì¹´ì´ë¸Œì—ì„œ \"%s\" íŒŒì¼ì„ ì°¾ì„ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_tar.c:420
-#, c-format
-msgid "could not generate temporary file name: %s\n"
-msgstr "ì„ì‹œ íŒŒì¼ ì´ë¦„ì„ ì§“ì§€ ëª»í–ˆìŠµë‹ˆë‹¤: %s\n"
-
-#: pg_backup_tar.c:431
-#, c-format
-msgid "could not open temporary file\n"
-msgstr "ì„ì‹œ íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_tar.c:458
-#, c-format
-msgid "could not close tar member\n"
-msgstr "tar ë§´ë²„ë¥¼ ë‹«ì§€ ëª»í–ˆìŠµë‹ˆë‹¤\n"
-
-#: pg_backup_tar.c:571
-#, c-format
-msgid "internal error -- neither th nor fh specified in tarReadRaw()\n"
-msgstr "ë‚´ë¶€ ì˜¤ë¥˜ - tarReadRaw()ì—ì„œ th, fh ë‘˜ë‹¤ ì§€ì •í•˜ì§€ ì•Šì•˜ìŒ\n"
-
-#: pg_backup_tar.c:694
-#, c-format
-msgid "unexpected COPY statement syntax: \"%s\"\n"
-msgstr "COPY êµ¬ë¬¸ ì˜¤ë¥˜: \"%s\"\n"
-
-#: pg_backup_tar.c:960
-#, c-format
-msgid "invalid OID for large object (%u)\n"
-msgstr "ì˜ëª»ëœ large object OID: %u\n"
-
-#: pg_backup_tar.c:1104
-#, c-format
-msgid "could not close temporary file: %s\n"
-msgstr "ì„ì‹œ íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_backup_tar.c:1114
-#, c-format
-msgid "actual file length (%s) does not match expected (%s)\n"
-msgstr "ì‹¤ì¬ íŒŒì¼ ê¸¸ì´(%s)ì™€ ì˜ˆìƒë˜ëŠ” ê°’(%s)ì´ í‹€ë¦½ë‹ˆë‹¤\n"
-
-#: pg_backup_tar.c:1151
-#, c-format
-msgid "moving from position %s to next member at file position %s\n"
-msgstr "%s ìœ„ì¹˜ì—ì„œ ë‹¤ìŒ ë§´ë²„ë¡œ ì´ë™í•©ë‹ˆë‹¤, í•´ë‹¹ íŒŒì¼ ìœ„ì¹˜ %s\n"
-
-#: pg_backup_tar.c:1162
-#, c-format
-msgid "now at file position %s\n"
-msgstr "ìƒˆë¡œ ì´ë™ëœ íŒŒì¼ ìœ„ì¹˜: %s\n"
-
-#: pg_backup_tar.c:1171 pg_backup_tar.c:1201
-#, c-format
-msgid "could not find header for file \"%s\" in tar archive\n"
-msgstr "tar ì•„ì¹´ì´ë¸Œì—ì„œ \"%s\" íŒŒì¼ì„ ìœ„í•œ í—¤ë”ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_backup_tar.c:1185
-#, c-format
-msgid "skipping tar member %s\n"
-msgstr "%s tar ë§´ë²„ëŠ” ê±´ë„ˆëœë‹ˆë‹¤\n"
-
-#: pg_backup_tar.c:1189
-#, c-format
-msgid ""
-"restoring data out of order is not supported in this archive format: \"%s\" "
-"is required, but comes before \"%s\" in the archive file.\n"
-msgstr ""
-"ìˆœì„œë¥¼ ë„˜ì–´ì„œëŠ” ìë£Œ ë¤í”„ ì‘ì—…ì€ ì´ ì•„ì¹´ì´ë¸Œ í¬ë©§ì—ì„œëŠ” ì§€ì›í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤: "
-"\"%s\" ìš”êµ¬ë˜ì—ˆì§€ë§Œ, ì´ ì•„ì¹´ì´ë¸Œ íŒŒì¼ì—ì„œëŠ” \"%s\" ì „ì— ì˜µë‹ˆë‹¤.\n"
-
-#: pg_backup_tar.c:1235
-#, c-format
-msgid "incomplete tar header found (%lu byte)\n"
-msgid_plural "incomplete tar header found (%lu bytes)\n"
-msgstr[0] "ë¶ˆì™„ì „í•œ tar í—¤ë”ê°€ ìˆìŒ(%luë°”ì´íŠ¸)\n"
-
-#: pg_backup_tar.c:1276
-#, c-format
-msgid "TOC Entry %s at %s (length %s, checksum %d)\n"
-msgstr "TOC Entry %s at %s (length %s, checksum %d)\n"
-
-#: pg_backup_tar.c:1287
-#, c-format
-msgid ""
-"corrupt tar header found in %s (expected %d, computed %d) file position %s\n"
-msgstr "%s ì•ˆì— ì†ìƒëœ tar í—¤ë” ë°œê²¬ (ì˜ˆìƒì¹˜ %d, ê³„ì‚°ëœ ê°’ %d), íŒŒì¼ ìœ„ì¹˜ %s\n"
-
-#: pg_backup_utils.c:54
-#, c-format
-msgid "%s: unrecognized section name: \"%s\"\n"
-msgstr "%s: ì˜ëª»ëœ ì„¹ì…˜ ì´ë¦„: \"%s\"\n"
-
-#: pg_backup_utils.c:56 pg_dump.c:533 pg_dump.c:550 pg_dumpall.c:299
-#: pg_dumpall.c:309 pg_dumpall.c:319 pg_dumpall.c:328 pg_dumpall.c:344
-#: pg_dumpall.c:402 pg_restore.c:279 pg_restore.c:295 pg_restore.c:307
+"X-Poedit-Language: Korean\n"
+"X-Poedit-Country: KOREA, REPUBLIC OF\n"
+
+#: pg_dump.c:364
+#: pg_restore.c:229
+msgid "User name: "
+msgstr "»ç¿ëÀÚ ÀÌ¸§:"
+
+#: pg_dump.c:400
+#: pg_dumpall.c:264
+#: pg_restore.c:256
+#, c-format
+msgid "%s: invalid -X option -- %s\n"
+msgstr "%s: Àß¸øµÈ -X ¿É¼Ç -- %s\n"
+
+#: pg_dump.c:402
+#: pg_dump.c:416
+#: pg_dump.c:425
+#: pg_dumpall.c:266
+#: pg_dumpall.c:275
+#: pg_dumpall.c:292
+#: pg_restore.c:258
+#: pg_restore.c:268
+#: pg_restore.c:285
 #, c-format
 msgid "Try \"%s --help\" for more information.\n"
-msgstr "ë³´ë‹¤ ìì„¸í•œ ì‚¬ìš©ë²•ì€ \"%s --help\"\n"
+msgstr "º¸´Ù ÀÚ¼¼ÇÑ »ç¿ë¹ıÀº \"%s --help\"\n"
 
-#: pg_backup_utils.c:118
-#, c-format
-msgid "out of on_exit_nicely slots\n"
-msgstr "on_exit_nicely ìŠ¬ë¡¯ ë²”ìœ„ ë²—ì–´ë‚¨\n"
-
-#: pg_dump.c:503
-#, c-format
-msgid "compression level must be in range 0..9\n"
-msgstr "ì••ì¶• ìˆ˜ìœ„ëŠ” 0ë¶€í„° 9ê¹Œì§€ ì§€ì •í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.\n"
-
-#: pg_dump.c:548 pg_dumpall.c:307 pg_restore.c:293
+#: pg_dump.c:423
+#: pg_dumpall.c:290
 #, c-format
 msgid "%s: too many command-line arguments (first is \"%s\")\n"
-msgstr "%s: ë„ˆë¬´ ë§ì€ ëª…ë ¹í–‰ ì¸ìˆ˜ë“¤ (ì‹œì‘ \"%s\")\n"
+msgstr "%s: ³Ê¹« ¸¹Àº ¸í·ÉÇà ÀÎÀÚµé (½ÃÀÛ \"%s\")\n"
 
-#: pg_dump.c:561
-#, c-format
-msgid "options -s/--schema-only and -a/--data-only cannot be used together\n"
-msgstr "-s/--schema-only ë° -a/--data-only ì˜µì…˜ì€ í•¨ê»˜ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ\n"
+#: pg_dump.c:436
+msgid "options \"schema only\" (-s) and \"data only\" (-a) cannot be used together\n"
+msgstr "-s ¿É¼Ç°ú -a ¿É¼ÇÀº ÇÔ²² »ç¿ëµÉ ¼ö ¾ø½À´Ï´Ù.\n"
 
-#: pg_dump.c:567
-#, c-format
-msgid "options -c/--clean and -a/--data-only cannot be used together\n"
-msgstr "-c/--clean ë° -a/--data-only ì˜µì…˜ì€ í•¨ê»˜ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ\n"
+#: pg_dump.c:442
+msgid "options \"clean\" (-c) and \"data only\" (-a) cannot be used together\n"
+msgstr "-c ¿É¼Ç°ú -a ¿É¼ÇÀº ÇÔ²² »ç¿ëÇÒ ¼ö ¾ø½À´Ï´Ù.\n"
 
-#: pg_dump.c:573
-#, c-format
-msgid ""
-"options --inserts/--column-inserts and -o/--oids cannot be used together\n"
-msgstr "--inserts/--column-inserts ë° -o/--oids ì˜µì…˜ì€ í•¨ê»˜ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ\n"
+#: pg_dump.c:448
+msgid "large-object output not supported for a single table\n"
+msgstr "large-object Ãâ·ÂÀº ´ÜÀÏ Å×ÀÌºí ÀÛ¾÷¿¡¼­´Â Áö¿øÇÏÁö ¾Ê½À´Ï´Ù\n"
 
-#: pg_dump.c:574
-#, c-format
+#: pg_dump.c:449
+#: pg_dump.c:456
+msgid "use a full dump instead\n"
+msgstr "´ë½Å¿¡ ÀüÃ¼ ´ıÇÁ¸¦ »ç¿ëÇÏ½Ê½Ã¿À.\n"
+
+#: pg_dump.c:455
+msgid "large-object output not supported for a single schema\n"
+msgstr "large-object Ãâ·ÂÀº ´ÜÀÏ SCHEMA ÀÛ¾÷¿¡¼­´Â Áö¿øÇÏÁö ¾Ê½À´Ï´Ù\n"
+
+#: pg_dump.c:462
+msgid "INSERT (-d, -D) and OID (-o) options cannot be used together\n"
+msgstr "INSERT (-d, -D) ¿É¼Ç°ú OID (-o) ¿É¼ÇÀº ÇÔ²² »ç¿ëµÉ ¼ö ¾ø½À´Ï´Ù\n"
+
+#: pg_dump.c:463
 msgid "(The INSERT command cannot set OIDs.)\n"
-msgstr "(INSERT ëª…ë ¹ìœ¼ë¡œëŠ” OID ê°’ì„ ì…ë ¥í•  ìˆ˜ ì—†ìŒ.)\n"
+msgstr "(INSERT ¸í·ÉÀ¸·Î´Â OID °ªÀ» ÀÔ·ÂÇÒ ¼ö ¾øÀ½.)\n"
 
-#: pg_dump.c:579
+#: pg_dump.c:469
+msgid "large-object output is not supported for plain-text dump files\n"
+msgstr "large-object Ãâ·ÂÀº plain-text ´ıÇÁ ÆÄÀÏ ÇüÅÂ¿¡¼­´Â Áö¿øÇÏÁö ¾ÊÀ½\n"
+
+#: pg_dump.c:470
+msgid "(Use a different output format.)\n"
+msgstr "(´Ù¸¥ Ãâ·Â ÆÄÀÏ ÇüÅÂ¸¦ »ç¿ëÇÏ¼¼¿ä.)\n"
+
+#: pg_dump.c:499
 #, c-format
-msgid "option --if-exists requires option -c/--clean\n"
-msgstr "--if-exists ì˜µì…˜ì€ -c/--clean ì˜µì…˜ê³¼ í•¨ê»˜ ì‚¬ìš©í•´ì•¼ í•¨\n"
+msgid "invalid output format \"%s\" specified\n"
+msgstr "\"%s\" °ªÀº Àß¸øµÈ Ãâ·Â ÆÄÀÏ ÇüÅÂÀÔ´Ï´Ù.\n"
 
-#: pg_dump.c:601
+#: pg_dump.c:505
 #, c-format
-msgid ""
-"WARNING: requested compression not available in this installation -- archive "
-"will be uncompressed\n"
-msgstr ""
-"ê²½ê³ : ìš”ì²­í•œ ì••ì¶• ê¸°ëŠ¥ì€ ì´ ì„¤ì¹˜íŒì—ì„œëŠ” ì‚¬ìš©í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤ -- ìë£Œ íŒŒì¼ì€ ì••"
-"ì¶• ì—†ì´ ë§Œë“¤ì–´ì§ˆ ê²ƒì…ë‹ˆë‹¤\n"
+msgid "could not open output file \"%s\" for writing\n"
+msgstr "\"%s\" ÆÄÀÏÀ» ¾²±â ¸ğµå·Î ¿­ ¼ö ¾øÀ½\n"
 
-#: pg_dump.c:616
+#: pg_backup_db.c:52
+#: pg_dump.c:516
 #, c-format
-msgid "%s: invalid number of parallel jobs\n"
-msgstr "%s: ì˜ëª»ëœ ë³‘ë ¬ ì‘ì—… ìˆ˜\n"
+msgid "could not parse version string \"%s\"\n"
+msgstr "\"%s\" ¹öÀü ¹®ÀÚ¿­À» ºĞ¼®ÇÒ ¼ö ¾øÀ½\n"
 
-#: pg_dump.c:620
-#, c-format
-msgid "parallel backup only supported by the directory format\n"
-msgstr "ë³‘ë ¬ ë°±ì—…ì€ ë””ë ‰í„°ë¦¬ ê¸°ë°˜ ì¶œë ¥ì¼ ë•Œë§Œ ì‚¬ìš©í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n"
-
-#: pg_dump.c:677
-#, c-format
-msgid ""
-"Synchronized snapshots are not supported by this server version.\n"
-"Run with --no-synchronized-snapshots instead if you do not need\n"
-"synchronized snapshots.\n"
-msgstr ""
-"ì´ ì„œë²„ ë²„ì „ì—ì„œëŠ” ë™ê¸°í™”ëœ ìŠ¤ëƒ…ìƒ· ê¸°ëŠ¥ì„ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ.\n"
-"ë™ê¸°í™”ëœ ìŠ¤ëƒ…ìƒ· ê¸°ëŠ¥ì´ í•„ìš” ì—†ë‹¤ë©´, --no-synchronized-snapshots\n"
-"ì˜µì…˜ì„ ì§€ì •í•´ì„œ ë¤í”„í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.\n"
-
-#: pg_dump.c:684
-#, c-format
-msgid "Exported snapshots are not supported by this server version.\n"
-msgstr "ì´ ì„œë²„ëŠ” exported snapshotë¥¼ ì§€ì›í•˜ì§€ ì•ŠìŒ.\n"
-
-#: pg_dump.c:695
+#: pg_dump.c:552
 #, c-format
 msgid "last built-in OID is %u\n"
-msgstr "ë§ˆì§€ë§‰ ë‚´ì¥ OIDëŠ” %u\n"
+msgstr "¸¶Áö¸· ³»Àå OID´Â %u\n"
 
-#: pg_dump.c:705
-#, c-format
-msgid "no matching schemas were found\n"
-msgstr "ì¡°ê±´ì— ë§ëŠ” ìŠ¤í‚¤ë§ˆê°€ ì—†ìŠµë‹ˆë‹¤\n"
-
-#: pg_dump.c:719
-#, c-format
-msgid "no matching tables were found\n"
-msgstr "ì¡°ê±´ì— ë§ëŠ” í…Œì´ë¸”ì´ ì—†ìŠµë‹ˆë‹¤\n"
-
-#: pg_dump.c:878
+#: pg_dump.c:663
 #, c-format
 msgid ""
 "%s dumps a database as a text file or to other formats.\n"
 "\n"
 msgstr ""
-"%s í”„ë¡œê·¸ë¨ì€ ë°ì´í„°ë² ì´ìŠ¤ë¥¼ í…ìŠ¤íŠ¸ íŒŒì¼ ë˜ëŠ” ê¸°íƒ€\n"
-"ë‹¤ë¥¸ í˜•íƒœì˜ íŒŒì¼ë¡œ ë¤í”„í•©ë‹ˆë‹¤.\n"
+"%s ÇÁ·Î±×·¥Àº µ¥ÀÌÅÍº£ÀÌ½º¸¦ ÅØ½ºÆ® ÆÄÀÏ ¶Ç´Â ±âÅ¸\n"
+"´Ù¸¥ ÇüÅÂÀÇ ÆÄÀÏ·Î ´ıÇÁÇÕ´Ï´Ù.\n"
 "\n"
 
-#: pg_dump.c:879 pg_dumpall.c:547 pg_restore.c:437
-#, c-format
+#: pg_dump.c:664
+#: pg_dumpall.c:337
+#: pg_restore.c:359
 msgid "Usage:\n"
-msgstr "ì‚¬ìš©ë²•:\n"
+msgstr "»ç¿ë¹ı:\n"
 
-#: pg_dump.c:880
+#: pg_dump.c:665
 #, c-format
 msgid "  %s [OPTION]... [DBNAME]\n"
-msgstr "  %s [ì˜µì…˜]... [DBì´ë¦„]\n"
+msgstr "  %s [¿É¼Ç]... [DBÀÌ¸§]\n"
 
-#: pg_dump.c:882 pg_dumpall.c:550 pg_restore.c:440
-#, c-format
+#: pg_dump.c:667
+#: pg_dumpall.c:340
+#: pg_restore.c:362
 msgid ""
 "\n"
 "General options:\n"
 msgstr ""
 "\n"
-"ì¼ë°˜ ì˜µì…˜ë“¤:\n"
+"ÀÏ¹İ ¿É¼Çµé:\n"
 
-#: pg_dump.c:883
-#, c-format
-msgid "  -f, --file=FILENAME          output file or directory name\n"
-msgstr "  -f, --file=íŒŒì¼ì´ë¦„          ì¶œë ¥ íŒŒì¼ ë˜ëŠ” ë””ë ‰í„°ë¦¬ ì´ë¦„\n"
+#: pg_dump.c:668
+#: pg_restore.c:364
+msgid "  -f, --file=FILENAME      output file name\n"
+msgstr "  -f, --file=FILENAME      Ãâ·Â ÆÄÀÏ ÀÌ¸§\n"
 
-#: pg_dump.c:884
-#, c-format
+#: pg_dump.c:669
+msgid "  -F, --format=c|t|p       output file format (custom, tar, plain text)\n"
+msgstr "  -F, --format=c|t|p       Ãâ·ÂÆÄÀÏ ÇüÅÂ (custom, tar, plain text)\n"
+
+#: pg_dump.c:670
 msgid ""
-"  -F, --format=c|d|t|p         output file format (custom, directory, tar,\n"
-"                               plain text (default))\n"
+"  -i, --ignore-version     proceed even when server version mismatches\n"
+"                           pg_dump version\n"
 msgstr ""
-"  -F, --format=c|d|t|p         ì¶œë ¥ íŒŒì¼ í˜•ì‹(ì‚¬ìš©ì ì§€ì •, ë””ë ‰í„°ë¦¬, tar,\n"
-"                               ì¼ë°˜ í…ìŠ¤íŠ¸(ì´ˆê¸°ê°’))\n"
+"  -i, --ignore-version     ¼­¹ö ¹öÀü°ú, pg_dump ¹öÀüÀÌ ¼­·Î Æ²·Áµµ\n"
+"                           ¹«½ÃÇÏ°í ÁøÇàÇÔ\n"
 
-#: pg_dump.c:886
-#, c-format
-msgid "  -j, --jobs=NUM               use this many parallel jobs to dump\n"
-msgstr "  -j, --jobs=ê°œìˆ˜              ë¤í”„ ì‘ì—…ì„ ë³‘ë ¬ ì²˜ë¦¬ í•¨\n"
+#: pg_dump.c:672
+#: pg_restore.c:368
+msgid "  -v, --verbose            verbose mode\n"
+msgstr "  -v, --verbose            ÀÚ¼¼ÇÑ Á¤º¸ º¸¿©ÁÜ\n"
 
-#: pg_dump.c:887
-#, c-format
-msgid "  -v, --verbose                verbose mode\n"
-msgstr "  -v, --verbose                ì‘ì—… ë‚´ì—­ì„ ìì„¸íˆ ë´„\n"
+#: pg_dump.c:673
+msgid "  -Z, --compress=0-9       compression level for compressed formats\n"
+msgstr "  -Z, --compress=0-9       ¾ĞÃàµÇ´Â ÆÄÀÏ ÇüÅÂÀÇ ¾ĞÃà·ü\n"
 
-#: pg_dump.c:888 pg_dumpall.c:552
-#, c-format
-msgid "  -V, --version                output version information, then exit\n"
-msgstr "  -V, --version                ë²„ì „ ì •ë³´ë¥¼ ë³´ì—¬ì£¼ê³  ë§ˆì¹¨\n"
+#: pg_dump.c:674
+#: pg_dumpall.c:343
+#: pg_restore.c:369
+msgid "  --help                   show this help, then exit\n"
+msgstr "  --help                   ÀÌ µµ¿ò¸»À» º¸¿©ÁÖ°í ¸¶Ä§\n"
 
-#: pg_dump.c:889
-#, c-format
-msgid ""
-"  -Z, --compress=0-9           compression level for compressed formats\n"
-msgstr "  -Z, --compress=0-9           ì¶œë ¥ ìë£Œ ì••ì¶• ìˆ˜ìœ„\n"
+#: pg_dump.c:675
+#: pg_dumpall.c:344
+#: pg_restore.c:370
+msgid "  --version                output version information, then exit\n"
+msgstr "  --version                ¹öÀü Á¤º¸¸¦ º¸¿©ÁÖ°í ¸¶Ä§\n"
 
-#: pg_dump.c:890 pg_dumpall.c:553
-#, c-format
-msgid ""
-"  --lock-wait-timeout=TIMEOUT  fail after waiting TIMEOUT for a table lock\n"
-msgstr ""
-"  --lock-wait-timeout=ì´ˆ       í…Œì´ë¸” ì ê¸ˆ ì‹œ ì§€ì •í•œ ì´ˆë§Œí¼ ê¸°ë‹¤ë¦° í›„ ì‹¤íŒ¨\n"
-
-#: pg_dump.c:891 pg_dumpall.c:554
-#, c-format
-msgid "  -?, --help                   show this help, then exit\n"
-msgstr "  -?, --help                   ì´ ë„ì›€ë§ì„ ë³´ì—¬ì£¼ê³  ë§ˆì¹¨\n"
-
-#: pg_dump.c:893 pg_dumpall.c:555
-#, c-format
+#: pg_dump.c:677
+#: pg_dumpall.c:345
 msgid ""
 "\n"
 "Options controlling the output content:\n"
 msgstr ""
 "\n"
-"ì¶œë ¥ ë‚´ìš©ì„ ë‹¤ë£¨ëŠ” ì˜µì…˜ë“¤:\n"
+"Ãâ·Â ³»¿ëÀ» ´Ù·ç´Â ¿É¼Çµé:\n"
 
-#: pg_dump.c:894 pg_dumpall.c:556
-#, c-format
-msgid "  -a, --data-only              dump only the data, not the schema\n"
-msgstr "  -a, --data-only              ìŠ¤í‚¤ë§ˆ ë¹¼ê³  ìë£Œë§Œ ë¤í”„\n"
+#: pg_dump.c:678
+#: pg_dumpall.c:346
+msgid "  -a, --data-only          dump only the data, not the schema\n"
+msgstr "  -a, --data-only          ½ºÅ°¸¶ »©°í ÀÚ·á¸¸ ´ıÇÁ\n"
 
-#: pg_dump.c:895
-#, c-format
-msgid "  -b, --blobs                  include large objects in dump\n"
-msgstr "  -b, --blobs                  Large Objectë“¤ë„ í•¨ê»˜ ë¤í”„í•¨\n"
+#: pg_dump.c:679
+msgid "  -b, --blobs              include large objects in dump\n"
+msgstr "  -b, --blobs              Large Objectµéµµ ÇÔ²² ´ıÇÁÇÔ\n"
 
-#: pg_dump.c:896 pg_restore.c:451
-#, c-format
+#: pg_dump.c:680
+#: pg_restore.c:374
+msgid "  -c, --clean              clean (drop) schema prior to create\n"
+msgstr "  -c, --clean              ´ıÇÁ°¡ ³¡³ª¸é ÇØ´ç ½ºÅ°¸¶µéÀ» »èÁ¦ÇÔ\n"
+
+#: pg_dump.c:681
+msgid "  -C, --create             include commands to create database in dump\n"
+msgstr "  -C, --create             µ¥ÀÌÅÍº£ÀÌ½º ¸¸µå´Â ¸í·É±¸¹®µµ Æ÷ÇÔ½ÃÅ´\n"
+
+#: pg_dump.c:682
+#: pg_dumpall.c:348
+msgid "  -d, --inserts            dump data as INSERT, rather than COPY, commands\n"
+msgstr "  -d, --inserts            ÀÚ·á ÀÔ·Â ¸í·ÉÀ» COPY ¸í·É´ë½Å INSERT »ç¿ë\n"
+
+#: pg_dump.c:683
+#: pg_dumpall.c:349
+msgid "  -D, --column-inserts     dump data as INSERT commands with column names\n"
+msgstr "  -D, --column-inserts     INSERT ¸í·ÉÀ» »ç¿ëÇÏ´Âµ¥ Ä®·³ ÀÌ¸§µµ Æ÷ÇÔ\n"
+
+#: pg_dump.c:684
+msgid "  -n, --schema=SCHEMA      dump the named schema only\n"
+msgstr "  -n, --schema=SCHEMA      ÁöÁ¤ÇÑ SCHEMA ÀÚ·á¸¸ ´ıÇÁ\n"
+
+#: pg_dump.c:685
+#: pg_dumpall.c:351
+msgid "  -o, --oids               include OIDs in dump\n"
+msgstr "  -o, --oids               OID Æ÷ÇÔÇØ¼­ ´ıÇÁ\n"
+
+#: pg_dump.c:686
 msgid ""
-"  -c, --clean                  clean (drop) database objects before "
-"recreating\n"
+"  -O, --no-owner           skip restoration of object ownership\n"
+"                           in plain text format\n"
 msgstr ""
-"  -c, --clean                  ë‹¤ì‹œ ë§Œë“¤ê¸° ì „ì— ë°ì´í„°ë² ì´ìŠ¤ ê°œì²´ ì§€ìš°ê¸°(ì‚­"
-"ì œ)\n"
+"  -O, --no-owner           plain text Çü½Ä ´ıÇÁ¿¡¼­\n"
+"                           °´Ã¼ÀÇ ¼ÒÀ¯ÁÖ ÁöÁ¤ÇÏ´Â ºÎºĞÀº Åë°ú\n"
 
-#: pg_dump.c:897
-#, c-format
+#: pg_dump.c:688
+#: pg_dumpall.c:353
+msgid "  -s, --schema-only        dump only the schema, no data\n"
+msgstr "  -s, --schema-only        ÀÚ·á±¸Á¶(½ºÅ°¸¶)¸¸ ´ıÇÁ\n"
+
+#: pg_dump.c:689
 msgid ""
-"  -C, --create                 include commands to create database in dump\n"
+"  -S, --superuser=NAME     specify the superuser user name to use in\n"
+"                           plain text format\n"
 msgstr ""
-"  -C, --create                 ë°ì´í„°ë² ì´ìŠ¤ ë§Œë“œëŠ” ëª…ë ¹êµ¬ë¬¸ë„ í¬í•¨ì‹œí‚´\n"
+"  -S, --superuser=NAME     plain text Çü½Ä ´ıÇÁ¿¡¼­\n"
+"                           ½´ÆÛÀ¯Àú·Î ÀÛ¾÷ÇÒ »ç¿ëÀÚ ÀÌ¸§ ÁöÁ¤\n"
 
-#: pg_dump.c:898
-#, c-format
-msgid "  -E, --encoding=ENCODING      dump the data in encoding ENCODING\n"
-msgstr "  -E, --encoding=ì¸ì½”ë”©        ì§€ì •í•œ ì¸ì½”ë”©ìœ¼ë¡œ ìë£Œë¥¼ ë¤í”„ í•¨\n"
+#: pg_dump.c:691
+msgid "  -t, --table=TABLE        dump the named table only\n"
+msgstr "  -t, --table=TABLE        ÁöÁ¤ÇÑ ÀÌ¸§ÀÇ Å×ÀÌºí¸¸ ´ıÇÁ\n"
 
-#: pg_dump.c:899
-#, c-format
-msgid "  -n, --schema=SCHEMA          dump the named schema(s) only\n"
-msgstr "  -n, --schema=SCHEMA          ì§€ì •í•œ SCHEMAë“¤ ìë£Œë§Œ ë¤í”„\n"
+#: pg_dump.c:692
+#: pg_dumpall.c:355
+msgid "  -x, --no-privileges      do not dump privileges (grant/revoke)\n"
+msgstr "  -x, --no-privileges      Á¢±Ù±ÇÇÑ (grant/revoke) Á¤º¸´Â ´ıÇÁ ¾È ÇÔ\n"
 
-#: pg_dump.c:900
-#, c-format
-msgid "  -N, --exclude-schema=SCHEMA  do NOT dump the named schema(s)\n"
-msgstr "  -N, --exclude-schema=SCHEMA  ì§€ì •í•œ SCHEMAë“¤ë§Œ ë¹¼ê³  ëª¨ë‘ ë¤í”„\n"
-
-#: pg_dump.c:901 pg_dumpall.c:559
-#, c-format
-msgid "  -o, --oids                   include OIDs in dump\n"
-msgstr "  -o, --oids                   OID í¬í•¨í•´ì„œ ë¤í”„\n"
-
-#: pg_dump.c:902
-#, c-format
+#: pg_dump.c:693
+#: pg_dumpall.c:356
 msgid ""
-"  -O, --no-owner               skip restoration of object ownership in\n"
-"                               plain-text format\n"
+"  -X disable-dollar-quoting, --disable-dollar-quoting\n"
+"                           disable dollar quoting, use SQL standard quoting\n"
 msgstr ""
-"  -O, --no-owner               ì¼ë°˜ í…ìŠ¤íŠ¸ í˜•ì‹ì—ì„œ\n"
-"                               ê°œì²´ ì†Œìœ ê¶Œ ë³µì› ê±´ë„ˆë›°ê¸°\n"
+"  -X disable-dollar-quoting, --disable-dollar-quoting\n"
+"                           ´Ş·¯ ÀÎ¿ëÇ¥±â¸¦ »ç¿ë ¾È ÇÔ, Ç¥ÁØ ÀÎ¿ëÇ¥±â »ç¿ë\n"
 
-#: pg_dump.c:904 pg_dumpall.c:562
-#, c-format
-msgid "  -s, --schema-only            dump only the schema, no data\n"
-msgstr "  -s, --schema-only            ìë£Œêµ¬ì¡°(ìŠ¤í‚¤ë§ˆ)ë§Œ ë¤í”„\n"
-
-#: pg_dump.c:905
-#, c-format
+#: pg_dump.c:695
+#: pg_dumpall.c:358
+#: pg_restore.c:388
 msgid ""
-"  -S, --superuser=NAME         superuser user name to use in plain-text "
-"format\n"
+"  -X disable-triggers, --disable-triggers\n"
+"                           disable triggers during data-only restore\n"
 msgstr ""
-"  -S, --superuser=NAME         ì¼ë°˜ í…ìŠ¤íŠ¸ í˜•ì‹ì—ì„œ ì‚¬ìš©í•  ìŠˆí¼ìœ ì € ì‚¬ìš©ì ì´"
-"ë¦„\n"
+"  -X disable-triggers, --disable-triggers\n"
+"                           µ¥ÀÌÅÍ¸¦ ÀÔ·ÂÇÏ´Â µ¿¾È Æ®¸®°Å ÀÛµ¿À» ¸·À½\n"
 
-#: pg_dump.c:906
-#, c-format
-msgid "  -t, --table=TABLE            dump the named table(s) only\n"
-msgstr "  -t, --table=TABLE            ì§€ì •í•œ ì´ë¦„ì˜ í…Œì´ë¸”ë“¤ë§Œ ë¤í”„\n"
-
-#: pg_dump.c:907
-#, c-format
-msgid "  -T, --exclude-table=TABLE    do NOT dump the named table(s)\n"
-msgstr "  -T, --exclude-table=TABLE    ì§€ì •í•œ í…Œì´ë¸”ë“¤ë§Œ ë¹¼ê³  ë¤í”„\n"
-
-#: pg_dump.c:908 pg_dumpall.c:565
-#, c-format
-msgid "  -x, --no-privileges          do not dump privileges (grant/revoke)\n"
+#: pg_dump.c:697
+#: pg_dumpall.c:360
+#: pg_restore.c:390
+msgid ""
+"  -X use-set-session-authorization, --use-set-session-authorization\n"
+"                           use SESSION AUTHORIZATION commands instead of\n"
+"                           OWNER TO commands\n"
 msgstr ""
-"  -x, --no-privileges          ì ‘ê·¼ ê¶Œí•œ (grant/revoke) ì •ë³´ëŠ” ë¤í”„ ì•ˆ í•¨\n"
+"  -X use-set-session-authorization, --use-set-session-authorization\n"
+"                           OWNER TO ¸í·É ´ë½Å¿¡ SESSION AUTHORIZATION\n"
+"                           ¸í·ÉÀ» »ç¿ë\n"
 
-#: pg_dump.c:909 pg_dumpall.c:566
-#, c-format
-msgid "  --binary-upgrade             for use by upgrade utilities only\n"
-msgstr "  --binary-upgrade             ì—…ê·¸ë ˆì´ë“œ ìœ í‹¸ë¦¬í‹° ì „ìš©\n"
-
-#: pg_dump.c:910 pg_dumpall.c:567
-#, c-format
-msgid ""
-"  --column-inserts             dump data as INSERT commands with column "
-"names\n"
-msgstr ""
-"  --column-inserts             ì¹¼ëŸ¼ ì´ë¦„ê³¼ í•¨ê»˜ INSERT ëª…ë ¹ìœ¼ë¡œ ìë£Œ ë¤í”„\n"
-
-#: pg_dump.c:911 pg_dumpall.c:568
-#, c-format
-msgid ""
-"  --disable-dollar-quoting     disable dollar quoting, use SQL standard "
-"quoting\n"
-msgstr ""
-"  --disable-dollar-quoting     $ ì¸ìš© êµ¬ë¬¸ ì‚¬ìš©ì•ˆí•¨, SQL í‘œì¤€ ë”°ì˜´í‘œ ì‚¬ìš©\n"
-
-#: pg_dump.c:912 pg_dumpall.c:569 pg_restore.c:467
-#, c-format
-msgid ""
-"  --disable-triggers           disable triggers during data-only restore\n"
-msgstr "  --disable-triggers           ìë£Œë§Œ ë³µì›í•  ë•Œ íŠ¸ë¦¬ê±° ì‚¬ìš©ì„ ì•ˆí•¨\n"
-
-#: pg_dump.c:913
-#, c-format
-msgid ""
-"  --enable-row-security        enable row security (dump only content user "
-"has\n"
-"                               access to)\n"
-msgstr ""
-"  --enable-row-security        ë¡œìš° ë³´ì•ˆ í™œì„±í™” (í˜„ì¬ ì‘ì—…ìê°€ ì ‘ê·¼í•  ìˆ˜\n"
-"                               ìˆëŠ” ìë£Œë§Œ ë¤í”„ í•¨)\n"
-
-#: pg_dump.c:915
-#, c-format
-msgid ""
-"  --exclude-table-data=TABLE   do NOT dump data for the named table(s)\n"
-msgstr "  --exclude-table-data=í…Œì´ë¸”  í•´ë‹¹ í…Œì´ë¸” ìë£ŒëŠ” ë¤í”„ ì•ˆí•¨\n"
-
-#: pg_dump.c:916 pg_dumpall.c:570 pg_restore.c:469
-#, c-format
-msgid "  --if-exists                  use IF EXISTS when dropping objects\n"
-msgstr "  --if-exists                  ê°ì²´ ì‚­ì œ ì‹œ IF EXISTS êµ¬ë¬¸ ì‚¬ìš©\n"
-
-#: pg_dump.c:917 pg_dumpall.c:571
-#, c-format
-msgid ""
-"  --inserts                    dump data as INSERT commands, rather than "
-"COPY\n"
-msgstr "  --inserts                    COPY ëŒ€ì‹  INSERT ëª…ë ¹ìœ¼ë¡œ ìë£Œ ë¤í”„\n"
-
-#: pg_dump.c:918 pg_dumpall.c:572
-#, c-format
-msgid "  --no-security-labels         do not dump security label assignments\n"
-msgstr "  --no-security-labels         ë³´ì•ˆ ë¼ë²¨ í• ë‹¹ì„ ë¤í”„ í•˜ì§€ ì•ŠìŒ\n"
-
-#: pg_dump.c:919
-#, c-format
-msgid ""
-"  --no-synchronized-snapshots  do not use synchronized snapshots in parallel "
-"jobs\n"
-msgstr ""
-"  --no-synchronized-snapshots  ë³‘ë ¬ ì‘ì—…ì—ì„œ ìŠ¤ëƒ…ìƒ· ì¼ê´€ì„±ì„ ë§ì¶”ì§€ ì•ŠìŒ\n"
-
-#: pg_dump.c:920 pg_dumpall.c:573
-#, c-format
-msgid "  --no-tablespaces             do not dump tablespace assignments\n"
-msgstr "  --no-tablespaces             í…Œì´ë¸”ìŠ¤í˜ì´ìŠ¤ í• ë‹¹ì„ ë¤í”„í•˜ì§€ ì•ŠìŒ\n"
-
-#: pg_dump.c:921 pg_dumpall.c:574
-#, c-format
-msgid "  --no-unlogged-table-data     do not dump unlogged table data\n"
-msgstr "  --no-unlogged-table-data     ì–¸ë¡œê·¸ë“œ í…Œì´ë¸” ìë£ŒëŠ” ë¤í”„í•˜ì§€ ì•ŠìŒ\n"
-
-#: pg_dump.c:922 pg_dumpall.c:575
-#, c-format
-msgid ""
-"  --quote-all-identifiers      quote all identifiers, even if not key words\n"
-msgstr ""
-"  --quote-all-identifiers      ì˜ˆì•½ì–´ê°€ ì•„ë‹ˆì—¬ë„ ëª¨ë“  ì‹ë³„ìëŠ” ë”°ì˜´í‘œë¥¼ ì”€\n"
-
-#: pg_dump.c:923
-#, c-format
-msgid ""
-"  --section=SECTION            dump named section (pre-data, data, or post-"
-"data)\n"
-msgstr ""
-"  --section=SECTION            í•´ë‹¹ ì„¹ì…˜(pre-data, data, post-data)ë§Œ ë¤í”„\n"
-
-#: pg_dump.c:924
-#, c-format
-msgid ""
-"  --serializable-deferrable    wait until the dump can run without "
-"anomalies\n"
-msgstr ""
-"  --serializable-deferrable    ìë£Œ ì •í•©ì„±ì„ ë³´ì¥í•˜ê¸° ìœ„í•´ ë¤í”„ ì‘ì—…ì„\n"
-"                               ì§ë ¬í™” ê°€ëŠ¥í•œ íŠ¸ëœì­ì…˜ìœ¼ë¡œ ì²˜ë¦¬ í•¨\n"
-
-#: pg_dump.c:925
-#, c-format
-msgid "  --snapshot=SNAPSHOT          use given snapshot for the dump\n"
-msgstr "  --snapshot=SNAPSHOT          ì§€ì •í•œ ìŠ¤ëƒ…ìƒ·ì„ ë¤í”„ í•¨\n"
-
-#: pg_dump.c:926 pg_restore.c:475
-#, c-format
-msgid ""
-"  --strict-names               require table and/or schema include patterns "
-"to\n"
-"                               match at least one entity each\n"
-msgstr ""
-"  --strict-names               í…Œì´ë¸”ì´ë‚˜ ìŠ¤í‚¤ë§ˆë¥¼ ì§€ì •í–ˆì„ ë•Œ ê·¸ íŒ¨í„´ì— ë§ëŠ”\n"
-"                               ê°ì²´ê°€ ì ì–´ë„ í•˜ë‚˜ ì´ìƒ ìˆì–´ì•¼ í•¨\n"
-
-#: pg_dump.c:928 pg_dumpall.c:576 pg_restore.c:477
-#, c-format
-msgid ""
-"  --use-set-session-authorization\n"
-"                               use SET SESSION AUTHORIZATION commands "
-"instead of\n"
-"                               ALTER OWNER commands to set ownership\n"
-msgstr ""
-"  --use-set-session-authorization\n"
-"                               SET SESSION AUTHORIZATION ëª…ë ¹ì„ ALTER OWNER "
-"ëª…ë ¹\n"
-"                               ëŒ€ì‹  ì‚¬ìš©í•˜ì—¬ ì†Œìœ ê¶Œ ì„¤ì •\n"
-
-#: pg_dump.c:932 pg_dumpall.c:580 pg_restore.c:481
-#, c-format
+#: pg_dump.c:701
+#: pg_dumpall.c:364
+#: pg_restore.c:394
 msgid ""
 "\n"
 "Connection options:\n"
 msgstr ""
 "\n"
-"ì—°ê²° ì˜µì…˜ë“¤:\n"
+"¿¬°á ¿É¼Çµé:\n"
 
-#: pg_dump.c:933
-#, c-format
-msgid "  -d, --dbname=DBNAME      database to dump\n"
-msgstr "  -d, --dbname=DBNAME      ë¤í”„í•  ë°ì´í„°ë² ì´ìŠ¤\n"
-
-#: pg_dump.c:934 pg_dumpall.c:582 pg_restore.c:482
-#, c-format
+#: pg_dump.c:702
+#: pg_dumpall.c:365
+#: pg_restore.c:395
 msgid "  -h, --host=HOSTNAME      database server host or socket directory\n"
-msgstr ""
-"  -h, --host=HOSTNAME      ì ‘ì†í•  ë°ì´í„°ë² ì´ìŠ¤ ì„œë²„ ë˜ëŠ” ì†Œì¼“ ë””ë ‰í„°ë¦¬\n"
+msgstr "  -h, --host=HOSTNAME      Á¢¼ÓÇÒ µ¥ÀÌÅÍº£ÀÌ½º ¼­¹ö ¶Ç´Â ¼ÒÄÏ µğ·ºÅä¸®\n"
 
-#: pg_dump.c:935 pg_dumpall.c:584 pg_restore.c:483
-#, c-format
+#: pg_dump.c:703
+#: pg_dumpall.c:366
+#: pg_restore.c:396
 msgid "  -p, --port=PORT          database server port number\n"
-msgstr "  -p, --port=PORT          ë°ì´í„°ë² ì´ìŠ¤ ì„œë²„ì˜ í¬íŠ¸ ë²ˆí˜¸\n"
+msgstr "  -p, --port=PORT          µ¥ÀÌÅÍº£ÀÌ½º ¼­¹öÀÇ Æ÷Æ® ¹øÈ£\n"
 
-#: pg_dump.c:936 pg_dumpall.c:585 pg_restore.c:484
-#, c-format
+#: pg_dump.c:704
+#: pg_dumpall.c:367
+#: pg_restore.c:397
 msgid "  -U, --username=NAME      connect as specified database user\n"
-msgstr "  -U, --username=NAME      ì—°ê²°í•  ë°ì´í„°ë² ì´ìŠ¤ ì‚¬ìš©ì\n"
+msgstr "  -U, --username=NAME      ¿¬°áÇÒ µ¥ÀÌÅÍº£ÀÌ½º »ç¿ëÀÚ\n"
 
-#: pg_dump.c:937 pg_dumpall.c:586 pg_restore.c:485
-#, c-format
-msgid "  -w, --no-password        never prompt for password\n"
-msgstr "  -w, --no-password        ì•”í˜¸ í”„ë¡¬í”„íŠ¸ í‘œì‹œ ì•ˆ í•¨\n"
+#: pg_dump.c:705
+#: pg_dumpall.c:368
+#: pg_restore.c:398
+msgid "  -W, --password           force password prompt (should happen automatically)\n"
+msgstr "  -W, --password           ºñ¹Ğ¹øÈ£ ÀÔ·Â ÇÁ·ÒÇÁÆ® º¸ÀÓ(ÀÚµ¿À¸·Î Ã³¸®ÇÔ)\n"
 
-#: pg_dump.c:938 pg_dumpall.c:587 pg_restore.c:486
-#, c-format
-msgid ""
-"  -W, --password           force password prompt (should happen "
-"automatically)\n"
-msgstr "  -W, --password           ì•”í˜¸ ì…ë ¥ í”„ë¡¬í”„íŠ¸ ë³´ì„(ìë™ìœ¼ë¡œ ì²˜ë¦¬í•¨)\n"
-
-#: pg_dump.c:939 pg_dumpall.c:588
-#, c-format
-msgid "  --role=ROLENAME          do SET ROLE before dump\n"
-msgstr "  --role=ROLENAME          ë¤í”„ ì „ì— SET ROLE ìˆ˜í–‰\n"
-
-#: pg_dump.c:941
-#, c-format
+#: pg_dump.c:707
 msgid ""
 "\n"
 "If no database name is supplied, then the PGDATABASE environment\n"
@@ -1803,949 +321,1471 @@ msgid ""
 "\n"
 msgstr ""
 "\n"
-"ë°ì´í„°ë² ì´ìŠ¤ ì´ë¦„ì„ ì§€ì •í•˜ì§€ ì•Šì•˜ë‹¤ë©´, PGDATABASE í™˜ê²½ë³€ìˆ˜ê°’ì„\n"
-"ì‚¬ìš©í•©ë‹ˆë‹¤.\n"
+"µ¥ÀÌÅÍº£ÀÌ½º ÀÌ¸§À» ÁöÁ¤ÇÏÁö ¾Ê¾Ò´Ù¸é, PGDATABASE È¯°æº¯¼ö°ªÀ»\n"
+"»ç¿ëÇÕ´Ï´Ù.\n"
 "\n"
 
-#: pg_dump.c:943 pg_dumpall.c:592 pg_restore.c:493
-#, c-format
+#: pg_dump.c:709
+#: pg_dumpall.c:371
+#: pg_restore.c:402
 msgid "Report bugs to <pgsql-bugs@postgresql.org>.\n"
-msgstr "ì˜¤ë¥˜ë³´ê³ : <pgsql-bugs@postgresql.org>.\n"
+msgstr "¿À·ùº¸°í: <pgsql-bugs@postgresql.org>.\n"
 
-#: pg_dump.c:960
+#: pg_backup_archiver.c:1219
+#: pg_dump.c:717
+msgid "*** aborted because of error\n"
+msgstr "*** ¿À·ù ¶§¹®¿¡ ÁßÁöµÇ¾úÀ½\n"
+
+#: pg_dump.c:799
 #, c-format
-msgid "invalid client encoding \"%s\" specified\n"
-msgstr "í´ë¼ì´ì–¸íŠ¸ ì¸ì½”ë”© ê°’ì´ ì˜ëª»ë˜ì—ˆìŠµë‹ˆë‹¤: \"%s\"\n"
+msgid "dumping contents of table %s\n"
+msgstr "%s Å×ÀÌºíÀÇ ³»¿ëÀ» ´ıÇÁ ÁßÀÔ´Ï´Ù\n"
 
-#: pg_dump.c:1102
+#: pg_dump.c:911
 #, c-format
-msgid ""
-"Synchronized snapshots are not supported on standby servers.\n"
-"Run with --no-synchronized-snapshots instead if you do not need\n"
-"synchronized snapshots.\n"
-msgstr ""
-"ëŒ€ê¸° ì„œë²„ì—ì„œëŠ” ë™ê¸°í™”ëœ ìŠ¤ëƒ…ìƒ· ê¸°ëŠ¥ì„ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ.\n"
-"ë™ê¸°í™”ëœ ìŠ¤ëƒ…ìƒ· ê¸°ëŠ¥ì´ í•„ìš” ì—†ë‹¤ë©´, --no-synchronized-snapshots\n"
-"ì˜µì…˜ì„ ì§€ì •í•´ì„œ ë¤í”„í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.\n"
+msgid "SQL command to dump the contents of table \"%s\" failed: PQendcopy() failed.\n"
+msgstr "\"%s\" Å×ÀÌºí ³»¿ëÀ» ´ıÇÁÇÏ´Â SQL ¸í·É¿¡¼­ ¿À·ù ¹ß»ı: PQendcopy() ½ÇÆĞ.\n"
 
-#: pg_dump.c:1171
-#, c-format
-msgid "invalid output format \"%s\" specified\n"
-msgstr "\"%s\" ê°’ì€ ì˜ëª»ëœ ì¶œë ¥ íŒŒì¼ í˜•íƒœì…ë‹ˆë‹¤.\n"
-
-#: pg_dump.c:1194
-#, c-format
-msgid "server version must be at least 7.3 to use schema selection switches\n"
-msgstr "ìŠ¤í‚¤ë§ˆ ì„ íƒ ì˜µì…˜ì„ ì‚¬ìš©í•˜ë ¤ë©´ ì„œë²„ ë²„ì „ì´ 7.3 ì´ìƒì´ì–´ì•¼í•©ë‹ˆë‹¤\n"
-
-#: pg_dump.c:1212 pg_dump.c:1265
-#, c-format
-msgid "no matching tables were found for pattern \"%s\"\n"
-msgstr "\"%s\" ê²€ìƒ‰ ì¡°ê±´ì— ë§Œì¡±í•˜ëŠ” í…Œì´ë¸”ì´ ì—†ìŠµë‹ˆë‹¤\n"
-
-#: pg_dump.c:1644
-#, c-format
-msgid "dumping contents of table \"%s.%s\"\n"
-msgstr "\"%s.%s\" í…Œì´ë¸”ì˜ ë‚´ìš© ë¤í”„ ì¤‘\n"
-
-#: pg_dump.c:1768
-#, c-format
-msgid "Dumping the contents of table \"%s\" failed: PQgetCopyData() failed.\n"
-msgstr "\"%s\" í…Œì´ë¸” ë‚´ìš©ì„ ë¤í”„í•˜ë©´ì„œ ì˜¤ë¥˜ ë°œìƒ: PQgetCopyData() ì‹¤íŒ¨.\n"
-
-#: pg_dump.c:1769 pg_dump.c:1779
+#: pg_dump.c:912
+#: pg_dump.c:8100
 #, c-format
 msgid "Error message from server: %s"
-msgstr "ì„œë²„ì—ì„œ ë³´ë‚¸ ì˜¤ë¥˜ ë©”ì‹œì§€: %s"
+msgstr "¼­¹ö¿¡¼­ º¸³½ ¿À·ù ¸Ş½ÃÁö: %s"
 
-#: pg_dump.c:1770 pg_dump.c:1780
+#: pg_dump.c:913
+#: pg_dump.c:8101
 #, c-format
 msgid "The command was: %s\n"
-msgstr "ì‚¬ìš©ëœ ëª…ë ¹: %s\n"
+msgstr "»ç¿ëµÈ ¸í·É: %s\n"
 
-#: pg_dump.c:1778
-#, c-format
-msgid "Dumping the contents of table \"%s\" failed: PQgetResult() failed.\n"
-msgstr "\"%s\" í…Œì´ë¸” ë‚´ìš©ì„ ë¤í”„í•˜ë©´ì„œ ì˜¤ë¥˜ ë°œìƒ: PQgetResult() ì‹¤íŒ¨.\n"
-
-#: pg_dump.c:2427
-#, c-format
+#: pg_dump.c:1184
 msgid "saving database definition\n"
-msgstr "ë°ì´í„°ë² ì´ìŠ¤ êµ¬ì„±ì •ë³´ë¥¼ ì €ì¥ì¤‘ì…ë‹ˆë‹¤\n"
+msgstr "µ¥ÀÌÅÍº£ÀÌ½º ±¸¼ºÁ¤º¸¸¦ ÀúÀåÁßÀÔ´Ï´Ù\n"
 
-#: pg_dump.c:2760
+#: pg_dump.c:1230
 #, c-format
-msgid "saving encoding = %s\n"
-msgstr "ì¸ì½”ë”© = %s ì €ì¥ì¤‘\n"
+msgid "missing pg_database entry for database \"%s\"\n"
+msgstr "\"%s\" µ¥ÀÌÅÍº£ÀÌ½ºÀÇ Á¤º¸¸¦ pg_database¿¡¼­ Ã£À» ¼ö ¾øÀ½\n"
 
-#: pg_dump.c:2787
+#: pg_dump.c:1237
 #, c-format
-msgid "saving standard_conforming_strings = %s\n"
-msgstr "standard_conforming_strings = %s ì €ì¥í•¨\n"
+msgid "query returned more than one (%d) pg_database entry for database \"%s\"\n"
+msgstr "pg_database¿¡´Â ÇÑ °³ ÀÌ»ó(%d)ÀÇ \"%s\" µ¥ÀÌÅÍº£ÀÌ½º Á¤º¸°¡ ÀÖÀ½\n"
 
-#: pg_dump.c:2827
-#, c-format
-msgid "reading large objects\n"
-msgstr "large object ì½ëŠ” ì¤‘\n"
+#: pg_dump.c:1345
+msgid "saving encoding\n"
+msgstr "ÀÎÄÚµùÀ» ÀúÀå ÁßÀÔ´Ï´Ù\n"
 
-#: pg_dump.c:3013
-#, c-format
+#: pg_dump.c:1395
 msgid "saving large objects\n"
-msgstr "large objectë“¤ì„ ì €ì¥ ì¤‘ì…ë‹ˆë‹¤\n"
+msgstr "large objectµéÀ» ÀúÀå ÁßÀÔ´Ï´Ù\n"
 
-#: pg_dump.c:3060
+#: pg_dump.c:1428
 #, c-format
-msgid "error reading large object %u: %s"
-msgstr "%u large object ì½ëŠ” ì¤‘ ì˜¤ë¥˜: %s"
+msgid "dumpBlobs(): could not open large object: %s"
+msgstr "dumpBlobs(): large object¸¦ ¿­ ¼ö ¾øÀ½: %s"
 
-#: pg_dump.c:3112
+#: pg_dump.c:1441
 #, c-format
-msgid "reading row security enabled for table \"%s.%s\"\n"
-msgstr "\"%s.%s\" í…Œì´ë¸”ì„ ìœ„í•œ ë¡œìš° ë³´ì•ˆ í™œì„±í™”ë¥¼ ì½ëŠ” ì¤‘\n"
+msgid "dumpBlobs(): error reading large object: %s"
+msgstr "dumpBlobs(): large object ÀĞ´Â Áß ¿À·ù: %s"
 
-#: pg_dump.c:3143
-#, c-format
-msgid "reading policies for table \"%s.%s\"\n"
-msgstr "\"%s.%s\" í…Œì´ë¸”ì„ ìœ„í•œ ì •ì±… ì½ëŠ” ì¤‘\n"
-
-#: pg_dump.c:3276
-#, c-format
-msgid "unexpected policy command type: \"%s\"\n"
-msgstr "ì˜ˆìƒì¹˜ ëª»í•œ ì •ì±… ëª…ë ¹ í˜•íƒœ: \"%s\"\n"
-
-#: pg_dump.c:3495
-#, c-format
-msgid "could not find parent extension for %s\n"
-msgstr "%s ê°ì²´ì™€ ê´€ë ¨ëœ ìƒìœ„ í™•ì¥ ê¸°ëŠ¥ì„ ì°¾ì„ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_dump.c:3663
+#: pg_dump.c:1558
 #, c-format
 msgid "WARNING: owner of schema \"%s\" appears to be invalid\n"
-msgstr "ê²½ê³ : \"%s\" ìŠ¤í‚¤ë§ˆì˜ ì†Œìœ ì£¼ê°€ ë°”ë¥´ì§€ ì•ŠìŠµë‹ˆë‹¤\n"
+msgstr "°æ°í: \"%s\" ½ºÅ°¸¶ÀÇ ¼ÒÀ¯ÁÖ°¡ ¹Ù¸£Áö ¾Ê½À´Ï´Ù\n"
 
-#: pg_dump.c:3706
+#: pg_dump.c:1575
+#, c-format
+msgid "specified schema \"%s\" does not exist\n"
+msgstr "ÁöÁ¤ÇÑ \"%s\" ½ºÅ°¸¶°¡ ¾ø½À´Ï´Ù.\n"
+
+#: pg_dump.c:1612
 #, c-format
 msgid "schema with OID %u does not exist\n"
-msgstr "OIDê°€ %u ì¸ ìŠ¤í‚¤ë§ˆê°€ ì—†ìŠµë‹ˆë‹¤.\n"
+msgstr "OID°¡ %u ÀÎ ½ºÅ°¸¶°¡ ¾ø½À´Ï´Ù.\n"
 
-#: pg_dump.c:4121
+#: pg_dump.c:1797
 #, c-format
 msgid "WARNING: owner of data type \"%s\" appears to be invalid\n"
-msgstr "ê²½ê³ : \"%s\" ìë£Œí˜•ì˜ ì†Œìœ ì£¼ê°€ ì ë‹¹í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.\n"
+msgstr "°æ°í: \"%s\" ÀÚ·áÇüÀÇ ¼ÒÀ¯ÁÖ°¡ Àû´çÇÏÁö ¾Ê½À´Ï´Ù.\n"
 
-#: pg_dump.c:4235
+#: pg_dump.c:1895
 #, c-format
 msgid "WARNING: owner of operator \"%s\" appears to be invalid\n"
-msgstr "ê²½ê³ : \"%s\" ì—°ì‚°ìì˜ ì†Œìœ ì£¼ê°€ ì ë‹¹í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.\n"
+msgstr "°æ°í: \"%s\" ¿¬»êÀÚÀÇ ¼ÒÀ¯ÁÖ°¡ Àû´çÇÏÁö ¾Ê½À´Ï´Ù.\n"
 
-#: pg_dump.c:4580
+#: pg_dump.c:2061
 #, c-format
 msgid "WARNING: owner of operator class \"%s\" appears to be invalid\n"
-msgstr "WARNING: \"%s\" ì—°ì‚°ì í´ë˜ìŠ¤ì˜ ì†Œìœ ì£¼ê°€ ì ë‹¹í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.\n"
+msgstr "WARNING: \"%s\" ¿¬»êÀÚ Å¬·¡½ºÀÇ ¼ÒÀ¯ÁÖ°¡ Àû´çÇÏÁö ¾Ê½À´Ï´Ù.\n"
 
-#: pg_dump.c:4671
-#, c-format
-msgid "WARNING: owner of operator family \"%s\" appears to be invalid\n"
-msgstr "ê²½ê³ : \"%s\" ì—°ì‚°ì ë¶€ë¥˜ì˜ ì†Œìœ ì£¼ê°€ ì ë‹¹í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.\n"
-
-#: pg_dump.c:4872
+#: pg_dump.c:2165
 #, c-format
 msgid "WARNING: owner of aggregate function \"%s\" appears to be invalid\n"
-msgstr "WARNING: \"%s\" ì§‘ê³„ í•¨ìˆ˜ì˜ ì†Œìœ ì£¼ê°€ ì ë‹¹í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.\n"
+msgstr "WARNING: \"%s\" Áı°è ÇÔ¼öÀÇ ¼ÒÀ¯ÁÖ°¡ Àû´çÇÏÁö ¾Ê½À´Ï´Ù.\n"
 
-#: pg_dump.c:5137
+#: pg_dump.c:2299
 #, c-format
 msgid "WARNING: owner of function \"%s\" appears to be invalid\n"
-msgstr "WARNING: \"%s\" í•¨ìˆ˜ì˜ ì†Œìœ ì£¼ê°€ ì ë‹¹í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.\n"
+msgstr "WARNING: \"%s\" ÇÔ¼öÀÇ ¼ÒÀ¯ÁÖ°¡ Àû´çÇÏÁö ¾Ê½À´Ï´Ù.\n"
 
-#: pg_dump.c:5999
+#: pg_dump.c:2577
 #, c-format
 msgid "WARNING: owner of table \"%s\" appears to be invalid\n"
-msgstr "WARNING: \"%s\" í…Œì´ë¸”ì˜ ì†Œìœ ì£¼ê°€ ì ë‹¹í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.\n"
+msgstr "WARNING: \"%s\" Å×ÀÌºíÀÇ ¼ÒÀ¯ÁÖ°¡ Àû´çÇÏÁö ¾Ê½À´Ï´Ù.\n"
 
-#: pg_dump.c:6165
+#: pg_dump.c:2596
 #, c-format
-msgid "reading indexes for table \"%s.%s\"\n"
-msgstr "\"%s.%s\" í…Œì´ë¸”ì—ì„œ ì‚¬ìš©í•˜ëŠ” ì¸ë±ìŠ¤ë“¤ì„ ì½ëŠ” ì¤‘\n"
+msgid "specified table \"%s\" does not exist\n"
+msgstr "ÁöÁ¤ÇÑ \"%s\" Å×ÀÌºíÀÌ ¾ø½À´Ï´Ù\n"
 
-#: pg_dump.c:6533
+#: pg_dump.c:2703
 #, c-format
-msgid "reading foreign key constraints for table \"%s.%s\"\n"
-msgstr "\"%s.%s\" í…Œì´ë¸”ì—ì„œ ì‚¬ìš©í•˜ëŠ” ì°¸ì¡°í‚¤ ì œì•½ì¡°ê±´ì„ ì½ëŠ” ì¤‘\n"
+msgid "reading indexes for table \"%s\"\n"
+msgstr "\"%s\" Å×ÀÌºí¿¡¼­ »ç¿ëÇÏ´Â ÀÎµ¦½ºµéÀ» Ã£´Â Áß ÀÔ´Ï´Ù\n"
 
-#: pg_dump.c:6779
+#: pg_dump.c:2940
 #, c-format
-msgid ""
-"failed sanity check, parent table OID %u of pg_rewrite entry OID %u not "
-"found\n"
-msgstr ""
-"ì˜ì¡´ì„± ê²€ì‚¬ ì‹¤íŒ¨, ë¶€ëª¨ í…Œì´ë¸” OID %u ì—†ìŒ. í•´ë‹¹ pg_rewrite ê°œì²´ OID %u\n"
+msgid "reading foreign key constraints for table \"%s\"\n"
+msgstr "\"%s\" Å×ÀÌºí¿¡¼­ »ç¿ëÇÏ´Â ÂüÁ¶Å° Á¦¾àÁ¶°ÇÀ» Ã£´Â ÁßÀÔ´Ï´Ù\n"
 
-#: pg_dump.c:6873
+#: pg_dump.c:3225
 #, c-format
-msgid "reading triggers for table \"%s.%s\"\n"
-msgstr "\"%s.%s\" í…Œì´ë¸”ì—ì„œ ì‚¬ìš©í•˜ëŠ” íŠ¸ë¦¬ê±°ë“¤ì„ ì½ëŠ” ì¤‘\n"
+msgid "reading triggers for table \"%s\"\n"
+msgstr "\"%s\" Å×ÀÌºí¿¡¼­ »ç¿ëÇÏ´Â Æ®¸®°ÅµéÀ» Ã£´Â ÁßÀÔ´Ï´Ù\n"
 
-#: pg_dump.c:7038
+#: pg_dump.c:3297
 #, c-format
-msgid ""
-"query produced null referenced table name for foreign key trigger \"%s\" on "
-"table \"%s\" (OID of table: %u)\n"
-msgstr ""
-"ì¿¼ë¦¬ê°€ ì°¸ì¡°í…Œì´ë¸” ì •ë³´ê°€ ì—†ëŠ” \"%s\" ì°¸ì¡°í‚¤ íŠ¸ë¦¬ê±°ë¥¼ \"%s\" (í•´ë‹¹ OID: %u) í…Œ"
-"ì´ë¸”ì—ì„œ ë§Œë“¤ì—ˆìŠµë‹ˆë‹¤.\n"
+msgid "expected %d triggers on table \"%s\" but found %d\n"
+msgstr "%d°³ÀÇ Æ®¸®°Å°¡ \"%s\" Å×ÀÌºí¿¡¼­ ÁöÁ¤µÇ¾úÁö¸¸ %d ¹Û¿¡ Ã£Áö ¸øÇß½À´Ï´Ù\n"
 
-#: pg_dump.c:7693
+#: pg_dump.c:3342
 #, c-format
-msgid "finding the columns and types of table \"%s.%s\"\n"
-msgstr "\"%s.%s\" í…Œì´ë¸”ì˜ ì¹¼ëŸ¼ê³¼ ìë£Œí˜•ì„ ì°¾ëŠ” ì¤‘\n"
+msgid "query produced null referenced table name for foreign key trigger \"%s\" on table \"%s\" (OID of table: %u)\n"
+msgstr "Äõ¸®°¡ ÂüÁ¶Å×ÀÌºí Á¤º¸°¡ ¾ø´Â \"%s\" ÂüÁ¶Å° Æ®¸®°Å¸¦ \"%s\" (ÇØ´ç OID: %u) Å×ÀÌºí¿¡¼­ ¸¸µé¾ú½À´Ï´Ù.\n"
 
-#: pg_dump.c:7872
+#: pg_dump.c:3643
+#, c-format
+msgid "finding the columns and types of table \"%s\"\n"
+msgstr "\"%s\" Å×ÀÌºíÀÇ Ä®·³°ú ÀÚ·áÇüÀ» Á¶»çÁß\n"
+
+#: pg_dump.c:3729
 #, c-format
 msgid "invalid column numbering in table \"%s\"\n"
-msgstr "\"%s\" í…Œì´ë¸”ì— ë§¤ê²¨ì ¸ ìˆëŠ” ì—´ ë²ˆí˜¸ê°€ ì˜ëª»ë˜ì—ˆìŠµë‹ˆë‹¤\n"
+msgstr "\"%s\" Å×ÀÌºí¿¡ ¸Å°ÜÁ® ÀÖ´Â Ä®·³ ¹øÈ£°¡ Àß¸øµÇ¾ú½À´Ï´Ù\n"
 
-#: pg_dump.c:7906
+#: pg_dump.c:3763
 #, c-format
-msgid "finding default expressions of table \"%s.%s\"\n"
-msgstr "\"%s.%s\" í…Œì´ë¸”ì—ì„œ default í‘œí˜„ë“¤ ì°¾ëŠ” ì¤‘\n"
+msgid "finding default expressions of table \"%s\"\n"
+msgstr "\"%s\" Å×ÀÌºí¿¡¼­ default Ç¥Çöµé Ã£´Â Áß\n"
 
-#: pg_dump.c:7959
+#: pg_dump.c:3846
 #, c-format
 msgid "invalid adnum value %d for table \"%s\"\n"
-msgstr "ì ë‹¹í•˜ì§€ ì•ŠëŠ” adnum ê°’: %d, í•´ë‹¹ í…Œì´ë¸” \"%s\"\n"
+msgstr "Àû´çÇÏÁö ¾Ê´Â adnum °ª: %d, ÇØ´ç Å×ÀÌºí \"%s\"\n"
 
-#: pg_dump.c:8031
+#: pg_dump.c:3864
 #, c-format
-msgid "finding check constraints for table \"%s.%s\"\n"
-msgstr "\"%s.%s\" í…Œì´ë¸”ì—ì„œ ì‚¬ìš©í•˜ëŠ” ì²´í¬ ì œì•½ ì¡°ê±´ì„ ì°¾ëŠ” ì¤‘\n"
+msgid "finding check constraints for table \"%s\"\n"
+msgstr "\"%s\" Å×ÀÌºí¿¡¼­ »ç¿ëÇÏ´Â Ã¼Å© Á¦¾àÁ¶°ÇÀ» Ã£´Â Áß\n"
 
-#: pg_dump.c:8127
+#: pg_dump.c:3928
 #, c-format
-msgid "expected %d check constraint on table \"%s\" but found %d\n"
-msgid_plural "expected %d check constraints on table \"%s\" but found %d\n"
-msgstr[0] "%d ì œì•½ ì¡°ê±´ í™•ì¸ì´ \"%s\" í…Œì´ë¸”ì— í•„ìš”í•œë° %dì´(ê°€) ìˆìŒ\n"
+msgid "expected %d check constraints on table \"%s\" but found %d\n"
+msgstr "%d°³ÀÇ Ã¼Å© Á¦¾àÁ¶°ÇÀ» \"%s\" Å×ÀÌºí¿¡¼­ ÀÖ´Ù°í ÇÏ´Âµ¥, %d°³¸¦ Ã£¾ÒÀ½\n"
 
-#: pg_dump.c:8131
-#, c-format
+#: pg_dump.c:3930
 msgid "(The system catalogs might be corrupted.)\n"
-msgstr "(ì‹œìŠ¤í…œ ì¹´íƒˆë¡œê·¸ê°€ ì†ìƒë˜ì—ˆëŠ” ê²ƒ ê°™ìŠµë‹ˆë‹¤)\n"
+msgstr "(½Ã½ºÅÛ Ä«Å¸·Î±×°¡ ¼Õ»óµÇ¾ú´Â °Í °°½À´Ï´Ù)\n"
 
-#: pg_dump.c:9663
+#: pg_dump.c:4628
+#: pg_dump.c:4794
+#: pg_dump.c:5195
+#: pg_dump.c:5581
+#: pg_dump.c:5880
+#: pg_dump.c:6082
+#: pg_dump.c:6267
 #, c-format
-msgid "WARNING: typtype of data type \"%s\" appears to be invalid\n"
-msgstr "ê²½ê³ : \"%s\" ìë£Œí˜•ì˜ typtypeê°€ ì˜ëª» ë˜ì–´ ìˆìŒ\n"
+msgid "Got %d rows instead of one from: %s"
+msgstr "ÇÏ³ªÀÇ ·Î¿ì¸¦ »Ì¾Æ¾ßÇÏ´Âµ¥ %d°³ÀÇ ·Î¿ì°¡ »ÌÇû½À´Ï´Ù, ÃâÃ³: %s"
 
-#: pg_dump.c:11205
+#: pg_dump.c:4903
 #, c-format
-msgid "WARNING: bogus value in proargmodes array\n"
-msgstr "ê²½ê³ : proargmodes ë°°ì—´ì— ì˜ëª»ëœ ê°’ì´ ìˆìŒ\n"
+msgid "query yielded no rows: %s\n"
+msgstr "Äõ¸® °á°ú°¡ ºñ¾ú½À´Ï´Ù: %s\n"
 
-#: pg_dump.c:11583
-#, c-format
-msgid "WARNING: could not parse proallargtypes array\n"
-msgstr "ê²½ê³ : proallargtypes ë°°ì—´ì„ ë¶„ì„í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤\n"
-
-#: pg_dump.c:11599
-#, c-format
-msgid "WARNING: could not parse proargmodes array\n"
-msgstr "ê²½ê³ : proargmodes ë°°ì—´ì„ ë¶„ì„í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤\n"
-
-#: pg_dump.c:11613
-#, c-format
+#: pg_dump.c:5251
 msgid "WARNING: could not parse proargnames array\n"
-msgstr "ê²½ê³ : proargnames ë°°ì—´ì„ ë¶„ì„í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤\n"
+msgstr "°æ°í: proargnames ¹è¿­À» ºĞ¼®ÇÒ ¼ö ¾ø½À´Ï´Ù\n"
 
-#: pg_dump.c:11624
-#, c-format
-msgid "WARNING: could not parse proconfig array\n"
-msgstr "ê²½ê³ : proconfig ë°°ì—´ì„ êµ¬ë¬¸ ë¶„ì„í•  ìˆ˜ ì—†ìŒ\n"
-
-#: pg_dump.c:11695
+#: pg_dump.c:5288
 #, c-format
 msgid "unrecognized provolatile value for function \"%s\"\n"
-msgstr "\"%s\" í•¨ìˆ˜ì˜ provolatile ê°’ì´ ì˜ëª» ë˜ì—ˆìŠµë‹ˆë‹¤\n"
+msgstr "\"%s\" ÇÔ¼öÀÇ provolatile °ªÀÌ Àß¸ø µÇ¾ú½À´Ï´Ù\n"
 
-#: pg_dump.c:11739 pg_dump.c:13782
-#, c-format
-msgid "unrecognized proparallel value for function \"%s\"\n"
-msgstr "\"%s\" í•¨ìˆ˜ì˜ proparallel ê°’ì´ ì˜ëª» ë˜ì—ˆìŠµë‹ˆë‹¤\n"
-
-#: pg_dump.c:11891
-#, c-format
-msgid "WARNING: bogus value in pg_cast.castfunc or pg_cast.castmethod field\n"
-msgstr ""
-"ê²½ê³ : pg_cast.castfunc ë˜ëŠ” pg_cast.castmethod í•„ë“œì— ì˜ëª»ëœ ê°’ì´ ìˆìŒ\n"
-
-#: pg_dump.c:11894
-#, c-format
-msgid "WARNING: bogus value in pg_cast.castmethod field\n"
-msgstr "ê²½ê³ : pg_cast.castmethod í•„ë“œì— ì˜ëª»ëœ ê°’ì´ ìˆìŒ\n"
-
-#: pg_dump.c:11982
-#, c-format
-msgid ""
-"WARNING: bogus transform definition, at least one of trffromsql and trftosql "
-"should be nonzero\n"
-msgstr ""
-"ê²½ê³ : ì˜ëª»ëœ ì „ì†¡ ì •ì˜, trffromsql ë˜ëŠ” trftosql ì¤‘ í•˜ë‚˜ëŠ” ë¹„ì–´ ìˆìœ¼ë©´ ì•ˆë¨\n"
-
-#: pg_dump.c:11999
-#, c-format
-msgid "WARNING: bogus value in pg_transform.trffromsql field\n"
-msgstr "ê²½ê³ : pg_transform.trffromsql í•„ë“œì— ì˜ëª»ëœ ê°’ì´ ìˆìŒ\n"
-
-#: pg_dump.c:12020
-#, c-format
-msgid "WARNING: bogus value in pg_transform.trftosql field\n"
-msgstr "ê²½ê³ : pg_transform.trftosql í•„ë“œì— ì˜ëª»ëœ ê°’ì´ ìˆìŒ\n"
-
-#: pg_dump.c:12411
+#: pg_dump.c:5805
 #, c-format
 msgid "WARNING: could not find operator with OID %s\n"
-msgstr "ê²½ê³ : %s OIDì˜ ì—°ì‚°ìë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŒ\n"
+msgstr "°æ°í: %s OIDÀÇ ¿¬»êÀÚ¸¦ Ã£À» ¼ö ¾øÀ½\n"
 
-#: pg_dump.c:12475
+#: pg_dump.c:6295
 #, c-format
-msgid "WARNING: invalid type \"%c\" of access method \"%s\"\n"
-msgstr "ê²½ê³ : \"%c\" ì˜ëª»ëœ ìë£Œí˜•, í•´ë‹¹ ì ‘ê·¼ ë°©ë²•: \"%s\"\n"
+msgid "WARNING: aggregate function %s could not be dumped correctly for this database version; ignored\n"
+msgstr "°æ°í: %s Áı°è ÇÔ¼ö´Â ÀÌ µ¥ÀÌÅÍº£ÀÌ½º ¹öÀü¿¡¼­´Â ¹Ù¸£°Ô ´ıÇÁµÇÁú ¸øÇß½À´Ï´Ù; ¹«½ÃÇÔ\n"
 
-#: pg_dump.c:13673
+#: pg_dump.c:6429
 #, c-format
-msgid ""
-"WARNING: aggregate function %s could not be dumped correctly for this "
-"database version; ignored\n"
-msgstr ""
-"ê²½ê³ : %s ì§‘ê³„ í•¨ìˆ˜ëŠ” ì´ ë°ì´í„°ë² ì´ìŠ¤ ë²„ì „ì—ì„œëŠ” ë°”ë¥´ê²Œ ë¤í”„ë˜ì§ˆ ëª»í–ˆìŠµë‹ˆë‹¤; "
-"ë¬´ì‹œí•¨\n"
+msgid "could not parse ACL list (%s) for object \"%s\" (%s)\n"
+msgstr "ACL ¸ñ·Ï (%s)À» ºĞ¼®ÇÒ ¼ö ¾øÀ½, ÇØ´ç °´Ã¼: \"%s\" (%s)\n"
 
-#: pg_dump.c:14545
-#, c-format
-msgid "unrecognized object type in default privileges: %d\n"
-msgstr "ê¸°ë³¸ ì ‘ê·¼ ê¶Œí•œì—ì„œ ì•Œ ìˆ˜ ì—†ëŠ” ê°ì²´í˜•ì´ ìˆìŒ: %d\n"
-
-#: pg_dump.c:14560
-#, c-format
-msgid "could not parse default ACL list (%s)\n"
-msgstr "ê¸°ë³¸ ACL ëª©ë¡ (%s)ì„ ë¶„ì„í•  ìˆ˜ ì—†ìŒ\n"
-
-#: pg_dump.c:14631
-#, c-format
-msgid ""
-"could not parse initial GRANT ACL list (%s) or initial REVOKE ACL list (%s) "
-"for object \"%s\" (%s)\n"
-msgstr ""
-"GRANT ACL ëª©ë¡ ì´ˆê¸°ê°’ (%s) ë˜ëŠ” REVOKE ACL ëª©ë¡ ì´ˆê¸°ê°’ (%s) "
-"ë¶„ì„í•  ìˆ˜ ì—†ìŒ, í•´ë‹¹ ê°ì²´: \"%s\" (%s)\n"
-
-#: pg_dump.c:14639
-#, c-format
-msgid ""
-"could not parse GRANT ACL list (%s) or REVOKE ACL list (%s) for object \"%s"
-"\" (%s)\n"
-msgstr ""
-"GRANT ACL ëª©ë¡ (%s) ë˜ëŠ” REVOKE ACL ëª©ë¡ (%s) "
-"ë¶„ì„í•  ìˆ˜ ì—†ìŒ, í•´ë‹¹ ê°ì²´: \"%s\" (%s)\n"
-
-#: pg_dump.c:15123
+#: pg_dump.c:6523
 #, c-format
 msgid "query to obtain definition of view \"%s\" returned no data\n"
-msgstr "\"%s\" ë·° ì •ì˜ ì •ë³´ê°€ ì—†ìŠµë‹ˆë‹¤\n"
+msgstr "\"%s\" ºä Á¤ÀÇ Á¤º¸°¡ ¾ø½À´Ï´Ù\n"
 
-#: pg_dump.c:15126
+#: pg_dump.c:6526
 #, c-format
-msgid ""
-"query to obtain definition of view \"%s\" returned more than one definition\n"
-msgstr "\"%s\" ë·° ì •ì˜ ì •ë³´ê°€ í•˜ë‚˜ ì´ìƒ ìˆìŠµë‹ˆë‹¤.\n"
+msgid "query to obtain definition of view \"%s\" returned more than one definition\n"
+msgstr "\"%s\" ºä Á¤ÀÇ Á¤º¸°¡ ÇÏ³ª ÀÌ»ó ÀÖ½À´Ï´Ù.\n"
 
-#: pg_dump.c:15133
+#: pg_dump.c:6535
 #, c-format
 msgid "definition of view \"%s\" appears to be empty (length zero)\n"
-msgstr "\"%s\" ë·°ì˜ ì •ì˜ ë‚´ìš©ì´ ë¹„ì–´ìˆìŠµë‹ˆë‹¤\n"
+msgstr "\"%s\" ºäÀÇ Á¤ÀÇ ³»¿ëÀÌ ºñ¾îÀÖ½À´Ï´Ù\n"
 
-#: pg_dump.c:15892
+#: pg_dump.c:6848
 #, c-format
 msgid "invalid column number %d for table \"%s\"\n"
-msgstr "ì˜ëª»ëœ ì—´ ë²ˆí˜¸ %d, í•´ë‹¹ í…Œì´ë¸” \"%s\"\n"
+msgstr "Àß¸øµÈ Ä®·³ ¹øÈ£ %d, ÇØ´ç Å×ÀÌºí \"%s\"\n"
 
-#: pg_dump.c:16021
+#: pg_dump.c:6951
 #, c-format
 msgid "missing index for constraint \"%s\"\n"
-msgstr "\"%s\" ì œì•½ ì¡°ê±´ì„ ìœ„í•œ ì¸ë±ìŠ¤ê°€ ë¹ ì¡ŒìŠµë‹ˆë‹¤\n"
+msgstr "\"%s\" Á¦¾àÁ¶°ÇÀ» À§ÇÑ ÀÎµ¦½º°¡ ºüÁ³½À´Ï´Ù\n"
 
-#: pg_dump.c:16224
+#: pg_dump.c:7111
 #, c-format
 msgid "unrecognized constraint type: %c\n"
-msgstr "ì•Œ ìˆ˜ ì—†ëŠ” ì œì•½ ì¡°ê±´ ì¢…ë¥˜: %c\n"
+msgstr "¾Ë ¼ö ¾ø´Â Á¦¾à Á¶°Ç Á¾·ù: %c\n"
 
-#: pg_dump.c:16378 pg_dump.c:16547
+#: pg_dump.c:7168
+msgid "inserted invalid OID\n"
+msgstr "»ğÀÔµÈ ºÎ´çÇÑ OID\n"
+
+#: pg_dump.c:7174
 #, c-format
-msgid "query to get data of sequence \"%s\" returned %d row (expected 1)\n"
-msgid_plural ""
-"query to get data of sequence \"%s\" returned %d rows (expected 1)\n"
-msgstr[0] ""
-"\"%s\" ì‹œí€€ìŠ¤ì˜ ë°ì´í„°ë¥¼ ê°€ì ¸ì˜¤ê¸° ìœ„í•œ ì¿¼ë¦¬ì—ì„œ %dê°œì˜ í–‰ ë°˜í™˜(1ê°œ í•„ìš”)\n"
+msgid "maximum system OID is %u\n"
+msgstr "ÃÖ´ë ½Ã½ºÅÛ OID´Â %u\n"
 
-#: pg_dump.c:16389
+#: pg_dump.c:7215
+msgid "missing pg_database entry for this database\n"
+msgstr "pg_database¿¡¼­ ÀÌ µ¥ÀÌÅÍº£ÀÌ½º¿¡ ´ëÇÑ Ç×¸ñÀ» Ã£À» ¼ö ¾øÀ½\n"
+
+#: pg_dump.c:7220
+msgid "found more than one pg_database entry for this database\n"
+msgstr "pg_database¿¡¼­ ÀÌ µ¥ÀÌÅÍº£ÀÌ½º¿¡ ´ëÇÑ Ç×¸ñÀ» ÇÏ³ª ÀÌ»ó Ã£¾ÒÀ½\n"
+
+#: pg_dump.c:7252
+msgid "could not find entry for pg_indexes in pg_class\n"
+msgstr "pg_class¿¡¼­ pg_indexes Ç×¸ñÀ» Ã£À» ¼ö ¾øÀ½\n"
+
+#: pg_dump.c:7257
+msgid "found more than one entry for pg_indexes in pg_class\n"
+msgstr "pg_class¿¡¼­ pg_indexes Ç×¸ñÀ» ÇÏ³ª ÀÌ»ó Ã£¾ÒÀ½\n"
+
+#: pg_dump.c:7306
+#, c-format
+msgid "query to get data of sequence \"%s\" returned %d rows (expected 1)\n"
+msgstr "\"%s\" ½ÃÄö½º Á¤º¸¸¦ Ã£´Â Äõ¸®°¡ %d°³ÀÇ ·Î¿ì¸¦ ¸®ÅÏÇß½À´Ï´Ù(1°³¸¸ ¸®ÅÏÇØ¾ßÇÔ)\n"
+
+#: pg_dump.c:7315
 #, c-format
 msgid "query to get data of sequence \"%s\" returned name \"%s\"\n"
-msgstr "\"%s\" ì‹œí€€ìŠ¤ì˜ ìë£Œë¥¼ êµ¬í•˜ëŠ” ì¿¼ë¦¬ê°€ \"%s\" ì´ë¦„ì„ ë¦¬í„´í–ˆìŒ\n"
+msgstr "\"%s\" ½ÃÄö½ºÀÇ ÀÚ·á¸¦ ±¸ÇÏ´Â Äõ¸®°¡ \"%s\" ÀÌ¸§À» ¸®ÅÏÇßÀ½\n"
 
-#: pg_dump.c:16645
-#, c-format
-msgid "unexpected tgtype value: %d\n"
-msgstr "ê¸°ëŒ€ë˜ì§€ ì•Šì€ tgtype ê°’: %d\n"
-
-#: pg_dump.c:16727
+#: pg_dump.c:7556
 #, c-format
 msgid "invalid argument string (%s) for trigger \"%s\" on table \"%s\"\n"
-msgstr "ì˜ëª»ëœ ì¸ìˆ˜ ë¬¸ìì—´ (%s), í•´ë‹¹ íŠ¸ë¦¬ê±° \"%s\", ì‚¬ìš©ë˜ëŠ” í…Œì´ë¸” \"%s\"\n"
+msgstr "Àß¸øµÈ ÀÎÀÚ ¹®ÀÚ¿­ (%s), ÇØ´ç Æ®¸®°Å \"%s\", »ç¿ëµÇ´Â Å×ÀÌºí \"%s\"\n"
 
-#: pg_dump.c:16924
+#: pg_dump.c:7663
 #, c-format
-msgid ""
-"query to get rule \"%s\" for table \"%s\" failed: wrong number of rows "
-"returned\n"
-msgstr ""
-"\"%s\" ê·œì¹™(\"%s\" í…Œì´ë¸”)ì„(ë¥¼) ê°€ì ¸ì˜¤ê¸° ìœ„í•œ ì¿¼ë¦¬ ì‹¤íŒ¨: ì˜ëª»ëœ í–‰ ìˆ˜ ë°˜í™˜\n"
+msgid "query to get rule \"%s\" for table \"%s\" failed: wrong number of rows returned"
+msgstr "\"%s\" ·êÀ» ±¸ÇÏ´Â Äõ¸®°¡ ½ÇÆĞÇßÀ½: Àß¸øµÈ row °¹¼ö¸¦ ¸®ÅÏÇßÀ½, ÇØ´ç Å×ÀÌºí \"%s\""
 
-#: pg_dump.c:17313
-#, c-format
+#: pg_dump.c:7731
 msgid "reading dependency data\n"
-msgstr "ì˜ì¡´ ê´€ê³„ ìë£Œ ì½ëŠ” ì¤‘\n"
+msgstr "ÀÇÁ¸ °ü°è ÀÚ·á ÀĞ´Â Áß\n"
 
-#: pg_dump.c:17870
+#: pg_dump.c:7908
 #, c-format
-msgid "WARNING: could not parse reloptions array\n"
-msgstr "ê²½ê³ : reloptions ë°°ì—´ì„ ë¶„ì„í•  ìˆ˜ ì—†ìŒ\n"
+msgid "query yielded %d rows instead of one: %s\n"
+msgstr "Äõ¸®°¡ ÇÑ °³°¡ ¾Æ´Ï¶ó, %d°³ÀÇ ·Î¿ì¸¦ ±¸ÇßÀ½: %s\n"
 
-#. translator: this is a module name
-#: pg_dump_sort.c:23
-msgid "sorter"
-msgstr "sorter"
+#: pg_dump.c:8095
+msgid "SQL command failed\n"
+msgstr "SQL ¸í·É ½ÇÆĞ\n"
 
-#: pg_dump_sort.c:491
+#: common.c:99
+msgid "reading schemas\n"
+msgstr "½ºÅ°¸¶µéÀ» ÀĞ´Â Áß\n"
+
+#: common.c:103
+msgid "reading user-defined functions\n"
+msgstr "»ç¿ëÀÚ Á¤ÀÇ ÇÔ¼öµé ÀĞ´Â Áß\n"
+
+#: common.c:108
+msgid "reading user-defined types\n"
+msgstr "»ç¿ëÀÚ Á¤ÀÇ ÀÚ·áÇüÀ» ÀĞ´Â Áß\n"
+
+#: common.c:113
+msgid "reading procedural languages\n"
+msgstr "ÇÁ·Î½ÃÁê¾ó ¾ğ¾î¸¦ ÀĞ´Â Áß\n"
+
+#: common.c:117
+msgid "reading user-defined aggregate functions\n"
+msgstr "»ç¿ëÀÚ Á¤ÀÇ Áı°è ÇÔ¼ö¸¦ ÀĞ´Â Áß\n"
+
+#: common.c:121
+msgid "reading user-defined operators\n"
+msgstr "»ç¿ëÀÚ Á¤ÀÇ ¿¬»êÀÚ¸¦ ÀĞ´Â Áß\n"
+
+#: common.c:125
+msgid "reading user-defined operator classes\n"
+msgstr "»ç¿ëÀÚ Á¤ÀÇ ¿¬»êÀÚ Å¬·¡½º¸¦ ÀĞ´Â Áß\n"
+
+#: common.c:129
+msgid "reading user-defined conversions\n"
+msgstr "»ç¿ëÀÚ Á¤ÀÇ ÀÎÄÚµù º¯È¯±ÔÄ¢À» ÀĞ´Â Áß\n"
+
+#: common.c:133
+msgid "reading user-defined tables\n"
+msgstr "»ç¿ëÀÚ Á¤ÀÇ Å×ÀÌºíµéÀ» ÀĞ´Â Áß\n"
+
+#: common.c:137
+msgid "reading table inheritance information\n"
+msgstr "Å×ÀÌºí »ó¼Ó Á¤º¸¸¦ ÀĞ´Â Áß\n"
+
+#: common.c:141
+msgid "reading rewrite rules\n"
+msgstr "·ê(rule) ÀĞ´Â Áß\n"
+
+#: common.c:145
+msgid "reading type casts\n"
+msgstr "Çüº¯È¯ÀÚ(type cast)µéÀ» ÀĞ´Â Áß\n"
+
+#: common.c:150
+msgid "finding inheritance relationships\n"
+msgstr "»ó¼Ó °ü°è¸¦ Á¶»çÁß\n"
+
+#: common.c:154
+msgid "reading column info for interesting tables\n"
+msgstr "Àç¹Ì³­ Å×ÀÌºíµé(interesting tables)À» À§ÇØ Ä®·³ Á¤º¸¸¦ ÀĞ´Â Áß\n"
+
+#: common.c:158
+msgid "flagging inherited columns in subtables\n"
+msgstr "ÇÏÀ§ Å×ÀÌºí¿¡¼­ »ó¼ÓµÈ Ä®·³ ±¸ºĞÁß\n"
+
+#: common.c:162
+msgid "reading indexes\n"
+msgstr "ÀÎµ¦½ºµéÀ» ÀĞ´Â Áß\n"
+
+#: common.c:166
+msgid "reading constraints\n"
+msgstr "Á¦¾àÁ¶°ÇµéÀ» ÀĞ´Â Áß\n"
+
+#: common.c:170
+msgid "reading triggers\n"
+msgstr "Æ®¸®°ÅµéÀ» ÀĞ´Â Áß\n"
+
+#: common.c:421
+#: common.c:553
+#: common.c:587
+#: pg_backup_archiver.c:619
+#: pg_backup_archiver.c:970
+#: pg_backup_archiver.c:1084
+#: pg_backup_archiver.c:1522
+#: pg_backup_archiver.c:1672
+#: pg_backup_archiver.c:1705
+#: pg_backup_custom.c:141
+#: pg_backup_custom.c:146
+#: pg_backup_custom.c:152
+#: pg_backup_custom.c:167
+#: pg_backup_custom.c:544
+#: pg_backup_db.c:157
+#: pg_backup_db.c:233
+#: pg_backup_files.c:112
+#: pg_backup_tar.c:168
+#: pg_backup_tar.c:960
+msgid "out of memory\n"
+msgstr "¸Ş¸ğ¸® ºÎÁ·\n"
+
+#: common.c:728
 #, c-format
-msgid "invalid dumpId %d\n"
-msgstr "ì˜ëª»ëœ dumpId %d\n"
+msgid "failed sanity check, parent OID %u of table \"%s\" (OID %u) not found\n"
+msgstr "¾ÈÀü °Ë»ç ½ÇÆĞ, OID %uÀÎ ºÎ¸ğ °´Ã¼°¡ ¾øÀ½. ÇØ´ç Å×ÀÌºí \"%s\" (OID %u)\n"
 
-#: pg_dump_sort.c:497
-#, c-format
-msgid "invalid dependency %d\n"
-msgstr "ì˜ëª»ëœ ì˜ì¡´ì„± %d\n"
+#: common.c:770
+msgid "could not parse numeric array: too many numbers\n"
+msgstr "¼ıÀÚ ¹è¿­À» ºĞ¼®ÇÒ ¼ö ¾øÀ½: ³Ê¹« ¼ıÀÚ°¡ ÀÖ½À´Ï´Ù\n"
 
-#: pg_dump_sort.c:730
-#, c-format
-msgid "could not identify dependency loop\n"
-msgstr "ì˜ì¡´ ê´€ê³„ë¥¼ ì‹ë³„ í•  ìˆ˜ ì—†ìŒ\n"
+#: common.c:785
+msgid "could not parse numeric array: invalid character in number\n"
+msgstr "¼ıÀÚ ¹è¿­À» ºĞ¼®ÇÒ ¼ö ¾øÀ½: ¼ıÀÚ¾È¿¡ ÀÌ»óÇÑ ±ÛÀÚ°¡ ÀÖ½À´Ï´Ù\n"
 
-#: pg_dump_sort.c:1262
-#, c-format
-msgid "NOTICE: there are circular foreign-key constraints on this table:\n"
-msgid_plural ""
-"NOTICE: there are circular foreign-key constraints among these tables:\n"
-msgstr[0] "ì£¼ì˜: ë‹¤ìŒ ë°ì´ë¸” ê°„ ì°¸ì¡°í‚¤ê°€ ì„œë¡œ êµì°¨í•˜ê³  ìˆìŒ:\n"
+#: pg_backup_archiver.c:45
+msgid "archiver"
+msgstr "¾ÆÄ«ÀÌ¹ö"
 
-#: pg_dump_sort.c:1266 pg_dump_sort.c:1286
-#, c-format
-msgid "  %s\n"
-msgstr "  %s\n"
+#: pg_backup_archiver.c:126
+msgid "could not close output archive file\n"
+msgstr "Ãâ·Â ÀÚ·á ÆÄÀÏÀ» ´İÀ» ¼ö ¾øÀ½\n"
 
-#: pg_dump_sort.c:1267
+#: pg_backup_archiver.c:153
+msgid "-C and -c are incompatible options\n"
+msgstr "-C ¿É¼Ç°ú -c ¿É¼ÇÀº ÇÔ²² »ç¿ëµÉ ¼ö ¾ø½À´Ï´Ù\n"
+
+#: pg_backup_archiver.c:160
+msgid "connecting to database for restore\n"
+msgstr "¸®½ºÅä¾î ÀÛ¾÷À» À§ÇØ µ¥ÀÌÅÍº£ÀÌ½º¿¡ Á¢¼ÓÇÕ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:162
+msgid "direct database connections are not supported in pre-1.3 archives\n"
+msgstr "pre-1.3 archive¿¡¼­ Á÷Åë µ¥ÀÌÅÍº£ÀÌ½º Á¢¼ÓÀº Áö¿øµÇÁö ¾Ê½À´Ï´Ù\n"
+
+#: pg_backup_archiver.c:205
+msgid "implied data-only restore\n"
+msgstr "¾Ï½ÃµÈ ÀÚ·á¸¸ º¹¿øÇÏ±â - ¾ÆÁÖ ³ª»Û ¹ø¿ª\n"
+
+#: pg_backup_archiver.c:238
 #, c-format
+msgid "dropping %s %s\n"
+msgstr "%s %s »èÁ¦ÇÏ´Â Áß\n"
+
+#: pg_backup_archiver.c:264
+#: pg_backup_archiver.c:266
+#, c-format
+msgid "warning from original dump file: %s\n"
+msgstr "¿øº» ´ıÇÁ ÆÄÀÏ¿¡¼­ ¹ß»ıÇÑ °æ°í: %s\n"
+
+#: pg_backup_archiver.c:273
+#, c-format
+msgid "creating %s %s\n"
+msgstr "%s %s ¸¸µå´Â Áß\n"
+
+#: pg_backup_archiver.c:281
+#, c-format
+msgid "connecting to new database \"%s\"\n"
+msgstr "\"%s\" »õ µ¥ÀÌÅÍº£ÀÌ½º¿¡ Á¢¼ÓÇÕ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:306
+msgid "cannot restore from compressed archive (not configured for compression support)\n"
+msgstr "¾ĞÃàµÈ ÀÚ·áÆÄÀÏÀ» º¹¿ø¿ëÀ¸·Î »ç¿ëÇÒ ¼ö ¾ø½À´Ï´Ù(¾ĞÃà±â´ÉÀ» Áö¿øÇÏÁö ¾Ê°í ÄÄÆÄÀÏµÇ¾úÀ½)\n"
+
+#: pg_backup_archiver.c:326
+msgid "WARNING: skipping large-object restoration\n"
+msgstr "°æ°í: large-object ¸®½ºÅä¾î ÀÛ¾÷Àº °Ç³Ê¶İ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:336
+#, c-format
+msgid "restoring data for table \"%s\"\n"
+msgstr "\"%s\" Å×ÀÌºíÀÇ ÀÚ·á¸¦ ¸®½ºÅä¾î ÇÏ´Â Áß\n"
+
+#: pg_backup_archiver.c:368
+#: pg_backup_archiver.c:454
+#, c-format
+msgid "fixing up large-object cross-reference for \"%s\"\n"
+msgstr "\"%s\" À§ÇÑ large-object »óÈ£ ÂüÁ¶ Á¤º¸¸¦ ¼öÁ¤ÇÕ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:379
+#, c-format
+msgid "executing %s %s\n"
+msgstr "½ÇÇàÁß: %s %s\n"
+
+#: pg_backup_archiver.c:399
+#, c-format
+msgid "setting owner and privileges for %s %s\n"
+msgstr "%s %s¿¡ ¼ÒÀ¯ÁÖ¿Í Á¢±Ù±ÇÇÑÀ» ÁöÁ¤ÇÏ´Â Áß\n"
+
+#: pg_backup_archiver.c:517
+msgid "disabling triggers\n"
+msgstr "Æ®¸®°Å ÀÛµ¿À» ºñÈ°¼ºÈ­ ÇÕ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:556
+msgid "enabling triggers\n"
+msgstr "Æ®¸®°Å ÀÛµ¿À» È°¼ºÈ­ ÇÕ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:591
+msgid "internal error -- WriteData cannot be called outside the context of a DataDumper routine\n"
+msgstr "³»ºÎ ¿À·ù -- WriteData°¡ DataDumper ·çÆ¾ ¿µ¿ª ¹Û¿¡¼­ È£Ãâ µÉ ¼ö ¾ø½À´Ï´Ù\n"
+
+#: pg_backup_archiver.c:734
+msgid "large-object output not supported in chosen format\n"
+msgstr "¼±ÅÃÇÑ ÆÄÀÏ ÇüÅÂ·Î´Â large-object¸¦ ´ıÇÁÇÒ ¼ö ¾ø½À´Ï´Ù\n"
+
+#: pg_backup_archiver.c:774
+#: pg_backup_archiver.c:862
+msgid "committing large-object transactions\n"
+msgstr "large-object Æ®·£Àè¼ÇÀ» commit ÇÕ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:784
+#, c-format
+msgid "restored %d large objects\n"
+msgstr "%d°³ÀÇ large object°¡ ¸®½ºÅä¾îµÇ¾ú½À´Ï´Ù\n"
+
+#: pg_backup_archiver.c:801
+msgid "cannot restore large objects without a database connection\n"
+msgstr "µ¥ÀÌÅÍº£ÀÌ½º Á¢¼ÓÇÏÁö ¾Ê°í´Â large object¸¦ º¹¿øÇÒ ¼ö ¾ø½À´Ï´Ù\n"
+
+#: pg_backup_archiver.c:815
+msgid "starting large-object transactions\n"
+msgstr "large-object Æ®·£Àè¼ÇÀ» ½ÃÀÛÇÕ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:823
+msgid "could not create large object\n"
+msgstr "large object¸¦ ¸¸µé ¼ö ¾øÀ½\n"
+
+#: pg_backup_archiver.c:825
+#, c-format
+msgid "restoring large object with OID %u as %u\n"
+msgstr "OID %u large object¸¦ %u °´Ã¼·Î º¹¿øÇÕ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:831
+msgid "could not open large object\n"
+msgstr "large object¸¦ ¿­ ¼ö ¾øÀ½\n"
+
+#: pg_backup_archiver.c:846
+#, c-format
+msgid "wrote remaining %lu bytes of large-object data (result = %lu)\n"
+msgstr "large-object ÀÚ·áÀÇ ³²¾ÆÀÖ´Â %lu ¹ÙÀÌÆ®¸¦ ±â·ÏÇß½À´Ï´Ù (°á°ú°ª = %lu)\n"
+
+#: pg_backup_archiver.c:849
+#: pg_backup_archiver.c:1141
+#, c-format
+msgid "could not write to large object (result: %lu, expected: %lu)\n"
+msgstr "large object¸¦ ¾µ ¼ö ¾øÀ½ (°á°ú°ª: %lu, ¿¹»ó°ª: %lu)\n"
+
+#: pg_backup_archiver.c:895
+msgid "could not open TOC file\n"
+msgstr "TOC ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½\n"
+
+#: pg_backup_archiver.c:916
+#, c-format
+msgid "WARNING: line ignored: %s\n"
+msgstr "°æ°í: ÁÙ ¹«½ÃµÊ: %s\n"
+
+#: pg_backup_archiver.c:923
+#, c-format
+msgid "could not find entry for ID %d\n"
+msgstr "%d ID¿¡ ´ëÇÑ Ç×¸ñÀ» Ã£Áö ¸øÇßÀ½\n"
+
+#: pg_backup_archiver.c:933
+#: pg_backup_files.c:156
+#: pg_backup_files.c:439
+#, c-format
+msgid "could not close TOC file: %s\n"
+msgstr "TOC ÆÄÀÏÀ» ´İÀ» ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_archiver.c:1032
+#: pg_backup_files.c:130
+#, c-format
+msgid "could not open output file: %s\n"
+msgstr "Ãâ·Â ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_archiver.c:1048
+#, c-format
+msgid "could not close output file: %s\n"
+msgstr "Ãâ·Â ÆÄÀÏÀ» ´İÀ» ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_archiver.c:1137
+#, c-format
+msgid "wrote %lu bytes of large object data (result = %lu)\n"
+msgstr "large object ÀÚ·áÀÇ %lu ¹ÙÀÌÆ®¸¦ ±â·ÏÇßÀ½(°á°ú°ª = %lu)\n"
+
+#: pg_backup_archiver.c:1159
+msgid "could not write to compressed archive\n"
+msgstr "¾ĞÃàµÈ ¾ÆÄ«ÀÌºê¿¡ ±â·ÏÇÒ ¼ö ¾øÀ½\n"
+
+#: pg_backup_archiver.c:1167
+msgid "could not write to custom output routine\n"
+msgstr "custom Ãâ·Â ·çÆ¾¿¡ ±â·ÏÇÒ ¼ö ¾øÀ½\n"
+
+#: pg_backup_archiver.c:1182
+#, c-format
+msgid "could not write to output file (%lu != %lu)\n"
+msgstr "Ãâ·Â ÆÄÀÏ¿¡ ±â·ÏÇÒ ¼ö ¾øÀ½ (%lu != %lu)\n"
+
+#: pg_backup_archiver.c:1267
+msgid "Error while INITIALIZING:\n"
+msgstr "ÃÊ±âÈ­ ÀÛ¾÷ Áß ¿À·ù:\n"
+
+#: pg_backup_archiver.c:1272
+msgid "Error while PROCESSING TOC:\n"
+msgstr "TOC Ã³¸®ÇÏ´Â Áß ¿À·ù:\n"
+
+#: pg_backup_archiver.c:1277
+msgid "Error while FINALIZING:\n"
+msgstr "µŞ ¸¶¹«¸® ÀÛ¾÷ Áß ¿À·ù:\n"
+
+#: pg_backup_archiver.c:1282
+#, c-format
+msgid "Error from TOC entry %d; %u %u %s %s %s\n"
+msgstr "%d TOC Ç×¸ñ¿¡¼­ ¿À·ù¹ß°ß; %u %u %s %s %s\n"
+
+#: pg_backup_archiver.c:1415
+#, c-format
+msgid "Unexpected data offset flag %d\n"
+msgstr "¿¹»óÄ¡ ¸øÇÑ ÀÚ·á ¿É¼Â ÇÃ·¡±× %d\n"
+
+#: pg_backup_archiver.c:1428
+msgid "file offset in dump file is too large\n"
+msgstr "´ıÇÁ ÆÄÀÏ¿¡¼­ ÆÄÀÏ ¿É¼Â °ªÀÌ ³Ê¹« Å®´Ï´Ù\n"
+
+#: pg_backup_archiver.c:1540
+msgid "attempting to ascertain archive format\n"
+msgstr "¾ÆÄ«ÀÌºê Æ÷¸äÀ» °áÁ¤ÇÕ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:1560
+#: pg_backup_files.c:148
+#, c-format
+msgid "could not open input file: %s\n"
+msgstr "ÀÔ·Â ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_archiver.c:1567
+#, c-format
+msgid "could not read input file: %s\n"
+msgstr "ÀÔ·Â ÆÄÀÏÀ» ÀĞÀ» ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_archiver.c:1569
+#, c-format
+msgid "input file is too short (read %lu, expected 5)\n"
+msgstr "ÀÔ·Â ÆÄÀÏÀÌ ³Ê¹« Âª½À´Ï´Ù (%lu ÀĞ¾úÀ½, ¿¹»óÄ¡ 5)\n"
+
+#: pg_backup_archiver.c:1622
+msgid "input file does not appear to be a valid archive (too short?)\n"
+msgstr "ÀÔ·Â ÆÄÀÏ¿¡¼­ Å¸´çÇÑ ¾ÆÄ«ÀÌºê¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù(³Ê¹« ÂªÀºÁö?)\n"
+
+#: pg_backup_archiver.c:1625
+msgid "input file does not appear to be a valid archive\n"
+msgstr "ÀÔ·Â ÆÄÀÏ¿¡¼­ Å¸´çÇÑ ¾ÆÄ«ÀÌºê¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù\n"
+
+#: pg_backup_archiver.c:1643
+#, c-format
+msgid "read %lu bytes into lookahead buffer\n"
+msgstr "%lu ¹ÙÀÌÆ®¸¦ lookahead ¹öÆÛ·Î ÀĞ¾îµå¸²\n"
+
+#: pg_backup_archiver.c:1650
+#, c-format
+msgid "could not close the input file after reading header: %s\n"
+msgstr "Çì´õ¸¦ ÀĞÀº µÚ¿¡ ÀÔ·Â ÆÄÀÏÀ» ´İÀ» ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_archiver.c:1667
+#, c-format
+msgid "allocating AH for %s, format %d\n"
+msgstr "%s À§ÇÑ AH¸¦ ÇÒ´çÇÏ´Â Áß, Æ÷¸ä %d\n"
+
+#: pg_backup_archiver.c:1721
+#, c-format
+msgid "archive format is %d\n"
+msgstr "¾ÆÄ«ÀÌºê ÆÄÀÏ ÇüÅÂ = %d\n"
+
+#: pg_backup_archiver.c:1749
+#, c-format
+msgid "unrecognized file format \"%d\"\n"
+msgstr "¾Ë ¼ö ¾ø´Â ÆÄÀÏ Æ÷¸ä: \"%d\"\n"
+
+#: pg_backup_archiver.c:1877
+#, c-format
+msgid "entry ID %d out of range -- perhaps a corrupt TOC\n"
+msgstr "%d ID Ç×¸ñÀº ¹üÀ§¸¦ ¹ş¾î³µÀ½ -- TOC Á¤º¸°¡ ¼Õ»óµÈ µí ÇÕ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:1962
+#, c-format
+msgid "read TOC entry %d (ID %d) for %s %s\n"
+msgstr "%d TOC Ç×¸ñ (%d ID) ÀĞ±â, ÇØ´ç°´Ã¼: %s %s\n"
+
+#: pg_backup_archiver.c:2124
+#, c-format
+msgid "could not set session user to \"%s\": %s"
+msgstr "\"%s\" »ç¿ëÀÚ·Î ¼¼¼Ç »ç¿ëÀÚ¸¦ ÁöÁ¤ÇÒ ¼ö ¾øÀ½: %s"
+
+#: pg_backup_archiver.c:2569
+msgid "WARNING: requested compression not available in this installation -- archive will be uncompressed\n"
+msgstr "°æ°í: ¿äÃ»ÇÑ ¾ĞÃà ±â´ÉÀº ÀÌ ¼³Ä¡ÆÇ¿¡¼­´Â »ç¿ëÇÒ ¼ö ¾ø½À´Ï´Ù -- ÀÚ·á ÆÄÀÏÀº ¾ĞÃà ¾øÀÌ ¸¸µé¾îÁú °ÍÀÔ´Ï´Ù\n"
+
+#: pg_backup_archiver.c:2604
+msgid "did not find magic string in file header\n"
+msgstr "ÆÄÀÏ Çì´õ¿¡¼­ ¸ÅÁ÷ ¹®ÀÚ¿­À» Ã£Áö ¸øÇß½À´Ï´Ù\n"
+
+#: pg_backup_archiver.c:2618
+#, c-format
+msgid "unsupported version (%d.%d) in file header\n"
+msgstr "ÆÄÀÏ Çì´õ¿¡ ÀÖ´Â %d.%d ¹öÀüÀº Áö¿øµÇÁö ¾Ê½À´Ï´Ù\n"
+
+#: pg_backup_archiver.c:2623
+#, c-format
+msgid "sanity check on integer size (%lu) failed\n"
+msgstr "Á¤¼ö Å©±â (%lu) ¾ÈÀü¼º °Ë»ç ½ÇÆĞ\n"
+
+#: pg_backup_archiver.c:2627
+msgid "WARNING: archive was made on a machine with larger integers, some operations may fail\n"
+msgstr "°æ°í: ÀÌ ¾ÆÄ«ÀÌºê´Â Å« Á¤¼ö¸¦ Áö¿øÇÏ´Â ½Ã½ºÅÛ¿¡¼­ ¸¸µé¾îÁ³½À´Ï´Ù. ±×·¡¼­ ¸î µ¿ÀÛÀÌ ½ÇÆĞÇÒ ¼öµµ ÀÖ½À´Ï´Ù.\n"
+
+#: pg_backup_archiver.c:2637
+#, c-format
+msgid "expected format (%d) differs from format found in file (%d)\n"
+msgstr "¿¹»óµÇ´Â Æ÷¸ä (%d)¿Í ¹ß°ßµÈ ÆÄÀÏ Æ÷¸ä (%d)ÀÌ ¼­·Î Æ²¸³´Ï´Ù\n"
+
+#: pg_backup_archiver.c:2653
+msgid "WARNING: archive is compressed, but this installation does not support compression -- no data will be available\n"
+msgstr "°æ°í: ¾ÆÄ«ÀÌºê´Â ¾ĞÃàµÇ¾îÀÖÁö¸¸, ÀÌ ÇÁ·Î±×·¥¿¡¼­´Â ¾ĞÃà±â´ÉÀ» Áö¿øÇÏÁö ¸øÇÕ´Ï´Ù -- ÀÌ ¾È¿¡ ÀÖ´Â ÀÚ·á¸¦ ¸ğµÎ »ç¿ëÇÒ ¼ö ¾ø½À´Ï´Ù.\n"
+
+#: pg_backup_archiver.c:2671
+msgid "WARNING: invalid creation date in header\n"
+msgstr "°æ°í: Çì´õ¿¡ Àß¸øµÈ »ı¼º ³¯Â¥°¡ ÀÖÀ½\n"
+
+#: pg_backup_custom.c:97
+msgid "custom archiver"
+msgstr "custom ¾ÆÄ«ÀÌ¹ö"
+
+#: pg_backup_custom.c:180
+#: pg_backup_custom.c:191
+#, c-format
+msgid "could not open archive file \"%s\": %s\n"
+msgstr "\"%s\" ÀÚ·á ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_custom.c:389
+msgid "invalid OID for large object\n"
+msgstr "Àß¸øµÈ large object¿ë OID\n"
+
+#: pg_backup_custom.c:447
+msgid "Dumping a specific TOC data block out of order is not supported without ID on this input stream (fseek required)\n"
+msgstr "¼øÂ÷ÀûÀÌÁö ¾ÊÀº Æ¯Á¤ TOC ÀÚ·á ºí·°À» ´ıÇÁÇÏ´Â °ÍÀº ÀÌ ÀÔ·Â ½ºÆ®¸²¿¡¼­ ID ¾øÀÌ´Â Áö¿øµÇÁö ¾Ê½À´Ï´Ù (fseek ¿ä±¸µÊ)\n"
+
+#: pg_backup_custom.c:462
+#, c-format
+msgid "unrecognized data block type (%d) while searching archive\n"
+msgstr "¾ÆÄ«ÀÌºê °Ë»öÇÏ´Â µ¿¾È ¾Ë ¼ö ¾ø´Â ÀÚ·á ºí·° ÇüÅÂ(%d)¸¦ ¹ß°ßÇÔ\n"
+
+#: pg_backup_custom.c:473
+#, c-format
+msgid "error during file seek: %s\n"
+msgstr "ÆÄÀÏ seek ÀÛ¾÷ÇÏ´Â µµÁß ¿À·ù°¡ ¹ß»ıÇß½À´Ï´Ù: %s\n"
+
+#: pg_backup_custom.c:480
+#, c-format
+msgid "found unexpected block ID (%d) when reading data -- expected %d\n"
+msgstr "ÀÚ·á¸¦ ÀĞ´Â µ¿¾È ¿¹»óÄ¡ ¸øÇÑ ID (%d) ¹ß°ßµÊ -- ¿¹»ó°ª %d\n"
+
+#: pg_backup_custom.c:491
+msgid "large objects cannot be loaded without a database connection\n"
+msgstr "µ¥ÀÌÅÍº£ÀÌ½º¿¡ Á¢¼ÓÇÏÁö ¾Ê°í, large object¸¦ ·ÎµåÇÒ ¼ö´Â ¾ø½À´Ï´Ù\n"
+
+#: pg_backup_custom.c:497
+#, c-format
+msgid "unrecognized data block type %d while restoring archive\n"
+msgstr "¾ÆÄ«ÀÌºê º¹¿øÇÏ´Â Áß¿¡, ¾Ë ¼ö ¾ø´Â ÀÚ·á ºí·° ÇüÅÂ %d ¸¦ ¹ß°ßÇÔ\n"
+
+#: pg_backup_custom.c:531
+#: pg_backup_custom.c:893
+#, c-format
+msgid "could not initialize compression library: %s\n"
+msgstr "¾ĞÃà ¶óÀÌºê·¯¸®¸¦ ÃÊ±âÈ­ ÇÒ ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_custom.c:553
+#: pg_backup_custom.c:676
+#, c-format
+msgid "could not read data block -- expected %lu, got %lu\n"
+msgstr "ÀÚ·á ºí·°À» ÀĞÀ» ¼ö ¾øÀ½ -- %lu ±â´ëÄ¡, %lu Ã³¸®°ª\n"
+
+#: pg_backup_custom.c:571
+#: pg_backup_custom.c:601
+#, c-format
+msgid "could not uncompress data: %s\n"
+msgstr "ÀÚ·á ¾ĞÃàÀ» Ç® ¼ö ¾ø½À´Ï´Ù: %s\n"
+
+#: pg_backup_custom.c:607
+#, c-format
+msgid "could not close compression library: %s\n"
+msgstr "¾ĞÃà ¶óÀÌºê·¯¸®¸¦ ´İÀ» ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_custom.c:704
+#, c-format
+msgid "could not write byte: %s\n"
+msgstr "¹ÙÀÌÆ® ¾µ ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_custom.c:748
+#: pg_backup_files.c:414
+#, c-format
+msgid "write error in _WriteBuf (%lu != %lu)\n"
+msgstr "_WriteBuf ¿¡¼­ ¾²±â ¿À·ù (%lu !- %lu)\n"
+
+#: pg_backup_custom.c:819
+#, c-format
+msgid "could not close archive file: %s\n"
+msgstr "ÀÚ·á ÆÄÀÏÀ» ´İÀ» ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_custom.c:842
+msgid "WARNING: ftell mismatch with expected position -- ftell used\n"
+msgstr "°æ°í: ftell °ª°ú, ¿¹»óµÇ´Â À§Ä¡°ªÀÌ Æ²¸² -- ftell °ªÀÌ »ç¿ëµÊ\n"
+
+#: pg_backup_custom.c:925
+#, c-format
+msgid "could not compress data: %s\n"
+msgstr "ÀÚ·á¸¦ ¾ĞÃàÇÒ ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_custom.c:945
+msgid "could not write compressed chunk\n"
+msgstr "¾ĞÃàµÈ chunk¸¦ ¾µ ¼ö ¾øÀ½\n"
+
+#: pg_backup_custom.c:959
+msgid "could not write uncompressed chunk\n"
+msgstr "¾ĞÃà ¾ÈµÈ chunk¸¦ ¾µ ¼ö ¾øÀ½\n"
+
+#: pg_backup_custom.c:1005
+#, c-format
+msgid "could not close compression stream: %s\n"
+msgstr "¾ĞÃà ½ºÆ®¸²À» ´İÀ» ¼ö ¾øÀ½: %s\n"
+
+#: pg_backup_db.c:31
+msgid "archiver (db)"
+msgstr "´ıÇÁ¹ŞÀ» DB"
+
+#: pg_backup_db.c:68
+msgid "could not get server_version from libpq\n"
+msgstr "libpq¿¡¼­ server_verion °ªÀ» ±¸ÇÒ ¼ö ¾øÀ½\n"
+
+#: pg_backup_db.c:79
+#, c-format
+msgid "server version: %s; %s version: %s\n"
+msgstr "¼­¹ö ¹öÀü: %s; %s ¹öÀü: %s\n"
+
+#: pg_backup_db.c:82
+msgid "proceeding despite version mismatch\n"
+msgstr "¹öÀüÀÌ ¼­·Î Æ²·Áµµ ±×³É ÁøÇàÇÕ´Ï´Ù\n"
+
+#: pg_backup_db.c:84
+msgid "aborting because of version mismatch  (Use the -i option to proceed anyway.)\n"
+msgstr "¹öÀüÀÌ ¸ÂÁö ¾Ê¾Æ ÁßÁöÇÕ´Ï´Ù (°­Á¦·Î ÁøÇàÇÏ·Á¸é, -i ¿É¼ÇÀ» »ç¿ëÇÏ¼¼¿ä)\n"
+
+#: pg_backup_db.c:151
+#, c-format
+msgid "connecting to database \"%s\" as user \"%s\"\n"
+msgstr "\"%s\" µ¥ÀÌÅÍº£ÀÌ½º¸¦ \"%s\" »ç¿ëÀÚ·Î Á¢¼ÓÇÕ´Ï´Ù\n"
+
+#: pg_backup_db.c:155
+#: pg_backup_db.c:187
+#: pg_backup_db.c:231
+#: pg_backup_db.c:260
+#: pg_dumpall.c:941
+#: pg_dumpall.c:967
+msgid "Password: "
+msgstr "ºñ¹Ğ¹øÈ£: "
+
+#: pg_backup_db.c:167
+msgid "failed to reconnect to database\n"
+msgstr "µ¥ÀÌÅÍº£ÀÌ½º ÀçÁ¢¼Ó ½ÇÆĞ\n"
+
+#: pg_backup_db.c:190
+#, c-format
+msgid "could not reconnect to database: %s"
+msgstr "µ¥ÀÌÅÍº£ÀÌ½º ÀçÁ¢¼ÓÀ» ÇÒ ¼ö ¾øÀ½: %s"
+
+#: pg_backup_db.c:227
+msgid "already connected to a database\n"
+msgstr "µ¥ÀÌÅÍº£ÀÌ½º¿¡ ÀÌ¹Ì Á¢¼ÓÇØ ÀÖÀ½\n"
+
+#: pg_backup_db.c:250
+msgid "failed to connect to database\n"
+msgstr "µ¥ÀÌÅÍº£ÀÌ½º Á¢¼Ó ½ÇÆĞ\n"
+
+#: pg_backup_db.c:269
+#, c-format
+msgid "connection to database \"%s\" failed: %s"
+msgstr "\"%s\" µ¥ÀÌÅÍº£ÀÌ½º¿¡ Á¢¼Ó ÇÒ ¼ö ¾øÀ½: %s"
+
+#: pg_backup_db.c:284
+#, c-format
+msgid "%s"
+msgstr "%s"
+
+#: pg_backup_db.c:313
+#, c-format
+msgid "%s: no result from server\n"
+msgstr "%s: ¼­¹ö¿¡¼­ ¾Æ¹«·± °á°ú°ªµµ º¸³»ÁÖÁö ¾Ê¾ÒÀ½\n"
+
+#: pg_backup_db.c:320
+msgid "COPY command executed in non-primary connection\n"
+msgstr "COPY ¸í·ÉÀÌ ±âº» Á¢¼ÓÀÌ ¾Æ´Ñµ¥¼­ ½ÇÇàµÇ¾ú½À´Ï´Ù\n"
+
+#: pg_backup_db.c:410
+msgid "error returned by PQputline\n"
+msgstr "PQputline¿¡ ÀÇÇØ¼­ ¿À·ù°¡ ¹İÈ¯µÇ¾úÀ½\n"
+
+#: pg_backup_db.c:421
+msgid "error returned by PQendcopy\n"
+msgstr "PQendcopy¿¡ ÀÇÇØ¼­ ¿À·ù°¡ ¹İÈ¯µÇ¾úÀ½\n"
+
+#: pg_backup_db.c:481
+msgid "could not execute query"
+msgstr "Äõ¸®¸¦ ½ÇÇà ÇÒ ¼ö ¾øÀ½"
+
+#: pg_backup_db.c:701
+#, c-format
+msgid "could not find OID columns of table \"%s\": %s"
+msgstr "\"%s\" Å×ÀÌºí¿¡¼­ OID Ä®·³À» Ã£À» ¼ö ¾øÀ½: %s"
+
+#: pg_backup_db.c:707
+#, c-format
+msgid "no OID type columns in table %s\n"
+msgstr "%s Å×ÀÌºí¿¡´Â OID ÀÚ·áÇü Ä®·³ÀÌ ¾ø½À´Ï´Ù\n"
+
+#: pg_backup_db.c:721
+#, c-format
+msgid "fixing large object cross-references for %s.%s\n"
+msgstr "%s.%s À§ÇÑ large object »óÈ£ ÂüÁ¶¸¦ °íÄ¨´Ï´Ù\n"
+
+#: pg_backup_db.c:760
+#, c-format
+msgid "SQL: %s\n"
+msgstr "SQL: %s\n"
+
+#: pg_backup_db.c:765
+#, c-format
+msgid "could not update column \"%s\" of table \"%s\": %s"
+msgstr "\"%s\" Ä®·³À» \"%s\" Å×ÀÌºí¿¡¼­ °»½ÅÇÒ ¼ö ¾øÀ½: %s"
+
+#: pg_backup_db.c:770
+#, c-format
+msgid "error while updating column \"%s\" of table \"%s\": %s"
+msgstr "\"%s\" Ä®·³À» \"%s\" Å×ÀÌºí¿¡¼­ °»½ÅÇÏ´Â µ¿¾È ¿À·ù ¹ß»ı: %s"
+
+#: pg_backup_db.c:793
+msgid "creating table for large object cross-references\n"
+msgstr "large object »óÈ£ ÂüÁ¶ Å×ÀÌºíÀ» ¸¸µì´Ï´Ù\n"
+
+#: pg_backup_db.c:796
+msgid "could not create large object cross-reference table"
+msgstr "large object »óÈ£ ÂüÁ¶ Å×ÀÌºíÀ» ¸¸µé ¼ö ¾øÀ½"
+
+#: pg_backup_db.c:806
+msgid "creating index for large object cross-references\n"
+msgstr "large object »óÈ£ ÂüÁ¶ Å×ÀÌºí¿¡ ÀÎµ¦½º¸¦ ¸¸µì´Ï´Ù\n"
+
+#: pg_backup_db.c:810
+msgid "could not create index on large object cross-reference table"
+msgstr "large object »óÈ£ ÂüÁ¶ Å×ÀÌºí¿¡ ÀÎµ¦½º¸¦ ¸¸µé ¼ö ¾øÀ½"
+
+#: pg_backup_db.c:823
+msgid "could not create large object cross-reference entry"
+msgstr "large object »óÈ£ ÂüÁ¶ Ç×¸ñÀ» ¸¸µé ¼ö ¾øÀ½"
+
+#: pg_backup_db.c:835
+msgid "could not start database transaction"
+msgstr "µ¥ÀÌÅÍº£ÀÌ½º Æ®·£Àè¼ÇÀ» ½ÃÀÛÇÒ ¼ö ¾øÀ½"
+
+#: pg_backup_db.c:849
+msgid "could not start transaction for large object cross-references"
+msgstr "large object »óÈ£ ÂüÁ¶¸¦ À§ÇÑ Æ®·£Àè¼ÇÀ» ½ÃÀÛÇÒ ¼ö ¾øÀ½"
+
+#: pg_backup_db.c:862
+msgid "could not commit database transaction"
+msgstr "µ¥ÀÌÅÍº£ÀÌ½º Æ®·£Àè¼ÇÀ» commit ÇÒ ¼ö ¾øÀ½"
+
+#: pg_backup_db.c:875
+msgid "could not commit transaction for large object cross-references"
+msgstr "large object »óÈ£ ÂüÁ¶¸¦ À§ÇÑ Æ®·£Àè¼ÇÀ» commit ÇÒ ¼ö ¾øÀ½"
+
+#: pg_backup_files.c:69
+msgid "file archiver"
+msgstr "file ¾ÆÄ«ÀÌ¹ö"
+
+#: pg_backup_files.c:120
 msgid ""
-"You might not be able to restore the dump without using --disable-triggers "
-"or temporarily dropping the constraints.\n"
+"WARNING:\n"
+"  This format is for demonstration purposes; it is not intended for\n"
+"  normal use. Files will be written in the current working directory.\n"
 msgstr ""
-"--disable-triggers ì˜µì…˜ìœ¼ë¡œ ë³µì›í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤. ë˜ëŠ” ì„ì‹œë¡œ "
-"ì œì•½ ì¡°ê±´ì„ ì‚­ì œí•˜ê³  ë³µì›í•˜ì„¸ìš”.\n"
+"°æ°í:\n"
+"  ÀÌ Æ÷¸äÀº ½Ã¾È¿ëÀÔ´Ï´Ù; ÀÏ¹İÀûÀÎ ÀÛ¾÷¿¡¼­´Â »ç¿ëÇÏÁö ¸¶½Ê½Ã¿À\n"
+"  Ãâ·Â °á°ú´Â ÇöÀç ÀÛ¾÷ µğ·ºÅä¸®¿¡ ¸¸µé¾îÁú °ÍÀÔ´Ï´Ù.\n"
 
-#: pg_dump_sort.c:1268
+#: pg_backup_files.c:246
+msgid "could not open data file for output\n"
+msgstr "Ãâ·Â¿ë ÀÚ·á ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½\n"
+
+#: pg_backup_files.c:266
+msgid "could not close data file\n"
+msgstr "ÀÚ·á ÆÄÀÏÀ» ´İÀ» ¼ö ¾øÀ½\n"
+
+#: pg_backup_files.c:290
+msgid "could not open data file for input\n"
+msgstr "ÀÔ·Â¿ë ÀÚ·á ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½\n"
+
+#: pg_backup_files.c:299
+msgid "could not close data file after reading\n"
+msgstr "ÀÚ·á ÆÄÀÏÀ» ÀĞÀº µÚ¿¡ ´İÀ» ¼ö ¾øÀ½\n"
+
+#: pg_backup_files.c:362
 #, c-format
-msgid ""
-"Consider using a full dump instead of a --data-only dump to avoid this "
-"problem.\n"
-msgstr ""
-"ì´ ë¬¸ì œë¥¼ í”¼í•˜ë ¤ë©´, --data-only ë¤í”„ ëŒ€ì‹ ì— ëª¨ë“  ë¤í”„ë¥¼ ì‚¬ìš©í•˜ê¸¸ ê¶Œí•©ë‹ˆë‹¤.\n"
+msgid "could not open large object TOC for input: %s\n"
+msgstr "ÀÔ·Â¿ë large object TOC ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½: %s\n"
 
-#: pg_dump_sort.c:1280
+#: pg_backup_files.c:375
+#: pg_backup_files.c:545
 #, c-format
-msgid "WARNING: could not resolve dependency loop among these items:\n"
-msgstr "ê²½ê³ : ë‹¤ìŒ í•­ëª© ê°„ ì˜ì¡´ ê´€ê³„ë¥¼ ë¶„ì„í•  ìˆ˜ ì—†ìŒ:\n"
+msgid "could not close large object TOC file: %s\n"
+msgstr "large object TOC ÆÄÀÏÀ» ´İÀ» ¼ö ¾øÀ½: %s\n"
 
-#: pg_dumpall.c:180
+#: pg_backup_files.c:387
+msgid "could not write byte\n"
+msgstr "¹ÙÀÌÆ®¸¦ ¾µ ¼ö ¾øÀ½\n"
+
+#: pg_backup_files.c:473
 #, c-format
-msgid ""
-"The program \"pg_dump\" is needed by %s but was not found in the\n"
-"same directory as \"%s\".\n"
-"Check your installation.\n"
-msgstr ""
-"\"pg_dump\" í”„ë¡œê·¸ë¨ì´ %s ì‘ì—…ì—ì„œ í•„ìš”ë¡œ í•˜ì§€ë§Œ, \"%s\" í”„ë¡œê·¸ë¨ì´\n"
-"ìˆëŠ” ê°™ì€ ë””ë ‰í„°ë¦¬ì—ì„œ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n"
-"ì„¤ì¹˜ ìƒíƒœë¥¼ ì‚´í´ ë³´ì‹­ì‹œì˜¤.\n"
+msgid "could not open large object TOC for output: %s\n"
+msgstr "Ãâ·Â¿ë large object TOC ÆÄÀÏÀ» ´İÀ» ¼ö ¾øÀ½: %s\n"
 
-#: pg_dumpall.c:187
+#: pg_backup_files.c:493
+#: pg_backup_tar.c:884
 #, c-format
-msgid ""
-"The program \"pg_dump\" was found by \"%s\"\n"
-"but was not the same version as %s.\n"
-"Check your installation.\n"
-msgstr ""
-"\"pg_dump\" í”„ë¡œê·¸ë¨ì´ \"%s\" ì‘ì—… ë•Œë¬¸ì— ì°¾ì•˜ì§€ë§Œ, \n"
-"%s ë²„ì „ê³¼ ì„œë¡œ í‹€ë¦½ë‹ˆë‹¤.\n"
-"ì„¤ì¹˜ ìƒíƒœë¥¼ ì‚´í´ ë³´ì‹­ì‹œì˜¤.\n"
+msgid "invalid OID for large object (%u)\n"
+msgstr "Àß¸øµÈ large object OID: %u\n"
 
-#: pg_dumpall.c:317
+#: pg_backup_files.c:512
+msgid "could not open large object file\n"
+msgstr "large object ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½\n"
+
+#: pg_backup_files.c:527
+msgid "could not close large object file\n"
+msgstr "large object ÆÄÀÏÀ» ´İÀ» ¼ö ¾øÀ½\n"
+
+#: pg_backup_null.c:55
+msgid "this format cannot be read\n"
+msgstr "ÀÌ ÆÄÀÏ ÇüÅÂ´Â ÀĞÀ» ¼ö ¾øÀ½\n"
+
+#: pg_backup_tar.c:105
+msgid "tar archiver"
+msgstr "tar ¾ÆÄ«ÀÌ¹ö"
+
+#: pg_backup_tar.c:183
 #, c-format
-msgid ""
-"%s: options -g/--globals-only and -r/--roles-only cannot be used together\n"
-msgstr "%s: -g/--globals-only ë° -r/--roles-only ì˜µì…˜ì€ í•¨ê»˜ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ\n"
+msgid "could not open TOC file for output: %s\n"
+msgstr "Ãâ·Â¿ë TOC ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½: %s\n"
 
-#: pg_dumpall.c:326
+#: pg_backup_tar.c:208
+msgid "compression not supported by tar output format\n"
+msgstr "tar Ãâ·Â Æ÷¸ä¿¡¼­ ¾ĞÃà ±â´ÉÀ» Áö¿øÇÏÁö ¾ÊÀ½\n"
+
+#: pg_backup_tar.c:220
 #, c-format
-msgid ""
-"%s: options -g/--globals-only and -t/--tablespaces-only cannot be used "
-"together\n"
-msgstr ""
-"%s: -g/--globals-only ë° -t/--tablespaces-only ì˜µì…˜ì€ í•¨ê»˜ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ\n"
+msgid "could not open TOC file for input: %s\n"
+msgstr "ÀÔ·Â¿ë TOC ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½: %s\n"
 
-#: pg_dumpall.c:335 pg_restore.c:345
+#: pg_backup_tar.c:341
 #, c-format
-msgid "%s: option --if-exists requires option -c/--clean\n"
-msgstr "%s: --if-exists ì˜µì…˜ì€ -c/--clean ì˜µì…˜ê³¼ í•¨ê»˜ ì‚¬ìš©í•´ì•¼ í•¨\n"
+msgid "could not find file %s in archive\n"
+msgstr "¾ÆÄ«ÀÌºê¿¡¼­ %s ÆÄÀÏÀ» Ã£À» ¼ö ¾øÀ½\n"
 
-#: pg_dumpall.c:342
+#: pg_backup_tar.c:352
+msgid "compression support is disabled in this format\n"
+msgstr "ÀÌ Æ÷¸ä¿¡¼­´Â ¾ĞÃà ±â´É Áö¿øÀÌ ºñÈ°¼ºÈ­ µÇ¾ú½À´Ï´Ù\n"
+
+#: pg_backup_tar.c:367
 #, c-format
-msgid ""
-"%s: options -r/--roles-only and -t/--tablespaces-only cannot be used "
-"together\n"
-msgstr ""
-"%s: -r/--roles-only ë° -t/--tablespaces-only ì˜µì…˜ì€ í•¨ê»˜ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ\n"
+msgid "could not generate temporary file name: %s\n"
+msgstr "ÀÓ½Ã ÆÄÀÏ ÀÌ¸§À» ÁşÁö ¸øÇß½À´Ï´Ù: %s\n"
 
-#: pg_dumpall.c:384 pg_dumpall.c:1994
+#: pg_backup_tar.c:376
+msgid "could not open temporary file\n"
+msgstr "ÀÓ½Ã ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ½\n"
+
+#: pg_backup_tar.c:406
+msgid "could not close tar member\n"
+msgstr "tar ¸É¹ö¸¦ ´İÁö ¸øÇß½À´Ï´Ù\n"
+
+#: pg_backup_tar.c:506
+msgid "internal error -- neither th nor fh specified in tarReadRaw()\n"
+msgstr "³»ºÎ ¿À·ù - tarReadRaw()¿¡¼­ th, fh µÑ´Ù ÁöÁ¤ÇÏÁö ¾Ê¾ÒÀ½\n"
+
+#: pg_backup_tar.c:510
 #, c-format
-msgid "%s: could not connect to database \"%s\"\n"
-msgstr "%s: \"%s\" ë°ì´í„°ë² ì´ìŠ¤ì— ì ‘ì†í•  ìˆ˜ ì—†ìŒ\n"
+msgid "requested %d bytes, got %d from lookahead and %d from file\n"
+msgstr "%d ¹ÙÀÌÆ®°¡ ¿ä±¸µÇ¾úÀ½, lookahead¿¡¼­ %d, ÆÄÀÏ¿¡¼­ %d Ã³¸®ÇßÀ½\n"
 
-#: pg_dumpall.c:399
+#: pg_backup_tar.c:549
 #, c-format
-msgid ""
-"%s: could not connect to databases \"postgres\" or \"template1\"\n"
-"Please specify an alternative database.\n"
-msgstr ""
-"%s: \"postgres\" ë˜ëŠ” \"template1\" ë°ì´í„°ë² ì´ìŠ¤ì— ì—°ê²°í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n"
-"ë‹¤ë¥¸ ë°ì´í„°ë² ì´ìŠ¤ë¥¼ ì§€ì •í•˜ì‹­ì‹œì˜¤.\n"
+msgid "could not write to tar member (wrote %lu, attempted %lu)\n"
+msgstr "tar ¸É¹ö¿¡ ¾µ ¼ö ¾øÀ½ (%lu ±â·ÏµÊ, %lu ½ÃµµµÊ)\n"
 
-#: pg_dumpall.c:416
+#: pg_backup_tar.c:638
 #, c-format
-msgid "%s: could not open the output file \"%s\": %s\n"
-msgstr "%s: ì¶œë ¥ íŒŒì¼ \"%s\"ì„(ë¥¼) ì—´ ìˆ˜ ì—†ìŒ: %s\n"
+msgid "invalid COPY statement -- could not find \"copy\" in string \"%s\"\n"
+msgstr "Àß¸øµÈ COPY ±¸¹® -- \"%s\" ¹®ÀÚ¿­¿¡¼­ \"copy\"¸¦ Ã£Áö ¸øÇßÀ½\n"
 
-#: pg_dumpall.c:546
+#: pg_backup_tar.c:656
 #, c-format
-msgid ""
-"%s extracts a PostgreSQL database cluster into an SQL script file.\n"
-"\n"
-msgstr ""
-"%s í”„ë¡œê·¸ë¨ì€ PostgreSQL ë°ì´í„°ë² ì´ìŠ¤ í´ëŸ¬ìŠ¤í„°ë¥¼ SQL ìŠ¤í¬ë¦½íŠ¸ íŒŒì¼ë¡œ\n"
-"ì¶”ì¶œí•˜ëŠ” í”„ë¡œê·¸ë¨ì…ë‹ˆë‹¤.\n"
-"\n"
+msgid "invalid COPY statement -- could not find \"from stdin\" in string \"%s\" starting at position %lu\n"
+msgstr "Àß¸øµÈ COPY ±¸¹® -- \"%s\" ¹®ÀÚ¿­(À§Ä¡: %lu)¿¡¼­ \"from stdin\"À» Ã£Áö ¸øÇßÀ½\n"
 
-#: pg_dumpall.c:548
+#: pg_backup_tar.c:692
 #, c-format
-msgid "  %s [OPTION]...\n"
-msgstr "  %s [ì˜µì…˜]...\n"
+msgid "restoring large object OID %u\n"
+msgstr "%u OID large object¸¦ ¸®½ºÅä¾îÇÕ´Ï´Ù\n"
 
-#: pg_dumpall.c:551
+#: pg_backup_tar.c:829
+msgid "could not write null block at end of tar archive\n"
+msgstr "tar ¾ÆÄ«ÀÌºêÀÇ ³¡¿¡ null ºí·°À» ¾µ ¼ö ¾øÀ½\n"
+
+#: pg_backup_tar.c:1027
+msgid "archive member too large for tar format\n"
+msgstr "¾ÆÄ«ÀÌºê ¸É¹ö°¡ tar Æ÷¸ä¿¡¼­ ¾²±â¿¡´Â ³Ê¹« Å®´Ï´Ù\n"
+
+#: pg_backup_tar.c:1037
 #, c-format
-msgid "  -f, --file=FILENAME          output file name\n"
-msgstr "  -f, --file=íŒŒì¼ì´ë¦„          ì¶œë ¥ íŒŒì¼ ì´ë¦„\n"
+msgid "write error appending to tar archive (wrote %lu, attempted %lu)\n"
+msgstr "tar ¾ÆÄ«ÀÌºê¿¡ Ãß°¡·Î ¾²±â ¿À·ù (%lu ±â·ÏµÊ, %lu ½ÃµµµÊ)\n"
 
-#: pg_dumpall.c:557
+#: pg_backup_tar.c:1043
 #, c-format
-msgid ""
-"  -c, --clean                  clean (drop) databases before recreating\n"
-msgstr ""
-"  -c, --clean                  ë‹¤ì‹œ ë§Œë“¤ê¸° ì „ì— ë°ì´í„°ë² ì´ìŠ¤ ì§€ìš°ê¸°(ì‚­ì œ)\n"
+msgid "could not close tar member: %s\n"
+msgstr "tar ¸É¹ö¸¦ ´İÀ» ¼ö ¾øÀ½: %s\n"
 
-#: pg_dumpall.c:558
+#: pg_backup_tar.c:1052
 #, c-format
-msgid "  -g, --globals-only           dump only global objects, no databases\n"
-msgstr ""
-"  -g, --globals-only           ë°ì´í„°ë² ì´ìŠ¤ëŠ” ì œì™¸í•˜ê³  ê¸€ë¡œë²Œ ê°œì²´ë§Œ ë¤í”„\n"
+msgid "actual file length (%s) does not match expected (%s)\n"
+msgstr "½ÇÀç ÆÄÀÏ ±æÀÌ(%s)¿Í ¿¹»óµÇ´Â °ª(%s)ÀÌ Æ²¸³´Ï´Ù\n"
 
-#: pg_dumpall.c:560 pg_restore.c:459
+#: pg_backup_tar.c:1060
+msgid "could not output padding at end of tar member\n"
+msgstr "tar ¸É¹öÀÇ ³¡¿¡ padding(?)À» Ãâ·ÂÇÒ ¼ö ¾ø½À´Ï´Ù\n"
+
+#: pg_backup_tar.c:1089
 #, c-format
-msgid "  -O, --no-owner               skip restoration of object ownership\n"
-msgstr "  -O, --no-owner               ê°œì²´ ì†Œìœ ê¶Œ ë³µì› ê±´ë„ˆë›°ê¸°\n"
+msgid "moving from position %s to next member at file position %s\n"
+msgstr "%s À§Ä¡¿¡¼­ ´ÙÀ½ ¸É¹ö·Î ÀÌµ¿ÇÕ´Ï´Ù, ÇØ´ç ÆÄÀÏ À§Ä¡ %s\n"
 
-#: pg_dumpall.c:561
+#: pg_backup_tar.c:1100
 #, c-format
-msgid ""
-"  -r, --roles-only             dump only roles, no databases or tablespaces\n"
-msgstr ""
-"  -r, --roles-only             ë°ì´í„°ë² ì´ìŠ¤ë‚˜ í…Œì´ë¸”ìŠ¤í˜ì´ìŠ¤ëŠ” ì œì™¸í•˜ê³  ì—­í• "
-"ë§Œ ë¤í”„\n"
+msgid "now at file position %s\n"
+msgstr "»õ·Î ÀÌµ¿µÈ ÆÄÀÏ À§Ä¡: %s\n"
 
-#: pg_dumpall.c:563
+#: pg_backup_tar.c:1109
+#: pg_backup_tar.c:1136
 #, c-format
-msgid "  -S, --superuser=NAME         superuser user name to use in the dump\n"
-msgstr "  -S, --superuser=NAME         ë¤í”„ì— ì‚¬ìš©í•  ìŠˆí¼ìœ ì € ì‚¬ìš©ì ì´ë¦„\n"
+msgid "could not find header for file %s in tar archive\n"
+msgstr "tar ¾ÆÄ«ÀÌºê¿¡¼­ %s ÆÄÀÏÀ» À§ÇÑ Çì´õ¸¦ Ã£À» ¼ö ¾øÀ½\n"
 
-#: pg_dumpall.c:564
+#: pg_backup_tar.c:1120
 #, c-format
-msgid ""
-"  -t, --tablespaces-only       dump only tablespaces, no databases or roles\n"
-msgstr ""
-"  -t, --tablespaces-only       ë°ì´í„°ë² ì´ìŠ¤ë‚˜ ì—­í• ì€ ì œì™¸í•˜ê³  í…Œì´ë¸”ìŠ¤í˜ì´ìŠ¤"
-"ë§Œ ë¤í”„\n"
+msgid "skipping tar member %s\n"
+msgstr "%s tar ¸É¹ö´Â °Ç³Ê¶İ´Ï´Ù\n"
 
-#: pg_dumpall.c:581
+#: pg_backup_tar.c:1124
 #, c-format
-msgid "  -d, --dbname=CONNSTR     connect using connection string\n"
-msgstr "  -d, --dbname=ì ‘ì†ë¬¸ìì—´  ì„œë²„ ì ‘ì† ë¬¸ìì—´\n"
+msgid "dumping data out of order is not supported in this archive format: %s is required, but comes before %s in the archive file.\n"
+msgstr "¼ø¼­¸¦ ³Ñ¾î¼­´Â ÀÚ·á ´ıÇÁ ÀÛ¾÷Àº ÀÌ ¾ÆÄ«ÀÌºê Æ÷¸ä¿¡¼­´Â Áö¿øÇÏÁö ¾Ê½À´Ï´Ù: %s ¿ä±¸µÇ¾úÁö¸¸, ÀÌ ¾ÆÄ«ÀÌºê ÆÄÀÏ¿¡¼­´Â %s Àü¿¡ ¿É´Ï´Ù\n"
 
-#: pg_dumpall.c:583
+#: pg_backup_tar.c:1172
 #, c-format
-msgid "  -l, --database=DBNAME    alternative default database\n"
-msgstr "  -l, --database=DBNAME    ëŒ€ì²´ìš© ê¸°ë³¸ ë°ì´í„°ë² ì´ìŠ¤\n"
+msgid "mismatch in actual vs. predicted file position (%s vs. %s)\n"
+msgstr "ÆÄÀÏ À§Ä¡°¡ ½ÇÀç À§Ä¡ (%s)¿Í ¿¹»óµÇ´Â À§Ä¡ (%s)°¡ ¼­·Î Æ²¸³´Ï´Ù\n"
 
-#: pg_dumpall.c:590
+#: pg_backup_tar.c:1187
 #, c-format
-msgid ""
-"\n"
-"If -f/--file is not used, then the SQL script will be written to the "
-"standard\n"
-"output.\n"
-"\n"
-msgstr ""
-"\n"
-"-f/--fileì„ ì‚¬ìš©í•˜ì§€ ì•Šìœ¼ë©´ SQL ìŠ¤í¬ë¦½íŠ¸ê°€ í‘œì¤€\n"
-"ì¶œë ¥ì— ì“°ì—¬ì§‘ë‹ˆë‹¤.\n"
-"\n"
+msgid "incomplete tar header found (%lu bytes)\n"
+msgstr "¿Ï¼ºµÇÁö ¸øÇÑ tar Çì´õ°¡ ¹ß°ßµÇ¾úÀ½ (%lu bytes)\n"
 
-#: pg_dumpall.c:791
+#: pg_backup_tar.c:1222
 #, c-format
-msgid "%s: role name starting with \"pg_\" skipped (%s)\n"
-msgstr "%s: ë¡¤ ì´ë¦„ì´ \"pg_\"ë¡œ ì‹œì‘í•¨, ë¬´ì‹œí•¨: (%s)\n"
+msgid "TOC Entry %s at %s (length %lu, checksum %d)\n"
+msgstr "TOC Entry %s at %s (length %lu, checksum %d)\n"
 
-#: pg_dumpall.c:1168
+#: pg_backup_tar.c:1232
 #, c-format
-msgid "%s: could not parse ACL list (%s) for tablespace \"%s\"\n"
-msgstr ""
-"%s: í…Œì´ë¸”ìŠ¤í˜ì´ìŠ¤ ìš© ACL ëª©ë¡ (%s)ì„ ë¶„ì„í•  ìˆ˜ ì—†ìŒ, í•´ë‹¹ê°œì²´ \"%s\"\n"
+msgid "corrupt tar header found in %s (expected %d, computed %d) file position %s\n"
+msgstr "%s ¾È¿¡ ¼Õ»óµÈ tar Çì´õ ¹ß°ß (¿¹»óÄ¡ %d, °è»êµÈ °ª %d), ÆÄÀÏ À§Ä¡ %s\n"
 
-#: pg_dumpall.c:1536
+#: pg_backup_tar.c:1325
+msgid "could not write tar header\n"
+msgstr "tar header Á¤º¸¸¦ ¾µ ¼ö ¾øÀ½\n"
+
+#: pg_restore.c:283
 #, c-format
-msgid "%s: could not parse ACL list (%s) for database \"%s\"\n"
-msgstr "%s: ë°ì´í„°ë² ì´ìŠ¤ ìš© ACL ëª©ë¡ (%s)ì„ ë¶„ì„í•  ìˆ˜ ì—†ìŒ, í•´ë‹¹ê°œì²´: \"%s\"\n"
+msgid "%s: cannot specify both -d and -f output\n"
+msgstr "%s: -d ¿É¼Ç°ú -f ¿É¼ÇÀ» ÇÔ²² ÁöÁ¤ÇÒ ¼ö´Â ¾ø½À´Ï´Ù.\n"
 
-#: pg_dumpall.c:1754
-#, c-format
-msgid "%s: dumping database \"%s\"...\n"
-msgstr "%s: \"%s\" ë°ì´í„°ë² ì´ìŠ¤ ë¤í”„ ì¤‘...\n"
-
-#: pg_dumpall.c:1778
-#, c-format
-msgid "%s: pg_dump failed on database \"%s\", exiting\n"
-msgstr "%s: \"%s\" ë°ì´í„°ë² ì´ìŠ¤ì—ì„œ pg_dump ì‘ì—… ì¤‘ì— ì˜¤ë¥˜ê°€ ë°œìƒ, ëëƒ…ë‹ˆë‹¤.\n"
-
-#: pg_dumpall.c:1787
-#, c-format
-msgid "%s: could not re-open the output file \"%s\": %s\n"
-msgstr "%s: ì¶œë ¥ íŒŒì¼ \"%s\"ì„(ë¥¼) ë‹¤ì‹œ ì—´ ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_dumpall.c:1832
-#, c-format
-msgid "%s: running \"%s\"\n"
-msgstr "%s: \"%s\" ê°€ë™ì¤‘\n"
-
-#: pg_dumpall.c:2016
-#, c-format
-msgid "%s: could not connect to database \"%s\": %s\n"
-msgstr "%s: \"%s\" ë°ì´í„°ë² ì´ìŠ¤ì— ì ‘ì†í•  ìˆ˜ ì—†ìŒ: %s\n"
-
-#: pg_dumpall.c:2046
-#, c-format
-msgid "%s: could not get server version\n"
-msgstr "%s: ì„œë²„ ë²„ì „ì„ ì•Œ ìˆ˜ ì—†ìŒ\n"
-
-#: pg_dumpall.c:2052
-#, c-format
-msgid "%s: could not parse server version \"%s\"\n"
-msgstr "%s: \"%s\" ì„œë²„ ë²„ì „ì„ ë¶„ì„í•  ìˆ˜ ì—†ìŒ\n"
-
-#: pg_dumpall.c:2130 pg_dumpall.c:2156
-#, c-format
-msgid "%s: executing %s\n"
-msgstr "%s: %s ì‹¤í–‰ì¤‘\n"
-
-#: pg_dumpall.c:2136 pg_dumpall.c:2162
-#, c-format
-msgid "%s: query failed: %s"
-msgstr "%s: ì¿¼ë¦¬ ì‹¤íŒ¨: %s"
-
-#: pg_dumpall.c:2138 pg_dumpall.c:2164
-#, c-format
-msgid "%s: query was: %s\n"
-msgstr "%s: ì‚¬ìš©í•œ ì¿¼ë¦¬: %s\n"
-
-#: pg_restore.c:305
-#, c-format
-msgid "%s: options -d/--dbname and -f/--file cannot be used together\n"
-msgstr "%s: -d/--dbname ë° -f/--file ì˜µì…˜ì€ í•¨ê»˜ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ\n"
-
-#: pg_restore.c:316
-#, c-format
-msgid ""
-"%s: options -s/--schema-only and -a/--data-only cannot be used together\n"
-msgstr ""
-"%s: -s/--schema-only ì˜µì…˜ê³¼ -a/--data-only ì˜µì…˜ì€ í•¨ê»˜ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ\n"
-
-#: pg_restore.c:323
-#, c-format
-msgid "%s: options -c/--clean and -a/--data-only cannot be used together\n"
-msgstr "%s: -c/--clean ì˜µì…˜ê³¼ -a/--data-only ì˜µì…˜ì€ í•¨ê»˜ ì‚¬ìš©í•  ìˆ˜ ì—†ìŒ\n"
-
-#: pg_restore.c:331
-#, c-format
-msgid "%s: cannot specify both --single-transaction and multiple jobs\n"
-msgstr "%s: --single-transaction ë° ì—¬ëŸ¬ ì‘ì—…ì„ ëª¨ë‘ ì§€ì •í•  ìˆ˜ëŠ” ì—†ìŒ\n"
-
-#: pg_restore.c:372
-#, c-format
-msgid ""
-"unrecognized archive format \"%s\"; please specify \"c\", \"d\", or \"t\"\n"
-msgstr ""
-"ì•Œ ìˆ˜ ì—†ëŠ” ì•„ì¹´ì´ë¸Œ í˜•ì‹: \"%s\"; ì‚¬ìš©í•  ìˆ˜ ìˆëŠ” ê°’: \"c\", \"d\", \"t\"\n"
-
-#: pg_restore.c:404
-#, c-format
-msgid "%s: maximum number of parallel jobs is %d\n"
-msgstr "%s: ë³‘ë ¬ ì‘ì—… ìµœëŒ€ìˆ˜ëŠ” %d ì…ë‹ˆë‹¤.\n"
-
-#: pg_restore.c:422
+#: pg_restore.c:344
 #, c-format
 msgid "WARNING: errors ignored on restore: %d\n"
-msgstr "ê²½ê³ : ë³µì›ì‘ì—…ì—ì„œì˜ ì˜¤ë¥˜ë“¤ì´ ë¬´ì‹œë˜ì—ˆìŒ: %d\n"
+msgstr "°æ°í: º¹¿øÀÛ¾÷¿¡¼­ÀÇ ¿À·ùµéÀÌ ¹«½ÃµÇ¾úÀ½: %d\n"
 
-#: pg_restore.c:436
+#: pg_restore.c:358
 #, c-format
 msgid ""
 "%s restores a PostgreSQL database from an archive created by pg_dump.\n"
 "\n"
 msgstr ""
-"%s í”„ë¡œê·¸ë¨ì€ pg_dumpë¡œ ë§Œë“¤ì–´ì§„ ìë£ŒíŒŒì¼ë¡œ PostgreSQL ë°ì´í„°ë² ì´ìŠ¤ì—\n"
-"ê·¸ ìë£Œë¥¼ ì¼ê´„ ì…ë ¥í•©ë‹ˆë‹¤.\n"
+"%s ÇÁ·Î±×·¥Àº pg_dump·Î ¸¸µé¾îÁø ÀÚ·áÆÄÀÏ·Î PostgreSQL µ¥ÀÌÅÍº£ÀÌ½º¿¡\n"
+"±× ÀÚ·á¸¦ ÀÏ°ı ÀÔ·ÂÇÕ´Ï´Ù.\n"
 "\n"
 
-#: pg_restore.c:438
+#: pg_restore.c:360
 #, c-format
 msgid "  %s [OPTION]... [FILE]\n"
-msgstr "  %s [ì˜µì…˜]... [íŒŒì¼]\n"
+msgstr "  %s [¿É¼Ç]... [ÆÄÀÏ]\n"
 
-#: pg_restore.c:441
-#, c-format
+#: pg_restore.c:363
 msgid "  -d, --dbname=NAME        connect to database name\n"
-msgstr "  -d, --dbname=NAME        ì ‘ì†í•  ë°ì´í„°ë² ì´ìŠ¤ ì´ë¦„\n"
+msgstr "  -d, --dbname=NAME        Á¢¼ÓÇÒ µ¥ÀÌÅÍº£ÀÌ½º ÀÌ¸§\n"
 
-#: pg_restore.c:442
-#, c-format
-msgid "  -f, --file=FILENAME      output file name\n"
-msgstr "  -f, --file=FILENAME      ì¶œë ¥ íŒŒì¼ ì´ë¦„\n"
+#: pg_restore.c:365
+msgid "  -F, --format=c|t         specify backup file format\n"
+msgstr "  -F, --format=c|t         ¹é¾÷ ÆÄÀÏ ÇüÅÂ ÁöÁ¤\n"
 
-#: pg_restore.c:443
-#, c-format
-msgid "  -F, --format=c|d|t       backup file format (should be automatic)\n"
-msgstr "  -F, --format=c|d|t       ë°±ì—… íŒŒì¼ í˜•ì‹ (ì§€ì •í•˜ì§€ ì•Šìœ¼ë©´ ìë™ë¶„ì„)\n"
+#: pg_restore.c:366
+msgid "  -i, --ignore-version     proceed even when server version mismatches\n"
+msgstr "  -i, --ignore-version     ¼­¹ö ¹öÀüÀÌ Æ²·Áµµ ¹«½ÃÇÏ°í ÁøÇàÇÔ\n"
 
-#: pg_restore.c:444
-#, c-format
+#: pg_restore.c:367
 msgid "  -l, --list               print summarized TOC of the archive\n"
-msgstr "  -l, --list               ìë£Œì˜ ìš”ì•½ëœ ëª©ì°¨ë¥¼ ë³´ì—¬ì¤Œ\n"
+msgstr "  -l, --list               ÀÚ·áÀÇ ¿ä¾àµÈ ¸ñÂ÷¸¦ º¸¿©ÁÜ\n"
 
-#: pg_restore.c:445
-#, c-format
-msgid "  -v, --verbose            verbose mode\n"
-msgstr "  -v, --verbose            ìì„¸í•œ ì •ë³´ ë³´ì—¬ì¤Œ\n"
-
-#: pg_restore.c:446
-#, c-format
-msgid "  -V, --version            output version information, then exit\n"
-msgstr "  -V, --version            ë²„ì „ ì •ë³´ë¥¼ ë³´ì—¬ì£¼ê³  ë§ˆì¹¨\n"
-
-#: pg_restore.c:447
-#, c-format
-msgid "  -?, --help               show this help, then exit\n"
-msgstr "  -?, --help               ì´ ë„ì›€ë§ì„ ë³´ì—¬ì£¼ê³  ë§ˆì¹¨\n"
-
-#: pg_restore.c:449
-#, c-format
+#: pg_restore.c:372
 msgid ""
 "\n"
 "Options controlling the restore:\n"
 msgstr ""
 "\n"
-"ë¦¬ìŠ¤í† ì–´ ì²˜ë¦¬ë¥¼ ìœ„í•œ ì˜µì…˜ë“¤:\n"
+"¸®½ºÅä¾î Ã³¸®¸¦ À§ÇÑ ¿É¼Çµé:\n"
 
-#: pg_restore.c:450
-#, c-format
-msgid "  -a, --data-only              restore only the data, no schema\n"
-msgstr "  -a, --data-only              ìŠ¤í‚¤ë§ˆëŠ” ë¹¼ê³  ìë£Œë§Œ ì…ë ¥í•¨\n"
+#: pg_restore.c:373
+msgid "  -a, --data-only          restore only the data, no schema\n"
+msgstr "  -a, --data-only          ½ºÅ°¸¶´Â »©°í ÀÚ·á¸¸ ÀÔ·ÂÇÔ\n"
 
-#: pg_restore.c:452
-#, c-format
-msgid "  -C, --create                 create the target database\n"
-msgstr "  -C, --create                 ì‘ì—… ëŒ€ìƒ ë°ì´í„°ë² ì´ìŠ¤ë¥¼ ë§Œë“¦\n"
+#: pg_restore.c:375
+msgid "  -C, --create             create the target database\n"
+msgstr "  -C, --create             ÀÛ¾÷ ´ë»ó µ¥ÀÌÅÍº£ÀÌ½º¸¦ ¸¸µê\n"
 
-#: pg_restore.c:453
-#, c-format
-msgid "  -e, --exit-on-error          exit on error, default is to continue\n"
-msgstr ""
-"  -e, --exit-on-error          ì˜¤ë¥˜ê°€ ìƒê¸°ë©´ ëëƒ„, ê¸°ë³¸ì€ ê³„ì† ì§„í–‰í•¨\n"
+#: pg_restore.c:376
+msgid "  -I, --index=NAME         restore named index\n"
+msgstr "  -I, --index=NAME         ÁöÁ¤ÇÑ ÀÎµ¦½º ¸¸µê\n"
 
-#: pg_restore.c:454
-#, c-format
-msgid "  -I, --index=NAME             restore named index\n"
-msgstr "  -I, --index=NAME             ì§€ì •í•œ ì¸ë±ìŠ¤ ë§Œë“¦\n"
-
-#: pg_restore.c:455
-#, c-format
-msgid "  -j, --jobs=NUM               use this many parallel jobs to restore\n"
-msgstr "  -j, --jobs=NUM               ì—¬ëŸ¬ ë³‘ë ¬ ì‘ì—…ì„ ì‚¬ìš©í•˜ì—¬ ë³µì›\n"
-
-#: pg_restore.c:456
-#, c-format
+#: pg_restore.c:377
 msgid ""
-"  -L, --use-list=FILENAME      use table of contents from this file for\n"
-"                               selecting/ordering output\n"
-msgstr ""
-"  -L, --use-list=FILENAME      ì¶œë ¥ì„ ì„ íƒí•˜ê³  í•´ë‹¹ ìˆœì„œë¥¼ ì§€ì •í•˜ê¸° ìœ„í•´\n"
-"                               ì´ íŒŒì¼ì˜ ëª©ì°¨ ì‚¬ìš©\n"
+"  -L, --use-list=FILENAME  use specified table of contents for ordering\n"
+"                           output from this file\n"
+msgstr "  -L, --use-list=FILENAME  »ç¿ëÇÒ TOC(ÀÚ·á¸ñÂ÷) ÆÄÀÏÀ» ÁöÁ¤ÇÔ\n"
 
-#: pg_restore.c:458
-#, c-format
-msgid "  -n, --schema=NAME            restore only objects in this schema\n"
-msgstr "  -n, --schema=NAME            í•´ë‹¹ ìŠ¤í‚¤ë§ˆì˜ ê°œì²´ë“¤ë§Œ ë³µì›í•¨\n"
+#: pg_dumpall.c:352
+#: pg_restore.c:379
+msgid "  -O, --no-owner           skip restoration of object ownership\n"
+msgstr "  -O, --no-owner           °´Ã¼ÀÇ ¼ÒÀ¯ÁÖ ÁöÁ¤ ÀÛ¾÷ ÇÏÁö ¾ÊÀ½\n"
 
-#: pg_restore.c:460
-#, c-format
-msgid "  -P, --function=NAME(args)    restore named function\n"
-msgstr "  -P, --function=NAME(args)    ì§€ì •í•œ í•¨ìˆ˜ ë§Œë“¦\n"
-
-#: pg_restore.c:461
-#, c-format
-msgid "  -s, --schema-only            restore only the schema, no data\n"
-msgstr "  -s, --schema-only            ìë£Œêµ¬ì¡°(ìŠ¤í‚¤ë§ˆ)ë§Œ ë§Œë“¦\n"
-
-#: pg_restore.c:462
-#, c-format
+#: pg_restore.c:380
 msgid ""
-"  -S, --superuser=NAME         superuser user name to use for disabling "
-"triggers\n"
+"  -P, --function=NAME(args)\n"
+"                           restore named function\n"
 msgstr ""
-"  -S, --superuser=NAME         íŠ¸ë¦¬ê±°ë¥¼ ì‚¬ìš©í•˜ì§€ ì•Šê¸° ìœ„í•´ ì‚¬ìš©í•  ìŠˆí¼ìœ ì €\n"
-"                               ì‚¬ìš©ì ì´ë¦„\n"
+"  -P, --function=NAME(args)\n"
+"                           ÁöÁ¤ÇÑ ÇÔ¼ö ¸¸µê\n"
 
-#: pg_restore.c:463
-#, c-format
+#: pg_restore.c:382
+msgid "  -s, --schema-only        restore only the schema, no data\n"
+msgstr "  -s, --schema-only        ÀÚ·á±¸Á¶(½ºÅ°¸¶)¸¸ ¸¸µê\n"
+
+#: pg_restore.c:383
 msgid ""
-"  -t, --table=NAME             restore named relation (table, view, etc.)\n"
+"  -S, --superuser=NAME     specify the superuser user name to use for\n"
+"                           disabling triggers\n"
 msgstr ""
-"  -t, --table=NAME             ë³µì›í•  ê°ì²´ ì´ë¦„ (í…Œì´ë¸”, ë·°, ê¸°íƒ€)\n"
+"  -S, --superuser=NAME     Æ®¸®°Å ÀÛµ¿À» ÁßÁö ½ÃÅ³ ¼ö ÀÖ´Â ½´ÆÛÀ¯Àú\n"
+"                           ÀÌ¸§À» ÁöÁ¤\n"
 
-#: pg_restore.c:464
-#, c-format
-msgid "  -T, --trigger=NAME           restore named trigger\n"
-msgstr "  -T, --trigger=NAME           ì§€ì •í•œ íŠ¸ë¦¬ê±° ë§Œë“¦\n"
+#: pg_restore.c:385
+msgid "  -t, --table=NAME         restore named table\n"
+msgstr "  -t, --table=NAME         ÁöÁ¤ÇÑ Å×ÀÌºí ¸¸µé°í ÀÚ·á ÀÔ·ÂÇÔ\n"
 
-#: pg_restore.c:465
-#, c-format
-msgid ""
-"  -x, --no-privileges          skip restoration of access privileges (grant/"
-"revoke)\n"
-msgstr "  -x, --no-privileges          ì ‘ê·¼ ê¶Œí•œ(grant/revoke) ì§€ì • ì•ˆí•¨\n"
+#: pg_restore.c:386
+msgid "  -T, --trigger=NAME       restore named trigger\n"
+msgstr "  -T, --trigger=NAME       ÁöÁ¤ÇÑ Æ®¸®°Å ¸¸µê\n"
 
-#: pg_restore.c:466
-#, c-format
-msgid "  -1, --single-transaction     restore as a single transaction\n"
-msgstr "  -1, --single-transaction     í•˜ë‚˜ì˜ íŠ¸ëœì­ì…˜ ì‘ì—…ìœ¼ë¡œ ë³µì›í•¨\n"
+#: pg_restore.c:387
+msgid "  -x, --no-privileges      skip restoration of access privileges (grant/revoke)\n"
+msgstr "  -x, --no-privileges      Á¢±Ù±ÇÇÑ(grant/revoke) ÁöÁ¤ ¾ÈÇÔ\n"
 
-#: pg_restore.c:468
-#, c-format
-msgid "  --enable-row-security        enable row security\n"
-msgstr "  --enable-row-security        ë¡œìš° ë³´ì•ˆ í™œì„±í™”\n"
+#: pg_restore.c:399
+msgid "  -e, --exit-on-error      exit on error, default is to continue\n"
+msgstr "  -e, --exit-on-error      ¿À·ù°¡ »ı±â¸é ³¡³¿, ±âº»Àº °è¼Ó ÁøÇàÇÔ\n"
 
-#: pg_restore.c:470
-#, c-format
-msgid ""
-"  --no-data-for-failed-tables  do not restore data of tables that could not "
-"be\n"
-"                               created\n"
-msgstr ""
-"  --no-data-for-failed-tables  ë§Œë“¤ ìˆ˜ ì—†ëŠ” í…Œì´ë¸”ì— ëŒ€í•´ì„œëŠ” ìë£Œë¥¼ ë¤í”„í•˜"
-"ì§€ ì•ŠìŒ\n"
-
-#: pg_restore.c:472
-#, c-format
-msgid "  --no-security-labels         do not restore security labels\n"
-msgstr "  --no-security-labels         ë³´ì•ˆ ë¼ë²¨ì„ ë³µì›í•˜ì§€ ì•ŠìŒ\n"
-
-#: pg_restore.c:473
-#, c-format
-msgid "  --no-tablespaces             do not restore tablespace assignments\n"
-msgstr "  --no-tablespaces             í…Œì´ë¸”ìŠ¤í˜ì´ìŠ¤ í• ë‹¹ì„ ë³µì›í•˜ì§€ ì•ŠìŒ\n"
-
-#: pg_restore.c:474
-#, c-format
-msgid ""
-"  --section=SECTION            restore named section (pre-data, data, or "
-"post-data)\n"
-msgstr ""
-"  --section=SECTION            ì§€ì •í•œ ì„¹ì…˜ë§Œ ë³µì›í•¨\n"
-"                               ì„¹ì…˜ ì¢…ë¥˜: pre-data, data, post-data\n"
-
-#: pg_restore.c:487
-#, c-format
-msgid "  --role=ROLENAME          do SET ROLE before restore\n"
-msgstr "  --role=ROLENAME          ë³µì› ì „ì— SET ROLE ìˆ˜í–‰\n"
-
-#: pg_restore.c:489
-#, c-format
-msgid ""
-"\n"
-"The options -I, -n, -P, -t, -T, and --section can be combined and specified\n"
-"multiple times to select multiple objects.\n"
-msgstr ""
-"\n"
-"-I, -n, -P, -t, -T, --section ì˜µì…˜ì€ ê·¸ ëŒ€ìƒì´ ë˜ëŠ” ê°ì²´ë¥¼ ë³µìˆ˜ë¡œ ì§€ì •í•˜ê¸°\n"
-"ìœ„í•´ì„œ ì—¬ëŸ¬ë²ˆ ì‚¬ìš©í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.\n"
-
-#: pg_restore.c:492
-#, c-format
+#: pg_restore.c:401
 msgid ""
 "\n"
 "If no input file name is supplied, then standard input is used.\n"
 "\n"
 msgstr ""
 "\n"
-"ì‚¬ìš©í•  ì…ë ¥ íŒŒì¼ì„ ì§€ì •í•˜ì§€ ì•Šì•˜ë‹¤ë©´, í‘œì¤€ ì…ë ¥(stdin)ì„ ì‚¬ìš©í•©ë‹ˆë‹¤.\n"
+"»ç¿ëÇÒ ÀÔ·Â ÆÄÀÏÀ» ÁöÁ¤ÇÏÁö ¾Ê¾Ò´Ù¸é, Ç¥ÁØ ÀÔ·Â(stdin)À» »ç¿ëÇÕ´Ï´Ù.\n"
 "\n"
 
-#~ msgid "could not open output file \"%s\" for writing\n"
-#~ msgstr "\"%s\" íŒŒì¼ì„ ì“°ê¸° ëª¨ë“œë¡œ ì—´ ìˆ˜ ì—†ìŒ\n"
+#: pg_dumpall.c:149
+#, c-format
+msgid ""
+"The program \"pg_dump\" is needed by %s but was not found in the\n"
+"same directory as \"%s\".\n"
+"Check your installation.\n"
+msgstr ""
+"\"pg_dump\" ÇÁ·Î±×·¥ÀÌ %s ÀÛ¾÷¿¡¼­ ÇÊ¿ä·Î ÇÏÁö¸¸, \"%s\" ÇÁ·Î±×·¥ÀÌ\n"
+"ÀÖ´Â °°Àº µğ·ºÅä¸®¿¡¼­ Ã£À» ¼ö ¾ø½À´Ï´Ù.\n"
+"¼³Ä¡ »óÅÂ¸¦ »ìÆì º¸½Ê½Ã¿À.\n"
 
-#~ msgid "error in ListenToWorkers(): %s\n"
-#~ msgstr "ListenToWorkers()ì—ì„œ ì˜¤ë¥˜ ë°œìƒ: %s\n"
+#: pg_dumpall.c:156
+#, c-format
+msgid ""
+"The program \"pg_dump\" was found by \"%s\"\n"
+"but was not the same version as %s.\n"
+"Check your installation.\n"
+msgstr ""
+"\"pg_dump\" ÇÁ·Î±×·¥ÀÌ \"%s\" ÀÛ¾÷ ¶§¹®¿¡ Ã£¾ÒÁö¸¸, \n"
+"%s ¹öÀü°ú ¼­·Î Æ²¸³´Ï´Ù.\n"
+"¼³Ä¡ »óÅÂ¸¦ »ìÆì º¸½Ê½Ã¿À.\n"
 
-#~ msgid "terminated by user\n"
-#~ msgstr "ì‚¬ìš©ìì— ì˜í•´ ì¢…ë£Œë¨\n"
+#: pg_dumpall.c:336
+#, c-format
+msgid ""
+"%s extracts a PostgreSQL database cluster into an SQL script file.\n"
+"\n"
+msgstr ""
+"%s ÇÁ·Î±×·¥Àº PostgreSQL µ¥ÀÌÅÍº£ÀÌ½º Å¬·¯½ºÅÍ¸¦ SQL ½ºÅ©¸³Æ® ÆÄÀÏ·Î\n"
+"ÃßÃâÇÏ´Â ÇÁ·Î±×·¥ÀÔ´Ï´Ù.\n"
+"\n"
 
-#~ msgid "unrecognized command on communication channel: %s\n"
-#~ msgstr "í†µì‹  ì²´ë„ì—ì„œ ì•Œ ìˆ˜ ì—†ëŠ” ëª…ë ¹: %s\n"
+#: pg_dumpall.c:338
+#, c-format
+msgid "  %s [OPTION]...\n"
+msgstr "  %s [¿É¼Ç]...\n"
 
-#~ msgid "could not get relation name for OID %u: %s\n"
-#~ msgstr "%u OIDì— ëŒ€ì‘í•˜ëŠ” ë¦´ë ˆì´ì…˜ ì´ë¦„ì„ ì•Œ ìˆ˜ ì—†ìŒ: %s\n"
+#: pg_dumpall.c:341
+msgid ""
+"  -i, --ignore-version     proceed even when server version mismatches\n"
+"                           pg_dumpall version\n"
+msgstr ""
+"  -i, --ignore-version     pg_dumpall ¹öÀü°ú ¼­¹ö ¹öÀüÀÌ Æ²·Áµµ\n"
+"                           ÀÛ¾÷À» °è¼Ó ÁøÇàÇÔ\n"
 
-#~ msgid "worker is terminating\n"
-#~ msgstr "ì‘ì—… í”„ë¡œì„¸ìŠ¤ ì¢…ë£Œ ì¤‘\n"
+#: pg_dumpall.c:347
+msgid "  -c, --clean              clean (drop) databases prior to create\n"
+msgstr "  -c, --clean              ÀÛ¾÷ÀÌ ³¡³ª¸é ¸ğµç µ¥ÀÌÅÍº£ÀÌ½º¸¦ »èÁ¦ÇÔ\n"
+
+#: pg_dumpall.c:350
+msgid "  -g, --globals-only       dump only global objects, no databases\n"
+msgstr "  -g, --globals-only       µ¥ÀÌÅÍº£ÀÌ½º¸¦ Á¦¿ÜÇÑ Àü¿ª °´Ã¼µé¸¸ ´ıÇÁÇÔ\n"
+
+#: pg_dumpall.c:354
+msgid "  -S, --superuser=NAME     specify the superuser user name to use in the dump\n"
+msgstr "  -S, --superuser=NAME     ´ıÇÁ ÀÛ¾÷À» ÇÒ ½´ÆÛÀ¯Àú¸¦ ÁöÁ¤\n"
+
+#: pg_dumpall.c:370
+msgid ""
+"\n"
+"The SQL script will be written to the standard output.\n"
+"\n"
+msgstr ""
+"\n"
+"SQL ½ºÅ©¸³Æ®´Â Ç¥ÁØÃâ·Â(stdout)·Î Ãâ·ÂµÉ °ÍÀÔ´Ï´Ù.\n"
+"\n"
+
+#: pg_dumpall.c:570
+#, c-format
+msgid "%s: could not parse ACL list (%s) for tablespace \"%s\"\n"
+msgstr "%s: Å×ÀÌºí½ºÆäÀÌ½º ¿ë ACL ¸ñ·Ï (%s)À» ºĞ¼®ÇÒ ¼ö ¾øÀ½, ÇØ´ç°´Ã¼ \"%s\"\n"
+
+#: pg_dumpall.c:702
+#, c-format
+msgid "%s: could not parse ACL list (%s) for database \"%s\"\n"
+msgstr "%s: µ¥ÀÌÅÍº£ÀÌ½º ¿ë ACL ¸ñ·Ï (%s)À» ºĞ¼®ÇÒ ¼ö ¾øÀ½, ÇØ´ç°´Ã¼: \"%s\"\n"
+
+#: pg_dumpall.c:852
+#, c-format
+msgid "%s: dumping database \"%s\"...\n"
+msgstr "%s: \"%s\" µ¥ÀÌÅÍº£ÀÌ½º ´ıÇÁ Áß...\n"
+
+#: pg_dumpall.c:858
+#, c-format
+msgid "%s: pg_dump failed on database \"%s\", exiting\n"
+msgstr "%s: \"%s\" µ¥ÀÌÅÍº£ÀÌ½º¿¡¼­ pg_dump ÀÛ¾÷ Áß¿¡ ¿À·ù°¡ ¹ß»ı, ³¡³À´Ï´Ù.\n"
+
+#: pg_dumpall.c:913
+#, c-format
+msgid "%s: running \"%s\"\n"
+msgstr "%s: \"%s\" °¡µ¿Áß\n"
+
+#: pg_dumpall.c:954
+#, c-format
+msgid "%s: could not connect to database \"%s\"\n"
+msgstr "%s: \"%s\" µ¥ÀÌÅÍº£ÀÌ½º¿¡ Á¢¼ÓÇÒ ¼ö ¾øÀ½\n"
+
+#: pg_dumpall.c:977
+#, c-format
+msgid "%s: could not connect to database \"%s\": %s\n"
+msgstr "%s: \"%s\" µ¥ÀÌÅÍº£ÀÌ½º¿¡ Á¢¼ÓÇÒ ¼ö ¾øÀ½: %s\n"
+
+#: pg_dumpall.c:985
+#, c-format
+msgid "%s: could not get server version\n"
+msgstr "%s: ¼­¹ö ¹öÀüÀ» ¾Ë ¼ö ¾øÀ½\n"
+
+#: pg_dumpall.c:991
+#, c-format
+msgid "%s: could not parse server version \"%s\"\n"
+msgstr "%s: \"%s\" ¼­¹ö ¹öÀüÀ» ºĞ¼®ÇÒ ¼ö ¾øÀ½\n"
+
+#: pg_dumpall.c:1010
+#, c-format
+msgid "%s: executing %s\n"
+msgstr "%s: %s ½ÇÇàÁß\n"
+
+#: pg_dumpall.c:1016
+#, c-format
+msgid "%s: query failed: %s"
+msgstr "%s: Äõ¸® ½ÇÆĞ: %s"
+
+#: pg_dumpall.c:1017
+#, c-format
+msgid "%s: query was: %s\n"
+msgstr "%s: »ç¿ëÇÑ Äõ¸®: %s\n"
+
+#: ../../port/exec.c:193
+#: ../../port/exec.c:307
+#: ../../port/exec.c:350
+#, c-format
+msgid "could not identify current directory: %s"
+msgstr "ÇöÀç µğ·ºÅä¸®¸¦ ¾Ë ¼ö ¾øÀ½: %s"
+
+#: ../../port/exec.c:323
+#: ../../port/exec.c:359
+#, c-format
+msgid "could not change directory to \"%s\""
+msgstr "\"%s\" µğ·ºÅä¸®·Î ÀÌµ¿ ÇÒ ¼ö ¾øÀ½"
+
+#: ../../port/exec.c:338
+#, c-format
+msgid "could not read symbolic link \"%s\""
+msgstr "\"%s\" ½É¹ú¸¯ ¸µÅ©¸¦ ÀĞÀ» ¼ö ¾øÀ½"
+
+#: ../../port/exec.c:569
+#, c-format
+msgid "child process exited with exit code %d"
+msgstr "ÇÏÀ§ ÇÁ·Î¼¼½º°¡ Á¾·áµÇ¾úÀ½, Á¾·á ÄÚµå %d"
+
+#: ../../port/exec.c:572
+#, c-format
+msgid "child process was terminated by signal %d"
+msgstr "ÇÏÀ§ ÇÁ·Î¼¼½º°¡ Á¾·áµÇ¾úÀ½, ½Ã±×³Î %d"
+
+#: ../../port/exec.c:575
+#, c-format
+msgid "child process exited with unrecognized status %d"
+msgstr "ÇÏÀ§ ÇÁ·Î¼¼½º°¡ Á¾·áµÇ¾úÀ½, ¾Ë¼ö ¾ø´Â »óÅÂ %d"
+

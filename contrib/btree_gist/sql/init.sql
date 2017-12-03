@@ -1,6 +1,7 @@
-CREATE EXTENSION btree_gist;
-
--- Check whether any of our opclasses fail amvalidate
-SELECT amname, opcname
-FROM pg_opclass opc LEFT JOIN pg_am am ON am.oid = opcmethod
-WHERE opc.oid >= 16384 AND NOT amvalidate(opc.oid);
+--
+-- first, define the datatype.  Turn off echoing so that expected file
+-- does not depend on contents of btree_gist.sql.
+--
+\set ECHO none
+\i btree_gist.sql
+\set ECHO all

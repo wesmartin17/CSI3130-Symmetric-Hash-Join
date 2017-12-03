@@ -1,17 +1,9 @@
-/*
- * contrib/spi/autoinc.c
- */
-#include "postgres.h"
 
-#include "access/htup_details.h"
-#include "catalog/pg_type.h"
-#include "commands/sequence.h"
-#include "commands/trigger.h"
-#include "executor/spi.h"
-#include "utils/builtins.h"
-#include "utils/rel.h"
+#include "executor/spi.h"		/* this is what you need to work with SPI */
+#include "commands/trigger.h"	/* -"- and triggers */
+#include "commands/sequence.h"	/* for nextval() */
 
-PG_MODULE_MAGIC;
+extern Datum autoinc(PG_FUNCTION_ARGS);
 
 PG_FUNCTION_INFO_V1(autoinc);
 
@@ -24,7 +16,6 @@ autoinc(PG_FUNCTION_ARGS)
 	int		   *chattrs;		/* attnums of attributes to change */
 	int			chnattrs = 0;	/* # of above */
 	Datum	   *newvals;		/* vals of above */
-	bool	   *newnulls;		/* null flags for above */
 	char	  **args;			/* arguments */
 	char	   *relname;		/* triggered relation name */
 	Relation	rel;			/* triggered relation */
@@ -36,10 +27,10 @@ autoinc(PG_FUNCTION_ARGS)
 	if (!CALLED_AS_TRIGGER(fcinfo))
 		/* internal error */
 		elog(ERROR, "not fired by trigger manager");
-	if (!TRIGGER_FIRED_FOR_ROW(trigdata->tg_event))
+	if (TRIGGER_FIRED_FOR_STATEMENT(trigdata->tg_event))
 		/* internal error */
-		elog(ERROR, "must be fired for row");
-	if (!TRIGGER_FIRED_BEFORE(trigdata->tg_event))
+		elog(ERROR, "can't process STATEMENT events");
+	if (TRIGGER_FIRED_AFTER(trigdata->tg_event))
 		/* internal error */
 		elog(ERROR, "must be fired before event");
 
@@ -49,7 +40,7 @@ autoinc(PG_FUNCTION_ARGS)
 		rettuple = trigdata->tg_newtuple;
 	else
 		/* internal error */
-		elog(ERROR, "cannot process DELETE events");
+		elog(ERROR, "can't process DELETE events");
 
 	rel = trigdata->tg_relation;
 	relname = SPI_getrelname(rel);
@@ -66,7 +57,6 @@ autoinc(PG_FUNCTION_ARGS)
 
 	chattrs = (int *) palloc(nargs / 2 * sizeof(int));
 	newvals = (Datum *) palloc(nargs / 2 * sizeof(Datum));
-	newnulls = (bool *) palloc(nargs / 2 * sizeof(bool));
 
 	for (i = 0; i < nargs;)
 	{
@@ -74,7 +64,7 @@ autoinc(PG_FUNCTION_ARGS)
 		int32		val;
 		Datum		seqname;
 
-		if (attnum <= 0)
+		if (attnum < 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_TRIGGERED_ACTION_EXCEPTION),
 					 errmsg("\"%s\" has no attribute \"%s\"",
@@ -96,7 +86,8 @@ autoinc(PG_FUNCTION_ARGS)
 
 		i++;
 		chattrs[chnattrs] = attnum;
-		seqname = CStringGetTextDatum(args[i]);
+		seqname = DirectFunctionCall1(textin,
+									  CStringGetDatum(args[i]));
 		newvals[chnattrs] = DirectFunctionCall1(nextval, seqname);
 		/* nextval now returns int64; coerce down to int32 */
 		newvals[chnattrs] = Int32GetDatum((int32) DatumGetInt64(newvals[chnattrs]));
@@ -105,23 +96,23 @@ autoinc(PG_FUNCTION_ARGS)
 			newvals[chnattrs] = DirectFunctionCall1(nextval, seqname);
 			newvals[chnattrs] = Int32GetDatum((int32) DatumGetInt64(newvals[chnattrs]));
 		}
-		newnulls[chnattrs] = false;
-		pfree(DatumGetTextPP(seqname));
+		pfree(DatumGetTextP(seqname));
 		chnattrs++;
 		i++;
 	}
 
 	if (chnattrs > 0)
 	{
-		rettuple = heap_modify_tuple_by_cols(rettuple, tupdesc,
-											 chnattrs, chattrs,
-											 newvals, newnulls);
+		rettuple = SPI_modifytuple(rel, rettuple, chnattrs, chattrs, newvals, NULL);
+		if (rettuple == NULL)
+			/* internal error */
+			elog(ERROR, "autoinc (%s): %d returned by SPI_modifytuple",
+				 relname, SPI_result);
 	}
 
 	pfree(relname);
 	pfree(chattrs);
 	pfree(newvals);
-	pfree(newnulls);
 
 	return PointerGetDatum(rettuple);
 }

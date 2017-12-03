@@ -4,7 +4,7 @@
 #
 # Copyright (c) 1994, Regents of the University of California
 #
-# src/Makefile
+# $PostgreSQL: pgsql/src/Makefile,v 1.36 2005/01/13 18:23:21 tgl Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -12,63 +12,64 @@ subdir = src
 top_builddir = ..
 include Makefile.global
 
-SUBDIRS = \
-	common \
-	port \
-	timezone \
-	backend \
-	backend/utils/mb/conversion_procs \
-	backend/snowball \
-	include \
-	interfaces \
-	backend/replication/libpqwalreceiver \
-	backend/replication/pgoutput \
-	fe_utils \
-	bin \
-	pl \
-	makefiles \
-	test/regress \
-	test/isolation \
-	test/perl
 
-# There are too many interdependencies between the subdirectories, so
-# don't attempt parallel make here.
-.NOTPARALLEL:
-
-$(recurse)
+all install installdirs uninstall dep depend distprep:
+	$(MAKE) -C port $@
+	$(MAKE) -C timezone $@
+	$(MAKE) -C backend $@
+	$(MAKE) -C backend/utils/mb/conversion_procs $@
+	$(MAKE) -C include $@
+	$(MAKE) -C interfaces $@
+	$(MAKE) -C bin $@
+	$(MAKE) -C pl $@
+	$(MAKE) -C makefiles $@
+	$(MAKE) -C utils $@
 
 install: install-local
 
 install-local: installdirs-local
-	$(INSTALL_DATA) Makefile.global '$(DESTDIR)$(pgxsdir)/$(subdir)/Makefile.global'
-	$(INSTALL_DATA) Makefile.port '$(DESTDIR)$(pgxsdir)/$(subdir)/Makefile.port'
-	$(INSTALL_DATA) $(srcdir)/Makefile.shlib '$(DESTDIR)$(pgxsdir)/$(subdir)/Makefile.shlib'
-	$(INSTALL_DATA) $(srcdir)/nls-global.mk '$(DESTDIR)$(pgxsdir)/$(subdir)/nls-global.mk'
+	$(INSTALL_DATA) Makefile.global $(DESTDIR)$(pgxsdir)/$(subdir)/Makefile.global
+	$(INSTALL_DATA) Makefile.port $(DESTDIR)$(pgxsdir)/$(subdir)/Makefile.port
+	$(INSTALL_DATA) $(srcdir)/Makefile.shlib $(DESTDIR)$(pgxsdir)/$(subdir)/Makefile.shlib
+	$(INSTALL_DATA) $(srcdir)/nls-global.mk $(DESTDIR)$(pgxsdir)/$(subdir)/nls-global.mk
 
 installdirs: installdirs-local
 
 installdirs-local:
-	$(MKDIR_P) '$(DESTDIR)$(pgxsdir)/$(subdir)'
+	$(mkinstalldirs) $(DESTDIR)$(pgxsdir)/$(subdir)
 
 uninstall: uninstall-local
 
 uninstall-local:
-	rm -f $(addprefix '$(DESTDIR)$(pgxsdir)/$(subdir)'/, Makefile.global Makefile.port Makefile.shlib nls-global.mk)
-
-distprep:
-	$(MAKE) -C test/isolation $@
+	rm -f $(addprefix $(DESTDIR)$(pgxsdir)/$(subdir), Makefile.global Makefile.port Makefile.shlib nls-global.mk)
 
 clean:
+	$(MAKE) -C port $@
+	$(MAKE) -C timezone $@
+	$(MAKE) -C backend $@
+	$(MAKE) -C include $@
+	$(MAKE) -C interfaces $@
+	$(MAKE) -C bin $@
+	$(MAKE) -C pl $@
+	$(MAKE) -C makefiles $@
 	$(MAKE) -C test $@
 	$(MAKE) -C tutorial NO_PGXS=1 $@
-	$(MAKE) -C test/isolation $@
-	$(MAKE) -C test/thread $@
+	$(MAKE) -C utils $@
+	$(MAKE) -C tools/thread $@
 
 distclean maintainer-clean:
-	$(MAKE) -C test $@
-	$(MAKE) -C tutorial NO_PGXS=1 $@
-	$(MAKE) -C test/isolation $@
-	$(MAKE) -C test/thread $@
+	-$(MAKE) -C port $@
+	-$(MAKE) -C timezone $@
+	-$(MAKE) -C backend $@
+	-$(MAKE) -C include $@
+	-$(MAKE) -C interfaces $@
+	-$(MAKE) -C bin $@
+	-$(MAKE) -C pl $@
+	-$(MAKE) -C makefiles $@
+	-$(MAKE) -C test $@
+	-$(MAKE) -C tutorial NO_PGXS=1 $@
+	-$(MAKE) -C utils $@
+	-$(MAKE) -C tools/thread $@
 	rm -f Makefile.port Makefile.global
 
 

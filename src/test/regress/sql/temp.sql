@@ -47,7 +47,7 @@ DROP TABLE temptest;
 
 CREATE TEMP TABLE temptest(col int);
 
-\c
+\c regression
 
 SELECT * FROM temptest;
 
@@ -58,16 +58,6 @@ CREATE TEMP TABLE temptest(col int) ON COMMIT DELETE ROWS;
 BEGIN;
 INSERT INTO temptest VALUES (1);
 INSERT INTO temptest VALUES (2);
-
-SELECT * FROM temptest;
-COMMIT;
-
-SELECT * FROM temptest;
-
-DROP TABLE temptest;
-
-BEGIN;
-CREATE TEMP TABLE temptest(col) ON COMMIT DELETE ROWS AS SELECT 1;
 
 SELECT * FROM temptest;
 COMMIT;
@@ -90,18 +80,9 @@ COMMIT;
 
 SELECT * FROM temptest;
 
-BEGIN;
-CREATE TEMP TABLE temptest(col) ON COMMIT DROP AS SELECT 1;
-
-SELECT * FROM temptest;
-COMMIT;
-
-SELECT * FROM temptest;
-
 -- ON COMMIT is only allowed for TEMP
 
 CREATE TABLE temptest(col int) ON COMMIT DELETE ROWS;
-CREATE TABLE temptest(col) ON COMMIT DELETE ROWS AS SELECT 1;
 
 -- Test foreign keys
 BEGIN;
@@ -118,36 +99,3 @@ BEGIN;
 CREATE TEMP TABLE temptest3(col int PRIMARY KEY) ON COMMIT DELETE ROWS;
 CREATE TEMP TABLE temptest4(col int REFERENCES temptest3);
 COMMIT;
-
--- Test manipulation of temp schema's placement in search path
-
-create table public.whereami (f1 text);
-insert into public.whereami values ('public');
-
-create temp table whereami (f1 text);
-insert into whereami values ('temp');
-
-create function public.whoami() returns text
-  as $$select 'public'::text$$ language sql;
-
-create function pg_temp.whoami() returns text
-  as $$select 'temp'::text$$ language sql;
-
--- default should have pg_temp implicitly first, but only for tables
-select * from whereami;
-select whoami();
-
--- can list temp first explicitly, but it still doesn't affect functions
-set search_path = pg_temp, public;
-select * from whereami;
-select whoami();
-
--- or put it last for security
-set search_path = public, pg_temp;
-select * from whereami;
-select whoami();
-
--- you can invoke a temp function explicitly, though
-select pg_temp.whoami();
-
-drop table public.whereami;

@@ -2,11 +2,11 @@
  *
  *	  ASCII <--> UTF8
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/utils/mb/conversion_procs/utf8_and_ascii/utf8_and_ascii.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/mb/conversion_procs/utf8_and_ascii/utf8_and_ascii.c,v 1.11.2.1 2006/05/21 20:05:49 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -15,10 +15,11 @@
 #include "fmgr.h"
 #include "mb/pg_wchar.h"
 
-PG_MODULE_MAGIC;
-
 PG_FUNCTION_INFO_V1(ascii_to_utf8);
 PG_FUNCTION_INFO_V1(utf8_to_ascii);
+
+extern Datum ascii_to_utf8(PG_FUNCTION_ARGS);
+extern Datum utf8_to_ascii(PG_FUNCTION_ARGS);
 
 /* ----------
  * conv_proc(
@@ -38,7 +39,9 @@ ascii_to_utf8(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_SQL_ASCII, PG_UTF8);
+	Assert(PG_GETARG_INT32(0) == PG_SQL_ASCII);
+	Assert(PG_GETARG_INT32(1) == PG_UTF8);
+	Assert(len >= 0);
 
 	/* this looks wrong, but basically we're just rejecting high-bit-set */
 	pg_ascii2mic(src, dest, len);
@@ -53,7 +56,9 @@ utf8_to_ascii(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_UTF8, PG_SQL_ASCII);
+	Assert(PG_GETARG_INT32(0) == PG_UTF8);
+	Assert(PG_GETARG_INT32(1) == PG_SQL_ASCII);
+	Assert(len >= 0);
 
 	/* this looks wrong, but basically we're just rejecting high-bit-set */
 	pg_mic2ascii(src, dest, len);

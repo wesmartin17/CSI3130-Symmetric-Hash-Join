@@ -3,12 +3,12 @@
  * getrusage.c
  *	  get information about resource utilisation
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/port/getrusage.c
+ *	  $PostgreSQL: pgsql/src/port/getrusage.c,v 1.11 2005/10/15 02:49:51 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -18,8 +18,11 @@
 #include "rusagestub.h"
 
 /* This code works on:
+ *		univel
  *		solaris_i386
+ *		sco
  *		solaris_sparc
+ *		svr4
  *		hpux 9.*
  *		win32
  * which currently is all the supported platforms that don't have a
@@ -28,21 +31,15 @@
  */
 
 int
-getrusage(int who, struct rusage *rusage)
+getrusage(int who, struct rusage * rusage)
 {
 #ifdef WIN32
+
 	FILETIME	starttime;
 	FILETIME	exittime;
 	FILETIME	kerneltime;
 	FILETIME	usertime;
 	ULARGE_INTEGER li;
-
-	if (who != RUSAGE_SELF)
-	{
-		/* Only RUSAGE_SELF is supported in this implementation for now */
-		errno = EINVAL;
-		return -1;
-	}
 
 	if (rusage == (struct rusage *) NULL)
 	{
@@ -104,7 +101,7 @@ getrusage(int who, struct rusage *rusage)
 	rusage->ru_utime.tv_usec = TICK_TO_USEC(u, tick_rate);
 	rusage->ru_stime.tv_sec = TICK_TO_SEC(s, tick_rate);
 	rusage->ru_stime.tv_usec = TICK_TO_USEC(u, tick_rate);
-#endif							/* WIN32 */
+#endif   /* WIN32 */
 
 	return 0;
 }

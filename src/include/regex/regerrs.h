@@ -1,5 +1,5 @@
 /*
- * src/include/regex/regerrs.h
+ * $PostgreSQL: pgsql/src/include/regex/regerrs.h,v 1.3 2003/11/29 22:41:10 pgsql Exp $
  */
 
 {
@@ -59,7 +59,7 @@
 },
 
 {
-	REG_ASSERT, "REG_ASSERT", "\"cannot happen\" -- you found a bug"
+	REG_ASSERT, "REG_ASSERT", "\"can't happen\" -- you found a bug"
 },
 
 {
@@ -72,16 +72,4 @@
 
 {
 	REG_BADOPT, "REG_BADOPT", "invalid embedded option"
-},
-
-{
-	REG_ETOOBIG, "REG_ETOOBIG", "regular expression is too complex"
-},
-
-{
-	REG_ECOLORS, "REG_ECOLORS", "too many colors"
-},
-
-{
-	REG_CANCEL, "REG_CANCEL", "operation cancelled"
 },

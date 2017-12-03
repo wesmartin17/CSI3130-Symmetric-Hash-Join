@@ -4,12 +4,12 @@
  *	  Support routines for various kinds of object creation.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/commands/define.c
+ *	  $PostgreSQL: pgsql/src/backend/commands/define.c,v 1.93 2005/10/15 02:49:15 momjian Exp $
  *
  * DESCRIPTION
  *	  The "DefineFoo" routines take the parse tree and pick out the
@@ -37,10 +37,22 @@
 
 #include "catalog/namespace.h"
 #include "commands/defrem.h"
-#include "nodes/makefuncs.h"
 #include "parser/parse_type.h"
 #include "parser/scansup.h"
-#include "utils/builtins.h"
+#include "utils/int8.h"
+
+
+/*
+ * Translate the input language name to lower case, and truncate if needed.
+ *
+ * Returns a palloc'd string
+ */
+char *
+case_translate_language_name(const char *input)
+{
+	return downcase_truncate_identifier(input, strlen(input), false);
+}
+
 
 /*
  * Extract a string value (otherwise uninterpreted) from a DefElem.
@@ -56,7 +68,12 @@ defGetString(DefElem *def)
 	switch (nodeTag(def->arg))
 	{
 		case T_Integer:
-			return psprintf("%ld", (long) intVal(def->arg));
+			{
+				char	   *str = palloc(32);
+
+				snprintf(str, 32, "%ld", (long) intVal(def->arg));
+				return str;
+			}
 		case T_Float:
 
 			/*
@@ -70,8 +87,6 @@ defGetString(DefElem *def)
 			return TypeNameToString((TypeName *) def->arg);
 		case T_List:
 			return NameListToString((List *) def->arg);
-		case T_A_Star:
-			return pstrdup("*");
 		default:
 			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(def->arg));
 	}
@@ -111,76 +126,16 @@ bool
 defGetBoolean(DefElem *def)
 {
 	/*
-	 * If no parameter given, assume "true" is meant.
+	 * Presently, boolean flags must simply be present or absent. Later we
+	 * could allow 'flag = t', 'flag = f', etc.
 	 */
 	if (def->arg == NULL)
 		return true;
-
-	/*
-	 * Allow 0, 1, "true", "false", "on", "off"
-	 */
-	switch (nodeTag(def->arg))
-	{
-		case T_Integer:
-			switch (intVal(def->arg))
-			{
-				case 0:
-					return false;
-				case 1:
-					return true;
-				default:
-					/* otherwise, error out below */
-					break;
-			}
-			break;
-		default:
-			{
-				char	   *sval = defGetString(def);
-
-				/*
-				 * The set of strings accepted here should match up with the
-				 * grammar's opt_boolean production.
-				 */
-				if (pg_strcasecmp(sval, "true") == 0)
-					return true;
-				if (pg_strcasecmp(sval, "false") == 0)
-					return false;
-				if (pg_strcasecmp(sval, "on") == 0)
-					return true;
-				if (pg_strcasecmp(sval, "off") == 0)
-					return false;
-			}
-			break;
-	}
 	ereport(ERROR,
 			(errcode(ERRCODE_SYNTAX_ERROR),
-			 errmsg("%s requires a Boolean value",
+			 errmsg("%s does not take a parameter",
 					def->defname)));
 	return false;				/* keep compiler quiet */
-}
-
-/*
- * Extract an int32 value from a DefElem.
- */
-int32
-defGetInt32(DefElem *def)
-{
-	if (def->arg == NULL)
-		ereport(ERROR,
-				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("%s requires an integer value",
-						def->defname)));
-	switch (nodeTag(def->arg))
-	{
-		case T_Integer:
-			return (int32) intVal(def->arg);
-		default:
-			ereport(ERROR,
-					(errcode(ERRCODE_SYNTAX_ERROR),
-					 errmsg("%s requires an integer value",
-							def->defname)));
-	}
-	return 0;					/* keep compiler quiet */
 }
 
 /*
@@ -202,11 +157,11 @@ defGetInt64(DefElem *def)
 
 			/*
 			 * Values too large for int4 will be represented as Float
-			 * constants by the lexer.  Accept these if they are valid int8
+			 * constants by the lexer.	Accept these if they are valid int8
 			 * strings.
 			 */
 			return DatumGetInt64(DirectFunctionCall1(int8in,
-													 CStringGetDatum(strVal(def->arg))));
+										 CStringGetDatum(strVal(def->arg))));
 		default:
 			ereport(ERROR,
 					(errcode(ERRCODE_SYNTAX_ERROR),
@@ -264,8 +219,14 @@ defGetTypeName(DefElem *def)
 		case T_TypeName:
 			return (TypeName *) def->arg;
 		case T_String:
-			/* Allow quoted typename for backwards compatibility */
-			return makeTypeNameFromNameList(list_make1(def->arg));
+			{
+				/* Allow quoted typename for backwards compatibility */
+				TypeName   *n = makeNode(TypeName);
+
+				n->names = list_make1(def->arg);
+				n->typmod = -1;
+				return n;
+			}
 		default:
 			ereport(ERROR,
 					(errcode(ERRCODE_SYNTAX_ERROR),
@@ -318,32 +279,4 @@ defGetTypeLength(DefElem *def)
 			 errmsg("invalid argument for %s: \"%s\"",
 					def->defname, defGetString(def))));
 	return 0;					/* keep compiler quiet */
-}
-
-/*
- * Extract a list of string values (otherwise uninterpreted) from a DefElem.
- */
-List *
-defGetStringList(DefElem *def)
-{
-	ListCell   *cell;
-
-	if (def->arg == NULL)
-		ereport(ERROR,
-				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("%s requires a parameter",
-						def->defname)));
-	if (nodeTag(def->arg) != T_List)
-		elog(ERROR, "unrecognized node type: %d", (int) nodeTag(def->arg));
-
-	foreach(cell, (List *) def->arg)
-	{
-		Node	   *str = (Node *) lfirst(cell);
-
-		if (!IsA(str, String))
-			elog(ERROR, "unexpected node type in name list: %d",
-				 (int) nodeTag(str));
-	}
-
-	return (List *) def->arg;
 }

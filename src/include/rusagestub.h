@@ -4,10 +4,10 @@
  *	  Stubs for getrusage(3).
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/rusagestub.h
+ * $PostgreSQL: pgsql/src/include/rusagestub.h,v 1.16 2005/07/27 12:44:10 neilc Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -29,6 +29,6 @@ struct rusage
 	struct timeval ru_stime;	/* system time used */
 };
 
-extern int	getrusage(int who, struct rusage *rusage);
+extern int	getrusage(int who, struct rusage * rusage);
 
-#endif							/* RUSAGESTUB_H */
+#endif   /* RUSAGESTUB_H */

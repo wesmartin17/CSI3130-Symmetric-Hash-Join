@@ -1,13 +1,3 @@
-/*
- * contrib/intarray/_int_gist.c
- */
-#include "postgres.h"
-
-#include <limits.h>
-
-#include "access/gist.h"
-#include "access/stratnum.h"
-
 #include "_int.h"
 
 #define GETENTRY(vec,pos) ((ArrayType *) DatumGetPointer((vec)->vector[(pos)].key))
@@ -23,39 +13,42 @@ PG_FUNCTION_INFO_V1(g_int_picksplit);
 PG_FUNCTION_INFO_V1(g_int_union);
 PG_FUNCTION_INFO_V1(g_int_same);
 
+Datum		g_int_consistent(PG_FUNCTION_ARGS);
+Datum		g_int_compress(PG_FUNCTION_ARGS);
+Datum		g_int_decompress(PG_FUNCTION_ARGS);
+Datum		g_int_penalty(PG_FUNCTION_ARGS);
+Datum		g_int_picksplit(PG_FUNCTION_ARGS);
+Datum		g_int_union(PG_FUNCTION_ARGS);
+Datum		g_int_same(PG_FUNCTION_ARGS);
+
 
 /*
 ** The GiST Consistent method for _intments
 ** Should return false if for all data items x below entry,
-** the predicate x op query == false, where op is the oper
+** the predicate x op query == FALSE, where op is the oper
 ** corresponding to strategy in the pg_amop table.
 */
 Datum
 g_int_consistent(PG_FUNCTION_ARGS)
 {
 	GISTENTRY  *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
-	ArrayType  *query = PG_GETARG_ARRAYTYPE_P_COPY(1);
+	ArrayType  *query = (ArrayType *) PG_DETOAST_DATUM_COPY(PG_GETARG_POINTER(1));
 	StrategyNumber strategy = (StrategyNumber) PG_GETARG_UINT16(2);
-
-	/* Oid		subtype = PG_GETARG_OID(3); */
-	bool	   *recheck = (bool *) PG_GETARG_POINTER(4);
 	bool		retval;
 
-	/* this is exact except for RTSameStrategyNumber */
-	*recheck = (strategy == RTSameStrategyNumber);
-
-	if (strategy == BooleanSearchStrategy)
-	{
+	if (strategy == BooleanSearchStrategy) {
 		retval = execconsistent((QUERYTYPE *) query,
-								(ArrayType *) DatumGetPointer(entry->key),
-								GIST_LEAF(entry));
-
-		pfree(query);
+								   (ArrayType *) DatumGetPointer(entry->key),
+					  ISLEAFKEY((ArrayType *) DatumGetPointer(entry->key)));
+		pfree( query );
 		PG_RETURN_BOOL(retval);
 	}
 
 	/* sort query for fast search, key is already sorted */
-	CHECKARRVALID(query);
+	if (ARRISVOID(query)) {
+		pfree( query );
+		PG_RETURN_BOOL(false);
+	}
 	PREPAREARR(query);
 
 	switch (strategy)
@@ -66,32 +59,32 @@ g_int_consistent(PG_FUNCTION_ARGS)
 			break;
 		case RTSameStrategyNumber:
 			if (GIST_LEAF(entry))
-				DirectFunctionCall3(g_int_same,
+				DirectFunctionCall3(
+									g_int_same,
 									entry->key,
 									PointerGetDatum(query),
-									PointerGetDatum(&retval));
+									PointerGetDatum(&retval)
+					);
 			else
 				retval = inner_int_contains((ArrayType *) DatumGetPointer(entry->key),
 											query);
 			break;
 		case RTContainsStrategyNumber:
-		case RTOldContainsStrategyNumber:
 			retval = inner_int_contains((ArrayType *) DatumGetPointer(entry->key),
 										query);
 			break;
 		case RTContainedByStrategyNumber:
-		case RTOldContainedByStrategyNumber:
 			if (GIST_LEAF(entry))
 				retval = inner_int_contains(query,
-											(ArrayType *) DatumGetPointer(entry->key));
+								  (ArrayType *) DatumGetPointer(entry->key));
 			else
 				retval = inner_int_overlap((ArrayType *) DatumGetPointer(entry->key),
 										   query);
 			break;
 		default:
-			retval = false;
+			retval = FALSE;
 	}
-	pfree(query);
+	pfree( query );
 	PG_RETURN_BOOL(retval);
 }
 
@@ -100,30 +93,21 @@ g_int_union(PG_FUNCTION_ARGS)
 {
 	GistEntryVector *entryvec = (GistEntryVector *) PG_GETARG_POINTER(0);
 	int		   *size = (int *) PG_GETARG_POINTER(1);
-	int32		i,
-			   *ptr;
+	int4		i;
 	ArrayType  *res;
-	int			totlen = 0;
+	int			totlen = 0,
+			   *ptr;
 
 	for (i = 0; i < entryvec->n; i++)
-	{
-		ArrayType  *ent = GETENTRY(entryvec, i);
-
-		CHECKARRVALID(ent);
-		totlen += ARRNELEMS(ent);
-	}
+		totlen += ARRNELEMS(GETENTRY(entryvec, i));
 
 	res = new_intArrayType(totlen);
 	ptr = ARRPTR(res);
 
 	for (i = 0; i < entryvec->n; i++)
 	{
-		ArrayType  *ent = GETENTRY(entryvec, i);
-		int			nel;
-
-		nel = ARRNELEMS(ent);
-		memcpy(ptr, ARRPTR(ent), nel * sizeof(int32));
-		ptr += nel;
+		memcpy(ptr, ARRPTR(GETENTRY(entryvec, i)), ARRNELEMS(GETENTRY(entryvec, i)) * sizeof(int4));
+		ptr += ARRNELEMS(GETENTRY(entryvec, i));
 	}
 
 	QSORT(res, 1);
@@ -149,29 +133,18 @@ g_int_compress(PG_FUNCTION_ARGS)
 
 	if (entry->leafkey)
 	{
-		r = DatumGetArrayTypePCopy(entry->key);
-		CHECKARRVALID(r);
+		r = (ArrayType *) PG_DETOAST_DATUM_COPY(entry->key);
 		PREPAREARR(r);
-
-		if (ARRNELEMS(r) >= 2 * MAXNUMRANGE)
-			elog(NOTICE, "input array is too big (%d maximum allowed, %d current), use gist__intbig_ops opclass instead",
-				 2 * MAXNUMRANGE - 1, ARRNELEMS(r));
-
+		r->flags |= LEAFKEY;
 		retval = palloc(sizeof(GISTENTRY));
 		gistentryinit(*retval, PointerGetDatum(r),
-					  entry->rel, entry->page, entry->offset, false);
+				  entry->rel, entry->page, entry->offset, VARSIZE(r), FALSE);
 
 		PG_RETURN_POINTER(retval);
 	}
 
-	/*
-	 * leaf entries never compress one more time, only when entry->leafkey
-	 * ==true, so now we work only with internal keys
-	 */
-
-	r = DatumGetArrayTypeP(entry->key);
-	CHECKARRVALID(r);
-	if (ARRISEMPTY(r))
+	r = (ArrayType *) PG_DETOAST_DATUM(entry->key);
+	if (ISLEAFKEY(r) || ARRISVOID(r))
 	{
 		if (r != (ArrayType *) DatumGetPointer(entry->key))
 			pfree(r);
@@ -181,7 +154,7 @@ g_int_compress(PG_FUNCTION_ARGS)
 	if ((len = ARRNELEMS(r)) >= 2 * MAXNUMRANGE)
 	{							/* compress */
 		if (r == (ArrayType *) DatumGetPointer(entry->key))
-			r = DatumGetArrayTypePCopy(entry->key);
+			r = (ArrayType *) PG_DETOAST_DATUM_COPY(entry->key);
 		r = resize_intArrayType(r, 2 * (len));
 
 		dr = ARRPTR(r);
@@ -193,24 +166,26 @@ g_int_compress(PG_FUNCTION_ARGS)
 		cand = 1;
 		while (len > MAXNUMRANGE * 2)
 		{
-			min = INT_MAX;
+			min = 0x7fffffff;
 			for (i = 2; i < len; i += 2)
 				if (min > (dr[i] - dr[i - 1]))
 				{
 					min = (dr[i] - dr[i - 1]);
 					cand = i;
 				}
-			memmove((void *) &dr[cand - 1], (void *) &dr[cand + 1], (len - cand - 1) * sizeof(int32));
+			memmove((void *) &dr[cand - 1], (void *) &dr[cand + 1], (len - cand - 1) * sizeof(int));
 			len -= 2;
 		}
 		r = resize_intArrayType(r, len);
 		retval = palloc(sizeof(GISTENTRY));
 		gistentryinit(*retval, PointerGetDatum(r),
-					  entry->rel, entry->page, entry->offset, false);
+				  entry->rel, entry->page, entry->offset, VARSIZE(r), FALSE);
 		PG_RETURN_POINTER(retval);
 	}
 	else
 		PG_RETURN_POINTER(entry);
+
+	PG_RETURN_POINTER(entry);
 }
 
 Datum
@@ -227,31 +202,20 @@ g_int_decompress(PG_FUNCTION_ARGS)
 	int			i,
 				j;
 
-	in = DatumGetArrayTypeP(entry->key);
+	in = (ArrayType *) PG_DETOAST_DATUM(entry->key);
 
-	CHECKARRVALID(in);
-	if (ARRISEMPTY(in))
-	{
-		if (in != (ArrayType *) DatumGetPointer(entry->key))
-		{
-			retval = palloc(sizeof(GISTENTRY));
-			gistentryinit(*retval, PointerGetDatum(in),
-						  entry->rel, entry->page, entry->offset, false);
-			PG_RETURN_POINTER(retval);
-		}
-
+	if (ARRISVOID(in))
 		PG_RETURN_POINTER(entry);
-	}
 
 	lenin = ARRNELEMS(in);
 
-	if (lenin < 2 * MAXNUMRANGE)
+	if (lenin < 2 * MAXNUMRANGE || ISLEAFKEY(in))
 	{							/* not compressed value */
 		if (in != (ArrayType *) DatumGetPointer(entry->key))
 		{
 			retval = palloc(sizeof(GISTENTRY));
 			gistentryinit(*retval, PointerGetDatum(in),
-						  entry->rel, entry->page, entry->offset, false);
+				 entry->rel, entry->page, entry->offset, VARSIZE(in), FALSE);
 
 			PG_RETURN_POINTER(retval);
 		}
@@ -273,7 +237,7 @@ g_int_decompress(PG_FUNCTION_ARGS)
 		pfree(in);
 	retval = palloc(sizeof(GISTENTRY));
 	gistentryinit(*retval, PointerGetDatum(r),
-				  entry->rel, entry->page, entry->offset, false);
+				  entry->rel, entry->page, entry->offset, VARSIZE(r), FALSE);
 
 	PG_RETURN_POINTER(retval);
 }
@@ -306,32 +270,27 @@ g_int_penalty(PG_FUNCTION_ARGS)
 Datum
 g_int_same(PG_FUNCTION_ARGS)
 {
-	ArrayType  *a = PG_GETARG_ARRAYTYPE_P(0);
-	ArrayType  *b = PG_GETARG_ARRAYTYPE_P(1);
+	ArrayType  *a = (ArrayType *) PointerGetDatum(PG_GETARG_POINTER(0));
+	ArrayType  *b = (ArrayType *) PointerGetDatum(PG_GETARG_POINTER(1));
 	bool	   *result = (bool *) PG_GETARG_POINTER(2);
-	int32		n = ARRNELEMS(a);
-	int32	   *da,
+	int4		n = ARRNELEMS(a);
+	int4	   *da,
 			   *db;
-
-	CHECKARRVALID(a);
-	CHECKARRVALID(b);
 
 	if (n != ARRNELEMS(b))
 	{
 		*result = false;
 		PG_RETURN_POINTER(result);
 	}
-	*result = true;
+	*result = TRUE;
 	da = ARRPTR(a);
 	db = ARRPTR(b);
 	while (n--)
-	{
 		if (*da++ != *db++)
 		{
-			*result = false;
+			*result = FALSE;
 			break;
 		}
-	}
 
 	PG_RETURN_POINTER(result);
 }
@@ -349,10 +308,10 @@ typedef struct
 static int
 comparecost(const void *a, const void *b)
 {
-	if (((const SPLITCOST *) a)->cost == ((const SPLITCOST *) b)->cost)
+	if (((SPLITCOST *) a)->cost == ((SPLITCOST *) b)->cost)
 		return 0;
 	else
-		return (((const SPLITCOST *) a)->cost > ((const SPLITCOST *) b)->cost) ? 1 : -1;
+		return (((SPLITCOST *) a)->cost > ((SPLITCOST *) b)->cost) ? 1 : -1;
 }
 
 /*
@@ -418,7 +377,9 @@ g_int_picksplit(PG_FUNCTION_ARGS)
 			size_waste = size_union - size_inter;
 
 			pfree(union_d);
-			pfree(inter_d);
+
+			if (inter_d != (ArrayType *) NULL)
+				pfree(inter_d);
 
 			/*
 			 * are these a more promising split that what we've already seen?
@@ -472,7 +433,7 @@ g_int_picksplit(PG_FUNCTION_ARGS)
 	qsort((void *) costvector, maxoff, sizeof(SPLITCOST), comparecost);
 
 	/*
-	 * Now split up the regions between the two seeds.  An important property
+	 * Now split up the regions between the two seeds.	An important property
 	 * of this split algorithm is that the split vector v has the indices of
 	 * items to be split in order in its left and right vectors.  We exploit
 	 * this property by doing a merge in the code that actually splits the
@@ -490,7 +451,7 @@ g_int_picksplit(PG_FUNCTION_ARGS)
 
 		/*
 		 * If we've already decided where to place this item, just put it on
-		 * the right list.  Otherwise, we need to figure out which page needs
+		 * the right list.	Otherwise, we need to figure out which page needs
 		 * the least enlargement in order to store the item.
 		 */
 
@@ -517,8 +478,10 @@ g_int_picksplit(PG_FUNCTION_ARGS)
 		/* pick which page to add it to */
 		if (size_alpha - size_l < size_beta - size_r + WISH_F(v->spl_nleft, v->spl_nright, 0.01))
 		{
-			pfree(datum_l);
-			pfree(union_dr);
+			if (datum_l)
+				pfree(datum_l);
+			if (union_dr)
+				pfree(union_dr);
 			datum_l = union_dl;
 			size_l = size_alpha;
 			*left++ = i;
@@ -526,8 +489,10 @@ g_int_picksplit(PG_FUNCTION_ARGS)
 		}
 		else
 		{
-			pfree(datum_r);
-			pfree(union_dl);
+			if (datum_r)
+				pfree(datum_r);
+			if (union_dl)
+				pfree(union_dl);
 			datum_r = union_dr;
 			size_r = size_beta;
 			*right++ = i;
@@ -537,6 +502,8 @@ g_int_picksplit(PG_FUNCTION_ARGS)
 	pfree(costvector);
 	*right = *left = FirstOffsetNumber;
 
+	datum_l->flags &= ~LEAFKEY;
+	datum_r->flags &= ~LEAFKEY;
 	v->spl_ldatum = PointerGetDatum(datum_l);
 	v->spl_rdatum = PointerGetDatum(datum_r);
 

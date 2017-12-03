@@ -4,42 +4,39 @@
  *	  prototypes for pquery.c.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/tcop/pquery.h
+ * $PostgreSQL: pgsql/src/include/tcop/pquery.h,v 1.36 2005/10/15 02:49:46 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #ifndef PQUERY_H
 #define PQUERY_H
 
-#include "nodes/parsenodes.h"
 #include "utils/portal.h"
 
 
-extern PGDLLIMPORT Portal ActivePortal;
+extern DLLIMPORT Portal ActivePortal;
 
 
-extern PortalStrategy ChoosePortalStrategy(List *stmts);
+extern PortalStrategy ChoosePortalStrategy(List *parseTrees);
 
 extern List *FetchPortalTargetList(Portal portal);
 
-extern List *FetchStatementTargetList(Node *stmt);
-
 extern void PortalStart(Portal portal, ParamListInfo params,
-			int eflags, Snapshot snapshot);
+			Snapshot snapshot);
 
 extern void PortalSetResultFormat(Portal portal, int nFormats,
 					  int16 *formats);
 
-extern bool PortalRun(Portal portal, long count, bool isTopLevel,
-		  bool run_once, DestReceiver *dest, DestReceiver *altdest,
+extern bool PortalRun(Portal portal, long count,
+		  DestReceiver *dest, DestReceiver *altdest,
 		  char *completionTag);
 
-extern uint64 PortalRunFetch(Portal portal,
+extern long PortalRunFetch(Portal portal,
 			   FetchDirection fdirection,
 			   long count,
 			   DestReceiver *dest);
 
-#endif							/* PQUERY_H */
+#endif   /* PQUERY_H */

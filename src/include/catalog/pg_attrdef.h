@@ -5,13 +5,13 @@
  *	  along with the relation's initial contents.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/catalog/pg_attrdef.h
+ * $PostgreSQL: pgsql/src/include/catalog/pg_attrdef.h,v 1.19 2005/04/14 01:38:20 tgl Exp $
  *
  * NOTES
- *	  the genbki.pl script reads this file and generates .bki
+ *	  the genbki.sh script reads this file and generates .bki
  *	  information from the DATA() statements.
  *
  *-------------------------------------------------------------------------
@@ -19,10 +19,15 @@
 #ifndef PG_ATTRDEF_H
 #define PG_ATTRDEF_H
 
-#include "catalog/genbki.h"
+/* ----------------
+ *		postgres.h contains the system type definitions and the
+ *		CATALOG(), BKI_BOOTSTRAP and DATA() sugar words so this file
+ *		can be read by both genbki.sh and the C compiler.
+ * ----------------
+ */
 
 /* ----------------
- *		pg_attrdef definition.  cpp turns this into
+ *		pg_attrdef definition.	cpp turns this into
  *		typedef struct FormData_pg_attrdef
  * ----------------
  */
@@ -30,13 +35,10 @@
 
 CATALOG(pg_attrdef,2604)
 {
-	Oid			adrelid;		/* OID of table containing attribute */
-	int16		adnum;			/* attnum of attribute */
-
-#ifdef CATALOG_VARLEN			/* variable-length fields start here */
-	pg_node_tree adbin;			/* nodeToString representation of default */
-	text		adsrc;			/* human-readable representation of default */
-#endif
+	Oid			adrelid;
+	int2		adnum;
+	text		adbin;
+	text		adsrc;
 } FormData_pg_attrdef;
 
 /* ----------------
@@ -56,4 +58,4 @@ typedef FormData_pg_attrdef *Form_pg_attrdef;
 #define Anum_pg_attrdef_adbin			3
 #define Anum_pg_attrdef_adsrc			4
 
-#endif							/* PG_ATTRDEF_H */
+#endif   /* PG_ATTRDEF_H */

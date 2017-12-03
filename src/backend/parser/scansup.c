@@ -4,12 +4,12 @@
  *	  support routines for the lex/flex scanner, used by both the normal
  * backend as well as the bootstrap backend
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/parser/scansup.c
+ *	  $PostgreSQL: pgsql/src/backend/parser/scansup.c,v 1.30 2005/10/15 02:49:22 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -17,6 +17,7 @@
 
 #include <ctype.h>
 
+#include "miscadmin.h"
 #include "parser/scansup.h"
 #include "mb/pg_wchar.h"
 
@@ -56,8 +57,6 @@ scanstr(const char *s)
 			 * appear in pairs, so there should be another character.
 			 */
 			i++;
-			/* The bootstrap parser is not as smart, so check here. */
-			Assert(s[i] == '\'');
 			newStr[j] = s[i];
 		}
 		else if (s[i] == '\\')
@@ -130,21 +129,10 @@ scanstr(const char *s)
 char *
 downcase_truncate_identifier(const char *ident, int len, bool warn)
 {
-	return downcase_identifier(ident, len, warn, true);
-}
-
-/*
- * a workhorse for downcase_truncate_identifier
- */
-char *
-downcase_identifier(const char *ident, int len, bool warn, bool truncate)
-{
 	char	   *result;
 	int			i;
-	bool		enc_is_single_byte;
 
 	result = palloc(len + 1);
-	enc_is_single_byte = pg_database_encoding_max_length() == 1;
 
 	/*
 	 * SQL99 specifies Unicode-aware case normalization, which we don't yet
@@ -152,8 +140,8 @@ downcase_identifier(const char *ident, int len, bool warn, bool truncate)
 	 * locale-aware translation.  However, there are some locales where this
 	 * is not right either (eg, Turkish may do strange things with 'i' and
 	 * 'I').  Our current compromise is to use tolower() for characters with
-	 * the high bit set, as long as they aren't part of a multi-byte
-	 * character, and use an ASCII-only downcasing for 7-bit characters.
+	 * the high bit set, and use an ASCII-only downcasing for 7-bit
+	 * characters.
 	 */
 	for (i = 0; i < len; i++)
 	{
@@ -161,18 +149,17 @@ downcase_identifier(const char *ident, int len, bool warn, bool truncate)
 
 		if (ch >= 'A' && ch <= 'Z')
 			ch += 'a' - 'A';
-		else if (enc_is_single_byte && IS_HIGHBIT_SET(ch) && isupper(ch))
+		else if (ch >= 0x80 && isupper(ch))
 			ch = tolower(ch);
 		result[i] = (char) ch;
 	}
 	result[i] = '\0';
 
-	if (i >= NAMEDATALEN && truncate)
+	if (i >= NAMEDATALEN)
 		truncate_identifier(result, i, warn);
 
 	return result;
 }
-
 
 /*
  * truncate_identifier() --- truncate an identifier to NAMEDATALEN-1 bytes.
@@ -190,42 +177,10 @@ truncate_identifier(char *ident, int len, bool warn)
 	{
 		len = pg_mbcliplen(ident, len, NAMEDATALEN - 1);
 		if (warn)
-		{
-			/*
-			 * We avoid using %.*s here because it can misbehave if the data
-			 * is not valid in what libc thinks is the prevailing encoding.
-			 */
-			char		buf[NAMEDATALEN];
-
-			memcpy(buf, ident, len);
-			buf[len] = '\0';
 			ereport(NOTICE,
 					(errcode(ERRCODE_NAME_TOO_LONG),
-					 errmsg("identifier \"%s\" will be truncated to \"%s\"",
-							ident, buf)));
-		}
+					 errmsg("identifier \"%s\" will be truncated to \"%.*s\"",
+							ident, len, ident)));
 		ident[len] = '\0';
 	}
-}
-
-/*
- * scanner_isspace() --- return true if flex scanner considers char whitespace
- *
- * This should be used instead of the potentially locale-dependent isspace()
- * function when it's important to match the lexer's behavior.
- *
- * In principle we might need similar functions for isalnum etc, but for the
- * moment only isspace seems needed.
- */
-bool
-scanner_isspace(char ch)
-{
-	/* This must match scan.l's list of {space} characters */
-	if (ch == ' ' ||
-		ch == '\t' ||
-		ch == '\n' ||
-		ch == '\r' ||
-		ch == '\f')
-		return true;
-	return false;
 }

@@ -1,7 +1,4 @@
-#!/bin/sh
-
-# src/tools/make_diff/cporig
-
+:
 for FILE
 do
 	if [ ! -f "$FILE.orig" ]

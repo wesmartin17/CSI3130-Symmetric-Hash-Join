@@ -9,18 +9,17 @@
  * the single-user case works.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/utils/misc/superuser.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/misc/superuser.c,v 1.34 2005/10/15 02:49:36 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
-#include "access/htup_details.h"
 #include "catalog/pg_authid.h"
 #include "utils/inval.h"
 #include "utils/syscache.h"
@@ -37,7 +36,7 @@ static Oid	last_roleid = InvalidOid;	/* InvalidOid == cache not valid */
 static bool last_roleid_is_super = false;
 static bool roleid_callback_registered = false;
 
-static void RoleidCallback(Datum arg, int cacheid, uint32 hashvalue);
+static void RoleidCallback(Datum arg, Oid relid);
 
 
 /*
@@ -68,7 +67,9 @@ superuser_arg(Oid roleid)
 		return true;
 
 	/* OK, look up the information in pg_authid */
-	rtup = SearchSysCache1(AUTHOID, ObjectIdGetDatum(roleid));
+	rtup = SearchSysCache(AUTHOID,
+						  ObjectIdGetDatum(roleid),
+						  0, 0, 0);
 	if (HeapTupleIsValid(rtup))
 	{
 		result = ((Form_pg_authid) GETSTRUCT(rtup))->rolsuper;
@@ -97,11 +98,11 @@ superuser_arg(Oid roleid)
 }
 
 /*
- * RoleidCallback
+ * UseridCallback
  *		Syscache inval callback function
  */
 static void
-RoleidCallback(Datum arg, int cacheid, uint32 hashvalue)
+RoleidCallback(Datum arg, Oid relid)
 {
 	/* Invalidate our local cache in case role's superuserness changed */
 	last_roleid = InvalidOid;

@@ -24,7 +24,7 @@
 
 # Original author:  Ryan Kirkpatrick <pgsql@rkirkpat.net>
 
-# contrib/start-scripts/linux
+# $PostgreSQL: pgsql/contrib/start-scripts/linux,v 1.7 2004/10/01 18:30:21 tgl Exp $
 
 ## EDIT FROM HERE
 
@@ -40,27 +40,23 @@ PGUSER=postgres
 # Where to keep a log file
 PGLOG="$PGDATA/serverlog"
 
-# It's often a good idea to protect the postmaster from being killed by the
-# OOM killer (which will tend to preferentially kill the postmaster because
-# of the way it accounts for shared memory).  To do that, uncomment these
-# three lines:
-#PG_OOM_ADJUST_FILE=/proc/self/oom_score_adj
-#PG_MASTER_OOM_SCORE_ADJ=-1000
-#PG_CHILD_OOM_SCORE_ADJ=0
-# Older Linux kernels may not have /proc/self/oom_score_adj, but instead
-# /proc/self/oom_adj, which works similarly except for having a different
-# range of scores.  For such a system, uncomment these three lines instead:
-#PG_OOM_ADJUST_FILE=/proc/self/oom_adj
-#PG_MASTER_OOM_SCORE_ADJ=-17
-#PG_CHILD_OOM_SCORE_ADJ=0
-
 ## STOP EDITING HERE
+
+# Check for echo -n vs echo \c
+if echo '\c' | grep -s c >/dev/null 2>&1 ; then
+    ECHO_N="echo -n"
+    ECHO_C=""
+else
+    ECHO_N="echo"
+    ECHO_C='\c'
+fi
 
 # The path that is to be used for the script
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
-# What to use to start up the postmaster.  (If you want the script to wait
-# until the server has started, you could use "pg_ctl start" here.)
+# What to use to start up the postmaster (we do NOT use pg_ctl for this,
+# as it adds no value and can cause the postmaster to misrecognize a stale
+# lock file)
 DAEMON="$prefix/bin/postmaster"
 
 # What to use to shut down the postmaster
@@ -69,48 +65,31 @@ PGCTL="$prefix/bin/pg_ctl"
 set -e
 
 # Only start if we can find the postmaster.
-test -x $DAEMON ||
-{
-	echo "$DAEMON not found"
-	if [ "$1" = "stop" ]
-	then exit 0
-	else exit 5
-	fi
-}
-
-# If we want to tell child processes to adjust their OOM scores, set up the
-# necessary environment variables.  Can't just export them through the "su".
-if [ -e "$PG_OOM_ADJUST_FILE" -a -n "$PG_CHILD_OOM_SCORE_ADJ" ]
-then
-	DAEMON_ENV="PG_OOM_ADJUST_FILE=$PG_OOM_ADJUST_FILE PG_OOM_ADJUST_VALUE=$PG_CHILD_OOM_SCORE_ADJ"
-fi
-
+test -x $DAEMON || exit 0
 
 # Parse command line parameters.
 case $1 in
   start)
-	echo -n "Starting PostgreSQL: "
-	test -e "$PG_OOM_ADJUST_FILE" && echo "$PG_MASTER_OOM_SCORE_ADJ" > "$PG_OOM_ADJUST_FILE"
-	su - $PGUSER -c "$DAEMON_ENV $DAEMON -D '$PGDATA' >>$PGLOG 2>&1 &"
+	$ECHO_N "Starting PostgreSQL: "$ECHO_C
+	su - $PGUSER -c "$DAEMON -D '$PGDATA' &" >>$PGLOG 2>&1
 	echo "ok"
 	;;
   stop)
 	echo -n "Stopping PostgreSQL: "
-	su - $PGUSER -c "$PGCTL stop -D '$PGDATA' -s"
+	su - $PGUSER -c "$PGCTL stop -D '$PGDATA' -s -m fast"
 	echo "ok"
 	;;
   restart)
 	echo -n "Restarting PostgreSQL: "
-	su - $PGUSER -c "$PGCTL stop -D '$PGDATA' -s"
-	test -e "$PG_OOM_ADJUST_FILE" && echo "$PG_MASTER_OOM_SCORE_ADJ" > "$PG_OOM_ADJUST_FILE"
-	su - $PGUSER -c "$DAEMON_ENV $DAEMON -D '$PGDATA' >>$PGLOG 2>&1 &"
+	su - $PGUSER -c "$PGCTL stop -D '$PGDATA' -s -m fast -w"
+	su - $PGUSER -c "$DAEMON -D '$PGDATA' &" >>$PGLOG 2>&1
 	echo "ok"
 	;;
   reload)
-	echo -n "Reload PostgreSQL: "
-	su - $PGUSER -c "$PGCTL reload -D '$PGDATA' -s"
-	echo "ok"
-	;;
+        echo -n "Reload PostgreSQL: "
+        su - $PGUSER -c "$PGCTL reload -D '$PGDATA' -s"
+        echo "ok"
+        ;;
   status)
 	su - $PGUSER -c "$PGCTL status -D '$PGDATA'"
 	;;

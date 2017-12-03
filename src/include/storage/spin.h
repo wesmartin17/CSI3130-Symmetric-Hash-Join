@@ -14,37 +14,43 @@
  *		Acquire a spinlock, waiting if necessary.
  *		Time out and abort() if unable to acquire the lock in a
  *		"reasonable" amount of time --- typically ~ 1 minute.
+ *		Cancel/die interrupts are held off until the lock is released.
  *
  *	void SpinLockRelease(volatile slock_t *lock)
  *		Unlock a previously acquired lock.
+ *		Release the cancel/die interrupt holdoff.
+ *
+ *	void SpinLockAcquire_NoHoldoff(volatile slock_t *lock)
+ *	void SpinLockRelease_NoHoldoff(volatile slock_t *lock)
+ *		Same as above, except no interrupt holdoff processing is done.
+ *		This pair of macros may be used when there is a surrounding
+ *		interrupt holdoff.
  *
  *	bool SpinLockFree(slock_t *lock)
- *		Tests if the lock is free. Returns true if free, false if locked.
+ *		Tests if the lock is free. Returns TRUE if free, FALSE if locked.
  *		This does *not* change the state of the lock.
  *
  *	Callers must beware that the macro argument may be evaluated multiple
  *	times!
  *
- *	Load and store operations in calling code are guaranteed not to be
- *	reordered with respect to these operations, because they include a
- *	compiler barrier.  (Before PostgreSQL 9.5, callers needed to use a
- *	volatile qualifier to access data protected by spinlocks.)
- *
- *	Keep in mind the coding rule that spinlocks must not be held for more
- *	than a few instructions.  In particular, we assume it is not possible
- *	for a CHECK_FOR_INTERRUPTS() to occur while holding a spinlock, and so
- *	it is not necessary to do HOLD/RESUME_INTERRUPTS() in these macros.
+ *	CAUTION: Care must be taken to ensure that loads and stores of
+ *	shared memory values are not rearranged around spinlock acquire
+ *	and release. This is done using the "volatile" qualifier: the C
+ *	standard states that loads and stores of volatile objects cannot
+ *	be rearranged *with respect to other volatile objects*. The
+ *	spinlock is always written through a volatile pointer by the
+ *	spinlock macros, but this is not sufficient by itself: code that
+ *	protects shared data with a spinlock MUST reference that shared
+ *	data through a volatile pointer.
  *
  *	These macros are implemented in terms of hardware-dependent macros
- *	supplied by s_lock.h.  There is not currently any extra functionality
- *	added by this header, but there has been in the past and may someday
- *	be again.
+ *	supplied by s_lock.h.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/storage/spin.h
+ * $PostgreSQL: pgsql/src/include/storage/spin.h,v 1.26 2005/10/13 06:17:34 neilc Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -52,26 +58,30 @@
 #define SPIN_H
 
 #include "storage/s_lock.h"
-#ifndef HAVE_SPINLOCKS
-#include "storage/pg_sema.h"
-#endif
+#include "miscadmin.h"
 
 
 #define SpinLockInit(lock)	S_INIT_LOCK(lock)
 
-#define SpinLockAcquire(lock) S_LOCK(lock)
+#define SpinLockAcquire(lock) \
+	do { \
+		HOLD_INTERRUPTS(); \
+		S_LOCK(lock); \
+	} while (0)
 
-#define SpinLockRelease(lock) S_UNLOCK(lock)
+#define SpinLockAcquire_NoHoldoff(lock) S_LOCK(lock)
+
+#define SpinLockRelease(lock) \
+	do { \
+		S_UNLOCK(lock); \
+		RESUME_INTERRUPTS(); \
+	} while (0)
+
+#define SpinLockRelease_NoHoldoff(lock) S_UNLOCK(lock)
 
 #define SpinLockFree(lock)	S_LOCK_FREE(lock)
 
 
 extern int	SpinlockSemas(void);
-extern Size SpinlockSemaSize(void);
 
-#ifndef HAVE_SPINLOCKS
-extern void SpinlockSemaInit(void);
-extern PGSemaphore *SpinlockSemaArray;
-#endif
-
-#endif							/* SPIN_H */
+#endif   /* SPIN_H */

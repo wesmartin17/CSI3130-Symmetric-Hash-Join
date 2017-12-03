@@ -4,12 +4,13 @@
  *	  Routines for preprocessing qualification expressions
  *
  *
- * While the parser will produce flattened (N-argument) AND/OR trees from
- * simple sequences of AND'ed or OR'ed clauses, there might be an AND clause
- * directly underneath another AND, or OR underneath OR, if the input was
- * oddly parenthesized.  Also, rule expansion and subquery flattening could
- * produce such parsetrees.  The planner wants to flatten all such cases
- * to ensure consistent optimization behavior.
+ * The parser regards AND and OR as purely binary operators, so a qual like
+ *		(A = 1) OR (A = 2) OR (A = 3) ...
+ * will produce a nested parsetree
+ *		(OR (A = 1) (OR (A = 2) (OR (A = 3) ...)))
+ * In reality, the optimizer and executor regard AND and OR as N-argument
+ * operators, so this tree can be flattened to
+ *		(OR (A = 1) (A = 2) (A = 3) ...)
  *
  * Formerly, this module was responsible for doing the initial flattening,
  * but now we leave it to eval_const_expressions to do that since it has to
@@ -19,12 +20,12 @@
  * tree after local transformations that might introduce nested AND/ORs.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/optimizer/prep/prepqual.c
+ *	  $PostgreSQL: pgsql/src/backend/optimizer/prep/prepqual.c,v 1.51.2.1 2005/11/22 18:23:11 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -39,230 +40,10 @@
 
 static List *pull_ands(List *andlist);
 static List *pull_ors(List *orlist);
+static Expr *find_nots(Expr *qual);
+static Expr *push_nots(Expr *qual);
 static Expr *find_duplicate_ors(Expr *qual);
 static Expr *process_duplicate_ors(List *orlist);
-
-
-/*
- * negate_clause
- *	  Negate a Boolean expression.
- *
- * Input is a clause to be negated (e.g., the argument of a NOT clause).
- * Returns a new clause equivalent to the negation of the given clause.
- *
- * Although this can be invoked on its own, it's mainly intended as a helper
- * for eval_const_expressions(), and that context drives several design
- * decisions.  In particular, if the input is already AND/OR flat, we must
- * preserve that property.  We also don't bother to recurse in situations
- * where we can assume that lower-level executions of eval_const_expressions
- * would already have simplified sub-clauses of the input.
- *
- * The difference between this and a simple make_notclause() is that this
- * tries to get rid of the NOT node by logical simplification.  It's clearly
- * always a win if the NOT node can be eliminated altogether.  However, our
- * use of DeMorgan's laws could result in having more NOT nodes rather than
- * fewer.  We do that unconditionally anyway, because in WHERE clauses it's
- * important to expose as much top-level AND/OR structure as possible.
- * Also, eliminating an intermediate NOT may allow us to flatten two levels
- * of AND or OR together that we couldn't have otherwise.  Finally, one of
- * the motivations for doing this is to ensure that logically equivalent
- * expressions will be seen as physically equal(), so we should always apply
- * the same transformations.
- */
-Node *
-negate_clause(Node *node)
-{
-	if (node == NULL)			/* should not happen */
-		elog(ERROR, "can't negate an empty subexpression");
-	switch (nodeTag(node))
-	{
-		case T_Const:
-			{
-				Const	   *c = (Const *) node;
-
-				/* NOT NULL is still NULL */
-				if (c->constisnull)
-					return makeBoolConst(false, true);
-				/* otherwise pretty easy */
-				return makeBoolConst(!DatumGetBool(c->constvalue), false);
-			}
-			break;
-		case T_OpExpr:
-			{
-				/*
-				 * Negate operator if possible: (NOT (< A B)) => (>= A B)
-				 */
-				OpExpr	   *opexpr = (OpExpr *) node;
-				Oid			negator = get_negator(opexpr->opno);
-
-				if (negator)
-				{
-					OpExpr	   *newopexpr = makeNode(OpExpr);
-
-					newopexpr->opno = negator;
-					newopexpr->opfuncid = InvalidOid;
-					newopexpr->opresulttype = opexpr->opresulttype;
-					newopexpr->opretset = opexpr->opretset;
-					newopexpr->opcollid = opexpr->opcollid;
-					newopexpr->inputcollid = opexpr->inputcollid;
-					newopexpr->args = opexpr->args;
-					newopexpr->location = opexpr->location;
-					return (Node *) newopexpr;
-				}
-			}
-			break;
-		case T_ScalarArrayOpExpr:
-			{
-				/*
-				 * Negate a ScalarArrayOpExpr if its operator has a negator;
-				 * for example x = ANY (list) becomes x <> ALL (list)
-				 */
-				ScalarArrayOpExpr *saopexpr = (ScalarArrayOpExpr *) node;
-				Oid			negator = get_negator(saopexpr->opno);
-
-				if (negator)
-				{
-					ScalarArrayOpExpr *newopexpr = makeNode(ScalarArrayOpExpr);
-
-					newopexpr->opno = negator;
-					newopexpr->opfuncid = InvalidOid;
-					newopexpr->useOr = !saopexpr->useOr;
-					newopexpr->inputcollid = saopexpr->inputcollid;
-					newopexpr->args = saopexpr->args;
-					newopexpr->location = saopexpr->location;
-					return (Node *) newopexpr;
-				}
-			}
-			break;
-		case T_BoolExpr:
-			{
-				BoolExpr   *expr = (BoolExpr *) node;
-
-				switch (expr->boolop)
-				{
-						/*--------------------
-						 * Apply DeMorgan's Laws:
-						 *		(NOT (AND A B)) => (OR (NOT A) (NOT B))
-						 *		(NOT (OR A B))	=> (AND (NOT A) (NOT B))
-						 * i.e., swap AND for OR and negate each subclause.
-						 *
-						 * If the input is already AND/OR flat and has no NOT
-						 * directly above AND or OR, this transformation preserves
-						 * those properties.  For example, if no direct child of
-						 * the given AND clause is an AND or a NOT-above-OR, then
-						 * the recursive calls of negate_clause() can't return any
-						 * OR clauses.  So we needn't call pull_ors() before
-						 * building a new OR clause.  Similarly for the OR case.
-						 *--------------------
-						 */
-					case AND_EXPR:
-						{
-							List	   *nargs = NIL;
-							ListCell   *lc;
-
-							foreach(lc, expr->args)
-							{
-								nargs = lappend(nargs,
-												negate_clause(lfirst(lc)));
-							}
-							return (Node *) make_orclause(nargs);
-						}
-						break;
-					case OR_EXPR:
-						{
-							List	   *nargs = NIL;
-							ListCell   *lc;
-
-							foreach(lc, expr->args)
-							{
-								nargs = lappend(nargs,
-												negate_clause(lfirst(lc)));
-							}
-							return (Node *) make_andclause(nargs);
-						}
-						break;
-					case NOT_EXPR:
-
-						/*
-						 * NOT underneath NOT: they cancel.  We assume the
-						 * input is already simplified, so no need to recurse.
-						 */
-						return (Node *) linitial(expr->args);
-					default:
-						elog(ERROR, "unrecognized boolop: %d",
-							 (int) expr->boolop);
-						break;
-				}
-			}
-			break;
-		case T_NullTest:
-			{
-				NullTest   *expr = (NullTest *) node;
-
-				/*
-				 * In the rowtype case, the two flavors of NullTest are *not*
-				 * logical inverses, so we can't simplify.  But it does work
-				 * for scalar datatypes.
-				 */
-				if (!expr->argisrow)
-				{
-					NullTest   *newexpr = makeNode(NullTest);
-
-					newexpr->arg = expr->arg;
-					newexpr->nulltesttype = (expr->nulltesttype == IS_NULL ?
-											 IS_NOT_NULL : IS_NULL);
-					newexpr->argisrow = expr->argisrow;
-					newexpr->location = expr->location;
-					return (Node *) newexpr;
-				}
-			}
-			break;
-		case T_BooleanTest:
-			{
-				BooleanTest *expr = (BooleanTest *) node;
-				BooleanTest *newexpr = makeNode(BooleanTest);
-
-				newexpr->arg = expr->arg;
-				switch (expr->booltesttype)
-				{
-					case IS_TRUE:
-						newexpr->booltesttype = IS_NOT_TRUE;
-						break;
-					case IS_NOT_TRUE:
-						newexpr->booltesttype = IS_TRUE;
-						break;
-					case IS_FALSE:
-						newexpr->booltesttype = IS_NOT_FALSE;
-						break;
-					case IS_NOT_FALSE:
-						newexpr->booltesttype = IS_FALSE;
-						break;
-					case IS_UNKNOWN:
-						newexpr->booltesttype = IS_NOT_UNKNOWN;
-						break;
-					case IS_NOT_UNKNOWN:
-						newexpr->booltesttype = IS_UNKNOWN;
-						break;
-					default:
-						elog(ERROR, "unrecognized booltesttype: %d",
-							 (int) expr->booltesttype);
-						break;
-				}
-				newexpr->location = expr->location;
-				return (Node *) newexpr;
-			}
-			break;
-		default:
-			/* else fall through */
-			break;
-	}
-
-	/*
-	 * Otherwise we don't know how to simplify this, so just tack on an
-	 * explicit NOT node.
-	 */
-	return (Node *) make_notclause((Expr *) node);
-}
 
 
 /*
@@ -292,11 +73,18 @@ canonicalize_qual(Expr *qual)
 		return NULL;
 
 	/*
-	 * Pull up redundant subclauses in OR-of-AND trees.  We do this only
-	 * within the top-level AND/OR structure; there's no point in looking
-	 * deeper.  Also remove any NULL constants in the top-level structure.
+	 * Push down NOTs.	We do this only in the top-level boolean expression,
+	 * without examining arguments of operators/functions. The main reason for
+	 * doing this is to expose as much top-level AND/OR structure as we can,
+	 * so there's no point in descending further.
 	 */
-	newqual = find_duplicate_ors(qual);
+	newqual = find_nots(qual);
+
+	/*
+	 * Pull up redundant subclauses in OR-of-AND trees.  Again, we do this
+	 * only within the top-level AND/OR structure.
+	 */
+	newqual = find_duplicate_ors(newqual);
 
 	return newqual;
 }
@@ -367,6 +155,116 @@ pull_ors(List *orlist)
 }
 
 
+/*
+ * find_nots
+ *	  Traverse the qualification, looking for NOTs to take care of.
+ *	  For NOT clauses, apply push_nots() to try to push down the NOT.
+ *	  For AND and OR clause types, simply recurse.	Otherwise stop
+ *	  recursing (we do not worry about structure below the top AND/OR tree).
+ *
+ * Returns the modified qualification.	AND/OR flatness is preserved.
+ */
+static Expr *
+find_nots(Expr *qual)
+{
+	if (and_clause((Node *) qual))
+	{
+		List	   *t_list = NIL;
+		ListCell   *temp;
+
+		foreach(temp, ((BoolExpr *) qual)->args)
+			t_list = lappend(t_list, find_nots(lfirst(temp)));
+		return make_andclause(pull_ands(t_list));
+	}
+	else if (or_clause((Node *) qual))
+	{
+		List	   *t_list = NIL;
+		ListCell   *temp;
+
+		foreach(temp, ((BoolExpr *) qual)->args)
+			t_list = lappend(t_list, find_nots(lfirst(temp)));
+		return make_orclause(pull_ors(t_list));
+	}
+	else if (not_clause((Node *) qual))
+		return push_nots(get_notclausearg(qual));
+	else
+		return qual;
+}
+
+/*
+ * push_nots
+ *	  Push down a NOT as far as possible.
+ *
+ * Input is an expression to be negated (e.g., the argument of a NOT clause).
+ * Returns a new qual equivalent to the negation of the given qual.
+ */
+static Expr *
+push_nots(Expr *qual)
+{
+	if (is_opclause(qual))
+	{
+		/*
+		 * Negate an operator clause if possible: (NOT (< A B)) => (>= A B)
+		 * Otherwise, retain the clause as it is (the NOT can't be pushed down
+		 * any farther).
+		 */
+		OpExpr	   *opexpr = (OpExpr *) qual;
+		Oid			negator = get_negator(opexpr->opno);
+
+		if (negator)
+			return make_opclause(negator,
+								 opexpr->opresulttype,
+								 opexpr->opretset,
+								 (Expr *) get_leftop(qual),
+								 (Expr *) get_rightop(qual));
+		else
+			return make_notclause(qual);
+	}
+	else if (and_clause((Node *) qual))
+	{
+		/*--------------------
+		 * Apply DeMorgan's Laws:
+		 *		(NOT (AND A B)) => (OR (NOT A) (NOT B))
+		 *		(NOT (OR A B))	=> (AND (NOT A) (NOT B))
+		 * i.e., swap AND for OR and negate all the subclauses.
+		 *--------------------
+		 */
+		List	   *t_list = NIL;
+		ListCell   *temp;
+
+		foreach(temp, ((BoolExpr *) qual)->args)
+			t_list = lappend(t_list, push_nots(lfirst(temp)));
+		return make_orclause(pull_ors(t_list));
+	}
+	else if (or_clause((Node *) qual))
+	{
+		List	   *t_list = NIL;
+		ListCell   *temp;
+
+		foreach(temp, ((BoolExpr *) qual)->args)
+			t_list = lappend(t_list, push_nots(lfirst(temp)));
+		return make_andclause(pull_ands(t_list));
+	}
+	else if (not_clause((Node *) qual))
+	{
+		/*
+		 * Another NOT cancels this NOT, so eliminate the NOT and stop
+		 * negating this branch.  But search the subexpression for more NOTs
+		 * to simplify.
+		 */
+		return find_nots(get_notclausearg(qual));
+	}
+	else
+	{
+		/*
+		 * We don't know how to negate anything else, place a NOT at this
+		 * level.  No point in recursing deeper, either.
+		 */
+		return make_notclause(qual);
+	}
+}
+
+
 /*--------------------
  * The following code attempts to apply the inverse OR distributive law:
  *		((A AND B) OR (A AND C))  =>  (A AND (B OR C))
@@ -375,7 +273,7 @@ pull_ors(List *orlist)
  *
  * This may seem like a fairly useless activity, but it turns out to be
  * applicable to many machine-generated queries, and there are also queries
- * in some of the TPC benchmarks that need it.  This was in fact almost the
+ * in some of the TPC benchmarks that need it.	This was in fact almost the
  * sole useful side-effect of the old prepqual code that tried to force
  * the query into canonical AND-of-ORs form: the canonical equivalent of
  *		((A AND B) OR (A AND C))
@@ -394,14 +292,7 @@ pull_ors(List *orlist)
  *	  OR clauses to which the inverse OR distributive law might apply.
  *	  Only the top-level AND/OR structure is searched.
  *
- * While at it, we remove any NULL constants within the top-level AND/OR
- * structure, eg "x OR NULL::boolean" is reduced to "x".  In general that
- * would change the result, so eval_const_expressions can't do it; but at
- * top level of WHERE, we don't need to distinguish between FALSE and NULL
- * results, so it's valid to treat NULL::boolean the same as FALSE and then
- * simplify AND/OR accordingly.
- *
- * Returns the modified qualification.  AND/OR flatness is preserved.
+ * Returns the modified qualification.	AND/OR flatness is preserved.
  */
 static Expr *
 find_duplicate_ors(Expr *qual)
@@ -413,30 +304,12 @@ find_duplicate_ors(Expr *qual)
 
 		/* Recurse */
 		foreach(temp, ((BoolExpr *) qual)->args)
-		{
-			Expr	   *arg = (Expr *) lfirst(temp);
+			orlist = lappend(orlist, find_duplicate_ors(lfirst(temp)));
 
-			arg = find_duplicate_ors(arg);
-
-			/* Get rid of any constant inputs */
-			if (arg && IsA(arg, Const))
-			{
-				Const	   *carg = (Const *) arg;
-
-				/* Drop constant FALSE or NULL */
-				if (carg->constisnull || !DatumGetBool(carg->constvalue))
-					continue;
-				/* constant TRUE, so OR reduces to TRUE */
-				return arg;
-			}
-
-			orlist = lappend(orlist, arg);
-		}
-
-		/* Flatten any ORs pulled up to just below here */
-		orlist = pull_ors(orlist);
-
-		/* Now we can look for duplicate ORs */
+		/*
+		 * Don't need pull_ors() since this routine will never introduce an OR
+		 * where there wasn't one before.
+		 */
 		return process_duplicate_ors(orlist);
 	}
 	else if (and_clause((Node *) qual))
@@ -446,38 +319,10 @@ find_duplicate_ors(Expr *qual)
 
 		/* Recurse */
 		foreach(temp, ((BoolExpr *) qual)->args)
-		{
-			Expr	   *arg = (Expr *) lfirst(temp);
-
-			arg = find_duplicate_ors(arg);
-
-			/* Get rid of any constant inputs */
-			if (arg && IsA(arg, Const))
-			{
-				Const	   *carg = (Const *) arg;
-
-				/* Drop constant TRUE */
-				if (!carg->constisnull && DatumGetBool(carg->constvalue))
-					continue;
-				/* constant FALSE or NULL, so AND reduces to FALSE */
-				return (Expr *) makeBoolConst(false, false);
-			}
-
-			andlist = lappend(andlist, arg);
-		}
-
+			andlist = lappend(andlist, find_duplicate_ors(lfirst(temp)));
 		/* Flatten any ANDs introduced just below here */
 		andlist = pull_ands(andlist);
-
-		/* AND of no inputs reduces to TRUE */
-		if (andlist == NIL)
-			return (Expr *) makeBoolConst(true, false);
-
-		/* Single-expression AND just reduces to that expression */
-		if (list_length(andlist) == 1)
-			return (Expr *) linitial(andlist);
-
-		/* Else we still need an AND node */
+		/* The AND list can't get shorter, so result is always an AND */
 		return make_andclause(andlist);
 	}
 	else
@@ -501,13 +346,11 @@ process_duplicate_ors(List *orlist)
 	List	   *neworlist;
 	ListCell   *temp;
 
-	/* OR of no inputs reduces to FALSE */
 	if (orlist == NIL)
-		return (Expr *) makeBoolConst(false, false);
-
-	/* Single-expression OR just reduces to that expression */
-	if (list_length(orlist) == 1)
-		return (Expr *) linitial(orlist);
+		return NULL;			/* probably can't happen */
+	if (list_length(orlist) == 1)		/* single-expression OR (can this
+										 * happen?) */
+		return linitial(orlist);
 
 	/*
 	 * Choose the shortest AND clause as the reference list --- obviously, any

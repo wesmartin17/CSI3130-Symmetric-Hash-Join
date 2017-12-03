@@ -1,9 +1,14 @@
 /*
- * File imported from FreeBSD, original by Poul-Henning Kamp.
+ * ----------------------------------------------------------------------------
+ * "THE BEER-WARE LICENSE" (Revision 42):
+ * <phk@login.dknet.dk> wrote this file.  As long as you retain this notice you
+ * can do whatever you want with this stuff. If we meet some day, and you think
+ * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+ * ----------------------------------------------------------------------------
  *
  * $FreeBSD: src/lib/libcrypt/crypt-md5.c,v 1.5 1999/12/17 20:21:45 peter Exp $
  *
- * contrib/pgcrypto/crypt-md5.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/crypt-md5.c,v 1.6 2005/10/15 02:49:06 momjian Exp $
  */
 
 #include "postgres.h"
@@ -12,20 +17,6 @@
 #include "px-crypt.h"
 
 #define MD5_SIZE 16
-
-static const char _crypt_a64[] =
-"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
-static void
-_crypt_to64(char *s, unsigned long v, int n)
-{
-	while (--n >= 0)
-	{
-		*s++ = _crypt_a64[v & 0x3f];
-		v >>= 6;
-	}
-}
-
 /*
  * UNIX password
  */
@@ -34,8 +25,8 @@ char *
 px_crypt_md5(const char *pw, const char *salt, char *passwd, unsigned dstlen)
 {
 	static char *magic = "$1$"; /* This string is magic for this algorithm.
-								 * Having it this way, we can get better later
-								 * on */
+								 * Having it this way, we can get get better
+								 * later on */
 	static char *p;
 	static const char *sp,
 			   *ep;
@@ -55,7 +46,7 @@ px_crypt_md5(const char *pw, const char *salt, char *passwd, unsigned dstlen)
 	sp = salt;
 
 	/* If it starts with the magic string, then skip that */
-	if (strncmp(sp, magic, strlen(magic)) == 0)
+	if (!strncmp(sp, magic, strlen(magic)))
 		sp += strlen(magic);
 
 	/* It stops at the first '$', max 8 chars */
@@ -72,31 +63,31 @@ px_crypt_md5(const char *pw, const char *salt, char *passwd, unsigned dstlen)
 	err = px_find_digest("md5", &ctx1);
 
 	/* The password first, since that is what is most unknown */
-	px_md_update(ctx, (const uint8 *) pw, strlen(pw));
+	px_md_update(ctx, (uint8 *) pw, strlen(pw));
 
 	/* Then our magic string */
 	px_md_update(ctx, (uint8 *) magic, strlen(magic));
 
 	/* Then the raw salt */
-	px_md_update(ctx, (const uint8 *) sp, sl);
+	px_md_update(ctx, (uint8 *) sp, sl);
 
 	/* Then just as many characters of the MD5(pw,salt,pw) */
-	px_md_update(ctx1, (const uint8 *) pw, strlen(pw));
-	px_md_update(ctx1, (const uint8 *) sp, sl);
-	px_md_update(ctx1, (const uint8 *) pw, strlen(pw));
+	px_md_update(ctx1, (uint8 *) pw, strlen(pw));
+	px_md_update(ctx1, (uint8 *) sp, sl);
+	px_md_update(ctx1, (uint8 *) pw, strlen(pw));
 	px_md_finish(ctx1, final);
 	for (pl = strlen(pw); pl > 0; pl -= MD5_SIZE)
 		px_md_update(ctx, final, pl > MD5_SIZE ? MD5_SIZE : pl);
 
 	/* Don't leave anything around in vm they could use. */
-	px_memset(final, 0, sizeof final);
+	memset(final, 0, sizeof final);
 
 	/* Then something really weird... */
 	for (i = strlen(pw); i; i >>= 1)
 		if (i & 1)
 			px_md_update(ctx, final, 1);
 		else
-			px_md_update(ctx, (const uint8 *) pw, 1);
+			px_md_update(ctx, (uint8 *) pw, 1);
 
 	/* Now make the output string */
 	strcpy(passwd, magic);
@@ -114,20 +105,20 @@ px_crypt_md5(const char *pw, const char *salt, char *passwd, unsigned dstlen)
 	{
 		px_md_reset(ctx1);
 		if (i & 1)
-			px_md_update(ctx1, (const uint8 *) pw, strlen(pw));
+			px_md_update(ctx1, (uint8 *) pw, strlen(pw));
 		else
 			px_md_update(ctx1, final, MD5_SIZE);
 
 		if (i % 3)
-			px_md_update(ctx1, (const uint8 *) sp, sl);
+			px_md_update(ctx1, (uint8 *) sp, sl);
 
 		if (i % 7)
-			px_md_update(ctx1, (const uint8 *) pw, strlen(pw));
+			px_md_update(ctx1, (uint8 *) pw, strlen(pw));
 
 		if (i & 1)
 			px_md_update(ctx1, final, MD5_SIZE);
 		else
-			px_md_update(ctx1, (const uint8 *) pw, strlen(pw));
+			px_md_update(ctx1, (uint8 *) pw, strlen(pw));
 		px_md_finish(ctx1, final);
 	}
 
@@ -154,7 +145,7 @@ px_crypt_md5(const char *pw, const char *salt, char *passwd, unsigned dstlen)
 	*p = '\0';
 
 	/* Don't leave anything around in vm they could use. */
-	px_memset(final, 0, sizeof final);
+	memset(final, 0, sizeof final);
 
 	px_md_free(ctx1);
 	px_md_free(ctx);

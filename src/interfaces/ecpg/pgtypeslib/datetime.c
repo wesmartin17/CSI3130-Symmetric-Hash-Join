@@ -1,5 +1,3 @@
-/* src/interfaces/ecpg/pgtypeslib/datetime.c */
-
 #include "postgres_fe.h"
 
 #include <time.h>
@@ -12,22 +10,6 @@
 #include "pgtypes_error.h"
 #include "pgtypes_date.h"
 
-date *
-PGTYPESdate_new(void)
-{
-	date	   *result;
-
-	result = (date *) pgtypes_alloc(sizeof(date));
-	/* result can be NULL if we run out of memory */
-	return result;
-}
-
-void
-PGTYPESdate_free(date * d)
-{
-	free(d);
-}
-
 date
 PGTYPESdate_from_timestamp(timestamp dt)
 {
@@ -35,11 +17,16 @@ PGTYPESdate_from_timestamp(timestamp dt)
 
 	dDate = 0;					/* suppress compiler warning */
 
-	if (!TIMESTAMP_NOT_FINITE(dt))
-	{
+	if (TIMESTAMP_NOT_FINITE(dt))
+		return
+
+#ifdef HAVE_INT64_TIMESTAMP
 		/* Microseconds to days */
-		dDate = (dt / USECS_PER_DAY);
-	}
+			dDate = (dt / USECS_PER_DAY);
+#else
+		/* Seconds to days */
+			dDate = (dt / (double) SECS_PER_DAY);
+#endif
 
 	return dDate;
 }
@@ -47,29 +34,31 @@ PGTYPESdate_from_timestamp(timestamp dt)
 date
 PGTYPESdate_from_asc(char *str, char **endptr)
 {
+
 	date		dDate;
 	fsec_t		fsec;
 	struct tm	tt,
 			   *tm = &tt;
+	int			tzp;
 	int			dtype;
 	int			nf;
 	char	   *field[MAXDATEFIELDS];
 	int			ftype[MAXDATEFIELDS];
-	char		lowstr[MAXDATELEN + MAXDATEFIELDS];
+	char		lowstr[MAXDATELEN + 1];
 	char	   *realptr;
 	char	  **ptr = (endptr != NULL) ? endptr : &realptr;
 
-	bool		EuroDates = false;
+	bool		EuroDates = FALSE;
 
 	errno = 0;
-	if (strlen(str) > MAXDATELEN)
+	if (strlen(str) >= sizeof(lowstr))
 	{
 		errno = PGTYPES_DATE_BAD_DATE;
 		return INT_MIN;
 	}
 
-	if (ParseDateTime(str, lowstr, field, ftype, &nf, ptr) != 0 ||
-		DecodeDateTime(field, ftype, nf, &dtype, tm, &fsec, EuroDates) != 0)
+	if (ParseDateTime(str, lowstr, field, ftype, MAXDATEFIELDS, &nf, ptr) != 0 ||
+	DecodeDateTime(field, ftype, nf, &dtype, tm, &fsec, &tzp, EuroDates) != 0)
 	{
 		errno = PGTYPES_DATE_BAD_DATE;
 		return INT_MIN;
@@ -81,11 +70,7 @@ PGTYPESdate_from_asc(char *str, char **endptr)
 			break;
 
 		case DTK_EPOCH:
-			if (GetEpochTime(tm) < 0)
-			{
-				errno = PGTYPES_DATE_BAD_DATE;
-				return INT_MIN;
-			}
+			GetEpochTime(tm);
 			break;
 
 		default:
@@ -105,7 +90,7 @@ PGTYPESdate_to_asc(date dDate)
 			   *tm = &tt;
 	char		buf[MAXDATELEN + 1];
 	int			DateStyle = 1;
-	bool		EuroDates = false;
+	bool		EuroDates = FALSE;
 
 	j2date(dDate + date2j(2000, 1, 1), &(tm->tm_year), &(tm->tm_mon), &(tm->tm_mday));
 	EncodeDateOnly(tm, DateStyle, buf, EuroDates);
@@ -151,13 +136,12 @@ PGTYPESdate_today(date * d)
 	struct tm	ts;
 
 	GetCurrentDateTime(&ts);
-	if (errno == 0)
-		*d = date2j(ts.tm_year, ts.tm_mon, ts.tm_mday) - date2j(2000, 1, 1);
+	*d = date2j(ts.tm_year, ts.tm_mon, ts.tm_mday) - date2j(2000, 1, 1);
 	return;
 }
 
-#define PGTYPES_DATE_NUM_MAX_DIGITS		20	/* should suffice for most
-											 * years... */
+#define PGTYPES_DATE_NUM_MAX_DIGITS		20		/* should suffice for most
+												 * years... */
 
 #define PGTYPES_FMTDATE_DAY_DIGITS_LZ		1	/* LZ means "leading zeroes" */
 #define PGTYPES_FMTDATE_DOW_LITERAL_SHORT	2
@@ -167,7 +151,7 @@ PGTYPESdate_today(date * d)
 #define PGTYPES_FMTDATE_YEAR_DIGITS_LONG	6
 
 int
-PGTYPESdate_fmt_asc(date dDate, const char *fmtstring, char *outbuf)
+PGTYPESdate_fmt_asc(date dDate, char *fmtstring, char *outbuf)
 {
 	static struct
 	{
@@ -210,6 +194,7 @@ PGTYPESdate_fmt_asc(date dDate, const char *fmtstring, char *outbuf)
 	char	   *start_pattern;
 	struct tm	tm;
 
+	/* XXX error handling ? */
 	/* copy the string over */
 	strcpy(outbuf, fmtstring);
 
@@ -244,7 +229,7 @@ PGTYPESdate_fmt_asc(date dDate, const char *fmtstring, char *outbuf)
 					replace_type = PGTYPES_TYPE_UINT_4_LZ;
 					break;
 				case PGTYPES_FMTDATE_YEAR_DIGITS_SHORT:
-					replace_val.uint_val = tm.tm_year % 100;
+					replace_val.uint_val = tm.tm_year % 1000;
 					replace_type = PGTYPES_TYPE_UINT_2_LZ;
 					break;
 				default:
@@ -259,8 +244,8 @@ PGTYPESdate_fmt_asc(date dDate, const char *fmtstring, char *outbuf)
 			{
 				case PGTYPES_TYPE_STRING_MALLOCED:
 				case PGTYPES_TYPE_STRING_CONSTANT:
-					memcpy(start_pattern, replace_val.str_val,
-						   strlen(replace_val.str_val));
+					strncpy(start_pattern, replace_val.str_val,
+							strlen(replace_val.str_val));
 					if (replace_type == PGTYPES_TYPE_STRING_MALLOCED)
 						free(replace_val.str_val);
 					break;
@@ -272,7 +257,7 @@ PGTYPESdate_fmt_asc(date dDate, const char *fmtstring, char *outbuf)
 							return -1;
 						snprintf(t, PGTYPES_DATE_NUM_MAX_DIGITS,
 								 "%u", replace_val.uint_val);
-						memcpy(start_pattern, t, strlen(t));
+						strncpy(start_pattern, t, strlen(t));
 						free(t);
 					}
 					break;
@@ -284,7 +269,7 @@ PGTYPESdate_fmt_asc(date dDate, const char *fmtstring, char *outbuf)
 							return -1;
 						snprintf(t, PGTYPES_DATE_NUM_MAX_DIGITS,
 								 "%02u", replace_val.uint_val);
-						memcpy(start_pattern, t, strlen(t));
+						strncpy(start_pattern, t, strlen(t));
 						free(t);
 					}
 					break;
@@ -296,7 +281,7 @@ PGTYPESdate_fmt_asc(date dDate, const char *fmtstring, char *outbuf)
 							return -1;
 						snprintf(t, PGTYPES_DATE_NUM_MAX_DIGITS,
 								 "%04u", replace_val.uint_val);
-						memcpy(start_pattern, t, strlen(t));
+						strncpy(start_pattern, t, strlen(t));
 						free(t);
 					}
 					break;
@@ -318,8 +303,8 @@ PGTYPESdate_fmt_asc(date dDate, const char *fmtstring, char *outbuf)
  * PGTYPESdate_defmt_asc
  *
  * function works as follows:
- *	 - first we analyze the parameters
- *	 - if this is a special case with no delimiters, add delimiters
+ *	 - first we analyze the paramters
+ *	 - if this is a special case with no delimiters, add delimters
  *	 - find the tokens. First we look for numerical values. If we have found
  *	   less than 3 tokens, we check for the months' names and thereafter for
  *	   the abbreviations of the months' names.
@@ -329,7 +314,7 @@ PGTYPESdate_fmt_asc(date dDate, const char *fmtstring, char *outbuf)
 
 #define PGTYPES_DATE_MONTH_MAXLENGTH		20	/* probably even less  :-) */
 int
-PGTYPESdate_defmt_asc(date * d, const char *fmt, const char *str)
+PGTYPESdate_defmt_asc(date * d, char *fmt, char *str)
 {
 	/*
 	 * token[2] = { 4,6 } means that token 2 starts at position 4 and ends at
@@ -341,7 +326,7 @@ PGTYPESdate_defmt_asc(date * d, const char *fmt, const char *str)
 	char	   *fmt_ystart,
 			   *fmt_mstart,
 			   *fmt_dstart;
-	unsigned int i;
+	int			i;
 	int			reading_digit;
 	int			token_count;
 	char	   *str_copy;
@@ -441,7 +426,7 @@ PGTYPESdate_defmt_asc(date * d, const char *fmt, const char *str)
 
 		/*
 		 * as long as the string, one additional byte for the terminator and 2
-		 * for the delimiters between the 3 fields
+		 * for the delimiters between the 3 fiedls
 		 */
 		str_copy = pgtypes_alloc(strlen(str) + 1 + 2);
 		if (!str_copy)
@@ -551,7 +536,7 @@ PGTYPESdate_defmt_asc(date * d, const char *fmt, const char *str)
 		 * matches
 		 */
 		free(str_copy);
-		errno = PGTYPES_DATE_ERR_ENOSHORTDATE;
+		errno = PGTYPES_DATE_ERR_ENOTDMY;
 		return -1;
 	}
 
@@ -708,6 +693,8 @@ PGTYPESdate_defmt_asc(date * d, const char *fmt, const char *str)
 		errno = PGTYPES_DATE_BAD_DAY;
 		return -1;
 	}
+
+	/* XXX: DBCENTURY ? */
 
 	*d = date2j(tm.tm_year, tm.tm_mon, tm.tm_mday) - date2j(2000, 1, 1);
 

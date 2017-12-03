@@ -1,8 +1,6 @@
 /*
 moddatetime.c
 
-contrib/spi/moddatetime.c
-
 What is this?
 It is a function to be called from a trigger for the purpose of updating
 a modification datetime stamp in a record when that record is UPDATEd.
@@ -13,16 +11,11 @@ not really know what I am doing.  I also had help from
 Jan Wieck <jwieck@debis.com> who told me about the timestamp_in("now") function.
 OH, me, I'm Terry Mackintosh <terry@terrym.com>
 */
-#include "postgres.h"
 
-#include "access/htup_details.h"
-#include "catalog/pg_type.h"
-#include "executor/spi.h"
-#include "commands/trigger.h"
-#include "utils/builtins.h"
-#include "utils/rel.h"
+#include "executor/spi.h"		/* this is what you need to work with SPI */
+#include "commands/trigger.h"	/* -"- and triggers */
 
-PG_MODULE_MAGIC;
+extern Datum moddatetime(PG_FUNCTION_ARGS);
 
 PG_FUNCTION_INFO_V1(moddatetime);
 
@@ -33,9 +26,7 @@ moddatetime(PG_FUNCTION_ARGS)
 	Trigger    *trigger;		/* to get trigger name */
 	int			nargs;			/* # of arguments */
 	int			attnum;			/* positional number of field to change */
-	Oid			atttypid;		/* type OID of field to change */
 	Datum		newdt;			/* The current datetime. */
-	bool		newdtnull;		/* null flag for it */
 	char	  **args;			/* arguments */
 	char	   *relname;		/* triggered relation name */
 	Relation	rel;			/* triggered relation */
@@ -46,22 +37,22 @@ moddatetime(PG_FUNCTION_ARGS)
 		/* internal error */
 		elog(ERROR, "moddatetime: not fired by trigger manager");
 
-	if (!TRIGGER_FIRED_FOR_ROW(trigdata->tg_event))
+	if (TRIGGER_FIRED_FOR_STATEMENT(trigdata->tg_event))
 		/* internal error */
-		elog(ERROR, "moddatetime: must be fired for row");
+		elog(ERROR, "moddatetime: can't process STATEMENT events");
 
-	if (!TRIGGER_FIRED_BEFORE(trigdata->tg_event))
+	if (TRIGGER_FIRED_AFTER(trigdata->tg_event))
 		/* internal error */
 		elog(ERROR, "moddatetime: must be fired before event");
 
 	if (TRIGGER_FIRED_BY_INSERT(trigdata->tg_event))
 		/* internal error */
-		elog(ERROR, "moddatetime: cannot process INSERT events");
+		elog(ERROR, "moddatetime: must be fired before event");
 	else if (TRIGGER_FIRED_BY_UPDATE(trigdata->tg_event))
 		rettuple = trigdata->tg_newtuple;
 	else
 		/* internal error */
-		elog(ERROR, "moddatetime: cannot process DELETE events");
+		elog(ERROR, "moddatetime: can't process DELETE events");
 
 	rel = trigdata->tg_relation;
 	relname = SPI_getrelname(rel);
@@ -78,6 +69,12 @@ moddatetime(PG_FUNCTION_ARGS)
 	/* must be the field layout? */
 	tupdesc = rel->rd_att;
 
+	/* Get the current datetime. */
+	newdt = DirectFunctionCall3(timestamp_in,
+								CStringGetDatum("now"),
+								ObjectIdGetDatum(InvalidOid),
+								Int32GetDatum(-1));
+
 	/*
 	 * This gets the position in the tuple of the field we want. args[0] being
 	 * the name of the field to update, as passed in from the trigger.
@@ -85,45 +82,41 @@ moddatetime(PG_FUNCTION_ARGS)
 	attnum = SPI_fnumber(tupdesc, args[0]);
 
 	/*
-	 * This is where we check to see if the field we are supposed to update
-	 * even exists.
+	 * This is were we check to see if the field we are supposed to update
+	 * even exits.	The above function must return -1 if name not found?
 	 */
-	if (attnum <= 0)
+	if (attnum < 0)
 		ereport(ERROR,
 				(errcode(ERRCODE_TRIGGERED_ACTION_EXCEPTION),
 				 errmsg("\"%s\" has no attribute \"%s\"",
 						relname, args[0])));
 
 	/*
-	 * Check the target field has an allowed type, and get the current
-	 * datetime as a value of that type.
+	 * OK, this is where we make sure the timestamp field that we are
+	 * modifying is really a timestamp field. Hay, error checking, what a
+	 * novel idea !-)
 	 */
-	atttypid = SPI_gettypeid(tupdesc, attnum);
-	if (atttypid == TIMESTAMPOID)
-		newdt = DirectFunctionCall3(timestamp_in,
-									CStringGetDatum("now"),
-									ObjectIdGetDatum(InvalidOid),
-									Int32GetDatum(-1));
-	else if (atttypid == TIMESTAMPTZOID)
-		newdt = DirectFunctionCall3(timestamptz_in,
-									CStringGetDatum("now"),
-									ObjectIdGetDatum(InvalidOid),
-									Int32GetDatum(-1));
-	else
-	{
+	if (SPI_gettypeid(tupdesc, attnum) != TIMESTAMPOID)
 		ereport(ERROR,
 				(errcode(ERRCODE_TRIGGERED_ACTION_EXCEPTION),
-				 errmsg("attribute \"%s\" of \"%s\" must be type TIMESTAMP or TIMESTAMPTZ",
+				 errmsg("attribute \"%s\" of \"%s\" must be type TIMESTAMP",
 						args[0], relname)));
-		newdt = (Datum) 0;		/* keep compiler quiet */
-	}
-	newdtnull = false;
 
-	/* Replace the attnum'th column with newdt */
-	rettuple = heap_modify_tuple_by_cols(rettuple, tupdesc,
-										 1, &attnum, &newdt, &newdtnull);
+/* 1 is the number of items in the arrays attnum and newdt.
+	attnum is the positional number of the field to be updated.
+	newdt is the new datetime stamp.
+	NOTE that attnum and newdt are not arrays, but then a 1 ellement array
+	is not an array any more then they are.  Thus, they can be considered a
+	one element array.
+*/
+	rettuple = SPI_modifytuple(rel, rettuple, 1, &attnum, &newdt, NULL);
 
-	/* Clean up */
+	if (rettuple == NULL)
+		/* internal error */
+		elog(ERROR, "moddatetime (%s): %d returned by SPI_modifytuple",
+			 relname, SPI_result);
+
+/* Clean up */
 	pfree(relname);
 
 	return PointerGetDatum(rettuple);

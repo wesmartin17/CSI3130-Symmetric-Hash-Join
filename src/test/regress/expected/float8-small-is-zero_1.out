@@ -10,57 +10,37 @@ INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e-200');
 -- test for underflow and overflow handling
 SELECT '10e400'::float8;
 ERROR:  "10e400" is out of range for type double precision
-LINE 1: SELECT '10e400'::float8;
-               ^
 SELECT '-10e400'::float8;
 ERROR:  "-10e400" is out of range for type double precision
-LINE 1: SELECT '-10e400'::float8;
-               ^
 SELECT '10e-400'::float8;
  float8 
 --------
-      0
+     0
 (1 row)
 
 SELECT '-10e-400'::float8;
  float8 
 --------
-      0
+     0
 (1 row)
 
 -- bad input
 INSERT INTO FLOAT8_TBL(f1) VALUES ('');
 ERROR:  invalid input syntax for type double precision: ""
-LINE 1: INSERT INTO FLOAT8_TBL(f1) VALUES ('');
-                                           ^
 INSERT INTO FLOAT8_TBL(f1) VALUES ('     ');
 ERROR:  invalid input syntax for type double precision: "     "
-LINE 1: INSERT INTO FLOAT8_TBL(f1) VALUES ('     ');
-                                           ^
 INSERT INTO FLOAT8_TBL(f1) VALUES ('xyz');
 ERROR:  invalid input syntax for type double precision: "xyz"
-LINE 1: INSERT INTO FLOAT8_TBL(f1) VALUES ('xyz');
-                                           ^
 INSERT INTO FLOAT8_TBL(f1) VALUES ('5.0.0');
 ERROR:  invalid input syntax for type double precision: "5.0.0"
-LINE 1: INSERT INTO FLOAT8_TBL(f1) VALUES ('5.0.0');
-                                           ^
 INSERT INTO FLOAT8_TBL(f1) VALUES ('5 . 0');
 ERROR:  invalid input syntax for type double precision: "5 . 0"
-LINE 1: INSERT INTO FLOAT8_TBL(f1) VALUES ('5 . 0');
-                                           ^
 INSERT INTO FLOAT8_TBL(f1) VALUES ('5.   0');
 ERROR:  invalid input syntax for type double precision: "5.   0"
-LINE 1: INSERT INTO FLOAT8_TBL(f1) VALUES ('5.   0');
-                                           ^
 INSERT INTO FLOAT8_TBL(f1) VALUES ('    - 3');
 ERROR:  invalid input syntax for type double precision: "    - 3"
-LINE 1: INSERT INTO FLOAT8_TBL(f1) VALUES ('    - 3');
-                                           ^
 INSERT INTO FLOAT8_TBL(f1) VALUES ('123           5');
 ERROR:  invalid input syntax for type double precision: "123           5"
-LINE 1: INSERT INTO FLOAT8_TBL(f1) VALUES ('123           5');
-                                           ^
 -- special inputs
 SELECT 'NaN'::float8;
  float8 
@@ -95,22 +75,12 @@ SELECT '          -INFINiTY   '::float8;
 -- bad special inputs
 SELECT 'N A N'::float8;
 ERROR:  invalid input syntax for type double precision: "N A N"
-LINE 1: SELECT 'N A N'::float8;
-               ^
 SELECT 'NaN x'::float8;
 ERROR:  invalid input syntax for type double precision: "NaN x"
-LINE 1: SELECT 'NaN x'::float8;
-               ^
 SELECT ' INFINITY    x'::float8;
 ERROR:  invalid input syntax for type double precision: " INFINITY    x"
-LINE 1: SELECT ' INFINITY    x'::float8;
-               ^
 SELECT 'Infinity'::float8 + 100.0;
- ?column? 
-----------
- Infinity
-(1 row)
-
+ERROR:  type "double precision" value out of range: overflow
 SELECT 'Infinity'::float8 / 'Infinity'::float8;
  ?column? 
 ----------
@@ -121,12 +91,6 @@ SELECT 'nan'::float8 / 'nan'::float8;
  ?column? 
 ----------
       NaN
-(1 row)
-
-SELECT 'nan'::numeric::float8;
- float8 
---------
-    NaN
 (1 row)
 
 SELECT '' AS five, * FROM FLOAT8_TBL;
@@ -188,7 +152,7 @@ SELECT '' AS four, f.* FROM FLOAT8_TBL f WHERE  f.f1 <= '1004.3';
       | 1.2345678901234e-200
 (4 rows)
 
-SELECT '' AS three, f.f1, f.f1 * '-10' AS x
+SELECT '' AS three, f.f1, f.f1 * '-10' AS x 
    FROM FLOAT8_TBL f
    WHERE f.f1 > '0.0';
  three |          f1          |           x           
@@ -235,8 +199,8 @@ SELECT '' AS one, f.f1 ^ '2.0' AS square_f1
      | 1008618.49
 (1 row)
 
--- absolute value
-SELECT '' AS five, f.f1, @f.f1 AS abs_f1
+-- absolute value 
+SELECT '' AS five, f.f1, @f.f1 AS abs_f1 
    FROM FLOAT8_TBL f;
  five |          f1          |        abs_f1        
 ------+----------------------+----------------------
@@ -247,7 +211,7 @@ SELECT '' AS five, f.f1, @f.f1 AS abs_f1
       | 1.2345678901234e-200 | 1.2345678901234e-200
 (5 rows)
 
--- truncate
+-- truncate 
 SELECT '' AS five, f.f1, trunc(f.f1) AS trunc_f1
    FROM FLOAT8_TBL f;
  five |          f1          |       trunc_f1       
@@ -259,7 +223,7 @@ SELECT '' AS five, f.f1, trunc(f.f1) AS trunc_f1
       | 1.2345678901234e-200 |                    0
 (5 rows)
 
--- round
+-- round 
 SELECT '' AS five, f.f1, round(f.f1) AS round_f1
    FROM FLOAT8_TBL f;
  five |          f1          |       round_f1       
@@ -314,7 +278,7 @@ select sign(f1) as sign_f1 from float8_tbl f;
        1
 (5 rows)
 
--- square root
+-- square root 
 SELECT sqrt(float8 '64') AS eight;
  eight 
 -------
@@ -344,7 +308,7 @@ SELECT power(float8 '144', float8 '0.5');
     12
 (1 row)
 
--- take exp of ln(f.f1)
+-- take exp of ln(f.f1) 
 SELECT '' AS three, f.f1, exp(ln(f.f1)) AS exp_ln_f1
    FROM FLOAT8_TBL f
    WHERE f.f1 > '0.0';
@@ -355,7 +319,7 @@ SELECT '' AS three, f.f1, exp(ln(f.f1)) AS exp_ln_f1
        | 1.2345678901234e-200 | 1.23456789012339e-200
 (3 rows)
 
--- cube root
+-- cube root 
 SELECT ||/ float8 '27' AS three;
  three 
 -------
@@ -386,21 +350,15 @@ UPDATE FLOAT8_TBL
    SET f1 = FLOAT8_TBL.f1 * '-1'
    WHERE FLOAT8_TBL.f1 > '0.0';
 SELECT '' AS bad, f.f1 * '1e200' from FLOAT8_TBL f;
-ERROR:  value out of range: overflow
+ERROR:  type "double precision" value out of range: overflow
 SELECT '' AS bad, f.f1 ^ '1e200' from FLOAT8_TBL f;
-ERROR:  value out of range: overflow
-SELECT 0 ^ 0 + 0 ^ 1 + 0 ^ 0.0 + 0 ^ 0.5;
- ?column? 
-----------
-        2
-(1 row)
-
+ERROR:  result is out of range
 SELECT '' AS bad, ln(f.f1) from FLOAT8_TBL f where f.f1 = '0.0' ;
 ERROR:  cannot take logarithm of zero
 SELECT '' AS bad, ln(f.f1) from FLOAT8_TBL f where f.f1 < '0.0' ;
 ERROR:  cannot take logarithm of a negative number
 SELECT '' AS bad, exp(f.f1) from FLOAT8_TBL f;
-ERROR:  value out of range: underflow
+ERROR:  result is out of range
 SELECT '' AS bad, f.f1 / '0.0' from FLOAT8_TBL f;
 ERROR:  division by zero
 SELECT '' AS five, * FROM FLOAT8_TBL;
@@ -413,15 +371,11 @@ SELECT '' AS five, * FROM FLOAT8_TBL;
       | -1.2345678901234e-200
 (5 rows)
 
--- test for over- and underflow
+-- test for over- and underflow 
 INSERT INTO FLOAT8_TBL(f1) VALUES ('10e400');
 ERROR:  "10e400" is out of range for type double precision
-LINE 1: INSERT INTO FLOAT8_TBL(f1) VALUES ('10e400');
-                                           ^
 INSERT INTO FLOAT8_TBL(f1) VALUES ('-10e400');
 ERROR:  "-10e400" is out of range for type double precision
-LINE 1: INSERT INTO FLOAT8_TBL(f1) VALUES ('-10e400');
-                                           ^
 INSERT INTO FLOAT8_TBL(f1) VALUES ('10e-400');
 INSERT INTO FLOAT8_TBL(f1) VALUES ('-10e-400');
 -- maintain external table consistency across platforms
@@ -442,107 +396,3 @@ SELECT '' AS five, * FROM FLOAT8_TBL;
       | -1.2345678901234e-200
 (5 rows)
 
--- test exact cases for trigonometric functions in degrees
-SET extra_float_digits = 3;
-SELECT x,
-       sind(x),
-       sind(x) IN (-1,-0.5,0,0.5,1) AS sind_exact
-FROM (VALUES (0), (30), (90), (150), (180),
-      (210), (270), (330), (360)) AS t(x);
-  x  | sind | sind_exact 
------+------+------------
-   0 |    0 | t
-  30 |  0.5 | t
-  90 |    1 | t
- 150 |  0.5 | t
- 180 |    0 | t
- 210 | -0.5 | t
- 270 |   -1 | t
- 330 | -0.5 | t
- 360 |    0 | t
-(9 rows)
-
-SELECT x,
-       cosd(x),
-       cosd(x) IN (-1,-0.5,0,0.5,1) AS cosd_exact
-FROM (VALUES (0), (60), (90), (120), (180),
-      (240), (270), (300), (360)) AS t(x);
-  x  | cosd | cosd_exact 
------+------+------------
-   0 |    1 | t
-  60 |  0.5 | t
-  90 |    0 | t
- 120 | -0.5 | t
- 180 |   -1 | t
- 240 | -0.5 | t
- 270 |    0 | t
- 300 |  0.5 | t
- 360 |    1 | t
-(9 rows)
-
-SELECT x,
-       tand(x),
-       tand(x) IN ('-Infinity'::float8,-1,0,
-                   1,'Infinity'::float8) AS tand_exact,
-       cotd(x),
-       cotd(x) IN ('-Infinity'::float8,-1,0,
-                   1,'Infinity'::float8) AS cotd_exact
-FROM (VALUES (0), (45), (90), (135), (180),
-      (225), (270), (315), (360)) AS t(x);
-  x  |   tand    | tand_exact |   cotd    | cotd_exact 
------+-----------+------------+-----------+------------
-   0 |         0 | t          |  Infinity | t
-  45 |         1 | t          |         1 | t
-  90 |  Infinity | t          |         0 | t
- 135 |        -1 | t          |        -1 | t
- 180 |         0 | t          | -Infinity | t
- 225 |         1 | t          |         1 | t
- 270 | -Infinity | t          |         0 | t
- 315 |        -1 | t          |        -1 | t
- 360 |         0 | t          |  Infinity | t
-(9 rows)
-
-SELECT x,
-       asind(x),
-       asind(x) IN (-90,-30,0,30,90) AS asind_exact,
-       acosd(x),
-       acosd(x) IN (0,60,90,120,180) AS acosd_exact
-FROM (VALUES (-1), (-0.5), (0), (0.5), (1)) AS t(x);
-  x   | asind | asind_exact | acosd | acosd_exact 
-------+-------+-------------+-------+-------------
-   -1 |   -90 | t           |   180 | t
- -0.5 |   -30 | t           |   120 | t
-    0 |     0 | t           |    90 | t
-  0.5 |    30 | t           |    60 | t
-    1 |    90 | t           |     0 | t
-(5 rows)
-
-SELECT x,
-       atand(x),
-       atand(x) IN (-90,-45,0,45,90) AS atand_exact
-FROM (VALUES ('-Infinity'::float8), (-1), (0), (1),
-      ('Infinity'::float8)) AS t(x);
-     x     | atand | atand_exact 
------------+-------+-------------
- -Infinity |   -90 | t
-        -1 |   -45 | t
-         0 |     0 | t
-         1 |    45 | t
-  Infinity |    90 | t
-(5 rows)
-
-SELECT x, y,
-       atan2d(y, x),
-       atan2d(y, x) IN (-90,0,90,180) AS atan2d_exact
-FROM (SELECT 10*cosd(a), 10*sind(a)
-      FROM generate_series(0, 360, 90) AS t(a)) AS t(x,y);
-  x  |  y  | atan2d | atan2d_exact 
------+-----+--------+--------------
-  10 |   0 |      0 | t
-   0 |  10 |     90 | t
- -10 |   0 |    180 | t
-   0 | -10 |    -90 | t
-  10 |   0 |      0 | t
-(5 rows)
-
-RESET extra_float_digits;

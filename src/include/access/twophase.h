@@ -4,19 +4,19 @@
  *	  Two-phase-commit related declarations.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/access/twophase.h
+ * $PostgreSQL: pgsql/src/include/access/twophase.h,v 1.6 2005/10/15 02:49:42 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #ifndef TWOPHASE_H
 #define TWOPHASE_H
 
-#include "access/xlogdefs.h"
-#include "datatype/timestamp.h"
-#include "storage/lock.h"
+#include "storage/proc.h"
+#include "utils/timestamp.h"
+
 
 /*
  * GlobalTransactionData is defined in twophase.c; other places have no
@@ -30,11 +30,7 @@ extern int	max_prepared_xacts;
 extern Size TwoPhaseShmemSize(void);
 extern void TwoPhaseShmemInit(void);
 
-extern void AtAbort_Twophase(void);
-extern void PostPrepare_Twophase(void);
-
 extern PGPROC *TwoPhaseGetDummyProc(TransactionId xid);
-extern BackendId TwoPhaseGetDummyBackendId(TransactionId xid);
 
 extern GlobalTransaction MarkAsPreparing(TransactionId xid, const char *gid,
 				TimestampTz prepared_at,
@@ -42,19 +38,15 @@ extern GlobalTransaction MarkAsPreparing(TransactionId xid, const char *gid,
 
 extern void StartPrepare(GlobalTransaction gxact);
 extern void EndPrepare(GlobalTransaction gxact);
-extern bool StandbyTransactionIdIsPrepared(TransactionId xid);
 
-extern TransactionId PrescanPreparedTransactions(TransactionId **xids_p,
-							int *nxids_p);
-extern void StandbyRecoverPreparedTransactions(void);
+extern TransactionId PrescanPreparedTransactions(void);
 extern void RecoverPreparedTransactions(void);
+
+extern void RecreateTwoPhaseFile(TransactionId xid, void *content, int len);
+extern void RemoveTwoPhaseFile(TransactionId xid, bool giveWarning);
 
 extern void CheckPointTwoPhase(XLogRecPtr redo_horizon);
 
 extern void FinishPreparedTransaction(const char *gid, bool isCommit);
 
-extern void PrepareRedoAdd(char *buf, XLogRecPtr start_lsn,
-			   XLogRecPtr end_lsn);
-extern void PrepareRedoRemove(TransactionId xid, bool giveWarning);
-extern void restoreTwoPhaseData(void);
-#endif							/* TWOPHASE_H */
+#endif   /* TWOPHASE_H */

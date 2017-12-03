@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/mbuf.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/mbuf.c,v 1.3 2005/10/15 02:49:06 momjian Exp $
  */
 
 #include "postgres.h"
@@ -42,34 +42,34 @@ struct MBuf
 	uint8	   *data_end;
 	uint8	   *read_pos;
 	uint8	   *buf_end;
-	bool		no_write;
-	bool		own_data;
+	int			no_write:1;
+	int			own_data:1;
 };
 
 int
-mbuf_avail(MBuf *mbuf)
+mbuf_avail(MBuf * mbuf)
 {
 	return mbuf->data_end - mbuf->read_pos;
 }
 
 int
-mbuf_size(MBuf *mbuf)
+mbuf_size(MBuf * mbuf)
 {
 	return mbuf->data_end - mbuf->data;
 }
 
 int
-mbuf_tell(MBuf *mbuf)
+mbuf_tell(MBuf * mbuf)
 {
 	return mbuf->read_pos - mbuf->data;
 }
 
 int
-mbuf_free(MBuf *mbuf)
+mbuf_free(MBuf * mbuf)
 {
 	if (mbuf->own_data)
 	{
-		px_memset(mbuf->data, 0, mbuf->buf_end - mbuf->data);
+		memset(mbuf->data, 0, mbuf->buf_end - mbuf->data);
 		px_free(mbuf->data);
 	}
 	px_free(mbuf);
@@ -77,7 +77,7 @@ mbuf_free(MBuf *mbuf)
 }
 
 static void
-prepare_room(MBuf *mbuf, int block_len)
+prepare_room(MBuf * mbuf, int block_len)
 {
 	uint8	   *newbuf;
 	unsigned	newlen;
@@ -99,7 +99,7 @@ prepare_room(MBuf *mbuf, int block_len)
 }
 
 int
-mbuf_append(MBuf *dst, const uint8 *buf, int len)
+mbuf_append(MBuf * dst, const uint8 *buf, int len)
 {
 	if (dst->no_write)
 	{
@@ -129,14 +129,14 @@ mbuf_create(int len)
 	mbuf->data_end = mbuf->data;
 	mbuf->read_pos = mbuf->data;
 
-	mbuf->no_write = false;
-	mbuf->own_data = true;
+	mbuf->no_write = 0;
+	mbuf->own_data = 1;
 
 	return mbuf;
 }
 
 MBuf *
-mbuf_create_from_data(uint8 *data, int len)
+mbuf_create_from_data(const uint8 *data, int len)
 {
 	MBuf	   *mbuf;
 
@@ -146,20 +146,20 @@ mbuf_create_from_data(uint8 *data, int len)
 	mbuf->data_end = mbuf->data + len;
 	mbuf->read_pos = mbuf->data;
 
-	mbuf->no_write = true;
-	mbuf->own_data = false;
+	mbuf->no_write = 1;
+	mbuf->own_data = 0;
 
 	return mbuf;
 }
 
 
 int
-mbuf_grab(MBuf *mbuf, int len, uint8 **data_p)
+mbuf_grab(MBuf * mbuf, int len, uint8 **data_p)
 {
 	if (len > mbuf_avail(mbuf))
 		len = mbuf_avail(mbuf);
 
-	mbuf->no_write = true;
+	mbuf->no_write = 1;
 
 	*data_p = mbuf->read_pos;
 	mbuf->read_pos += len;
@@ -167,19 +167,19 @@ mbuf_grab(MBuf *mbuf, int len, uint8 **data_p)
 }
 
 int
-mbuf_rewind(MBuf *mbuf)
+mbuf_rewind(MBuf * mbuf)
 {
 	mbuf->read_pos = mbuf->data;
 	return 0;
 }
 
 int
-mbuf_steal_data(MBuf *mbuf, uint8 **data_p)
+mbuf_steal_data(MBuf * mbuf, uint8 **data_p)
 {
 	int			len = mbuf_size(mbuf);
 
-	mbuf->no_write = true;
-	mbuf->own_data = false;
+	mbuf->no_write = 1;
+	mbuf->own_data = 0;
 
 	*data_p = mbuf->data;
 
@@ -203,7 +203,7 @@ struct PullFilter
 };
 
 int
-pullf_create(PullFilter **pf_p, const PullFilterOps *op, void *init_arg, PullFilter *src)
+pullf_create(PullFilter ** pf_p, const PullFilterOps * op, void *init_arg, PullFilter * src)
 {
 	PullFilter *pf;
 	void	   *priv;
@@ -242,24 +242,24 @@ pullf_create(PullFilter **pf_p, const PullFilterOps *op, void *init_arg, PullFil
 }
 
 void
-pullf_free(PullFilter *pf)
+pullf_free(PullFilter * pf)
 {
 	if (pf->op->free)
 		pf->op->free(pf->priv);
 
 	if (pf->buf)
 	{
-		px_memset(pf->buf, 0, pf->buflen);
+		memset(pf->buf, 0, pf->buflen);
 		px_free(pf->buf);
 	}
 
-	px_memset(pf, 0, sizeof(*pf));
+	memset(pf, 0, sizeof(*pf));
 	px_free(pf);
 }
 
 /* may return less data than asked, 0 means eof */
 int
-pullf_read(PullFilter *pf, int len, uint8 **data_p)
+pullf_read(PullFilter * pf, int len, uint8 **data_p)
 {
 	int			res;
 
@@ -276,7 +276,7 @@ pullf_read(PullFilter *pf, int len, uint8 **data_p)
 }
 
 int
-pullf_read_max(PullFilter *pf, int len, uint8 **data_p, uint8 *tmpbuf)
+pullf_read_max(PullFilter * pf, int len, uint8 **data_p, uint8 *tmpbuf)
 {
 	int			res,
 				total;
@@ -298,23 +298,22 @@ pullf_read_max(PullFilter *pf, int len, uint8 **data_p, uint8 *tmpbuf)
 		if (res < 0)
 		{
 			/* so the caller must clear only on success */
-			px_memset(tmpbuf, 0, total);
+			memset(tmpbuf, 0, total);
 			return res;
 		}
 		if (res == 0)
 			break;
 		memcpy(tmpbuf + total, tmp, res);
 		total += res;
-		len -= res;
 	}
 	return total;
 }
 
 /*
- * caller wants exactly len bytes and don't bother with references
+ * caller wants exatly len bytes and dont bother with references
  */
 int
-pullf_read_fixed(PullFilter *src, int len, uint8 *dst)
+pullf_read_fixed(PullFilter * src, int len, uint8 *dst)
 {
 	int			res;
 	uint8	   *p;
@@ -325,7 +324,7 @@ pullf_read_fixed(PullFilter *src, int len, uint8 *dst)
 	if (res != len)
 	{
 		px_debug("pullf_read_fixed: need=%d got=%d", len, res);
-		return PXE_PGP_CORRUPT_DATA;
+		return PXE_MBUF_SHORT_READ;
 	}
 	if (p != dst)
 		memcpy(dst, p, len);
@@ -336,7 +335,7 @@ pullf_read_fixed(PullFilter *src, int len, uint8 *dst)
  * read from MBuf
  */
 static int
-pull_from_mbuf(void *arg, PullFilter *src, int len,
+pull_from_mbuf(void *arg, PullFilter * src, int len,
 			   uint8 **data_p, uint8 *buf, int buflen)
 {
 	MBuf	   *mbuf = arg;
@@ -349,7 +348,7 @@ static const struct PullFilterOps mbuf_reader = {
 };
 
 int
-pullf_create_mbuf_reader(PullFilter **mp_p, MBuf *src)
+pullf_create_mbuf_reader(PullFilter ** mp_p, MBuf * src)
 {
 	return pullf_create(mp_p, &mbuf_reader, src, NULL);
 }
@@ -370,7 +369,7 @@ struct PushFilter
 };
 
 int
-pushf_create(PushFilter **mp_p, const PushFilterOps *op, void *init_arg, PushFilter *next)
+pushf_create(PushFilter ** mp_p, const PushFilterOps * op, void *init_arg, PushFilter * next)
 {
 	PushFilter *mp;
 	void	   *priv;
@@ -409,23 +408,23 @@ pushf_create(PushFilter **mp_p, const PushFilterOps *op, void *init_arg, PushFil
 }
 
 void
-pushf_free(PushFilter *mp)
+pushf_free(PushFilter * mp)
 {
 	if (mp->op->free)
 		mp->op->free(mp->priv);
 
 	if (mp->buf)
 	{
-		px_memset(mp->buf, 0, mp->block_size);
+		memset(mp->buf, 0, mp->block_size);
 		px_free(mp->buf);
 	}
 
-	px_memset(mp, 0, sizeof(*mp));
+	memset(mp, 0, sizeof(*mp));
 	px_free(mp);
 }
 
 void
-pushf_free_all(PushFilter *mp)
+pushf_free_all(PushFilter * mp)
 {
 	PushFilter *tmp;
 
@@ -438,7 +437,7 @@ pushf_free_all(PushFilter *mp)
 }
 
 static int
-wrap_process(PushFilter *mp, const uint8 *data, int len)
+wrap_process(PushFilter * mp, const uint8 *data, int len)
 {
 	int			res;
 
@@ -453,7 +452,7 @@ wrap_process(PushFilter *mp, const uint8 *data, int len)
 
 /* consumes all data, returns len on success */
 int
-pushf_write(PushFilter *mp, const uint8 *data, int len)
+pushf_write(PushFilter * mp, const uint8 *data, int len)
 {
 	int			need,
 				res;
@@ -513,7 +512,7 @@ pushf_write(PushFilter *mp, const uint8 *data, int len)
 }
 
 int
-pushf_flush(PushFilter *mp)
+pushf_flush(PushFilter * mp)
 {
 	int			res;
 
@@ -543,7 +542,7 @@ pushf_flush(PushFilter *mp)
  * write to MBuf
  */
 static int
-push_into_mbuf(PushFilter *next, void *arg, const uint8 *data, int len)
+push_into_mbuf(PushFilter * next, void *arg, const uint8 *data, int len)
 {
 	int			res = 0;
 	MBuf	   *mbuf = arg;
@@ -558,7 +557,7 @@ static const struct PushFilterOps mbuf_filter = {
 };
 
 int
-pushf_create_mbuf_writer(PushFilter **res, MBuf *dst)
+pushf_create_mbuf_writer(PushFilter ** res, MBuf * dst)
 {
 	return pushf_create(res, &mbuf_filter, dst, NULL);
 }

@@ -7,7 +7,7 @@
  *
  * 1999/1/15 Tatsuo Ishii
  *
- * src/backend/utils/mb/conversion_procs/euc_tw_and_big5/big5.c
+ * $PostgreSQL: pgsql/src/backend/utils/mb/conversion_procs/euc_tw_and_big5/big5.c,v 1.6.2.1 2005/11/22 18:23:24 momjian Exp $
  */
 
 /* can be used in either frontend or backend */
@@ -22,7 +22,7 @@ typedef struct
 } codes_t;
 
 /* map Big5 Level 1 to CNS 11643-1992 Plane 1 */
-static const codes_t big5Level1ToCnsPlane1[25] = {	/* range */
+static codes_t big5Level1ToCnsPlane1[25] = {	/* range */
 	{0xA140, 0x2121},
 	{0xA1F6, 0x2258},
 	{0xA1F7, 0x2257},
@@ -51,7 +51,7 @@ static const codes_t big5Level1ToCnsPlane1[25] = {	/* range */
 };
 
 /* map CNS 11643-1992 Plane 1 to Big5 Level 1 */
-static const codes_t cnsPlane1ToBig5Level1[26] = {	/* range */
+static codes_t cnsPlane1ToBig5Level1[26] = {	/* range */
 	{0x2121, 0xA140},
 	{0x2257, 0xA1F7},
 	{0x2258, 0xA1F6},
@@ -81,7 +81,7 @@ static const codes_t cnsPlane1ToBig5Level1[26] = {	/* range */
 };
 
 /* map Big5 Level 2 to CNS 11643-1992 Plane 2 */
-static const codes_t big5Level2ToCnsPlane2[48] = {	/* range */
+static codes_t big5Level2ToCnsPlane2[48] = {	/* range */
 	{0xC940, 0x2121},
 	{0xc94a, 0x0000},
 	{0xC94B, 0x212B},
@@ -133,7 +133,7 @@ static const codes_t big5Level2ToCnsPlane2[48] = {	/* range */
 };
 
 /* map CNS 11643-1992 Plane 2 to Big5 Level 2 */
-static const codes_t cnsPlane2ToBig5Level2[49] = {	/* range */
+static codes_t cnsPlane2ToBig5Level2[49] = {	/* range */
 	{0x2121, 0xC940},
 	{0x212B, 0xC94B},
 	{0x214C, 0xC9BE},
@@ -186,7 +186,7 @@ static const codes_t cnsPlane2ToBig5Level2[49] = {	/* range */
 };
 
 /* Big Five Level 1 Correspondence to CNS 11643-1992 Plane 4 */
-static const unsigned short b1c4[][2] = {
+static unsigned short b1c4[][2] = {
 	{0xC879, 0x2123},
 	{0xC87B, 0x2124},
 	{0xC87D, 0x212A},
@@ -194,7 +194,7 @@ static const unsigned short b1c4[][2] = {
 };
 
 /* Big Five Level 2 Correspondence to CNS 11643-1992 Plane 3 */
-static const unsigned short b2c3[][2] = {
+static unsigned short b2c3[][2] = {
 	{0xF9D6, 0x4337},
 	{0xF9D7, 0x4F50},
 	{0xF9D8, 0x444E},
@@ -205,7 +205,7 @@ static const unsigned short b2c3[][2] = {
 };
 
 static unsigned short BinarySearchRange
-			(const codes_t *array, int high, unsigned short code)
+			(codes_t *array, int high, unsigned short code)
 {
 	int			low,
 				mid,
@@ -231,7 +231,7 @@ static unsigned short BinarySearchRange
 				/*
 				 * NOTE: big5 high_byte: 0xa1-0xfe, low_byte: 0x40-0x7e,
 				 * 0xa1-0xfe (radicals: 0x00-0x3e, 0x3f-0x9c) big5 radix is
-				 * 0x9d.                     [region_low, region_high] We
+				 * 0x9d.					 [region_low, region_high] We
 				 * should remember big5 has two different regions (above).
 				 * There is a bias for the distance between these regions.
 				 * 0xa1 - 0x7e + bias = 1 (Distance between 0xa1 and 0x7e is
@@ -361,14 +361,14 @@ CNStoBIG5(unsigned short cns, unsigned char lc)
 			for (i = 0; i < sizeof(b2c3) / (sizeof(unsigned short) * 2); i++)
 			{
 				if (b2c3[i][1] == cns)
-					return b2c3[i][0];
+					return (b2c3[i][0]);
 			}
 			break;
 		case LC_CNS11643_4:
 			for (i = 0; i < sizeof(b1c4) / (sizeof(unsigned short) * 2); i++)
 			{
 				if (b1c4[i][1] == cns)
-					return b1c4[i][0];
+					return (b1c4[i][0]);
 			}
 		default:
 			break;

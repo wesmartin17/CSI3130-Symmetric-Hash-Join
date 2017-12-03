@@ -1,94 +1,58 @@
-# contrib/Makefile
+# $PostgreSQL: pgsql/contrib/Makefile,v 1.61 2005/09/01 22:02:44 tgl Exp $
 
 subdir = contrib
 top_builddir = ..
 include $(top_builddir)/src/Makefile.global
 
-SUBDIRS = \
-		adminpack	\
-		amcheck		\
-		auth_delay	\
-		auto_explain	\
-		bloom		\
-		btree_gin	\
+WANTED_DIRS = \
 		btree_gist	\
-		citext		\
+		chkpass		\
 		cube		\
+		dbase		\
 		dblink		\
-		dict_int	\
-		dict_xsyn	\
+		dbmirror	\
 		earthdistance	\
-		file_fdw	\
+		fulltextindex	\
 		fuzzystrmatch	\
-		hstore		\
 		intagg		\
 		intarray	\
-		isn		\
+		isbn_issn	\
 		lo		\
 		ltree		\
 		oid2name	\
-		pageinspect	\
-		passwordcheck	\
 		pg_buffercache	\
-		pg_freespacemap \
-		pg_prewarm	\
-		pg_standby	\
-		pg_stat_statements \
 		pg_trgm		\
+		pgbench		\
 		pgcrypto	\
-		pgrowlocks	\
 		pgstattuple	\
-		pg_visibility	\
-		postgres_fdw	\
 		seg		\
 		spi		\
 		tablefunc	\
-		tcn		\
-		test_decoding	\
-		tsm_system_rows \
-		tsm_system_time \
-		unaccent	\
+		tips		\
+		tsearch2	\
+		userlock	\
 		vacuumlo
 
-ifeq ($(with_openssl),yes)
-SUBDIRS += sslinfo
-else
-ALWAYS_SUBDIRS += sslinfo
-endif
-
-ifneq ($(with_uuid),no)
-SUBDIRS += uuid-ossp
-else
-ALWAYS_SUBDIRS += uuid-ossp
-endif
-
-ifeq ($(with_libxml),yes)
-SUBDIRS += xml2
-else
-ALWAYS_SUBDIRS += xml2
-endif
-
-ifeq ($(with_selinux),yes)
-SUBDIRS += sepgsql
-else
-ALWAYS_SUBDIRS += sepgsql
-endif
-
-ifeq ($(with_perl),yes)
-SUBDIRS += hstore_plperl
-else
-ALWAYS_SUBDIRS += hstore_plperl
-endif
-
-ifeq ($(with_python),yes)
-SUBDIRS += hstore_plpython ltree_plpython
-else
-ALWAYS_SUBDIRS += hstore_plpython ltree_plpython
-endif
-
 # Missing:
+#		adddepend	\ (does not have a makefile)
+#		mSQL-interface	\ (requires msql installed)
+#		mac		\ (does not have a makefile)
+#		oracle		\ (does not have a makefile)
 #		start-scripts	\ (does not have a makefile)
+#		xml2		\ (requires libxml installed)
 
 
-$(recurse)
-$(recurse_always)
+all install installdirs uninstall clean distclean maintainer-clean:
+	@for dir in $(WANTED_DIRS); do \
+		$(MAKE) -C $$dir $@ || exit; \
+	done
+
+# We'd like check operations to run all the subtests before failing;
+# also insert a sleep to ensure the previous test backend exited before
+# we try to drop the regression database.
+check installcheck:
+	@CHECKERR=0; for dir in $(WANTED_DIRS); do \
+		sleep 1; \
+		$(MAKE) -C $$dir $@ || CHECKERR=$$?; \
+	done; \
+	exit $$CHECKERR

@@ -1,7 +1,4 @@
 /*
- * src/test/examples/testlibpq4.c
- *
- *
  * testlibpq4.c
  *		this test program shows to use LIBPQ to make multiple backend
  * connections
@@ -72,11 +69,11 @@ main(int argc, char **argv)
 	 * defaults by looking up environment variables or, failing that, using
 	 * hardwired constants
 	 */
-	pghost = NULL;				/* host name of the backend */
-	pgport = NULL;				/* port of the backend */
+	pghost = NULL;				/* host name of the backend server */
+	pgport = NULL;				/* port of the backend server */
 	pgoptions = NULL;			/* special options to start up the backend
 								 * server */
-	pgtty = NULL;				/* debugging tty for the backend */
+	pgtty = NULL;				/* debugging tty for the backend server */
 
 	/* make a connection to the database */
 	conn1 = PQsetdb(pghost, pgport, pgoptions, pgtty, dbName1);

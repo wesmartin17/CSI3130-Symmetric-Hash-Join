@@ -4,8 +4,6 @@
  *
  * All types that can be handled for host variable declarations has to
  * be handled eventually.
- *
- * src/interfaces/ecpg/include/ecpgtype.h
  */
 
 /*
@@ -34,7 +32,7 @@
 #define _ECPGTYPE_H
 
 #ifdef __cplusplus
-extern "C"
+extern		"C"
 {
 #endif
 
@@ -61,9 +59,7 @@ enum ECPGttype
 	ECPGt_const,				/* a constant is needed sometimes */
 	ECPGt_EOIT,					/* End of insert types. */
 	ECPGt_EORT,					/* End of result types. */
-	ECPGt_NO_INDICATOR,			/* no indicator */
-	ECPGt_string,				/* trimmed (char *) type */
-	ECPGt_sqlda					/* C struct descriptor */
+	ECPGt_NO_INDICATOR			/* no indicator */
 };
 
  /* descriptor items */
@@ -88,19 +84,10 @@ enum ECPGdtype
 	ECPGd_cardinality
 };
 
-#define IS_SIMPLE_TYPE(type) (((type) >= ECPGt_char && (type) <= ECPGt_interval) || ((type) == ECPGt_string))
-
-/* we also have to handle different statement types */
-enum ECPG_statement_type
-{
-	ECPGst_normal,
-	ECPGst_execute,
-	ECPGst_exec_immediate,
-	ECPGst_prepnormal
-};
+#define IS_SIMPLE_TYPE(type) ((type) >= ECPGt_char && (type) <= ECPGt_interval)
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif							/* _ECPGTYPE_H */
+#endif   /* _ECPGTYPE_H */

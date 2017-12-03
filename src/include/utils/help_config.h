@@ -3,15 +3,15 @@
  * help_config.h
  *		Interface to the --help-config option of main.c
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  *
- *	  src/include/utils/help_config.h
+ *	  $PostgreSQL: pgsql/src/include/utils/help_config.h,v 1.7 2004/12/31 22:03:46 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
 #ifndef HELP_CONFIG_H
 #define HELP_CONFIG_H 1
 
-extern void GucInfoMain(void) pg_attribute_noreturn();
+extern int	GucInfoMain(void);
 
 #endif

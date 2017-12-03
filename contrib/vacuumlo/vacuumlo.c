@@ -3,12 +3,12 @@
  * vacuumlo.c
  *	  This removes orphaned large objects from a database.
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  contrib/vacuumlo/vacuumlo.c
+ *	  $PostgreSQL: pgsql/contrib/vacuumlo/vacuumlo.c,v 1.30.2.1 2006/02/23 22:34:07 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -21,121 +21,79 @@
 #include <termios.h>
 #endif
 
-#include "catalog/pg_class.h"
-
 #include "libpq-fe.h"
-#include "pg_getopt.h"
+#include "libpq/libpq-fs.h"
+
+#define atooid(x)  ((Oid) strtoul((x), NULL, 10))
 
 #define BUFSIZE			1024
 
-enum trivalue
-{
-	TRI_DEFAULT,
-	TRI_NO,
-	TRI_YES
-};
+extern char *optarg;
+extern int	optind,
+			opterr,
+			optopt;
 
 struct _param
 {
 	char	   *pg_user;
-	enum trivalue pg_prompt;
+	int			pg_prompt;
 	char	   *pg_port;
 	char	   *pg_host;
-	const char *progname;
 	int			verbose;
 	int			dry_run;
-	long		transaction_limit;
 };
 
-static int	vacuumlo(const char *database, const struct _param *param);
-static void usage(const char *progname);
+int			vacuumlo(char *, struct _param *);
+void		usage(void);
 
 
 
 /*
  * This vacuums LOs of one database. It returns 0 on success, -1 on failure.
  */
-static int
-vacuumlo(const char *database, const struct _param *param)
+int
+vacuumlo(char *database, struct _param * param)
 {
 	PGconn	   *conn;
 	PGresult   *res,
 			   *res2;
 	char		buf[BUFSIZE];
-	long		matched;
-	long		deleted;
+	int			matched;
+	int			deleted;
 	int			i;
-	bool		new_pass;
-	bool		success = true;
-	static bool have_password = false;
-	static char password[100];
+	char	   *password = NULL;
 
-	/* Note: password can be carried over from a previous call */
-	if (param->pg_prompt == TRI_YES && !have_password)
+	if (param->pg_prompt)
 	{
-		simple_prompt("Password: ", password, sizeof(password), false);
-		have_password = true;
+		password = simple_prompt("Password: ", 32, 0);
+		if (!password)
+		{
+			fprintf(stderr, "failed to get password\n");
+			exit(1);
+		}
 	}
 
-	/*
-	 * Start the connection.  Loop until we have a password if requested by
-	 * backend.
-	 */
-	do
-	{
-#define PARAMS_ARRAY_SIZE	   7
-
-		const char *keywords[PARAMS_ARRAY_SIZE];
-		const char *values[PARAMS_ARRAY_SIZE];
-
-		keywords[0] = "host";
-		values[0] = param->pg_host;
-		keywords[1] = "port";
-		values[1] = param->pg_port;
-		keywords[2] = "user";
-		values[2] = param->pg_user;
-		keywords[3] = "password";
-		values[3] = have_password ? password : NULL;
-		keywords[4] = "dbname";
-		values[4] = database;
-		keywords[5] = "fallback_application_name";
-		values[5] = param->progname;
-		keywords[6] = NULL;
-		values[6] = NULL;
-
-		new_pass = false;
-		conn = PQconnectdbParams(keywords, values, true);
-		if (!conn)
-		{
-			fprintf(stderr, "Connection to database \"%s\" failed\n",
-					database);
-			return -1;
-		}
-
-		if (PQstatus(conn) == CONNECTION_BAD &&
-			PQconnectionNeedsPassword(conn) &&
-			!have_password &&
-			param->pg_prompt != TRI_NO)
-		{
-			PQfinish(conn);
-			simple_prompt("Password: ", password, sizeof(password), false);
-			have_password = true;
-			new_pass = true;
-		}
-	} while (new_pass);
+	conn = PQsetdbLogin(param->pg_host,
+						param->pg_port,
+						NULL,
+						NULL,
+						database,
+						param->pg_user,
+						password
+		);
 
 	/* check to see that the backend connection was successfully made */
 	if (PQstatus(conn) == CONNECTION_BAD)
 	{
-		fprintf(stderr, "Connection to database \"%s\" failed:\n%s",
-				database, PQerrorMessage(conn));
+		fprintf(stderr, "Connection to database '%s' failed:\n", database);
+		fprintf(stderr, "%s", PQerrorMessage(conn));
 		PQfinish(conn);
 		return -1;
 	}
 
 	if (param->verbose)
 	{
-		fprintf(stdout, "Connected to database \"%s\"\n", database);
+		fprintf(stdout, "Connected to %s\n", database);
 		if (param->dry_run)
 			fprintf(stdout, "Test run: no large objects will be removed!\n");
 	}
@@ -159,10 +117,7 @@ vacuumlo(const char *database, const struct _param *param)
 	 */
 	buf[0] = '\0';
 	strcat(buf, "CREATE TEMP TABLE vacuum_l AS ");
-	if (PQserverVersion(conn) >= 90000)
-		strcat(buf, "SELECT oid AS lo FROM pg_largeobject_metadata");
-	else
-		strcat(buf, "SELECT DISTINCT loid AS lo FROM pg_largeobject");
+	strcat(buf, "SELECT DISTINCT loid AS lo FROM pg_largeobject ");
 	res = PQexec(conn, buf);
 	if (PQresultStatus(res) != PGRES_COMMAND_OK)
 	{
@@ -175,11 +130,11 @@ vacuumlo(const char *database, const struct _param *param)
 	PQclear(res);
 
 	/*
-	 * Analyze the temp table so that planner will generate decent plans for
+	 * Vacuum the temp table so that planner will generate decent plans for
 	 * the DELETEs below.
 	 */
 	buf[0] = '\0';
-	strcat(buf, "ANALYZE vacuum_l");
+	strcat(buf, "VACUUM ANALYZE vacuum_l");
 	res = PQexec(conn, buf);
 	if (PQresultStatus(res) != PGRES_COMMAND_OK)
 	{
@@ -211,7 +166,7 @@ vacuumlo(const char *database, const struct _param *param)
 	strcat(buf, "      AND a.atttypid = t.oid ");
 	strcat(buf, "      AND c.relnamespace = s.oid ");
 	strcat(buf, "      AND t.typname in ('oid', 'lo') ");
-	strcat(buf, "      AND c.relkind in (" CppAsString2(RELKIND_RELATION) ", " CppAsString2(RELKIND_MATVIEW) ")");
+	strcat(buf, "      AND c.relkind = 'r'");
 	strcat(buf, "      AND s.nspname !~ '^pg_'");
 	res = PQexec(conn, buf);
 	if (PQresultStatus(res) != PGRES_TUPLES_OK)
@@ -236,27 +191,14 @@ vacuumlo(const char *database, const struct _param *param)
 		if (param->verbose)
 			fprintf(stdout, "Checking %s in %s.%s\n", field, schema, table);
 
-		schema = PQescapeIdentifier(conn, schema, strlen(schema));
-		table = PQescapeIdentifier(conn, table, strlen(table));
-		field = PQescapeIdentifier(conn, field, strlen(field));
-
-		if (!schema || !table || !field)
-		{
-			fprintf(stderr, "%s", PQerrorMessage(conn));
-			PQclear(res);
-			PQfinish(conn);
-			if (schema != NULL)
-				PQfreemem(schema);
-			if (schema != NULL)
-				PQfreemem(table);
-			if (schema != NULL)
-				PQfreemem(field);
-			return -1;
-		}
-
+		/*
+		 * The "IN" construct used here was horribly inefficient before
+		 * Postgres 7.4, but should be now competitive if not better than the
+		 * bogus join we used before.
+		 */
 		snprintf(buf, BUFSIZE,
 				 "DELETE FROM vacuum_l "
-				 "WHERE lo IN (SELECT %s FROM %s.%s)",
+				 "WHERE lo IN (SELECT \"%s\" FROM \"%s\".\"%s\")",
 				 field, schema, table);
 		res2 = PQexec(conn, buf);
 		if (PQresultStatus(res2) != PGRES_COMMAND_OK)
@@ -267,188 +209,90 @@ vacuumlo(const char *database, const struct _param *param)
 			PQclear(res2);
 			PQclear(res);
 			PQfinish(conn);
-			PQfreemem(schema);
-			PQfreemem(table);
-			PQfreemem(field);
 			return -1;
 		}
 		PQclear(res2);
-
-		PQfreemem(schema);
-		PQfreemem(table);
-		PQfreemem(field);
 	}
 	PQclear(res);
 
 	/*
-	 * Now, those entries remaining in vacuum_l are orphans.  Delete 'em.
-	 *
-	 * We don't want to run each delete as an individual transaction, because
-	 * the commit overhead would be high.  However, since 9.0 the backend will
-	 * acquire a lock per deleted LO, so deleting too many LOs per transaction
-	 * risks running out of room in the shared-memory lock table. Accordingly,
-	 * we delete up to transaction_limit LOs per transaction.
+	 * Run the actual deletes in a single transaction.	Note that this would
+	 * be a bad idea in pre-7.1 Postgres releases (since rolling back a table
+	 * delete used to cause problems), but it should be safe now.
 	 */
 	res = PQexec(conn, "begin");
-	if (PQresultStatus(res) != PGRES_COMMAND_OK)
+	PQclear(res);
+
+	/*
+	 * Finally, those entries remaining in vacuum_l are orphans.
+	 */
+	buf[0] = '\0';
+	strcat(buf, "SELECT lo ");
+	strcat(buf, "FROM vacuum_l");
+	res = PQexec(conn, buf);
+	if (PQresultStatus(res) != PGRES_TUPLES_OK)
 	{
-		fprintf(stderr, "Failed to start transaction:\n");
+		fprintf(stderr, "Failed to read temp table:\n");
 		fprintf(stderr, "%s", PQerrorMessage(conn));
 		PQclear(res);
 		PQfinish(conn);
 		return -1;
 	}
-	PQclear(res);
 
-	buf[0] = '\0';
-	strcat(buf,
-		   "DECLARE myportal CURSOR WITH HOLD FOR SELECT lo FROM vacuum_l");
-	res = PQexec(conn, buf);
-	if (PQresultStatus(res) != PGRES_COMMAND_OK)
-	{
-		fprintf(stderr, "DECLARE CURSOR failed: %s", PQerrorMessage(conn));
-		PQclear(res);
-		PQfinish(conn);
-		return -1;
-	}
-	PQclear(res);
-
-	snprintf(buf, BUFSIZE, "FETCH FORWARD %ld IN myportal",
-			 param->transaction_limit > 0 ? param->transaction_limit : 1000L);
-
+	matched = PQntuples(res);
 	deleted = 0;
-
-	while (1)
+	for (i = 0; i < matched; i++)
 	{
-		res = PQexec(conn, buf);
-		if (PQresultStatus(res) != PGRES_TUPLES_OK)
+		Oid			lo = atooid(PQgetvalue(res, i, 0));
+
+		if (param->verbose)
 		{
-			fprintf(stderr, "FETCH FORWARD failed: %s", PQerrorMessage(conn));
-			PQclear(res);
-			PQfinish(conn);
-			return -1;
+			fprintf(stdout, "\rRemoving lo %6u   ", lo);
+			fflush(stdout);
 		}
 
-		matched = PQntuples(res);
-		if (matched <= 0)
+		if (param->dry_run == 0)
 		{
-			/* at end of resultset */
-			PQclear(res);
-			break;
-		}
-
-		for (i = 0; i < matched; i++)
-		{
-			Oid			lo = atooid(PQgetvalue(res, i, 0));
-
-			if (param->verbose)
+			if (lo_unlink(conn, lo) < 0)
 			{
-				fprintf(stdout, "\rRemoving lo %6u   ", lo);
-				fflush(stdout);
-			}
-
-			if (param->dry_run == 0)
-			{
-				if (lo_unlink(conn, lo) < 0)
-				{
-					fprintf(stderr, "\nFailed to remove lo %u: ", lo);
-					fprintf(stderr, "%s", PQerrorMessage(conn));
-					if (PQtransactionStatus(conn) == PQTRANS_INERROR)
-					{
-						success = false;
-						PQclear(res);
-						break;
-					}
-				}
-				else
-					deleted++;
+				fprintf(stderr, "\nFailed to remove lo %u: ", lo);
+				fprintf(stderr, "%s", PQerrorMessage(conn));
 			}
 			else
 				deleted++;
-
-			if (param->transaction_limit > 0 &&
-				(deleted % param->transaction_limit) == 0)
-			{
-				res2 = PQexec(conn, "commit");
-				if (PQresultStatus(res2) != PGRES_COMMAND_OK)
-				{
-					fprintf(stderr, "Failed to commit transaction:\n");
-					fprintf(stderr, "%s", PQerrorMessage(conn));
-					PQclear(res2);
-					PQclear(res);
-					PQfinish(conn);
-					return -1;
-				}
-				PQclear(res2);
-				res2 = PQexec(conn, "begin");
-				if (PQresultStatus(res2) != PGRES_COMMAND_OK)
-				{
-					fprintf(stderr, "Failed to start transaction:\n");
-					fprintf(stderr, "%s", PQerrorMessage(conn));
-					PQclear(res2);
-					PQclear(res);
-					PQfinish(conn);
-					return -1;
-				}
-				PQclear(res2);
-			}
 		}
-
-		PQclear(res);
+		else
+			deleted++;
 	}
+	PQclear(res);
 
 	/*
 	 * That's all folks!
 	 */
-	res = PQexec(conn, "commit");
-	if (PQresultStatus(res) != PGRES_COMMAND_OK)
-	{
-		fprintf(stderr, "Failed to commit transaction:\n");
-		fprintf(stderr, "%s", PQerrorMessage(conn));
-		PQclear(res);
-		PQfinish(conn);
-		return -1;
-	}
+	res = PQexec(conn, "end");
 	PQclear(res);
 
 	PQfinish(conn);
 
 	if (param->verbose)
-	{
-		if (param->dry_run)
-			fprintf(stdout, "\rWould remove %ld large objects from database \"%s\".\n",
-					deleted, database);
-		else if (success)
-			fprintf(stdout,
-					"\rSuccessfully removed %ld large objects from database \"%s\".\n",
-					deleted, database);
-		else
-			fprintf(stdout, "\rRemoval from database \"%s\" failed at object %ld of %ld.\n",
-					database, deleted, matched);
-	}
+		fprintf(stdout, "\r%s %d large objects from %s.\n",
+		   (param->dry_run ? "Would remove" : "Removed"), deleted, database);
 
-	return ((param->dry_run || success) ? 0 : -1);
+	return 0;
 }
 
-static void
-usage(const char *progname)
+void
+usage(void)
 {
-	printf("%s removes unreferenced large objects from databases.\n\n", progname);
-	printf("Usage:\n  %s [OPTION]... DBNAME...\n\n", progname);
-	printf("Options:\n");
-	printf("  -l LIMIT       commit after removing each LIMIT large objects\n");
-	printf("  -n             don't remove large objects, just show what would be done\n");
-	printf("  -v             write a lot of progress messages\n");
-	printf("  -V, --version  output version information, then exit\n");
-	printf("  -?, --help     show this help, then exit\n");
-	printf("\nConnection options:\n");
-	printf("  -h HOSTNAME    database server host or socket directory\n");
-	printf("  -p PORT        database server port\n");
-	printf("  -U USERNAME    user name to connect as\n");
-	printf("  -w             never prompt for password\n");
-	printf("  -W             force password prompt\n");
-	printf("\n");
-	printf("Report bugs to <pgsql-bugs@postgresql.org>.\n");
+	fprintf(stdout, "vacuumlo removes unreferenced large objects from databases\n\n");
+	fprintf(stdout, "Usage:\n  vacuumlo [options] dbname [dbname ...]\n\n");
+	fprintf(stdout, "Options:\n");
+	fprintf(stdout, "  -v\t\tWrite a lot of progress messages\n");
+	fprintf(stdout, "  -n\t\tDon't remove large objects, just show what would be done\n");
+	fprintf(stdout, "  -U username\tUsername to connect as\n");
+	fprintf(stdout, "  -W\t\tPrompt for password\n");
+	fprintf(stdout, "  -h hostname\tDatabase server host\n");
+	fprintf(stdout, "  -p port\tDatabase server port\n\n");
 }
 
 
@@ -459,45 +303,29 @@ main(int argc, char **argv)
 	struct _param param;
 	int			c;
 	int			port;
-	const char *progname;
 
-	progname = get_progname(argv[0]);
-
-	/* Set default parameter values */
+	/* Parameter handling */
 	param.pg_user = NULL;
-	param.pg_prompt = TRI_DEFAULT;
+	param.pg_prompt = 0;
 	param.pg_host = NULL;
 	param.pg_port = NULL;
-	param.progname = progname;
 	param.verbose = 0;
 	param.dry_run = 0;
-	param.transaction_limit = 1000;
-
-	/* Process command-line arguments */
-	if (argc > 1)
-	{
-		if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-?") == 0)
-		{
-			usage(progname);
-			exit(0);
-		}
-		if (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-V") == 0)
-		{
-			puts("vacuumlo (PostgreSQL) " PG_VERSION);
-			exit(0);
-		}
-	}
 
 	while (1)
 	{
-		c = getopt(argc, argv, "h:l:U:p:vnwW");
+		c = getopt(argc, argv, "?h:U:p:vnW");
 		if (c == -1)
 			break;
 
 		switch (c)
 		{
 			case '?':
-				fprintf(stderr, _("Try \"%s --help\" for more information.\n"), progname);
+				if (optopt == '?')
+				{
+					usage();
+					exit(0);
+				}
 				exit(1);
 			case ':':
 				exit(1);
@@ -508,36 +336,23 @@ main(int argc, char **argv)
 				param.dry_run = 1;
 				param.verbose = 1;
 				break;
-			case 'l':
-				param.transaction_limit = strtol(optarg, NULL, 10);
-				if (param.transaction_limit < 0)
-				{
-					fprintf(stderr,
-							"%s: transaction limit must not be negative (0 disables)\n",
-							progname);
-					exit(1);
-				}
-				break;
 			case 'U':
-				param.pg_user = pg_strdup(optarg);
-				break;
-			case 'w':
-				param.pg_prompt = TRI_NO;
+				param.pg_user = strdup(optarg);
 				break;
 			case 'W':
-				param.pg_prompt = TRI_YES;
+				param.pg_prompt = 1;
 				break;
 			case 'p':
 				port = strtol(optarg, NULL, 10);
 				if ((port < 1) || (port > 65535))
 				{
-					fprintf(stderr, "%s: invalid port number: %s\n", progname, optarg);
+					fprintf(stderr, "[%s]: invalid port number '%s'\n", argv[0], optarg);
 					exit(1);
 				}
-				param.pg_port = pg_strdup(optarg);
+				param.pg_port = strdup(optarg);
 				break;
 			case 'h':
-				param.pg_host = pg_strdup(optarg);
+				param.pg_host = strdup(optarg);
 				break;
 		}
 	}
@@ -546,7 +361,7 @@ main(int argc, char **argv)
 	if (optind >= argc)
 	{
 		fprintf(stderr, "vacuumlo: missing required argument: database name\n");
-		fprintf(stderr, _("Try \"%s --help\" for more information.\n"), progname);
+		fprintf(stderr, "Try 'vacuumlo -?' for help.\n");
 		exit(1);
 	}
 

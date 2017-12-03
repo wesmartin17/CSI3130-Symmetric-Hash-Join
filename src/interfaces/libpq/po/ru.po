@@ -1,1100 +1,667 @@
-# Russian message translation file for libpq
-# Copyright (C) 2001-2016 PostgreSQL Global Development Group
-# This file is distributed under the same license as the PostgreSQL package.
-# Serguei A. Mokhov <mokhov@cs.concordia.ca>, 2001-2004.
-# Oleg Bartunov <oleg@sai.msu.su>, 2005.
-# Andrey Sudnik <sudnikand@yandex.ru>, 2010.
-# Alexander Lakhin <exclusion@gmail.com>, 2012-2017.
+# ru.po
+# LIBPQ Translated Messages into the Russian Language (KOI8-R)
+#
+# Copyright (c) 2001-2004 Serguei A. Mokhov, mokhov@cs.concordia.ca
+# Distributed under the same licensing terms as PostgreSQL itself.
+#
+# $PostgreSQL: pgsql/src/interfaces/libpq/po/ru.po,v 1.18 2005/01/13 21:24:40 petere Exp $
+#
+# ChangeLog:
+#   - January, 2005: Corrections and improvements by Oleg Bartunov <oleg@sai.msu.su>
+#   - March 27 - November 1, 2004: Updates for 8.0; <mokhov@cs.concordia.ca>
+#   - July 24 - October 5, 2003: Updates for 7.4.*; <mokhov@cs.concordia.ca>
+#   - Januray 2, 2002: Completed SSL translation, Serguei A. Mokhov <mokhov@cs.concordia.ca>
+#   - October 12, 2002: Post-7.3beta2 fuzzy translation fixes, Serguei A. Mokhov <mokhov@cs.concordia.ca>
+#   - September 7, 2002: Complete post-7.3beta1 Translation, Serguei A. Mokhov <mokhov@cs.concordia.ca>
+#   - August 2001 - August 2002: Initial translation and maintenance, Serguei A. Mokhov <mokhov@cs.concordia.ca>
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: libpq (PostgreSQL current)\n"
-"Report-Msgid-Bugs-To: pgsql-bugs@postgresql.org\n"
-"POT-Creation-Date: 2017-03-27 12:38+0000\n"
-"PO-Revision-Date: 2017-03-29 06:55+0300\n"
-"Language-Team: Russian <pgsql-ru-general@postgresql.org>\n"
-"Language: ru\n"
+"Project-Id-Version: PostgreSQL 8.0\n"
+"POT-Creation-Date: 2004-11-01 19:28+0000\n"
+"PO-Revision-Date: 2004-11-01 15:49-0500\n"
+"Last-Translator: Serguei A. Mokhov <mokhov@cs.concordia.ca>\n"
+"Language-Team: pgsql-rus <pgsql-rus@yahoogroups.com>\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=koi8-r\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
-"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"Last-Translator: Alexander Lakhin <exclusion@gmail.com>\n"
+"X-Poedit-Language: Russian\n"
+"X-Poedit-Country: RUSSIAN FEDERATION\n"
 
-#: fe-auth.c:149
-msgid "GSSAPI continuation error"
-msgstr "п╬я┬п╦п╠п╨п╟ п©я─п╬п╢п╬п╩п╤п╣п╫п╦я▐ п╡ GSSAPI"
-
-#: fe-auth.c:179 fe-auth.c:415
-msgid "host name must be specified\n"
-msgstr "я┌я─п╣п╠я┐п╣я┌я│я▐ я┐п╨п╟п╥п╟я┌я▄ п╦п╪я▐ я│п╣я─п╡п╣я─п╟\n"
-
-#: fe-auth.c:186
-msgid "duplicate GSS authentication request\n"
-msgstr "п©п╬п╡я┌п╬я─п╫я▀п╧ п╥п╟п©я─п╬я│ п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦п╦ GSS\n"
-
-#: fe-auth.c:199 fe-auth.c:311 fe-auth.c:386 fe-auth.c:421 fe-auth.c:465
-#: fe-auth.c:599 fe-auth.c:902 fe-connect.c:716 fe-connect.c:1086
-#: fe-connect.c:1262 fe-connect.c:1798 fe-connect.c:2326 fe-connect.c:4000
-#: fe-connect.c:4252 fe-connect.c:4371 fe-connect.c:4611 fe-connect.c:4691
-#: fe-connect.c:4790 fe-connect.c:5046 fe-connect.c:5075 fe-connect.c:5147
-#: fe-connect.c:5165 fe-connect.c:5266 fe-connect.c:5275 fe-connect.c:5631
-#: fe-connect.c:5781 fe-exec.c:2651 fe-exec.c:3398 fe-exec.c:3563 fe-lobj.c:896
-#: fe-protocol2.c:1206 fe-protocol3.c:992 fe-protocol3.c:1678
-#: fe-secure-openssl.c:514 fe-secure-openssl.c:1137
-msgid "out of memory\n"
-msgstr "п╫п╣я┘п╡п╟я┌п╨п╟ п©п╟п╪я▐я┌п╦\n"
-
-#: fe-auth.c:212
-msgid "GSSAPI name import error"
-msgstr "п╬я┬п╦п╠п╨п╟ п╦п╪п©п╬я─я┌п╟ п╦п╪п╣п╫п╦ п╡ GSSAPI"
-
-#: fe-auth.c:300
-msgid "SSPI continuation error"
-msgstr "п╬я┬п╦п╠п╨п╟ п©я─п╬п╢п╬п╩п╤п╣п╫п╦я▐ п╡ SSPI"
-
-#: fe-auth.c:401
-msgid "could not acquire SSPI credentials"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ я┐п╢п╬я│я┌п╬п╡п╣я─п╣п╫п╦п╣ SSPI"
-
-#: fe-auth.c:474
+#: fe-auth.c:232
 #, c-format
-msgid "SASL authentication mechanism %s not supported\n"
-msgstr "п╪п╣я┘п╟п╫п╦п╥п╪ п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦п╦ SASL %s п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐\n"
+msgid "Kerberos 4 error: %s\n"
+msgstr "ошибка Kerberos 4: %s\n"
 
-#: fe-auth.c:574
+#: fe-auth.c:394
+#, c-format
+msgid "could not set socket to blocking mode: %s\n"
+msgstr "не удалось установить сокет в блокирующий режим: %s\n"
+
+#: fe-auth.c:411
+#: fe-auth.c:415
+#, c-format
+msgid "Kerberos 5 authentication rejected: %*s\n"
+msgstr "аутентификация Kerberos 5 отклонена: %*s\n"
+
+#: fe-auth.c:441
+#, c-format
+msgid "could not restore non-blocking mode on socket: %s\n"
+msgstr "не удалось восстановить неблокирующий режим для сокета: %s\n"
+
+#: fe-auth.c:508
 msgid "SCM_CRED authentication method not supported\n"
-msgstr "п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦я▐ SCM_CRED п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐\n"
+msgstr "аутентификация SCM_CRED не поддерживается\n"
 
-#: fe-auth.c:650
+#: fe-auth.c:600
+msgid "Kerberos 4 authentication failed\n"
+msgstr "аутентификация Kerberos 4 не удалась\n"
+
+#: fe-auth.c:608
 msgid "Kerberos 4 authentication not supported\n"
-msgstr "п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦я▐ Kerberos 4 п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐\n"
+msgstr "аутентификация Kerberos 4 не поддерживается\n"
+
+#: fe-auth.c:619
+msgid "Kerberos 5 authentication failed\n"
+msgstr "аутентификация Kerberos 5 не удалась\n"
+
+#: fe-auth.c:627
+msgid "Kerberos 5 authentication not supported\n"
+msgstr "аутентификация Kerberos 5 не поддерживается\n"
 
 #: fe-auth.c:655
-msgid "Kerberos 5 authentication not supported\n"
-msgstr "п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦я▐ Kerberos 5 п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐\n"
-
-#: fe-auth.c:726
-msgid "GSSAPI authentication not supported\n"
-msgstr "п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦я▐ я┤п╣я─п╣п╥ GSSAPI п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐\n"
-
-#: fe-auth.c:758
-msgid "SSPI authentication not supported\n"
-msgstr "п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦я▐ я┤п╣я─п╣п╥ SSPI п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐\n"
-
-#: fe-auth.c:766
-msgid "Crypt authentication not supported\n"
-msgstr "п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦я▐ Crypt п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐\n"
-
-#: fe-auth.c:830
 #, c-format
 msgid "authentication method %u not supported\n"
-msgstr "п╪п╣я┌п╬п╢ п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦п╦ %u п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐\n"
+msgstr "метод аутентификации %u не поддерживается\n"
 
-#: fe-auth.c:877
+#: fe-auth.c:692
 #, c-format
-msgid "user name lookup failure: error code %lu\n"
-msgstr "я─п╟я│п©п╬п╥п╫п╟я┌я▄ п╦п╪я▐ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐ п╫п╣ я┐п╢п╟п╩п╬я│я▄ (п╨п╬п╢ п╬я┬п╦п╠п╨п╦: %lu)\n"
+msgid "invalid authentication service name \"%s\", ignored\n"
+msgstr "неверное имя сервиса аутентификации \"%s\", игнорируется\n"
 
-#: fe-auth.c:887 fe-connect.c:2253
+#: fe-auth.c:764
 #, c-format
-msgid "could not look up local user ID %d: %s\n"
-msgstr "п╫п╟п╧я┌п╦ п╩п╬п╨п╟п╩я▄п╫п╬пЁп╬ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐ п©п╬ п╦п╢п╣п╫я┌п╦я└п╦п╨п╟я┌п╬я─я┐ (%d) п╫п╣ я┐п╢п╟п╩п╬я│я▄: %s\n"
+msgid "fe_getauthname: invalid authentication system: %d\n"
+msgstr "fe_getauthname: неверная система аутентификации: %d\n"
 
-#: fe-auth.c:892 fe-connect.c:2258
-#, c-format
-msgid "local user with ID %d does not exist\n"
-msgstr "п╩п╬п╨п╟п╩я▄п╫я▀п╧ п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▄ я│ ID %d п╫п╣ я│я┐я┴п╣я│я┌п╡я┐п╣я┌\n"
-
-#: fe-connect.c:918
-#, c-format
-msgid "could not match %d port numbers to %d hosts\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ я│п╬п©п╬я│я┌п╟п╡п╦я┌я▄ п╫п╬п╪п╣я─п╟ п©п╬я─я┌п╬п╡ (%d) я│ я┐п╥п╩п╟п╪п╦ (%d)\n"
-
-#: fe-connect.c:970
-msgid "could not get home directory to locate password file\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╢п╬п╪п╟я┬п╫п╦п╧ п╨п╟я┌п╟п╩п╬пЁ п╢п╩я▐ п╥п╟пЁя─я┐п╥п╨п╦ я└п╟п╧п╩п╟ п©п╟я─п╬п╩п╣п╧\n"
-
-#: fe-connect.c:1012
+#: fe-connect.c:457
 #, c-format
 msgid "invalid sslmode value: \"%s\"\n"
-msgstr "п╫п╣п╡п╣я─п╫п╬п╣ п╥п╫п╟я┤п╣п╫п╦п╣ sslmode: \"%s\"\n"
+msgstr "неверное значение sslmode: \"%s\"\n"
 
-#: fe-connect.c:1033
+#: fe-connect.c:477
 #, c-format
 msgid "sslmode value \"%s\" invalid when SSL support is not compiled in\n"
-msgstr "п╥п╫п╟я┤п╣п╫п╦п╣ sslmode \"%s\" п╫п╣п╢п╬п©я┐я│я┌п╦п╪п╬ п╢п╩я▐ я│п╠п╬я─п╨п╦ п╠п╣п╥ п©п╬п╢п╢п╣я─п╤п╨п╦ SSL\n"
+msgstr "значение sslmode \"%s\" неверно, если поддержка SSL не скомпилирована\n"
 
-#: fe-connect.c:1068
-#, c-format
-msgid "invalid target_session_attrs value: \"%s\"\n"
-msgstr "п╫п╣п╡п╣я─п╫п╬п╣ п╥п╫п╟я┤п╣п╫п╦п╣ target_session_attrs: \"%s\"\n"
-
-#: fe-connect.c:1286
+#: fe-connect.c:793
 #, c-format
 msgid "could not set socket to TCP no delay mode: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╣я─п╣п╡п╣я│я┌п╦ я│п╬п╨п╣я┌ п╡ я─п╣п╤п╦п╪ TCP-п©п╣я─п╣п╢п╟я┤п╦ п╠п╣п╥ п╥п╟п╢п╣я─п╤п╨п╦: %s\n"
+msgstr "не удалось установить сокет в режим TCP передачи без задержки: %s\n"
 
-#: fe-connect.c:1316
+#: fe-connect.c:824
 #, c-format
 msgid ""
 "could not connect to server: %s\n"
 "\tIs the server running locally and accepting\n"
 "\tconnections on Unix domain socket \"%s\"?\n"
 msgstr ""
-"п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╢п╨п╩я▌я┤п╦я┌я▄я│я▐ п╨ я│п╣я─п╡п╣я─я┐: %s\n"
-"\tп·п╫ п╢п╣п╧я│я┌п╡п╦я┌п╣п╩я▄п╫п╬ я─п╟п╠п╬я┌п╟п╣я┌ п╩п╬п╨п╟п╩я▄п╫п╬ п╦ п©я─п╦п╫п╦п╪п╟п╣я┌\n"
-"\tя│п╬п╣п╢п╦п╫п╣п╫п╦я▐ я┤п╣я─п╣п╥ п╢п╬п╪п╣п╫п╫я▀п╧ я│п╬п╨п╣я┌ \"%s\"?\n"
+"не удалось соединиться с сервером: %s\n"
+"\tРаботает ли сервер локально и принимает\n"
+"\tсоединения через сокет Unix-домена \"%s\"?\n"
 
-#: fe-connect.c:1371
-#, c-format
-msgid ""
-"could not connect to server: %s\n"
-"\tIs the server running on host \"%s\" (%s) and accepting\n"
-"\tTCP/IP connections on port %s?\n"
-msgstr ""
-"п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╢п╨п╩я▌я┤п╦я┌я▄я│я▐ п╨ я│п╣я─п╡п╣я─я┐: %s\n"
-"\tп·п╫ п╢п╣п╧я│я┌п╡п╦я┌п╣п╩я▄п╫п╬ я─п╟п╠п╬я┌п╟п╣я┌ п©п╬ п╟п╢я─п╣я│я┐ \"%s\" (%s)\n"
-"\t п╦ п©я─п╦п╫п╦п╪п╟п╣я┌ TCP-я│п╬п╣п╢п╦п╫п╣п╫п╦я▐ (п©п╬я─я┌ %s)?\n"
-
-#: fe-connect.c:1380
+#: fe-connect.c:836
 #, c-format
 msgid ""
 "could not connect to server: %s\n"
 "\tIs the server running on host \"%s\" and accepting\n"
 "\tTCP/IP connections on port %s?\n"
 msgstr ""
-"п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╢п╨п╩я▌я┤п╦я┌я▄я│я▐ п╨ я│п╣я─п╡п╣я─я┐: %s\n"
-"\tп·п╫ п╢п╣п╧я│я┌п╡п╦я┌п╣п╩я▄п╫п╬ я─п╟п╠п╬я┌п╟п╣я┌ п©п╬ п╟п╢я─п╣я│я┐ \"%s\"\n"
-"\t п╦ п©я─п╦п╫п╦п╪п╟п╣я┌ TCP-я│п╬п╣п╢п╦п╫п╣п╫п╦я▐ (п©п╬я─я┌ %s)?\n"
+"не удалось подсоединиться к серверу: %s\n"
+"\tРаботает ли сервер на хосте \"%s\" и принимает ли\n"
+"\tTCP/IP соединения по порту %s?\n"
 
-#: fe-connect.c:1431
-#, c-format
-msgid "setsockopt(TCP_KEEPIDLE) failed: %s\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п╡ setsockopt(TCP_KEEPIDLE): %s\n"
-
-#: fe-connect.c:1444
-#, c-format
-msgid "setsockopt(TCP_KEEPALIVE) failed: %s\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п╡ setsockopt(TCP_KEEPALIVE): %s\n"
-
-#: fe-connect.c:1476
-#, c-format
-msgid "setsockopt(TCP_KEEPINTVL) failed: %s\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п╡ setsockopt(TCP_KEEPINTVL): %s\n"
-
-#: fe-connect.c:1508
-#, c-format
-msgid "setsockopt(TCP_KEEPCNT) failed: %s\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п╡ setsockopt(TCP_KEEPCNT): %s\n"
-
-#: fe-connect.c:1556
-#, c-format
-msgid "WSAIoctl(SIO_KEEPALIVE_VALS) failed: %ui\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п╡ WSAIoctl(SIO_KEEPALIVE_VALS): %ui\n"
-
-#: fe-connect.c:1614
-#, c-format
-msgid "invalid port number: \"%s\"\n"
-msgstr "п╫п╣п╡п╣я─п╫я▀п╧ п╫п╬п╪п╣я─ п©п╬я─я┌п╟: \"%s\"\n"
-
-#: fe-connect.c:1638
-#, c-format
-msgid "Unix-domain socket path \"%s\" is too long (maximum %d bytes)\n"
-msgstr "п╢п╩п╦п╫п╟ п©я┐я┌п╦ п╢п╬п╪п╣п╫п╫п╬пЁп╬ я│п╬п╨п╣я┌п╟ \"%s\" п©я─п╣п╡я▀я┬п╟п╣я┌ п©я─п╣п╢п╣п╩ (%d п╠п╟п╧я┌)\n"
-
-#: fe-connect.c:1656
+#: fe-connect.c:929
 #, c-format
 msgid "could not translate host name \"%s\" to address: %s\n"
-msgstr "п©я─п╣п╬п╠я─п╟п╥п╬п╡п╟я┌я▄ п╦п╪я▐ \"%s\" п╡ п╟п╢я─п╣я│ п╫п╣ я┐п╢п╟п╩п╬я│я▄: %s\n"
+msgstr "не удалось преобразовать имя хоста \"%s\" в адрес: %s\n"
 
-#: fe-connect.c:1660
+#: fe-connect.c:933
 #, c-format
 msgid "could not translate Unix-domain socket path \"%s\" to address: %s\n"
-msgstr ""
-"п©я─п╣п╬п╠я─п╟п╥п╬п╡п╟я┌я▄ п©я┐я┌я▄ п╨ п╢п╬п╪п╣п╫п╫п╬п╪я┐ я│п╬п╨п╣я┌я┐ UNIX \"%s\" п╡ п╟п╢я─п╣я│ п╫п╣ я┐п╢п╟п╩п╬я│я▄: %s\n"
+msgstr "не удалось преобразовать название директории сокетов UNIX-домена \"%s\" в адрес: %s\n"
 
-#: fe-connect.c:1904
+#: fe-connect.c:1137
 msgid "invalid connection state, probably indicative of memory corruption\n"
-msgstr "п╫п╣п╡п╣я─п╫п╬п╣ я│п╬я│я┌п╬я▐п╫п╦п╣ я│п╬п╣п╢п╦п╫п╣п╫п╦я▐ - п╡п╬п╥п╪п╬п╤п╫п╬ я─п╟п╥я─я┐я┬п╣п╫п╦п╣ п©п╟п╪я▐я┌п╦\n"
+msgstr "неверное состояние соединения, возможный указатель на нарушение целостности памяти\n"
 
-#: fe-connect.c:1961
+#: fe-connect.c:1180
 #, c-format
 msgid "could not create socket: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ я│п╬п╥п╢п╟я┌я▄ я│п╬п╨п╣я┌: %s\n"
+msgstr "не удалось создать сокет: %s\n"
 
-#: fe-connect.c:1983
+#: fe-connect.c:1203
 #, c-format
-msgid "could not set socket to nonblocking mode: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╣я─п╣п╡п╣я│я┌п╦ я│п╬п╨п╣я┌ п╡ п╫п╣п╠п╩п╬п╨п╦я─я┐я▌я┴п╦п╧ я─п╣п╤п╦п╪: %s\n"
+msgid "could not set socket to non-blocking mode: %s\n"
+msgstr "не удалось установить сокет в неблокирующий режим: %s\n"
 
-#: fe-connect.c:1994
+#: fe-connect.c:1215
 #, c-format
 msgid "could not set socket to close-on-exec mode: %s\n"
-msgstr ""
-"п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╣я─п╣п╡п╣я│я┌п╦ я│п╬п╨п╣я┌ п╡ я─п╣п╤п╦п╪ п╥п╟п╨я─я▀я┌п╦я▐ п©я─п╦ п╡я▀п©п╬п╩п╫п╣п╫п╦п╦ (close-on-exec): "
-"%s\n"
+msgstr "не удалось установить сокет в режим закрытия-на-выполнение (close-on-exec): %s\n"
 
-#: fe-connect.c:2013
-msgid "keepalives parameter must be an integer\n"
-msgstr "п©п╟я─п╟п╪п╣я┌я─ keepalives п╢п╬п╩п╤п╣п╫ п╠я▀я┌я▄ я├п╣п╩я▀п╪ я┤п╦я│п╩п╬п╪\n"
-
-#: fe-connect.c:2026
-#, c-format
-msgid "setsockopt(SO_KEEPALIVE) failed: %s\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п╡ setsockopt(SO_KEEPALIVE): %s\n"
-
-#: fe-connect.c:2163
+#: fe-connect.c:1307
 #, c-format
 msgid "could not get socket error status: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ я│я┌п╟я┌я┐я│ п╬я┬п╦п╠п╨п╦ я│п╬п╨п╣я┌п╟: %s\n"
+msgstr "не удалось получить статус ошибки сокета: %s\n"
 
-#: fe-connect.c:2198
+#: fe-connect.c:1346
 #, c-format
 msgid "could not get client address from socket: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╟п╢я─п╣я│ п╨п╩п╦п╣п╫я┌п╟ п╦п╥ я│п╬п╨п╣я┌п╟: %s\n"
+msgstr "не удалось получить адрес клиента из сокета: %s\n"
 
-#: fe-connect.c:2240
-msgid "requirepeer parameter is not supported on this platform\n"
-msgstr "п©п╟я─п╟п╪п╣я┌я─ requirepeer п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐ п╡ я█я┌п╬п╧ п·п║\n"
-
-#: fe-connect.c:2243
-#, c-format
-msgid "could not get peer credentials: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ я┐я┤я▒я┌п╫я▀п╣ п╢п╟п╫п╫я▀п╣ я│п╣я─п╡п╣я─п╟: %s\n"
-
-#: fe-connect.c:2266
-#, c-format
-msgid "requirepeer specifies \"%s\", but actual peer user name is \"%s\"\n"
-msgstr ""
-"requirepeer п╢п╬п©я┐я│п╨п╟п╣я┌ п©п╬п╢п╨п╩я▌я┤п╣п╫п╦п╣ я┌п╬п╩я▄п╨п╬ п╨ \"%s\", п╫п╬ я│п╣я─п╡п╣я─ я─п╟п╠п╬я┌п╟п╣я┌ п©п╬п╢ "
-"п╦п╪п╣п╫п╣п╪ \"%s\"\n"
-
-#: fe-connect.c:2300
+#: fe-connect.c:1391
 #, c-format
 msgid "could not send SSL negotiation packet: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬я┌п©я─п╟п╡п╦я┌я▄ п©п╟п╨п╣я┌ я│п╬пЁп╩п╟я│п╬п╡п╟п╫п╦я▐ SSL: %s\n"
+msgstr "не удалось отправить пакет согласования SSL: %s\n"
 
-#: fe-connect.c:2339
+#: fe-connect.c:1413
+#: fe-connect.c:2628
+#: fe-connect.c:2637
+#: fe-connect.c:3216
+#: fe-lobj.c:556
+#: fe-protocol2.c:1007
+#: fe-protocol3.c:958
+msgid "out of memory\n"
+msgstr "недостаточно памяти\n"
+
+#: fe-connect.c:1426
 #, c-format
 msgid "could not send startup packet: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬я┌п©я─п╟п╡п╦я┌я▄ я│я┌п╟я─я┌п╬п╡я▀п╧ п©п╟п╨п╣я┌: %s\n"
+msgstr "не удалось отправить начальный пакет: %s\n"
 
-#: fe-connect.c:2409
+#: fe-connect.c:1466
+#, c-format
+msgid "could not receive server response to SSL negotiation packet: %s\n"
+msgstr "не был получен ответ сервера на пакет согласования SSL: %s\n"
+
+#: fe-connect.c:1485
+#: fe-connect.c:1502
 msgid "server does not support SSL, but SSL was required\n"
-msgstr "п╥п╟я┌я─п╣п╠п╬п╡п╟п╫п╬ п©п╬п╢п╨п╩я▌я┤п╣п╫п╦п╣ я┤п╣я─п╣п╥ SSL, п╫п╬ я│п╣я─п╡п╣я─ п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌ SSL\n"
+msgstr "сервер не поддерживает SSL, но наличие SSL было необходимо\n"
 
-#: fe-connect.c:2435
+#: fe-connect.c:1518
 #, c-format
 msgid "received invalid response to SSL negotiation: %c\n"
-msgstr "п©п╬п╩я┐я┤п╣п╫ п╫п╣п╡п╣я─п╫я▀п╧ п╬я┌п╡п╣я┌ п╫п╟ я│п╬пЁп╩п╟я│п╬п╡п╟п╫п╦п╣ SSL: %c\n"
+msgstr "получен неверный ответ на согласование по SSL: %c\n"
 
-#: fe-connect.c:2510 fe-connect.c:2543
+#: fe-connect.c:1575
+#: fe-connect.c:1607
 #, c-format
 msgid "expected authentication request from server, but received %c\n"
-msgstr "п╬п╤п╦п╢п╟п╩я│я▐ п╥п╟п©я─п╬я│ п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦п╦ п╬я┌ я│п╣я─п╡п╣я─п╟, п╫п╬ п©п╬п╩я┐я┤п╣п╫п╬: %c\n"
+msgstr "ожидался запрос аутентификации от сервера, но было получено: %c\n"
 
-#: fe-connect.c:2710
-#, c-format
-msgid "out of memory allocating GSSAPI buffer (%d)"
-msgstr "п╫п╣п╢п╬я│я┌п╟я┌п╬я┤п╫п╬ п©п╟п╪я▐я┌п╦ п╢п╩я▐ п╠я┐я└п╣я─п╟ GSSAPI (%d)"
-
-#: fe-connect.c:2748
-#, c-format
-msgid "out of memory allocating SASL buffer (%d)"
-msgstr "п╫п╣п╢п╬я│я┌п╟я┌п╬я┤п╫п╬ п©п╟п╪я▐я┌п╦ п╢п╩я▐ п╠я┐я└п╣я─п╟ SASL (%d)"
-
-#: fe-connect.c:2838
+#: fe-connect.c:1843
 msgid "unexpected message from server during startup\n"
-msgstr "п╫п╣п╬п╤п╦п╢п╟п╫п╫п╬п╣ я│п╬п╬п╠я┴п╣п╫п╦п╣ п╬я┌ я│п╣я─п╡п╣я─п╟ п╡ п╫п╟я┤п╟п╩п╣ я─п╟п╠п╬я┌я▀\n"
+msgstr "неожиданное сообщение от сервера при запуске\n"
 
-#: fe-connect.c:3042
+#: fe-connect.c:1913
 #, c-format
-msgid "could not make a writable connection to server \"%s:%s\"\n"
-msgstr ""
-"п╫п╣ я┐п╢п╟п╩п╬я│я▄ я┐я│я┌п╟п╫п╬п╡п╦я┌я▄ п©п╬п╢п╨п╩я▌я┤п╣п╫п╦п╣ п╢п╩я▐ я┤я┌п╣п╫п╦я▐/п╥п╟п©п╦я│п╦ п╨ я│п╣я─п╡п╣я─я┐ \"%s:%s\"\n"
+msgid "invalid connection state %c, probably indicative of memory corruption\n"
+msgstr "неверное состояние соединения %c, возможный указатель на нарушение целостности памяти\n"
 
-#: fe-connect.c:3084
-#, c-format
-msgid "test \"show transaction_read_only\" failed  on \"%s:%s\" \n"
-msgstr "п©я─п╬п╡п╣я─п╨п╟ \"show transaction_read_only\" п╫п╣ п©я─п╬п╧п╢п╣п╫п╟ п╫п╟ \"%s:%s\" \n"
-
-#: fe-connect.c:3106
-#, c-format
-msgid "invalid connection state %d, probably indicative of memory corruption\n"
-msgstr "п╫п╣п╡п╣я─п╫п╬п╣ я│п╬я│я┌п╬я▐п╫п╦п╣ я│п╬п╣п╢п╦п╫п╣п╫п╦я▐ %d - п╡п╬п╥п╪п╬п╤п╫п╬ я─п╟п╥я─я┐я┬п╣п╫п╦п╣ п©п╟п╪я▐я┌п╦\n"
-
-#: fe-connect.c:3606 fe-connect.c:3666
-#, c-format
-msgid "PGEventProc \"%s\" failed during PGEVT_CONNRESET event\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п╡ PGEventProc \"%s\" п©я─п╦ п╬п╠я─п╟п╠п╬я┌п╨п╣ я│п╬п╠я▀я┌п╦я▐ PGEVT_CONNRESET\n"
-
-#: fe-connect.c:4013
-#, c-format
-msgid "invalid LDAP URL \"%s\": scheme must be ldap://\n"
-msgstr "п╫п╣п╨п╬я─я─п╣п╨я┌п╫я▀п╧ п╟п╢я─п╣я│ LDAP \"%s\": я│я┘п╣п╪п╟ п╢п╬п╩п╤п╫п╟ п╠я▀я┌я▄ ldap://\n"
-
-#: fe-connect.c:4028
-#, c-format
-msgid "invalid LDAP URL \"%s\": missing distinguished name\n"
-msgstr "п╫п╣п╨п╬я─я─п╣п╨я┌п╫я▀п╧ п╟п╢я─п╣я│ LDAP \"%s\": п╬я┌я│я┐я┌я│я┌п╡я┐п╣я┌ я┐п╫п╦п╨п╟п╩я▄п╫п╬п╣ п╦п╪я▐\n"
-
-#: fe-connect.c:4039 fe-connect.c:4092
-#, c-format
-msgid "invalid LDAP URL \"%s\": must have exactly one attribute\n"
-msgstr "п╫п╣п╨п╬я─я─п╣п╨я┌п╫я▀п╧ п╟п╢я─п╣я│ LDAP \"%s\": п╢п╬п╩п╤п╣п╫ п╠я▀я┌я▄ я┌п╬п╩я▄п╨п╬ п╬п╢п╦п╫ п╟я┌я─п╦п╠я┐я┌\n"
-
-#: fe-connect.c:4049 fe-connect.c:4106
-#, c-format
-msgid "invalid LDAP URL \"%s\": must have search scope (base/one/sub)\n"
-msgstr ""
-"п╫п╣п╨п╬я─я─п╣п╨я┌п╫я▀п╧ п╟п╢я─п╣я│ LDAP \"%s\": п╫п╣ я┐п╨п╟п╥п╟п╫п╟ п╬п╠п╩п╟я│я┌я▄ п©п╬п╦я│п╨п╟ (base/one/sub)\n"
-
-#: fe-connect.c:4060
-#, c-format
-msgid "invalid LDAP URL \"%s\": no filter\n"
-msgstr "п╫п╣п╨п╬я─я─п╣п╨я┌п╫я▀п╧ п╟п╢я─п╣я│ LDAP \"%s\": п╫п╣я┌ я└п╦п╩я▄я┌я─п╟\n"
-
-#: fe-connect.c:4081
-#, c-format
-msgid "invalid LDAP URL \"%s\": invalid port number\n"
-msgstr "п╫п╣п╨п╬я─я─п╣п╨я┌п╫я▀п╧ п╟п╢я─п╣я│ LDAP \"%s\": п╫п╣п╡п╣я─п╫я▀п╧ п╫п╬п╪п╣я─ п©п╬я─я┌п╟\n"
-
-#: fe-connect.c:4115
-msgid "could not create LDAP structure\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ я│п╬п╥п╢п╟я┌я▄ я│я┌я─я┐п╨я┌я┐я─я┐ LDAP\n"
-
-#: fe-connect.c:4191
-#, c-format
-msgid "lookup on LDAP server failed: %s\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п©п╬п╦я│п╨п╟ п╫п╟ я│п╣я─п╡п╣я─п╣ LDAP: %s\n"
-
-#: fe-connect.c:4202
-msgid "more than one entry found on LDAP lookup\n"
-msgstr "п©я─п╦ п©п╬п╦я│п╨п╣ LDAP п╫п╟п╧п╢п╣п╫п╬ п╠п╬п╩п╣п╣ п╬п╢п╫п╬пЁп╬ п╡я┘п╬п╤п╢п╣п╫п╦я▐\n"
-
-#: fe-connect.c:4203 fe-connect.c:4215
-msgid "no entry found on LDAP lookup\n"
-msgstr "п©я─п╦ п©п╬п╦я│п╨п╣ LDAP п╫п╦я┤п╣пЁп╬ п╫п╣ п╫п╟п╧п╢п╣п╫п╬\n"
-
-#: fe-connect.c:4226 fe-connect.c:4239
-msgid "attribute has no values on LDAP lookup\n"
-msgstr "п╟я┌я─п╦п╠я┐я┌ п╫п╣ я│п╬п╢п╣я─п╤п╦я┌ п╥п╫п╟я┤п╣п╫п╦п╧ п©я─п╦ п©п╬п╦я│п╨п╣ LDAP\n"
-
-#: fe-connect.c:4291 fe-connect.c:4310 fe-connect.c:4829
+#: fe-connect.c:2676
 #, c-format
 msgid "missing \"=\" after \"%s\" in connection info string\n"
-msgstr "п╡ я│я┌я─п╬п╨п╣ я│п╬п╣п╢п╦п╫п╣п╫п╦я▐ п╫п╣я┌ \"=\" п©п╬я│п╩п╣ \"%s\"\n"
+msgstr "отсутствует \"=\" после \"%s\" в строке соединения\n"
 
-#: fe-connect.c:4383 fe-connect.c:5014 fe-connect.c:5764
+#: fe-connect.c:2725
+msgid "unterminated quoted string in connection info string\n"
+msgstr "неоконченная строка (не хватает кавычки) в строке соединения\n"
+
+#: fe-connect.c:2759
 #, c-format
 msgid "invalid connection option \"%s\"\n"
-msgstr "п╫п╣п╡п╣я─п╫я▀п╧ п©п╟я─п╟п╪п╣я┌я─ я│п╬п╣п╢п╦п╫п╣п╫п╦я▐ \"%s\"\n"
+msgstr "неверный параметр соединения \"%s\"\n"
 
-#: fe-connect.c:4399 fe-connect.c:4878
-msgid "unterminated quoted string in connection info string\n"
-msgstr "п╡ я│я┌я─п╬п╨п╣ я│п╬п╣п╢п╦п╫п╣п╫п╦я▐ п╫п╣ я┘п╡п╟я┌п╟п╣я┌ п╥п╟п╨я─я▀п╡п╟я▌я┴п╣п╧ п╨п╟п╡я▀я┤п╨п╦\n"
-
-#: fe-connect.c:4439
-msgid "could not get home directory to locate service definition file"
-msgstr ""
-"п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╢п╬п╪п╟я┬п╫п╦п╧ п╨п╟я┌п╟п╩п╬пЁ п╢п╩я▐ п╥п╟пЁя─я┐п╥п╨п╦ я└п╟п╧п╩п╟ п╬п©я─п╣п╢п╣п╩п╣п╫п╦п╧ я│п╩я┐п╤п╠"
-
-#: fe-connect.c:4472
-#, c-format
-msgid "definition of service \"%s\" not found\n"
-msgstr "п╬п©я─п╣п╢п╣п╩п╣п╫п╦п╣ я│п╩я┐п╤п╠я▀ \"%s\" п╫п╣ п╫п╟п╧п╢п╣п╫п╬\n"
-
-#: fe-connect.c:4495
-#, c-format
-msgid "service file \"%s\" not found\n"
-msgstr "я└п╟п╧п╩ п╬п©я─п╣п╢п╣п╩п╣п╫п╦п╧ я│п╩я┐п╤п╠ \"%s\" п╫п╣ п╫п╟п╧п╢п╣п╫\n"
-
-#: fe-connect.c:4508
-#, c-format
-msgid "line %d too long in service file \"%s\"\n"
-msgstr "я│п╩п╦я┬п╨п╬п╪ п╢п╩п╦п╫п╫п╟я▐ я│я┌я─п╬п╨п╟ (%d) п╡ я└п╟п╧п╩п╣ п╬п©я─п╣п╢п╣п╩п╣п╫п╦п╧ я│п╩я┐п╤п╠ \"%s\"\n"
-
-#: fe-connect.c:4579 fe-connect.c:4623
-#, c-format
-msgid "syntax error in service file \"%s\", line %d\n"
-msgstr "я│п╦п╫я┌п╟п╨я│п╦я┤п╣я│п╨п╟я▐ п╬я┬п╦п╠п╨п╟ п╡ я└п╟п╧п╩п╣ п╬п©я─п╣п╢п╣п╩п╣п╫п╦я▐ я│п╩я┐п╤п╠ \"%s\" (я│я┌я─п╬п╨п╟ %d)\n"
-
-#: fe-connect.c:4590
-#, c-format
-msgid ""
-"nested service specifications not supported in service file \"%s\", line %d\n"
-msgstr ""
-"я─п╣п╨я┐я─я│п╦п╡п╫я▀п╣ п╬п©я─п╣п╢п╣п╩п╣п╫п╦я▐ я│п╩я┐п╤п╠ п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟я▌я┌я│я▐ (я└п╟п╧п╩ п╬п©я─п╣п╢п╣п╩п╣п╫п╦я▐ я│п╩я┐п╤п╠ \"%s"
-"\", я│я┌я─п╬п╨п╟ %d)\n"
-
-#: fe-connect.c:5286
-#, c-format
-msgid "invalid URI propagated to internal parser routine: \"%s\"\n"
-msgstr "п╡п╬ п╡п╫я┐я┌я─п╣п╫п╫я▌я▌ п©я─п╬я├п╣п╢я┐я─я┐ я─п╟п╥п╠п╬я─п╟ я│я┌я─п╬п╨п╦ п©п╣я─п╣п╢п╟п╫ п╬я┬п╦п╠п╬я┤п╫я▀п╧ URI: \"%s\"\n"
-
-#: fe-connect.c:5363
-#, c-format
-msgid ""
-"end of string reached when looking for matching \"]\" in IPv6 host address "
-"in URI: \"%s\"\n"
-msgstr "URI п╫п╣ я│п╬п╢п╣я─п╤п╦я┌ я│п╦п╪п╡п╬п╩ \"]\" п©п╬я│п╩п╣ п╟п╢я─п╣я│п╟ IPv6: \"%s\"\n"
-
-#: fe-connect.c:5370
-#, c-format
-msgid "IPv6 host address may not be empty in URI: \"%s\"\n"
-msgstr "IPv6, я│п╬п╢п╣я─п╤п╟я┴п╦п╧я│я▐ п╡ URI, п╫п╣ п╪п╬п╤п╣я┌ п╠я▀я┌я▄ п©я┐я│я┌я▀п╪: \"%s\"\n"
-
-#: fe-connect.c:5385
-#, c-format
-msgid ""
-"unexpected character \"%c\" at position %d in URI (expected \":\" or \"/\"): "
-"\"%s\"\n"
-msgstr ""
-"п╫п╣п╬п╤п╦п╢п╟п╫п╫я▀п╧ я│п╦п╪п╡п╬п╩ \"%c\" п╡ п©п╬п╥п╦я├п╦п╦ %d п╡ URI (п╬п╤п╦п╢п╟п╩п╬я│я▄ \":\" п╦п╩п╦ \"/\"): "
-"\"%s\"\n"
-
-#: fe-connect.c:5514
-#, c-format
-msgid "extra key/value separator \"=\" in URI query parameter: \"%s\"\n"
-msgstr "п╩п╦я┬п╫п╦п╧ я─п╟п╥п╢п╣п╩п╦я┌п╣п╩я▄ п╨п╩я▌я┤п╟/п╥п╫п╟я┤п╣п╫п╦я▐ \"=\" п╡ п©п╟я─п╟п╪п╣я┌я─п╟я┘ URI: \"%s\"\n"
-
-#: fe-connect.c:5534
-#, c-format
-msgid "missing key/value separator \"=\" in URI query parameter: \"%s\"\n"
-msgstr "п╡ п©п╟я─п╟п╪п╣я┌я─п╟я┘ URI п╫п╣ я┘п╡п╟я┌п╟п╣я┌ я─п╟п╥п╢п╣п╩п╦я┌п╣п╩я▐ п╨п╩я▌я┤п╟/п╥п╫п╟я┤п╣п╫п╦я▐ \"=\": \"%s\"\n"
-
-#: fe-connect.c:5585
-#, c-format
-msgid "invalid URI query parameter: \"%s\"\n"
-msgstr "п╫п╣п╡п╣я─п╫я▀п╧ п©п╟я─п╟п╪п╣я┌я─ п╡ URI: \"%s\"\n"
-
-#: fe-connect.c:5659
-#, c-format
-msgid "invalid percent-encoded token: \"%s\"\n"
-msgstr "п╫п╣п╡п╣я─п╫я▀п╧ я│п╦п╪п╡п╬п╩, п╥п╟п╨п╬п╢п╦я─п╬п╡п╟п╫п╫я▀п╧ я│ %%: \"%s\"\n"
-
-#: fe-connect.c:5669
-#, c-format
-msgid "forbidden value %%00 in percent-encoded value: \"%s\"\n"
-msgstr "п╫п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ п╥п╫п╟я┤п╣п╫п╦п╣ %%00 п╢п╩я▐ я│п╦п╪п╡п╬п╩п╟, п╥п╟п╨п╬п╢п╦я─п╬п╡п╟п╫п╫п╬пЁп╬ я│ %%: \"%s\"\n"
-
-#: fe-connect.c:6014
+#: fe-connect.c:2981
 msgid "connection pointer is NULL\n"
-msgstr "п╫я┐п╩п╣п╡п╬п╧ я┐п╨п╟п╥п╟я┌п╣п╩я▄ я│п╬п╣п╢п╦п╫п╣п╫п╦я▐\n"
+msgstr "указатель соединения является NULL\n"
 
-#: fe-connect.c:6312
+#: fe-connect.c:3238
 #, c-format
-msgid "WARNING: password file \"%s\" is not a plain file\n"
-msgstr "п÷п═п∙п■пёп÷п═п∙п√п■п∙п²п≤п∙: я└п╟п╧п╩ п©п╟я─п╬п╩п╣п╧ \"%s\" - п╫п╣ п╬п╠я▀я┤п╫я▀п╧ я└п╟п╧п╩\n"
+msgid "WARNING: Password file %s has world or group read access; permission should be u=rw (0600)\n"
+msgstr "ВНИМАНИЕ: Файл с паролями %s записан с правами чтения для всех или группы; права должны быть u=rw (0600)\n"
 
-#: fe-connect.c:6321
-#, c-format
-msgid ""
-"WARNING: password file \"%s\" has group or world access; permissions should "
-"be u=rw (0600) or less\n"
-msgstr ""
-"п÷п═п∙п■пёп÷п═п∙п√п■п∙п²п≤п∙: п╨ я└п╟п╧п╩я┐ п©п╟я─п╬п╩п╣п╧ \"%s\" п╦п╪п╣я▌я┌ п╢п╬я│я┌я┐п© п╡я│п╣ п╦п╩п╦ пЁя─я┐п©п©п╟; п©я─п╟п╡п╟ "
-"п╢п╬п╩п╤п╫я▀ п╠я▀я┌я▄ u=rw (0600) п╦п╩п╦ п╠п╬п╩п╣п╣ п╬пЁя─п╟п╫п╦я┤п╣п╫п╫я▀п╣\n"
-
-#: fe-connect.c:6413
-#, c-format
-msgid "password retrieved from file \"%s\"\n"
-msgstr "п©п╟я─п╬п╩я▄ п©п╬п╩я┐я┤п╣п╫ п╦п╥ я└п╟п╧п╩п╟ \"%s\"\n"
-
-#: fe-exec.c:826
+#: fe-exec.c:479
 msgid "NOTICE"
-msgstr "п≈п░п°п∙п╖п░п²п≤п∙"
+msgstr "NOTICE"
 
-#: fe-exec.c:1141 fe-exec.c:1199 fe-exec.c:1245
+#: fe-exec.c:648
+#: fe-exec.c:700
+#: fe-exec.c:740
 msgid "command string is a null pointer\n"
-msgstr "я┐п╨п╟п╥п╟я┌п╣п╩я▄ п╫п╟ п╨п╬п╪п╟п╫п╢п╫я┐я▌ я│я┌я─п╬п╨я┐ п╫я┐п╩п╣п╡п╬п╧\n"
+msgstr "командная строка является нулевым указателем\n"
 
-#: fe-exec.c:1205 fe-exec.c:1251 fe-exec.c:1346
-msgid "number of parameters must be between 0 and 65535\n"
-msgstr "я┤п╦я│п╩п╬ п©п╟я─п╟п╪п╣я┌я─п╬п╡ п╢п╬п╩п╤п╫п╬ п╠я▀я┌я▄ п╬я┌ 0 п╢п╬ 65535\n"
-
-#: fe-exec.c:1239 fe-exec.c:1340
+#: fe-exec.c:733
+#: fe-exec.c:823
 msgid "statement name is a null pointer\n"
-msgstr "я┐п╨п╟п╥п╟я┌п╣п╩я▄ п╫п╟ п╦п╪я▐ п╬п©п╣я─п╟я┌п╬я─п╟ п╫я┐п╩п╣п╡п╬п╧\n"
+msgstr "имя команды является нулевым указателем\n"
 
-#: fe-exec.c:1259 fe-exec.c:1422 fe-exec.c:2140 fe-exec.c:2339
+#: fe-exec.c:748
+#: fe-exec.c:897
+#: fe-exec.c:1572
 msgid "function requires at least protocol version 3.0\n"
-msgstr "я└я┐п╫п╨я├п╦я▐ я┌я─п╣п╠я┐п╣я┌ п©я─п╬я┌п╬п╨п╬п╩ п╪п╦п╫п╦п╪я┐п╪ п╡п╣я─я│п╦п╦ 3.0\n"
+msgstr "функция требует как минимум версию протокола 3.0\n"
 
-#: fe-exec.c:1377
+#: fe-exec.c:854
 msgid "no connection to the server\n"
-msgstr "п╫п╣я┌ я│п╬п╣п╢п╦п╫п╣п╫п╦я▐ я│ я│п╣я─п╡п╣я─п╬п╪\n"
+msgstr "нет соединения с сервером\n"
 
-#: fe-exec.c:1384
+#: fe-exec.c:861
 msgid "another command is already in progress\n"
-msgstr "я┐п╤п╣ п╡я▀п©п╬п╩п╫я▐п╣я┌я│я▐ п╢я─я┐пЁп╟я▐ п╨п╬п╪п╟п╫п╢п╟\n"
+msgstr "другая команда уже выполняется\n"
 
-#: fe-exec.c:1498
-msgid "length must be given for binary parameter\n"
-msgstr "п╢п╩я▐ п╢п╡п╬п╦я┤п╫п╬пЁп╬ п©п╟я─п╟п╪п╣я┌я─п╟ п╢п╬п╩п╤п╫п╟ п╠я▀я┌я▄ я┐п╨п╟п╥п╟п╫п╟ п╢п╩п╦п╫п╟\n"
-
-#: fe-exec.c:1770
+#: fe-exec.c:1199
 #, c-format
 msgid "unexpected asyncStatus: %d\n"
-msgstr "п╫п╣п╬п╤п╦п╢п╟п╫п╫я▀п╧ asyncStatus: %d\n"
+msgstr "неожиданный asyncStatus: %d\n"
 
-#: fe-exec.c:1790
-#, c-format
-msgid "PGEventProc \"%s\" failed during PGEVT_RESULTCREATE event\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п╡ PGEventProc \"%s\" п©я─п╦ п╬п╠я─п╟п╠п╬я┌п╨п╣ я│п╬п╠я▀я┌п╦я▐ PGEVT_RESULTCREATE\n"
-
-#: fe-exec.c:1950
+#: fe-exec.c:1326
 msgid "COPY terminated by new PQexec"
-msgstr "п╬п©п╣я─п╟я├п╦я▐ COPY п©я─п╣я─п╡п╟п╫п╟ п╡я▀п╥п╬п╡п╬п╪ PQexec"
+msgstr "COPY прекращена новой PQexec"
 
-#: fe-exec.c:1958
+#: fe-exec.c:1334
 msgid "COPY IN state must be terminated first\n"
-msgstr "я│п╫п╟я┤п╟п╩п╟ п╢п╬п╩п╤п╫п╬ п╥п╟п╡п╣я─я┬п╦я┌я▄я│я▐ я│п╬я│я┌п╬я▐п╫п╦п╣ COPY IN\n"
+msgstr "Сначала, состояние COPY IN должно завершиться\n"
 
-#: fe-exec.c:1978
+#: fe-exec.c:1354
 msgid "COPY OUT state must be terminated first\n"
-msgstr "я│п╫п╟я┤п╟п╩п╟ п╢п╬п╩п╤п╫п╬ п╥п╟п╡п╣я─я┬п╦я┌я▄я│я▐ я│п╬я│я┌п╬я▐п╫п╦п╣ COPY OUT\n"
+msgstr "Сначала, состояние COPY OUT должно завершиться\n"
 
-#: fe-exec.c:1986
-msgid "PQexec not allowed during COPY BOTH\n"
-msgstr "п╡я▀п╥п╬п╡ PQexec п╫п╣ п╢п╬п©я┐я│п╨п╟п╣я┌я│я▐ п╡ п©я─п╬я├п╣я│я│п╣ COPY BOTH\n"
-
-#: fe-exec.c:2229 fe-exec.c:2296 fe-exec.c:2386 fe-protocol2.c:1352
-#: fe-protocol3.c:1817
+#: fe-exec.c:1464
+#: fe-exec.c:1529
+#: fe-exec.c:1614
+#: fe-protocol2.c:1153
+#: fe-protocol3.c:1115
 msgid "no COPY in progress\n"
-msgstr "п╬п©п╣я─п╟я├п╦я▐ COPY п╫п╣ п╡я▀п©п╬п╩п╫я▐п╣я┌я│я▐\n"
+msgstr "COPY не выполняется\n"
 
-#: fe-exec.c:2576
+#: fe-exec.c:1806
 msgid "connection in wrong state\n"
-msgstr "я│п╬п╣п╢п╦п╫п╣п╫п╦п╣ п╡ п╫п╣п©я─п╟п╡п╦п╩я▄п╫п╬п╪ я│п╬я│я┌п╬я▐п╫п╦п╦\n"
+msgstr "соединение в неправильном состоянии\n"
 
-#: fe-exec.c:2607
+#: fe-exec.c:1837
 msgid "invalid ExecStatusType code"
-msgstr "п╫п╣п╡п╣я─п╫я▀п╧ п╨п╬п╢ ExecStatusType"
+msgstr "неверный код ExecStatusType"
 
-#: fe-exec.c:2634
-msgid "PGresult is not an error result\n"
-msgstr "п▓ PGresult п╫п╣ п©п╣я─п╣п╢п╟п╫ я─п╣п╥я┐п╩я▄я┌п╟я┌ п╬я┬п╦п╠п╨п╦\n"
-
-#: fe-exec.c:2709 fe-exec.c:2732
+#: fe-exec.c:1901
+#: fe-exec.c:1924
 #, c-format
 msgid "column number %d is out of range 0..%d"
-msgstr "п╫п╬п╪п╣я─ я│я┌п╬п╩п╠я├п╟ %d п╡п╫п╣ п╢п╦п╟п©п╟п╥п╬п╫п╟ 0..%d"
+msgstr "номер колонки %d вне диапазона 0..%d"
 
-#: fe-exec.c:2725
+#: fe-exec.c:1917
 #, c-format
 msgid "row number %d is out of range 0..%d"
-msgstr "п╫п╬п╪п╣я─ п╥п╟п©п╦я│п╦ %d п╡п╫п╣ п╢п╦п╟п©п╟п╥п╬п╫п╟ 0..%d"
+msgstr "номер записи %d вне диапазона 0..%d"
 
-#: fe-exec.c:2747
-#, c-format
-msgid "parameter number %d is out of range 0..%d"
-msgstr "п╫п╬п╪п╣я─ п©п╟я─п╟п╪п╣я┌я─п╟ %d п╡п╫п╣ п╢п╦п╟п©п╟п╥п╬п╫п╟ 0..%d"
-
-#: fe-exec.c:3057
+#: fe-exec.c:2199
 #, c-format
 msgid "could not interpret result from server: %s"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╦п╫я┌п╣я─п©я─п╣я┌п╦я─п╬п╡п╟я┌я▄ п╬я┌п╡п╣я┌ я│п╣я─п╡п╣я─п╟: %s"
+msgstr "не в состоянии интерпретировать ответ сервера: %s"
 
-#: fe-exec.c:3296 fe-exec.c:3380
-msgid "incomplete multibyte character\n"
-msgstr "п╫п╣п©п╬п╩п╫я▀п╧ п╪п╫п╬пЁп╬п╠п╟п╧я┌п╫я▀п╧ я│п╦п╪п╡п╬п╩\n"
-
-#: fe-lobj.c:155
-msgid "cannot determine OID of function lo_truncate\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_truncate\n"
-
-#: fe-lobj.c:171
-msgid "argument of lo_truncate exceeds integer range\n"
-msgstr "п╟я─пЁя┐п╪п╣п╫я┌ lo_truncate п╫п╣ я┐п╪п╣я┴п╟п╣я┌я│я▐ п╡ п╬п╠я▀я┤п╫п╬п╪ я├п╣п╩п╬п╪\n"
-
-#: fe-lobj.c:222
-msgid "cannot determine OID of function lo_truncate64\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_truncate64\n"
-
-#: fe-lobj.c:280
-msgid "argument of lo_read exceeds integer range\n"
-msgstr "п╟я─пЁя┐п╪п╣п╫я┌ lo_read п╫п╣ я┐п╪п╣я┴п╟п╣я┌я│я▐ п╡ п╬п╠я▀я┤п╫п╬п╪ я├п╣п╩п╬п╪\n"
-
-#: fe-lobj.c:335
-msgid "argument of lo_write exceeds integer range\n"
-msgstr "п╟я─пЁя┐п╪п╣п╫я┌ lo_write п╫п╣ я┐п╪п╣я┴п╟п╣я┌я│я▐ п╡ п╬п╠я▀я┤п╫п╬п╪ я├п╣п╩п╬п╪\n"
-
-#: fe-lobj.c:426
-msgid "cannot determine OID of function lo_lseek64\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_lseek64\n"
-
-#: fe-lobj.c:522
-msgid "cannot determine OID of function lo_create\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_create\n"
-
-#: fe-lobj.c:601
-msgid "cannot determine OID of function lo_tell64\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_tell64\n"
-
-#: fe-lobj.c:707 fe-lobj.c:816
+#: fe-lobj.c:410
+#: fe-lobj.c:495
 #, c-format
 msgid "could not open file \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬я┌п╨я─я▀я┌я▄ я└п╟п╧п╩ \"%s\": %s\n"
+msgstr "не в состоянии открыть файл \"%s\": %s\n"
 
-#: fe-lobj.c:762
+#: fe-lobj.c:422
 #, c-format
-msgid "could not read from file \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©я─п╬я┤п╦я┌п╟я┌я▄ я└п╟п╧п╩ \"%s\": %s\n"
+msgid "could not create large object for file \"%s\"\n"
+msgstr "не в состоянии создать большой объект (LO) для файла \"%s\"\n"
 
-#: fe-lobj.c:836 fe-lobj.c:860
+#: fe-lobj.c:432
+#: fe-lobj.c:482
 #, c-format
-msgid "could not write to file \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╥п╟п©п╦я│п╟я┌я▄ я└п╟п╧п╩ \"%s\": %s\n"
+msgid "could not open large object %u\n"
+msgstr "не в состоянии открыть большой объект (LO) %u\n"
 
-#: fe-lobj.c:947
+#: fe-lobj.c:447
+#, c-format
+msgid "error while reading file \"%s\"\n"
+msgstr "ошибка при чтении файла \"%s\"\n"
+
+#: fe-lobj.c:510
+#: fe-lobj.c:523
+#, c-format
+msgid "error while writing to file \"%s\"\n"
+msgstr "ошибка при записи в файл \"%s\"\n"
+
+#: fe-lobj.c:601
 msgid "query to initialize large object functions did not return data\n"
-msgstr "п╥п╟п©я─п╬я│ п╦п╫п╦я├п╦п╟п╩п╦п╥п╟я├п╦п╦ я└я┐п╫п╨я├п╦п╧ п╢п╩я▐ п╠п╬п╩я▄я┬п╦я┘ п╬п╠я┼п╣п╨я┌п╬п╡ п╫п╣ п╡п╣я─п╫я┐п╩ п╢п╟п╫п╫я▀п╣\n"
+msgstr "запрос об инициализации функций для больших объектов (LOs) не вернул данных\n"
 
-#: fe-lobj.c:996
+#: fe-lobj.c:639
 msgid "cannot determine OID of function lo_open\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_open\n"
+msgstr "не в состоянии определить OID функции lo_open\n"
 
-#: fe-lobj.c:1003
+#: fe-lobj.c:646
 msgid "cannot determine OID of function lo_close\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_close\n"
+msgstr "не в состоянии определить OID функции lo_close\n"
 
-#: fe-lobj.c:1010
+#: fe-lobj.c:653
 msgid "cannot determine OID of function lo_creat\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_creat\n"
+msgstr "не в состоянии определить OID функции lo_creat\n"
 
-#: fe-lobj.c:1017
+#: fe-lobj.c:660
 msgid "cannot determine OID of function lo_unlink\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_unlink\n"
+msgstr "не в состоянии определить OID функции lo_unlink\n"
 
-#: fe-lobj.c:1024
+#: fe-lobj.c:667
 msgid "cannot determine OID of function lo_lseek\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_lseek\n"
+msgstr "не в состоянии определить OID функции lo_lseek\n"
 
-#: fe-lobj.c:1031
+#: fe-lobj.c:674
 msgid "cannot determine OID of function lo_tell\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lo_tell\n"
+msgstr "не в состоянии определить OID функции lo_tell\n"
 
-#: fe-lobj.c:1038
+#: fe-lobj.c:681
 msgid "cannot determine OID of function loread\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ loread\n"
+msgstr "не в состоянии определить OID функции loread\n"
 
-#: fe-lobj.c:1045
+#: fe-lobj.c:688
 msgid "cannot determine OID of function lowrite\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬п©я─п╣п╢п╣п╩п╦я┌я▄ OID я└я┐п╫п╨я├п╦п╦ lowrite\n"
+msgstr "не в состоянии определить OID функции lowrite\n"
 
-#: fe-misc.c:295
+#: fe-misc.c:228
 #, c-format
 msgid "integer of size %lu not supported by pqGetInt"
-msgstr "я└я┐п╫п╨я├п╦я▐ pqGetInt п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌ integer я─п╟п╥п╪п╣я─п╬п╪ %lu п╠п╟п╧я┌"
+msgstr "тип integer длиной %lu байт не поддерживается функцией pqGetInt"
 
-#: fe-misc.c:331
+#: fe-misc.c:264
 #, c-format
 msgid "integer of size %lu not supported by pqPutInt"
-msgstr "я└я┐п╫п╨я├п╦я▐ pqPutInt п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌ integer я─п╟п╥п╪п╣я─п╬п╪ %lu п╠п╟п╧я┌"
+msgstr "тип integer длиной %lu байт не поддерживается функцией pqPutInt"
 
-#: fe-misc.c:642 fe-misc.c:843
+#: fe-misc.c:544
+#: fe-misc.c:748
 msgid "connection not open\n"
-msgstr "я│п╬п╣п╢п╦п╫п╣п╫п╦п╣ п╫п╣ п╬я┌п╨я─я▀я┌п╬\n"
+msgstr "соединение не открыто\n"
 
-#: fe-misc.c:812 fe-secure-openssl.c:229 fe-secure-openssl.c:338
-#: fe-secure.c:253 fe-secure.c:362
+#: fe-misc.c:610
+#: fe-misc.c:701
+#, c-format
+msgid "could not receive data from server: %s\n"
+msgstr "ошибка при получении данных с сервера: %s\n"
+
+#: fe-misc.c:718
+#: fe-misc.c:786
 msgid ""
 "server closed the connection unexpectedly\n"
 "\tThis probably means the server terminated abnormally\n"
 "\tbefore or while processing the request.\n"
 msgstr ""
-"я│п╣я─п╡п╣я─ п╫п╣п╬п╤п╦п╢п╟п╫п╫п╬ п╥п╟п╨я─я▀п╩ я│п╬п╣п╢п╦п╫п╣п╫п╦п╣\n"
-"\tп║п╨п╬я─п╣п╣ п╡я│п╣пЁп╬ я│п╣я─п╡п╣я─ п©я─п╣п╨я─п╟я┌п╦п╩ я─п╟п╠п╬я┌я┐ п╦п╥-п╥п╟ я│п╠п╬я▐\n"
-"\tп╢п╬ п╦п╩п╦ п╡ п©я─п╬я├п╣я│я│п╣ п╡я▀п©п╬п╩п╫п╣п╫п╦я▐ п╥п╟п©я─п╬я│п╟.\n"
+"сервер неожиданно закрыл соединение\n"
+"\tСкорее всего это означает, что сервер завершил работу со сбоем\n"
+"\tдо или в процессе выполнения запроса.\n"
 
-#: fe-misc.c:1016
+#: fe-misc.c:803
+#, c-format
+msgid "could not send data to server: %s\n"
+msgstr "не удалось послать данные серверу: %s\n"
+
+#: fe-misc.c:923
 msgid "timeout expired\n"
-msgstr "я┌п╟п╧п╪п╟я┐я┌\n"
+msgstr "интервал ожидания закончился\n"
 
-#: fe-misc.c:1061
-msgid "invalid socket\n"
-msgstr "п╫п╣п╡п╣я─п╫я▀п╧ я│п╬п╨п╣я┌\n"
+#: fe-misc.c:968
+msgid "socket not open\n"
+msgstr "сокет не открыт\n"
 
-#: fe-misc.c:1084
+#: fe-misc.c:991
 #, c-format
 msgid "select() failed: %s\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п╡ select(): %s\n"
+msgstr "select() не удался: %s\n"
 
 #: fe-protocol2.c:91
 #, c-format
 msgid "invalid setenv state %c, probably indicative of memory corruption\n"
-msgstr "п╫п╣п╡п╣я─п╫п╬п╣ я│п╬я│я┌п╬я▐п╫п╦п╣ setenv %c - п╡п╬п╥п╪п╬п╤п╫п╬ я─п╟п╥я─я┐я┬п╣п╫п╦п╣ п©п╟п╪я▐я┌п╦\n"
+msgstr "неверное состояние setenv %c, возможный указатель на нарушение целостности памяти\n"
 
-#: fe-protocol2.c:390
+#: fe-protocol2.c:333
 #, c-format
 msgid "invalid state %c, probably indicative of memory corruption\n"
-msgstr "п╫п╣п╡п╣я─п╫п╬п╣ я│п╬я│я┌п╬я▐п╫п╦п╣ %c - п╡п╬п╥п╪п╬п╤п╫п╬ я─п╟п╥я─я┐я┬п╣п╫п╦п╣ п©п╟п╪я▐я┌п╦\n"
+msgstr "неверное состояние %c, возможный указатель на нарушение целостности памяти\n"
 
-#: fe-protocol2.c:479 fe-protocol3.c:186
+#: fe-protocol2.c:423
+#: fe-protocol3.c:183
 #, c-format
 msgid "message type 0x%02x arrived from server while idle"
-msgstr "п╬я┌ я│п╣я─п╡п╣я─п╟ п╡п╬ п╡я─п╣п╪я▐ п©я─п╬я│я┌п╬я▐ п©п╬п╩я┐я┤п╣п╫п╬ я│п╬п╬п╠я┴п╣п╫п╦п╣ я┌п╦п©п╟ 0x%02x"
+msgstr "сообщение типа 0x%02x прибыло от сервера во время простоя"
 
-#: fe-protocol2.c:503 fe-protocol2.c:538 fe-protocol2.c:1049 fe-protocol3.c:209
-#: fe-protocol3.c:236 fe-protocol3.c:253 fe-protocol3.c:333 fe-protocol3.c:728
-#: fe-protocol3.c:951
-msgid "out of memory"
-msgstr "п╫п╣я┘п╡п╟я┌п╨п╟ п©п╟п╪я▐я┌п╦"
-
-#: fe-protocol2.c:529
+#: fe-protocol2.c:462
 #, c-format
 msgid "unexpected character %c following empty query response (\"I\" message)"
-msgstr "п╫п╣п╬п╤п╦п╢п╟п╫п╫я▀п╧ я│п╦п╪п╡п╬п╩ %c п╡я│п╩п╣п╢ п╥п╟ п©я┐я│я┌я▀п╪ п╬я┌п╡п╣я┌п╬п╪ (я│п╬п╬п╠я┴п╣п╫п╦п╣ \"I\")"
+msgstr "неожиданный символ %c вслед за пустым ответом (сообщение \"I\")"
 
-#: fe-protocol2.c:595
-#, c-format
-msgid ""
-"server sent data (\"D\" message) without prior row description (\"T\" "
-"message)"
-msgstr ""
-"я│п╣я─п╡п╣я─ п╬я┌п©я─п╟п╡п╦п╩ п╢п╟п╫п╫я▀п╣ (я│п╬п╬п╠я┴п╣п╫п╦п╣ \"D\") п╠п╣п╥ п©я─п╣п╢п╡п╟я─п╦я┌п╣п╩я▄п╫п╬пЁп╬ п╬п©п╦я│п╟п╫п╦я▐ "
-"я│я┌я─п╬п╨п╦ (я│п╬п╬п╠я┴п╣п╫п╦п╣ \"T\")"
+#: fe-protocol2.c:517
+msgid "server sent data (\"D\" message) without prior row description (\"T\" message)"
+msgstr "сервер отправил данные (сообщение \"D\") без предварительного строки описания (сообщение \"T\")"
 
-#: fe-protocol2.c:613
-#, c-format
-msgid ""
-"server sent binary data (\"B\" message) without prior row description (\"T\" "
-"message)"
-msgstr ""
-"я│п╣я─п╡п╣я─ п╬я┌п©я─п╟п╡п╦п╩ п╢п╡п╬п╦я┤п╫я▀п╣ п╢п╟п╫п╫я▀п╣ (я│п╬п╬п╠я┴п╣п╫п╦п╣ \"B\") п╠п╣п╥ п©я─п╣п╢п╡п╟я─п╦я┌п╣п╩я▄п╫п╬пЁп╬ "
-"п╬п©п╦я│п╟п╫п╦я▐ я│я┌я─п╬п╨п╦ (я│п╬п╬п╠я┴п╣п╫п╦п╣ \"T\")"
+#: fe-protocol2.c:533
+msgid "server sent binary data (\"B\" message) without prior row description (\"T\" message)"
+msgstr "сервер отправил двоичные данные (сообщение \"B\") без предварительного строки описания (сообщение \"T\")"
 
-#: fe-protocol2.c:633 fe-protocol3.c:412
+#: fe-protocol2.c:548
+#: fe-protocol3.c:344
 #, c-format
 msgid "unexpected response from server; first received character was \"%c\"\n"
-msgstr "п╫п╣п╬п╤п╦п╢п╟п╫п╫я▀п╧ п╬я┌п╡п╣я┌ я│п╣я─п╡п╣я─п╟; п©п╣я─п╡я▀п╧ п©п╬п╩я┐я┤п╣п╫п╫я▀п╧ я│п╦п╪п╡п╬п╩: \"%c\"\n"
+msgstr "неожиданный ответ сервера; первый полученный символ: \"%c\"\n"
 
-#: fe-protocol2.c:762 fe-protocol2.c:937 fe-protocol3.c:627 fe-protocol3.c:854
-msgid "out of memory for query result"
-msgstr "п╫п╣п╢п╬я│я┌п╟я┌п╬я┤п╫п╬ п©п╟п╪я▐я┌п╦ п╢п╩я▐ я─п╣п╥я┐п╩я▄я┌п╟я┌п╟ п╥п╟п©я─п╬я│п╟"
+#: fe-protocol2.c:760
+#: fe-protocol3.c:577
+msgid "out of memory for query result\n"
+msgstr "недостаточно памяти для результата запроса\n"
 
-#: fe-protocol2.c:1395 fe-protocol3.c:1886
+#: fe-protocol2.c:1196
+#: fe-protocol3.c:1184
 #, c-format
 msgid "%s"
 msgstr "%s"
 
-#: fe-protocol2.c:1407
-#, c-format
+#: fe-protocol2.c:1208
 msgid "lost synchronization with server, resetting connection"
-msgstr "п©п╬я┌п╣я─я▐п╫п╟ я│п╦п╫я┘я─п╬п╫п╦п╥п╟я├п╦я▐ я│ я│п╣я─п╡п╣я─п╬п╪; п©п╬п©я▀я┌п╨п╟ п╡п╬я│я│я┌п╟п╫п╬п╡п╦я┌я▄ я│п╬п╣п╢п╦п╫п╣п╫п╦п╣"
+msgstr "потеряна синхронизация с сервером; переустановка соединения"
 
-#: fe-protocol2.c:1541 fe-protocol2.c:1573 fe-protocol3.c:2089
+#: fe-protocol2.c:1343
+#: fe-protocol2.c:1375
+#: fe-protocol3.c:1387
 #, c-format
 msgid "protocol error: id=0x%x\n"
-msgstr "п╬я┬п╦п╠п╨п╟ п©я─п╬я┌п╬п╨п╬п╩п╟: id=0x%x\n"
+msgstr "ошибка протокола: id=0x%x\n"
 
-#: fe-protocol3.c:368
-msgid ""
-"server sent data (\"D\" message) without prior row description (\"T\" "
-"message)\n"
-msgstr ""
-"я│п╣я─п╡п╣я─ п╬я┌п©я─п╟п╡п╦п╩ п╢п╟п╫п╫я▀п╣ (я│п╬п╬п╠я┴п╣п╫п╦п╣ \"D\") п╠п╣п╥ п©я─п╣п╢п╡п╟я─п╦я┌п╣п╩я▄п╫п╬пЁп╬ п╬п©п╦я│п╟п╫п╦я▐ "
-"я│я┌я─п╬п╨п╦ (я│п╬п╬п╠я┴п╣п╫п╦п╣ \"T\")\n"
+#: fe-protocol3.c:306
+msgid "server sent data (\"D\" message) without prior row description (\"T\" message)\n"
+msgstr "сервер отправил данные (сообщение \"D\") без предварительного строки описания (сообщение \"T\")\n"
 
-#: fe-protocol3.c:433
+#: fe-protocol3.c:365
 #, c-format
 msgid "message contents do not agree with length in message type \"%c\"\n"
-msgstr "я│п╬п╢п╣я─п╤п╦п╪п╬п╣ п╫п╣ я│п╬п╬я┌п╡п╣я┌я│я┌п╡я┐п╣я┌ п╢п╩п╦п╫п╣ п╡ я│п╬п╬п╠я┴п╣п╫п╦п╦ я┌п╦п©п╟ \"%c\"\n"
+msgstr "содержимое сообщения не согласуется с длиной в сообщении типа \"%c\"\n"
 
-#: fe-protocol3.c:454
+#: fe-protocol3.c:386
 #, c-format
 msgid "lost synchronization with server: got message type \"%c\", length %d\n"
-msgstr ""
-"п©п╬я┌п╣я─я▐п╫п╟ я│п╦п╫я┘я─п╬п╫п╦п╥п╟я├п╦я▐ я│ я│п╣я─п╡п╣я─п╬п╪: п©п╬п╩я┐я┤п╣п╫п╬ я│п╬п╬п╠я┴п╣п╫п╦п╣ я┌п╦п©п╟ \"%c\", п╢п╩п╦п╫п╟ %d\n"
+msgstr "потеряна синхронизация с сервером: получено сообщение типа \"%c\", длина %d\n"
 
-#: fe-protocol3.c:505 fe-protocol3.c:545
-msgid "insufficient data in \"T\" message"
-msgstr "п╫п╣п╢п╬я│я┌п╟я┌п╬я┤п╫п╬ п╢п╟п╫п╫я▀я┘ п╡ я│п╬п╬п╠я┴п╣п╫п╦п╦ \"T\""
-
-#: fe-protocol3.c:578
-msgid "extraneous data in \"T\" message"
-msgstr "п╩п╦я┬п╫п╦п╣ п╢п╟п╫п╫я▀п╣ п╡ я│п╬п╬п╠я┴п╣п╫п╦п╦ \"T\""
-
-#: fe-protocol3.c:691
-msgid "extraneous data in \"t\" message"
-msgstr "п╩п╦я┬п╫п╦п╣ п╢п╟п╫п╫я▀п╣ п╡ я│п╬п╬п╠я┴п╣п╫п╦п╦ \"t\""
-
-#: fe-protocol3.c:762 fe-protocol3.c:794 fe-protocol3.c:812
-msgid "insufficient data in \"D\" message"
-msgstr "п╫п╣п╢п╬я│я┌п╟я┌п╬я┤п╫п╬ п╢п╟п╫п╫я▀я┘ п╡ я│п╬п╬п╠я┴п╣п╫п╦п╦ \"D\""
-
-#: fe-protocol3.c:768
-msgid "unexpected field count in \"D\" message"
-msgstr "п╫п╣п╡п╣я─п╫п╬п╣ я┤п╦я│п╩п╬ п©п╬п╩п╣п╧ п╡ я│п╬п╬п╠я┴п╣п╫п╦п╦ \"D\""
-
-#: fe-protocol3.c:821
-msgid "extraneous data in \"D\" message"
-msgstr "п╩п╦я┬п╫п╦п╣ п╢п╟п╫п╫я▀п╣ п╡ я│п╬п╬п╠я┴п╣п╫п╦п╦ \"D\""
-
-#: fe-protocol3.c:1005
-msgid "no error message available\n"
-msgstr "п╫п╣я┌ я│п╬п╬п╠я┴п╣п╫п╦я▐ п╬п╠ п╬я┬п╦п╠п╨п╣\n"
+#: fe-protocol3.c:522
+msgid "unexpected field count in \"D\" message\n"
+msgstr "неожиданное число полей в собщении \"D\"\n"
 
 #. translator: %s represents a digit string
-#: fe-protocol3.c:1035 fe-protocol3.c:1054
+#: fe-protocol3.c:651
+#: fe-protocol3.c:659
 #, c-format
 msgid " at character %s"
-msgstr " я│п╦п╪п╡п╬п╩ %s"
+msgstr " у символа %s"
 
-#: fe-protocol3.c:1067
+#: fe-protocol3.c:668
 #, c-format
 msgid "DETAIL:  %s\n"
-msgstr "п÷п·п■п═п·п▒п²п·п║п╒п≤:  %s\n"
+msgstr "ПОДРОБНО:  %s\n"
 
-#: fe-protocol3.c:1070
+#: fe-protocol3.c:671
 #, c-format
 msgid "HINT:  %s\n"
-msgstr "п÷п·п■п║п п░п≈п п░:  %s\n"
+msgstr "ПОДСКАЗКА:  %s\n"
 
-#: fe-protocol3.c:1073
+#: fe-protocol3.c:674
 #, c-format
 msgid "QUERY:  %s\n"
-msgstr "п≈п░п÷п═п·п║:  %s\n"
+msgstr "ЗАПРОС:  %s\n"
 
-#: fe-protocol3.c:1080
+#: fe-protocol3.c:677
 #, c-format
 msgid "CONTEXT:  %s\n"
-msgstr "п п·п²п╒п∙п п║п╒:  %s\n"
+msgstr "КОНТЕКСТ:  %s\n"
 
-#: fe-protocol3.c:1089
-#, c-format
-msgid "SCHEMA NAME:  %s\n"
-msgstr "п║п╔п∙п°п░:  %s\n"
-
-#: fe-protocol3.c:1093
-#, c-format
-msgid "TABLE NAME:  %s\n"
-msgstr "п╒п░п▒п⌡п≤п╕п░:  %s\n"
-
-#: fe-protocol3.c:1097
-#, c-format
-msgid "COLUMN NAME:  %s\n"
-msgstr "п║п╒п·п⌡п▒п∙п╕:  %s\n"
-
-#: fe-protocol3.c:1101
-#, c-format
-msgid "DATATYPE NAME:  %s\n"
-msgstr "п╒п≤п÷ п■п░п²п²п╚п╔:  %s\n"
-
-#: fe-protocol3.c:1105
-#, c-format
-msgid "CONSTRAINT NAME:  %s\n"
-msgstr "п·п⌠п═п░п²п≤п╖п∙п²п≤п∙:  %s\n"
-
-#: fe-protocol3.c:1117
+#: fe-protocol3.c:689
 msgid "LOCATION:  "
-msgstr "п÷п·п⌡п·п√п∙п²п≤п∙:  "
+msgstr "РАСПОЛОЖЕНИЕ:  "
 
-#: fe-protocol3.c:1119
+#: fe-protocol3.c:691
 #, c-format
 msgid "%s, "
 msgstr "%s, "
 
-#: fe-protocol3.c:1121
+#: fe-protocol3.c:693
 #, c-format
 msgid "%s:%s"
 msgstr "%s:%s"
 
-#: fe-protocol3.c:1316
-#, c-format
-msgid "LINE %d: "
-msgstr "п║п╒п═п·п п░ %d: "
-
-#: fe-protocol3.c:1711
+#: fe-protocol3.c:1000
 msgid "PQgetline: not doing text COPY OUT\n"
-msgstr "PQgetline п╪п╬п╤п╫п╬ п╡я▀п╥я▀п╡п╟я┌я▄ я┌п╬п╩я▄п╨п╬ п╡п╬ п╡я─п╣п╪я▐ COPY OUT я│ я┌п╣п╨я│я┌п╬п╪\n"
+msgstr "PQgetline: не производится текстовый COPY OUT\n"
 
-#: fe-secure-openssl.c:234 fe-secure-openssl.c:343 fe-secure-openssl.c:1321
-#, c-format
-msgid "SSL SYSCALL error: %s\n"
-msgstr "п╬я┬п╦п╠п╨п╟ SSL SYSCALL: %s\n"
-
-#: fe-secure-openssl.c:241 fe-secure-openssl.c:350 fe-secure-openssl.c:1325
-msgid "SSL SYSCALL error: EOF detected\n"
-msgstr "п╬я┬п╦п╠п╨п╟ SSL SYSCALL: п╨п╬п╫п╣я├ я└п╟п╧п╩п╟ (EOF)\n"
-
-#: fe-secure-openssl.c:252 fe-secure-openssl.c:361 fe-secure-openssl.c:1334
-#, c-format
-msgid "SSL error: %s\n"
-msgstr "п╬я┬п╦п╠п╨п╟ SSL: %s\n"
-
-#: fe-secure-openssl.c:267 fe-secure-openssl.c:376
-msgid "SSL connection has been closed unexpectedly\n"
-msgstr "SSL-я│п╬п╣п╢п╦п╫п╣п╫п╦п╣ п╠я▀п╩п╬ п╫п╣п╬п╤п╦п╢п╟п╫п╫п╬ п╥п╟п╨я─я▀я┌п╬\n"
-
-#: fe-secure-openssl.c:273 fe-secure-openssl.c:382 fe-secure-openssl.c:1343
-#, c-format
-msgid "unrecognized SSL error code: %d\n"
-msgstr "п╫п╣я─п╟я│п©п╬п╥п╫п╟п╫п╫я▀п╧ п╨п╬п╢ п╬я┬п╦п╠п╨п╦ SSL: %d\n"
-
-#: fe-secure-openssl.c:494
-msgid "SSL certificate's name entry is missing\n"
-msgstr "п╥п╟п©п╦я│я▄ п╦п╪п╣п╫п╦ п╡ SSL-я│п╣я─я┌п╦я└п╦п╨п╟я┌п╣ п╬я┌я│я┐я┌я│я┌п╡я┐п╣я┌\n"
-
-#: fe-secure-openssl.c:528
-msgid "SSL certificate's name contains embedded null\n"
-msgstr "п╦п╪я▐ п╡ SSL-я│п╣я─я┌п╦я└п╦п╨п╟я┌п╣ п╡п╨п╩я▌я┤п╟п╣я┌ п╫я┐п╩п╣п╡п╬п╧ п╠п╟п╧я┌\n"
-
-#: fe-secure-openssl.c:580
-msgid "host name must be specified for a verified SSL connection\n"
-msgstr "п╢п╩я▐ п©я─п╬п╡п╣я─п╣п╫п╫п╬пЁп╬ SSL-я│п╬п╣п╢п╦п╫п╣п╫п╦я▐ я┌я─п╣п╠я┐п╣я┌я│я▐ я┐п╨п╟п╥п╟я┌я▄ п╦п╪я▐ я┐п╥п╩п╟\n"
-
-#: fe-secure-openssl.c:680
-#, c-format
-msgid "server certificate for \"%s\" does not match host name \"%s\"\n"
-msgstr ""
-"я│п╣я─п╡п╣я─п╫я▀п╧ я│п╣я─я┌п╦я└п╦п╨п╟я┌ п╢п╩я▐ \"%s\" п╫п╣ я│п╬п╬я┌п╡п╣я┌я│я┌п╡я┐п╣я┌ п╦п╪п╣п╫п╦ я│п╣я─п╡п╣я─п╟ \"%s\"\n"
-
-#: fe-secure-openssl.c:686
-msgid "could not get server's host name from server certificate\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╦п╪я▐ я│п╣я─п╡п╣я─п╟ п╦п╥ я│п╣я─я┌п╦я└п╦п╨п╟я┌п╟\n"
-
-#: fe-secure-openssl.c:928
-#, c-format
-msgid "could not create SSL context: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ я│п╬п╥п╢п╟я┌я▄ п╨п╬п╫я┌п╣п╨я│я┌ SSL: %s\n"
-
-#: fe-secure-openssl.c:965
-#, c-format
-msgid "could not read root certificate file \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©я─п╬я┤п╦я┌п╟я┌я▄ я└п╟п╧п╩ п╨п╬я─п╫п╣п╡я▀я┘ я│п╣я─я┌п╦я└п╦п╨п╟я┌п╬п╡ \"%s\": %s\n"
-
-#: fe-secure-openssl.c:993
-#, c-format
-msgid "SSL library does not support CRL certificates (file \"%s\")\n"
-msgstr "п▒п╦п╠п╩п╦п╬я┌п╣п╨п╟ SSL п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌ п©я─п╬п╡п╣я─п╨я┐ CRL (я└п╟п╧п╩ \"%s\")\n"
-
-#: fe-secure-openssl.c:1021
-msgid ""
-"could not get home directory to locate root certificate file\n"
-"Either provide the file or change sslmode to disable server certificate "
-"verification.\n"
-msgstr ""
-"п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╢п╬п╪п╟я┬п╫п╦п╧ п╨п╟я┌п╟п╩п╬пЁ п╢п╩я▐ п©п╬п╦я│п╨п╟ я└п╟п╧п╩п╟ п╨п╬я─п╫п╣п╡я▀я┘ я│п╣я─я┌п╦я└п╦п╨п╟я┌п╬п╡\n"
-"пёп╨п╟п╤п╦я┌п╣ п©п╬п╩п╫я▀п╧ п©я┐я┌я▄ п╨ я└п╟п╧п╩я┐ п╦п╩п╦ п╬я┌п╨п╩я▌я┤п╦я┌п╣ п©я─п╬п╡п╣я─п╨я┐ я│п╣я─я┌п╦я└п╦п╨п╟я┌п╟ я│п╣я─п╡п╣я─п╟, "
-"п╦п╥п╪п╣п╫п╦п╡ sslmode.\n"
-
-#: fe-secure-openssl.c:1025
-#, c-format
-msgid ""
-"root certificate file \"%s\" does not exist\n"
-"Either provide the file or change sslmode to disable server certificate "
-"verification.\n"
-msgstr ""
-"я└п╟п╧п╩ п╨п╬я─п╫п╣п╡я▀я┘ я│п╣я─я┌п╦я└п╦п╨п╟я┌п╬п╡ \"%s\" п╫п╣ я│я┐я┴п╣я│я┌п╡я┐п╣я┌\n"
-"пёп╨п╟п╤п╦я┌п╣ п©п╬п╩п╫я▀п╧ п©я┐я┌я▄ п╨ я└п╟п╧п╩я┐ п╦п╩п╦ п╬я┌п╨п╩я▌я┤п╦я┌п╣ п©я─п╬п╡п╣я─п╨я┐ я│п╣я─я┌п╦я└п╦п╨п╟я┌п╟ я│п╣я─п╡п╣я─п╟, "
-"п╦п╥п╪п╣п╫п╦п╡ sslmode.\n"
-
-#: fe-secure-openssl.c:1056
-#, c-format
-msgid "could not open certificate file \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╬я┌п╨я─я▀я┌я▄ я└п╟п╧п╩ я│п╣я─я┌п╦я└п╦п╨п╟я┌п╟ \"%s\": %s\n"
-
-#: fe-secure-openssl.c:1075
-#, c-format
-msgid "could not read certificate file \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©я─п╬я┤п╦я┌п╟я┌я▄ я└п╟п╧п╩ я│п╣я─я┌п╦я└п╦п╨п╟я┌п╟ \"%s\": %s\n"
-
-#: fe-secure-openssl.c:1099
+#: fe-secure.c:264
 #, c-format
 msgid "could not establish SSL connection: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ я┐я│я┌п╟п╫п╬п╡п╦я┌я▄ SSL-я│п╬п╣п╢п╦п╫п╣п╫п╦п╣: %s\n"
+msgstr "не удалось установить SSL-соединение: %s\n"
 
-#: fe-secure-openssl.c:1153
+#: fe-secure.c:330
+#: fe-secure.c:415
+#: fe-secure.c:1038
 #, c-format
-msgid "could not load SSL engine \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╥п╟пЁя─я┐п╥п╦я┌я▄ п╪п╬п╢я┐п╩я▄ SSL ENGINE \"%s\": %s\n"
+msgid "SSL SYSCALL error: %s\n"
+msgstr "ошибка SSL SYSCALL: %s\n"
 
-#: fe-secure-openssl.c:1165
+#: fe-secure.c:335
+#: fe-secure.c:420
+#: fe-secure.c:1042
+msgid "SSL SYSCALL error: EOF detected\n"
+msgstr "ошибка SSL SYSCALL: обнаружен конец файла (EOF)\n"
+
+#: fe-secure.c:347
+#: fe-secure.c:431
+#: fe-secure.c:1051
 #, c-format
-msgid "could not initialize SSL engine \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╦п╫п╦я├п╦п╟п╩п╦п╥п╦я─п╬п╡п╟я┌я▄ п╪п╬п╢я┐п╩я▄ SSL ENGINE \"%s\": %s\n"
+msgid "SSL error: %s\n"
+msgstr "ошибка SSL: %s\n"
 
-#: fe-secure-openssl.c:1181
+#: fe-secure.c:357
+#: fe-secure.c:441
+#: fe-secure.c:1059
 #, c-format
-msgid "could not read private SSL key \"%s\" from engine \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©я─п╬я┤п╦я┌п╟я┌я▄ п╥п╟п╨я─я▀я┌я▀п╧ п╨п╩я▌я┤ SSL \"%s\" п╦п╥ п╪п╬п╢я┐п╩я▐ \"%s\": %s\n"
+msgid "unrecognized SSL error code: %d\n"
+msgstr "нераспознанный код ошибки SSL: %d\n"
 
-#: fe-secure-openssl.c:1195
+#: fe-secure.c:504
 #, c-format
-msgid "could not load private SSL key \"%s\" from engine \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╥п╟пЁя─я┐п╥п╦я┌я▄ п╥п╟п╨я─я▀я┌я▀п╧ п╨п╩я▌я┤ SSL \"%s\" п╦п╥ п╪п╬п╢я┐п╩я▐ \"%s\": %s\n"
+msgid "error querying socket: %s\n"
+msgstr "ошибка при запросе сокета: %s\n"
 
-#: fe-secure-openssl.c:1232
+#: fe-secure.c:532
+#, c-format
+msgid "could not get information about host \"%s\": %s\n"
+msgstr "не удалось получить информацию о хосте \"%s\": %s\n"
+
+#: fe-secure.c:551
+msgid "unsupported protocol\n"
+msgstr "протокол не поддерживается\n"
+
+#: fe-secure.c:573
+#, c-format
+msgid "server common name \"%s\" does not resolve to %ld.%ld.%ld.%ld\n"
+msgstr "имя сервера \"%s\" не транслируется в %ld.%ld.%ld.%ld\n"
+
+#: fe-secure.c:580
+#, c-format
+msgid "server common name \"%s\" does not resolve to peer address\n"
+msgstr "обычное имя сервера \"%s\" не резолвится в адрес\n"
+
+#: fe-secure.c:763
+msgid "could not get user information\n"
+msgstr "не удалось получить информацию о пользователе\n"
+
+#: fe-secure.c:775
+#, c-format
+msgid "could not open certificate file \"%s\": %s\n"
+msgstr "не в состоянии открыть файл сертификата \"%s\": %s\n"
+
+#: fe-secure.c:784
+#, c-format
+msgid "could not read certificate file \"%s\": %s\n"
+msgstr "не в состоянии считать файл сертификата \"%s\": %s\n"
+
+#: fe-secure.c:798
 #, c-format
 msgid "certificate present, but not private key file \"%s\"\n"
-msgstr "я│п╣я─я┌п╦я└п╦п╨п╟я┌ п©я─п╦я│я┐я┌я│я┌п╡я┐п╣я┌, п╫п╬ я└п╟п╧п╩п╟ п╥п╟п╨я─я▀я┌п╬пЁп╬ п╨п╩я▌я┤п╟ \"%s\" п╫п╣я┌\n"
+msgstr "сертификат присутствует, но нет файла с личным ключом \"%s\"\n"
 
-#: fe-secure-openssl.c:1240
+#: fe-secure.c:807
 #, c-format
-msgid ""
-"private key file \"%s\" has group or world access; permissions should be "
-"u=rw (0600) or less\n"
-msgstr ""
-"п╨ я└п╟п╧п╩я┐ п╥п╟п╨я─я▀я┌п╬пЁп╬ п╨п╩я▌я┤п╟ \"%s\" п╦п╪п╣я▌я┌ п╢п╬я│я┌я┐п© п╡я│п╣ п╦п╩п╦ пЁя─я┐п©п©п╟; п©я─п╟п╡п╟ п╢п╬п╩п╤п╫я▀ "
-"п╠я▀я┌я▄ u=rw (0600) п╦п╩п╦ п╠п╬п╩п╣п╣ п╬пЁя─п╟п╫п╦я┤п╣п╫п╫я▀п╣\n"
+msgid "private key file \"%s\" has wrong permissions\n"
+msgstr "неправильные права доступа к  файла личного ключа \"%s\"\n"
 
-#: fe-secure-openssl.c:1251
+#: fe-secure.c:815
 #, c-format
-msgid "could not load private key file \"%s\": %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╥п╟пЁя─я┐п╥п╦я┌я▄ я└п╟п╧п╩ п╥п╟п╨я─я▀я┌п╬пЁп╬ п╨п╩я▌я┤п╟ \"%s\": %s\n"
+msgid "could not open private key file \"%s\": %s\n"
+msgstr "не удалось открыть файл личного ключа \"%s\": %s\n"
 
-#: fe-secure-openssl.c:1265
+#: fe-secure.c:824
+#, c-format
+msgid "private key file \"%s\" changed during execution\n"
+msgstr "личный ключ \"%s\" изменился во время исполнения\n"
+
+#: fe-secure.c:833
+#, c-format
+msgid "could not read private key file \"%s\": %s\n"
+msgstr "не удалось прочитать файл личного ключа \"%s\": %s\n"
+
+#: fe-secure.c:848
 #, c-format
 msgid "certificate does not match private key file \"%s\": %s\n"
-msgstr "я│п╣я─я┌п╦я└п╦п╨п╟я┌ п╫п╣ я│п╬п╬я┌п╡п╣я┌я│я┌п╡я┐п╣я┌ я└п╟п╧п╩я┐ п╥п╟п╨я─я▀я┌п╬пЁп╬ п╨п╩я▌я┤п╟ \"%s\": %s\n"
+msgstr "сертификат не совпадает с файлом личного ключа \"%s\": %s\n"
 
-#: fe-secure-openssl.c:1364
+#: fe-secure.c:932
+#, c-format
+msgid "could not create SSL context: %s\n"
+msgstr "не удалось создать контекст SSL: %s\n"
+
+#: fe-secure.c:977
+#, c-format
+msgid "could not read root certificate file \"%s\": %s\n"
+msgstr "не удалось прочитать файл корневых сертификатов \"%s\": %s\n"
+
+#: fe-secure.c:1079
+#, c-format
+msgid "certificate could not be validated: %s\n"
+msgstr "сертификат не может быть проверен: %s\n"
+
+#: fe-secure.c:1093
 #, c-format
 msgid "certificate could not be obtained: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ я│п╣я─я┌п╦я└п╦п╨п╟я┌: %s\n"
+msgstr "не удалось получить сертификат: %s\n"
 
-#: fe-secure-openssl.c:1456
-#, c-format
-msgid "no SSL error reported"
-msgstr "п╫п╣я┌ я│п╬п╬п╠я┴п╣п╫п╦я▐ п╬п╠ п╬я┬п╦п╠п╨п╣ SSL"
-
-#: fe-secure-openssl.c:1465
-#, c-format
-msgid "SSL error code %lu"
-msgstr "п╨п╬п╢ п╬я┬п╦п╠п╨п╦ SSL: %lu"
-
-#: fe-secure.c:261
-#, c-format
-msgid "could not receive data from server: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╢п╟п╫п╫я▀п╣ я│ я│п╣я─п╡п╣я─п╟: %s\n"
-
-#: fe-secure.c:369
-#, c-format
-msgid "could not send data to server: %s\n"
-msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╣я─п╣п╢п╟я┌я▄ п╢п╟п╫п╫я▀п╣ я│п╣я─п╡п╣я─я┐: %s\n"
-
-#: win32.c:317
-#, c-format
-msgid "unrecognized socket error: 0x%08X/%d"
-msgstr "п╫п╣я─п╟я│п©п╬п╥п╫п╟п╫п╫п╟я▐ п╬я┬п╦п╠п╨п╟ я│п╬п╨п╣я┌п╟: 0x%08X/%d"
-
-#~ msgid "could not acquire mutex: %s\n"
-#~ msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╥п╟п╠п╩п╬п╨п╦я─п╬п╡п╟я┌я▄ я│п╣п╪п╟я└п╬я─: %s\n"
-
-#~ msgid "socket not open\n"
-#~ msgstr "я│п╬п╨п╣я┌ п╫п╣ п╬я┌п╨я─я▀я┌\n"
-
-#~ msgid "unrecognized return value from row processor"
-#~ msgstr "п©я─п╬я├п╣я│я│п╬я─ я│я┌я─п╬п╨ п╡п╣я─п╫я┐п╩ п╫п╣я─п╟я│п©п╬п╥п╫п╟п╫п╫п╬п╣ п╥п╫п╟я┤п╣п╫п╦п╣"
-
-#~ msgid "could not restore nonblocking mode on socket: %s\n"
-#~ msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п╡п╣я─п╫я┐я┌я▄ я│п╬п╨п╣я┌ п╡ п╫п╣п╠п╩п╬п╨п╦я─я┐я▌я┴п╦п╧ я─п╣п╤п╦п╪: %s\n"
-
-#~ msgid "Kerberos 5 authentication rejected: %*s\n"
-#~ msgstr "п╟я┐я┌п╣п╫я┌п╦я└п╦п╨п╟я├п╦я▐ Kerberos 5 п╫п╣ п©я─п╬п╧п╢п╣п╫п╟: %*s\n"
-
-#~ msgid "could not set socket to blocking mode: %s\n"
-#~ msgstr "п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╣я─п╣п╡п╣я│я┌п╦ я│п╬п╨п╣я┌ п╡ п╠п╩п╬п╨п╦я─я┐я▌я┴п╦п╧ я─п╣п╤п╦п╪: %s\n"

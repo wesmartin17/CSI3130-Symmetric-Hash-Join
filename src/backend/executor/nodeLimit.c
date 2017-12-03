@@ -3,12 +3,12 @@
  * nodeLimit.c
  *	  Routines to handle limiting of query results where appropriate
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/executor/nodeLimit.c
+ *	  $PostgreSQL: pgsql/src/backend/executor/nodeLimit.c,v 1.22.2.1 2005/11/23 20:28:04 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -23,11 +23,8 @@
 
 #include "executor/executor.h"
 #include "executor/nodeLimit.h"
-#include "miscadmin.h"
-#include "nodes/nodeFuncs.h"
 
 static void recompute_limits(LimitState *node);
-static int64 compute_tuples_needed(LimitState *node);
 
 
 /* ----------------------------------------------------------------
@@ -37,15 +34,12 @@ static int64 compute_tuples_needed(LimitState *node);
  *		filtering on the stream of tuples returned by a subplan.
  * ----------------------------------------------------------------
  */
-static TupleTableSlot *			/* return: a tuple or NULL */
-ExecLimit(PlanState *pstate)
+TupleTableSlot *				/* return: a tuple or NULL */
+ExecLimit(LimitState *node)
 {
-	LimitState *node = castNode(LimitState, pstate);
 	ScanDirection direction;
 	TupleTableSlot *slot;
 	PlanState  *outerPlan;
-
-	CHECK_FOR_INTERRUPTS();
 
 	/*
 	 * get information from the node
@@ -61,22 +55,17 @@ ExecLimit(PlanState *pstate)
 		case LIMIT_INITIAL:
 
 			/*
-			 * First call for this node, so compute limit/offset. (We can't do
-			 * this any earlier, because parameters from upper nodes will not
-			 * be set during ExecInitLimit.)  This also sets position = 0 and
-			 * changes the state to LIMIT_RESCAN.
-			 */
-			recompute_limits(node);
-
-			/* FALL THRU */
-
-		case LIMIT_RESCAN:
-
-			/*
 			 * If backwards scan, just return NULL without changing state.
 			 */
 			if (!ScanDirectionIsForward(direction))
 				return NULL;
+
+			/*
+			 * First call for this scan, so compute limit/offset. (We can't do
+			 * this any earlier, because parameters from upper nodes may not
+			 * be set until now.)  This also sets position = 0.
+			 */
+			recompute_limits(node);
 
 			/*
 			 * Check for empty window; if so, treat like empty subplan.
@@ -117,7 +106,7 @@ ExecLimit(PlanState *pstate)
 
 			/*
 			 * The subplan is known to return no tuples (or not more than
-			 * OFFSET tuples, in general).  So we return no tuples.
+			 * OFFSET tuples, in general).	So we return no tuples.
 			 */
 			return NULL;
 
@@ -131,7 +120,7 @@ ExecLimit(PlanState *pstate)
 				 * the state machine state to record having done so.
 				 */
 				if (!node->noCount &&
-					node->position - node->offset >= node->count)
+					node->position >= node->offset + node->count)
 				{
 					node->lstate = LIMIT_WINDOWEND;
 					return NULL;
@@ -228,7 +217,7 @@ ExecLimit(PlanState *pstate)
 }
 
 /*
- * Evaluate the limit/offset expressions --- done at startup or rescan.
+ * Evaluate the limit/offset expressions --- done at start of each scan.
  *
  * This is also a handy place to reset the current-position state info.
  */
@@ -236,25 +225,20 @@ static void
 recompute_limits(LimitState *node)
 {
 	ExprContext *econtext = node->ps.ps_ExprContext;
-	Datum		val;
 	bool		isNull;
 
 	if (node->limitOffset)
 	{
-		val = ExecEvalExprSwitchContext(node->limitOffset,
-										econtext,
-										&isNull);
+		node->offset =
+			DatumGetInt32(ExecEvalExprSwitchContext(node->limitOffset,
+													econtext,
+													&isNull,
+													NULL));
 		/* Interpret NULL offset as no offset */
 		if (isNull)
 			node->offset = 0;
-		else
-		{
-			node->offset = DatumGetInt64(val);
-			if (node->offset < 0)
-				ereport(ERROR,
-						(errcode(ERRCODE_INVALID_ROW_COUNT_IN_RESULT_OFFSET_CLAUSE),
-						 errmsg("OFFSET must not be negative")));
-		}
+		else if (node->offset < 0)
+			node->offset = 0;
 	}
 	else
 	{
@@ -264,24 +248,17 @@ recompute_limits(LimitState *node)
 
 	if (node->limitCount)
 	{
-		val = ExecEvalExprSwitchContext(node->limitCount,
-										econtext,
-										&isNull);
+		node->noCount = false;
+		node->count =
+			DatumGetInt32(ExecEvalExprSwitchContext(node->limitCount,
+													econtext,
+													&isNull,
+													NULL));
 		/* Interpret NULL count as no count (LIMIT ALL) */
 		if (isNull)
-		{
-			node->count = 0;
 			node->noCount = true;
-		}
-		else
-		{
-			node->count = DatumGetInt64(val);
-			if (node->count < 0)
-				ereport(ERROR,
-						(errcode(ERRCODE_INVALID_ROW_COUNT_IN_LIMIT_CLAUSE),
-						 errmsg("LIMIT must not be negative")));
-			node->noCount = false;
-		}
+		else if (node->count < 0)
+			node->count = 0;
 	}
 	else
 	{
@@ -293,30 +270,6 @@ recompute_limits(LimitState *node)
 	/* Reset position to start-of-scan */
 	node->position = 0;
 	node->subSlot = NULL;
-
-	/* Set state-machine state */
-	node->lstate = LIMIT_RESCAN;
-
-	/*
-	 * Notify child node about limit.  Note: think not to "optimize" by
-	 * skipping ExecSetTupleBound if compute_tuples_needed returns < 0.  We
-	 * must update the child node anyway, in case this is a rescan and the
-	 * previous time we got a different result.
-	 */
-	ExecSetTupleBound(compute_tuples_needed(node), outerPlanState(node));
-}
-
-/*
- * Compute the maximum number of tuples needed to satisfy this Limit node.
- * Return a negative value if there is not a determinable limit.
- */
-static int64
-compute_tuples_needed(LimitState *node)
-{
-	if (node->noCount)
-		return -1;
-	/* Note: if this overflows, we'll return a negative value, which is OK */
-	return node->count + node->offset;
 }
 
 /* ----------------------------------------------------------------
@@ -327,13 +280,10 @@ compute_tuples_needed(LimitState *node)
  * ----------------------------------------------------------------
  */
 LimitState *
-ExecInitLimit(Limit *node, EState *estate, int eflags)
+ExecInitLimit(Limit *node, EState *estate)
 {
 	LimitState *limitstate;
 	Plan	   *outerPlan;
-
-	/* check for unsupported flags */
-	Assert(!(eflags & EXEC_FLAG_MARK));
 
 	/*
 	 * create state structure
@@ -341,7 +291,6 @@ ExecInitLimit(Limit *node, EState *estate, int eflags)
 	limitstate = makeNode(LimitState);
 	limitstate->ps.plan = (Plan *) node;
 	limitstate->ps.state = estate;
-	limitstate->ps.ExecProcNode = ExecLimit;
 
 	limitstate->lstate = LIMIT_INITIAL;
 
@@ -361,6 +310,8 @@ ExecInitLimit(Limit *node, EState *estate, int eflags)
 	limitstate->limitCount = ExecInitExpr((Expr *) node->limitCount,
 										  (PlanState *) limitstate);
 
+#define LIMIT_NSLOTS 1
+
 	/*
 	 * Tuple table initialization (XXX not actually used...)
 	 */
@@ -370,7 +321,7 @@ ExecInitLimit(Limit *node, EState *estate, int eflags)
 	 * then initialize outer plan
 	 */
 	outerPlan = outerPlan(node);
-	outerPlanState(limitstate) = ExecInitNode(outerPlan, estate, eflags);
+	outerPlanState(limitstate) = ExecInitNode(outerPlan, estate);
 
 	/*
 	 * limit nodes do no projections, so initialize projection info for this
@@ -380,6 +331,14 @@ ExecInitLimit(Limit *node, EState *estate, int eflags)
 	limitstate->ps.ps_ProjInfo = NULL;
 
 	return limitstate;
+}
+
+int
+ExecCountSlotsLimit(Limit *node)
+{
+	return ExecCountSlotsNode(outerPlan(node)) +
+		ExecCountSlotsNode(innerPlan(node)) +
+		LIMIT_NSLOTS;
 }
 
 /* ----------------------------------------------------------------
@@ -398,19 +357,15 @@ ExecEndLimit(LimitState *node)
 
 
 void
-ExecReScanLimit(LimitState *node)
+ExecReScanLimit(LimitState *node, ExprContext *exprCtxt)
 {
-	/*
-	 * Recompute limit/offset in case parameters changed, and reset the state
-	 * machine.  We must do this before rescanning our child node, in case
-	 * it's a Sort that we are passing the parameters down to.
-	 */
-	recompute_limits(node);
+	/* resetting lstate will force offset/limit recalculation */
+	node->lstate = LIMIT_INITIAL;
 
 	/*
 	 * if chgParam of subnode is not null then plan will be re-scanned by
 	 * first ExecProcNode.
 	 */
-	if (node->ps.lefttree->chgParam == NULL)
-		ExecReScan(node->ps.lefttree);
+	if (((PlanState *) node)->lefttree->chgParam == NULL)
+		ExecReScan(((PlanState *) node)->lefttree, exprCtxt);
 }

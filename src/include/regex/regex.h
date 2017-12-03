@@ -3,7 +3,7 @@
 /*
  * regular expressions
  *
- * Copyright (c) 1998, 1999 Henry Spencer.  All rights reserved.
+ * Copyright (c) 1998, 1999 Henry Spencer.	All rights reserved.
  *
  * Development of this software was funded, in part, by Cray Research Inc.,
  * UUNET Communications Services Inc., Sun Microsystems Inc., and Scriptics
@@ -29,7 +29,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * src/include/regex/regex.h
+ * $PostgreSQL: pgsql/src/include/regex/regex.h,v 1.28 2005/10/15 02:49:46 momjian Exp $
  */
 
 /*
@@ -58,7 +58,7 @@ typedef struct
 	size_t		re_nsub;		/* number of subexpressions */
 	long		re_info;		/* information about RE */
 #define  REG_UBACKREF		 000001
-#define  REG_ULOOKAROUND	 000002
+#define  REG_ULOOKAHEAD		 000002
 #define  REG_UBOUNDS	 000004
 #define  REG_UBRACES	 000010
 #define  REG_UBSALNUM		 000020
@@ -73,7 +73,6 @@ typedef struct
 #define  REG_USHORTEST		 020000
 	int			re_csize;		/* sizeof(character) */
 	char	   *re_endp;		/* backward compatibility kludge */
-	Oid			re_collation;	/* Collation that defines LC_CTYPE behavior */
 	/* the rest is opaque pointers to hidden innards */
 	char	   *re_guts;		/* `char *' is more portable than `void *' */
 	char	   *re_fns;
@@ -152,25 +151,18 @@ typedef struct
 #define REG_INVARG	16			/* invalid argument to regex function */
 #define REG_MIXED	17			/* character widths of regex and string differ */
 #define REG_BADOPT	18			/* invalid embedded option */
-#define REG_ETOOBIG 19			/* regular expression is too complex */
-#define REG_ECOLORS 20			/* too many colors */
-#define REG_CANCEL	21			/* operation cancelled */
 /* two specials for debugging and testing */
 #define REG_ATOI	101			/* convert error-code name to number */
 #define REG_ITOA	102			/* convert error-code number to name */
-/* non-error result codes for pg_regprefix */
-#define REG_PREFIX	(-1)		/* identified a common prefix */
-#define REG_EXACT	(-2)		/* identified an exact match */
 
 
 
 /*
  * the prototypes for exported functions
  */
-extern int	pg_regcomp(regex_t *, const pg_wchar *, size_t, int, Oid);
+extern int	pg_regcomp(regex_t *, const pg_wchar *, size_t, int);
 extern int	pg_regexec(regex_t *, const pg_wchar *, size_t, size_t, rm_detail_t *, size_t, regmatch_t[], int);
-extern int	pg_regprefix(regex_t *, pg_wchar **, size_t *);
 extern void pg_regfree(regex_t *);
 extern size_t pg_regerror(int, const regex_t *, char *, size_t);
 
-#endif							/* _REGEX_H_ */
+#endif   /* _REGEX_H_ */

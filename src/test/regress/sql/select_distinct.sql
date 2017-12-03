@@ -5,17 +5,17 @@
 --
 -- awk '{print $3;}' onek.data | sort -n | uniq
 --
-SELECT DISTINCT two FROM tmp ORDER BY 1;
+SELECT DISTINCT two FROM tmp;
 
 --
 -- awk '{print $5;}' onek.data | sort -n | uniq
 --
-SELECT DISTINCT ten FROM tmp ORDER BY 1;
+SELECT DISTINCT ten FROM tmp;
 
 --
 -- awk '{print $16;}' onek.data | sort -d | uniq
 --
-SELECT DISTINCT string4 FROM tmp ORDER BY 1;
+SELECT DISTINCT string4 FROM tmp;
 
 --
 -- awk '{print $3,$16,$5;}' onek.data | sort -d | uniq |
@@ -33,17 +33,6 @@ SELECT DISTINCT two, string4, ten
 -- sort -n -r | uniq
 --
 SELECT DISTINCT p.age FROM person* p ORDER BY age using >;
-
---
--- Check mentioning same column more than once
---
-
-EXPLAIN (VERBOSE, COSTS OFF)
-SELECT count(*) FROM
-  (SELECT DISTINCT two, four, two FROM tenk1) ss;
-
-SELECT count(*) FROM
-  (SELECT DISTINCT two, four, two FROM tenk1) ss;
 
 --
 -- Also, some tests of IS DISTINCT FROM, which doesn't quite deserve its
@@ -67,9 +56,3 @@ SELECT 1 IS DISTINCT FROM 2 as "yes";
 SELECT 2 IS DISTINCT FROM 2 as "no";
 SELECT 2 IS DISTINCT FROM null as "yes";
 SELECT null IS DISTINCT FROM null as "no";
-
--- negated form
-SELECT 1 IS NOT DISTINCT FROM 2 as "no";
-SELECT 2 IS NOT DISTINCT FROM 2 as "yes";
-SELECT 2 IS NOT DISTINCT FROM null as "no";
-SELECT null IS NOT DISTINCT FROM null as "yes";

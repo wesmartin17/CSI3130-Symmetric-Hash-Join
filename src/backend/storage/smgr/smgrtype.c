@@ -3,19 +3,18 @@
  * smgrtype.c
  *	  storage manager type
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/storage/smgr/smgrtype.c
+ *	  $PostgreSQL: pgsql/src/backend/storage/smgr/smgrtype.c,v 1.26 2004/12/31 22:01:13 pgsql Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
 #include "storage/smgr.h"
-#include "utils/builtins.h"
 
 
 typedef struct smgrid
@@ -55,7 +54,7 @@ smgrout(PG_FUNCTION_ARGS)
 	char	   *s;
 
 	if (i >= NStorageManagers || i < 0)
-		elog(ERROR, "invalid storage manager ID: %d", i);
+		elog(ERROR, "invalid storage manager id: %d", i);
 
 	s = pstrdup(StorageManager[i].smgr_name);
 	PG_RETURN_CSTRING(s);

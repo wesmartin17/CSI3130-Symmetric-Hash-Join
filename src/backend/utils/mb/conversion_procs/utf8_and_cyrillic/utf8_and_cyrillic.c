@@ -2,11 +2,11 @@
  *
  *	  UTF8 and Cyrillic
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/utils/mb/conversion_procs/utf8_and_cyrillic/utf8_and_cyrillic.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/mb/conversion_procs/utf8_and_cyrillic/utf8_and_cyrillic.c,v 1.12.2.1 2006/05/21 20:05:49 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -16,16 +16,24 @@
 #include "mb/pg_wchar.h"
 #include "../../Unicode/utf8_to_koi8r.map"
 #include "../../Unicode/koi8r_to_utf8.map"
-#include "../../Unicode/utf8_to_koi8u.map"
-#include "../../Unicode/koi8u_to_utf8.map"
-
-PG_MODULE_MAGIC;
+#include "../../Unicode/utf8_to_win1251.map"
+#include "../../Unicode/win1251_to_utf8.map"
+#include "../../Unicode/utf8_to_win866.map"
+#include "../../Unicode/win866_to_utf8.map"
 
 PG_FUNCTION_INFO_V1(utf8_to_koi8r);
 PG_FUNCTION_INFO_V1(koi8r_to_utf8);
+PG_FUNCTION_INFO_V1(utf8_to_win1251);
+PG_FUNCTION_INFO_V1(win1251_to_utf8);
+PG_FUNCTION_INFO_V1(utf8_to_win866);
+PG_FUNCTION_INFO_V1(win866_to_utf8);
 
-PG_FUNCTION_INFO_V1(utf8_to_koi8u);
-PG_FUNCTION_INFO_V1(koi8u_to_utf8);
+extern Datum utf8_to_koi8r(PG_FUNCTION_ARGS);
+extern Datum koi8r_to_utf8(PG_FUNCTION_ARGS);
+extern Datum utf8_to_win1251(PG_FUNCTION_ARGS);
+extern Datum win1251_to_utf8(PG_FUNCTION_ARGS);
+extern Datum utf8_to_win866(PG_FUNCTION_ARGS);
+extern Datum win866_to_utf8(PG_FUNCTION_ARGS);
 
 /* ----------
  * conv_proc(
@@ -45,13 +53,12 @@ utf8_to_koi8r(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_UTF8, PG_KOI8R);
+	Assert(PG_GETARG_INT32(0) == PG_UTF8);
+	Assert(PG_GETARG_INT32(1) == PG_KOI8R);
+	Assert(len >= 0);
 
-	UtfToLocal(src, len, dest,
-			   &koi8r_from_unicode_tree,
-			   NULL, 0,
-			   NULL,
-			   PG_KOI8R);
+	UtfToLocal(src, dest, ULmap_KOI8R,
+			   sizeof(ULmap_KOI8R) / sizeof(pg_utf_to_local), PG_KOI8R, len);
 
 	PG_RETURN_VOID();
 }
@@ -63,49 +70,80 @@ koi8r_to_utf8(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_KOI8R, PG_UTF8);
+	Assert(PG_GETARG_INT32(0) == PG_KOI8R);
+	Assert(PG_GETARG_INT32(1) == PG_UTF8);
+	Assert(len >= 0);
 
-	LocalToUtf(src, len, dest,
-			   &koi8r_to_unicode_tree,
-			   NULL, 0,
-			   NULL,
-			   PG_KOI8R);
-
-	PG_RETURN_VOID();
-}
-
-Datum
-utf8_to_koi8u(PG_FUNCTION_ARGS)
-{
-	unsigned char *src = (unsigned char *) PG_GETARG_CSTRING(2);
-	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
-	int			len = PG_GETARG_INT32(4);
-
-	CHECK_ENCODING_CONVERSION_ARGS(PG_UTF8, PG_KOI8U);
-
-	UtfToLocal(src, len, dest,
-			   &koi8u_from_unicode_tree,
-			   NULL, 0,
-			   NULL,
-			   PG_KOI8U);
+	LocalToUtf(src, dest, LUmapKOI8R,
+			   sizeof(LUmapKOI8R) / sizeof(pg_local_to_utf), PG_KOI8R, len);
 
 	PG_RETURN_VOID();
 }
 
 Datum
-koi8u_to_utf8(PG_FUNCTION_ARGS)
+utf8_to_win1251(PG_FUNCTION_ARGS)
 {
 	unsigned char *src = (unsigned char *) PG_GETARG_CSTRING(2);
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_KOI8U, PG_UTF8);
+	Assert(PG_GETARG_INT32(0) == PG_UTF8);
+	Assert(PG_GETARG_INT32(1) == PG_WIN1251);
+	Assert(len >= 0);
 
-	LocalToUtf(src, len, dest,
-			   &koi8u_to_unicode_tree,
-			   NULL, 0,
-			   NULL,
-			   PG_KOI8U);
+	UtfToLocal(src, dest, ULmap_WIN1251,
+			   sizeof(ULmap_WIN1251) / sizeof(pg_utf_to_local), PG_WIN1251, len);
+
+	PG_RETURN_VOID();
+}
+
+Datum
+win1251_to_utf8(PG_FUNCTION_ARGS)
+{
+	unsigned char *src = (unsigned char *) PG_GETARG_CSTRING(2);
+	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
+	int			len = PG_GETARG_INT32(4);
+
+	Assert(PG_GETARG_INT32(0) == PG_WIN1251);
+	Assert(PG_GETARG_INT32(1) == PG_UTF8);
+	Assert(len >= 0);
+
+	LocalToUtf(src, dest, LUmapWIN1251,
+			sizeof(LUmapWIN1251) / sizeof(pg_local_to_utf), PG_WIN1251, len);
+
+	PG_RETURN_VOID();
+}
+
+Datum
+utf8_to_win866(PG_FUNCTION_ARGS)
+{
+	unsigned char *src = (unsigned char *) PG_GETARG_CSTRING(2);
+	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
+	int			len = PG_GETARG_INT32(4);
+
+	Assert(PG_GETARG_INT32(0) == PG_UTF8);
+	Assert(PG_GETARG_INT32(1) == PG_WIN866);
+	Assert(len >= 0);
+
+	UtfToLocal(src, dest, ULmap_WIN866,
+			   sizeof(ULmap_WIN866) / sizeof(pg_utf_to_local), PG_WIN866, len);
+
+	PG_RETURN_VOID();
+}
+
+Datum
+win866_to_utf8(PG_FUNCTION_ARGS)
+{
+	unsigned char *src = (unsigned char *) PG_GETARG_CSTRING(2);
+	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
+	int			len = PG_GETARG_INT32(4);
+
+	Assert(PG_GETARG_INT32(0) == PG_WIN866);
+	Assert(PG_GETARG_INT32(1) == PG_UTF8);
+	Assert(len >= 0);
+
+	LocalToUtf(src, dest, LUmapWIN866,
+			   sizeof(LUmapWIN866) / sizeof(pg_local_to_utf), PG_WIN866, len);
 
 	PG_RETURN_VOID();
 }

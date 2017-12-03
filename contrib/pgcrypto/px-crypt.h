@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/px-crypt.h
+ * $PostgreSQL: pgsql/contrib/pgcrypto/px-crypt.h,v 1.9 2005/10/15 02:49:06 momjian Exp $
  */
 
 #ifndef _PX_CRYPT_H
@@ -55,15 +55,23 @@ int			px_gen_salt(const char *salt_type, char *dst, int rounds);
  * internal functions
  */
 
+/* misc.c */
+extern void px_crypt_to64(char *s, unsigned long v, int n);
+extern char px_crypt_a64[];
+
+/* avoid conflicts with system libs */
+#define _crypt_to64 px_crypt_to64
+#define _crypt_a64 px_crypt_a64
+
 /* crypt-gensalt.c */
 char *_crypt_gensalt_traditional_rn(unsigned long count,
-							  const char *input, int size, char *output, int output_size);
+				 const char *input, int size, char *output, int output_size);
 char *_crypt_gensalt_extended_rn(unsigned long count,
-						   const char *input, int size, char *output, int output_size);
+				 const char *input, int size, char *output, int output_size);
 char *_crypt_gensalt_md5_rn(unsigned long count,
-					  const char *input, int size, char *output, int output_size);
+				 const char *input, int size, char *output, int output_size);
 char *_crypt_gensalt_blowfish_rn(unsigned long count,
-						   const char *input, int size, char *output, int output_size);
+				 const char *input, int size, char *output, int output_size);
 
 /* disable 'extended DES crypt' */
 /* #define DISABLE_XDES */
@@ -79,4 +87,4 @@ char	   *px_crypt_des(const char *key, const char *setting);
 char *px_crypt_md5(const char *pw, const char *salt,
 			 char *dst, unsigned dstlen);
 
-#endif							/* _PX_CRYPT_H */
+#endif   /* _PX_CRYPT_H */

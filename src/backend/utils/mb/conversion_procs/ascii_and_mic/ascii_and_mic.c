@@ -2,11 +2,11 @@
  *
  *	  ASCII and MULE_INTERNAL
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/utils/mb/conversion_procs/ascii_and_mic/ascii_and_mic.c
+ *	  $PostgreSQL: pgsql/src/backend/utils/mb/conversion_procs/ascii_and_mic/ascii_and_mic.c,v 1.10 2005/09/24 17:53:17 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -15,10 +15,11 @@
 #include "fmgr.h"
 #include "mb/pg_wchar.h"
 
-PG_MODULE_MAGIC;
-
 PG_FUNCTION_INFO_V1(ascii_to_mic);
 PG_FUNCTION_INFO_V1(mic_to_ascii);
+
+extern Datum ascii_to_mic(PG_FUNCTION_ARGS);
+extern Datum mic_to_ascii(PG_FUNCTION_ARGS);
 
 /* ----------
  * conv_proc(
@@ -38,7 +39,9 @@ ascii_to_mic(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_SQL_ASCII, PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(0) == PG_SQL_ASCII);
+	Assert(PG_GETARG_INT32(1) == PG_MULE_INTERNAL);
+	Assert(len >= 0);
 
 	pg_ascii2mic(src, dest, len);
 
@@ -52,7 +55,9 @@ mic_to_ascii(PG_FUNCTION_ARGS)
 	unsigned char *dest = (unsigned char *) PG_GETARG_CSTRING(3);
 	int			len = PG_GETARG_INT32(4);
 
-	CHECK_ENCODING_CONVERSION_ARGS(PG_MULE_INTERNAL, PG_SQL_ASCII);
+	Assert(PG_GETARG_INT32(0) == PG_MULE_INTERNAL);
+	Assert(PG_GETARG_INT32(1) == PG_SQL_ASCII);
+	Assert(len >= 0);
 
 	pg_mic2ascii(src, dest, len);
 

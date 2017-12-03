@@ -15,14 +15,18 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *	  notice, this list of conditions and the following disclaimer in the
  *	  documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *	  must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *	  may be used to endorse or promote products derived from this software
  *	  without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -31,38 +35,34 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * src/port/getopt_long.c
+ * $PostgreSQL: pgsql/src/port/getopt_long.c,v 1.5 2005/10/15 02:49:51 momjian Exp $
  */
 
 #include "c.h"
 
 #include "getopt_long.h"
 
+#ifndef HAVE_INT_OPTRESET
+int			optreset;
+#endif
+
 #define BADCH	'?'
 #define BADARG	':'
 #define EMSG	""
 
 
-/*
- * getopt_long
- *	Parse argc/argv argument vector, with long options.
- *
- * This implementation does not use optreset.  Instead, we guarantee that
- * it can be restarted on a new argv array after a previous call returned -1,
- * if the caller resets optind to 1 before the first call of the new series.
- * (Internally, this means we must be sure to reset "place" to EMSG before
- * returning -1.)
- */
 int
 getopt_long(int argc, char *const argv[],
 			const char *optstring,
-			const struct option *longopts, int *longindex)
+			const struct option * longopts, int *longindex)
 {
 	static char *place = EMSG;	/* option letter processing */
 	char	   *oli;			/* option letter list index */
 
-	if (!*place)
+	if (optreset || !*place)
 	{							/* update scanning pointer */
+		optreset = 0;
+
 		if (optind >= argc)
 		{
 			place = EMSG;
@@ -100,14 +100,11 @@ getopt_long(int argc, char *const argv[],
 				if (strlen(longopts[i].name) == namelen
 					&& strncmp(place, longopts[i].name, namelen) == 0)
 				{
-					int			has_arg = longopts[i].has_arg;
-
-					if (has_arg != no_argument)
+					if (longopts[i].has_arg)
 					{
 						if (place[namelen] == '=')
 							optarg = place + namelen + 1;
-						else if (optind < argc - 1 &&
-								 has_arg == required_argument)
+						else if (optind < argc - 1)
 						{
 							optind++;
 							optarg = argv[optind];
@@ -116,18 +113,13 @@ getopt_long(int argc, char *const argv[],
 						{
 							if (optstring[0] == ':')
 								return BADARG;
-
-							if (opterr && has_arg == required_argument)
+							if (opterr)
 								fprintf(stderr,
-										"%s: option requires an argument -- %s\n",
+								   "%s: option requires an argument -- %s\n",
 										argv[0], place);
-
 							place = EMSG;
 							optind++;
-
-							if (has_arg == required_argument)
-								return BADCH;
-							optarg = NULL;
+							return BADCH;
 						}
 					}
 					else

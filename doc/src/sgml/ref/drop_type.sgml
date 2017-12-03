@@ -1,16 +1,11 @@
 <!--
-doc/src/sgml/ref/drop_type.sgml
+$PostgreSQL: pgsql/doc/src/sgml/ref/drop_type.sgml,v 1.26 2004/06/25 21:55:50 tgl Exp $
 PostgreSQL documentation
 -->
 
-<refentry id="sql-droptype">
- <indexterm zone="sql-droptype">
-  <primary>DROP TYPE</primary>
- </indexterm>
-
+<refentry id="SQL-DROPTYPE">
  <refmeta>
-  <refentrytitle>DROP TYPE</refentrytitle>
-  <manvolnum>7</manvolnum>
+  <refentrytitle id="SQL-DROPTYPE-TITLE">DROP TYPE</refentrytitle>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -19,9 +14,13 @@ PostgreSQL documentation
   <refpurpose>remove a data type</refpurpose>
  </refnamediv>
 
+ <indexterm zone="sql-droptype">
+  <primary>DROP TYPE</primary>
+ </indexterm>
+
  <refsynopsisdiv>
 <synopsis>
-DROP TYPE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...] [ CASCADE | RESTRICT ]
+DROP TYPE <replaceable class="PARAMETER">name</replaceable> [, ...] [ CASCADE | RESTRICT ]
 </synopsis>
  </refsynopsisdiv>
 
@@ -29,27 +28,17 @@ DROP TYPE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...
   <title>Description</title>
 
   <para>
-   <command>DROP TYPE</command> removes a user-defined data type.
+   <command>DROP TYPE</command> will remove a user-defined data type.
    Only the owner of a type can remove it.
   </para>
  </refsect1>
-
+  
  <refsect1>
   <title>Parameters</title>
 
   <variablelist>
    <varlistentry>
-    <term><literal>IF EXISTS</literal></term>
-    <listitem>
-     <para>
-      Do not throw an error if the type does not exist. A notice is issued
-      in this case.
-     </para>
-    </listitem>
-   </varlistentry>
-
-   <varlistentry>
-    <term><replaceable class="parameter">name</replaceable></term>
+    <term><replaceable class="PARAMETER">name</replaceable></term>
     <listitem>
      <para>
       The name (optionally schema-qualified) of the data type to remove.
@@ -62,9 +51,7 @@ DROP TYPE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...
     <listitem>
      <para>
       Automatically drop objects that depend on the type (such as
-      table columns, functions, and operators),
-      and in turn all objects that depend on those objects
-      (see <xref linkend="ddl-depend"/>).
+      table columns, functions, operators).
      </para>
     </listitem>
    </varlistentry>
@@ -80,37 +67,53 @@ DROP TYPE [ IF EXISTS ] <replaceable class="parameter">name</replaceable> [, ...
    </varlistentry>
   </variablelist>
  </refsect1>
-
- <refsect1 id="sql-droptype-examples">
+  
+ <refsect1 id="SQL-DROPTYPE-examples">
   <title>Examples</title>
 
   <para>
    To remove the data type <type>box</type>:
 <programlisting>
 DROP TYPE box;
-</programlisting></para>
+</programlisting>
+  </para>
  </refsect1>
 
- <refsect1 id="sql-droptype-compatibility">
+ <refsect1 id="SQL-DROPTYPE-compatibility">
   <title>Compatibility</title>
 
   <para>
    This command is similar to the corresponding command in the SQL
-   standard, apart from the <literal>IF EXISTS</literal>
-   option, which is a <productname>PostgreSQL</productname> extension.
-   But note that much of the <command>CREATE TYPE</command> command
+   standard, but note that the <command>CREATE TYPE</command> command
    and the data type extension mechanisms in
    <productname>PostgreSQL</productname> differ from the SQL standard.
   </para>
  </refsect1>
 
- <refsect1 id="sql-droptype-see-also">
+ <refsect1 id="SQL-DROPTYPE-see-also">
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-altertype"/></member>
-   <member><xref linkend="sql-createtype"/></member>
+   <member><xref linkend="sql-createtype" endterm="sql-createtype-title"></member>
+   <member><xref linkend="sql-altertype" endterm="sql-altertype-title"></member>
   </simplelist>
  </refsect1>
 
 </refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

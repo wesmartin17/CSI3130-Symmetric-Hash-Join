@@ -1,39 +1,48 @@
-/* src/interfaces/ecpg/ecpglib/extern.h */
-
 #ifndef _ECPG_LIB_EXTERN_H
 #define _ECPG_LIB_EXTERN_H
 
+#include "postgres_fe.h"
 #include "libpq-fe.h"
 #include "sqlca.h"
-#include "sqlda-native.h"
-#include "sqlda-compat.h"
-#include "ecpg_config.h"
-
-#ifndef CHAR_BIT
-#include <limits.h>
-#endif
 
 enum COMPAT_MODE
 {
 	ECPG_COMPAT_PGSQL = 0, ECPG_COMPAT_INFORMIX, ECPG_COMPAT_INFORMIX_SE
 };
 
-extern bool ecpg_internal_regression_mode;
-
 #define INFORMIX_MODE(X) ((X) == ECPG_COMPAT_INFORMIX || (X) == ECPG_COMPAT_INFORMIX_SE)
 
 enum ARRAY_TYPE
 {
-	ECPG_ARRAY_ERROR, ECPG_ARRAY_NOT_SET, ECPG_ARRAY_ARRAY, ECPG_ARRAY_VECTOR, ECPG_ARRAY_NONE
+	ECPG_ARRAY_NOT_SET, ECPG_ARRAY_ARRAY, ECPG_ARRAY_VECTOR, ECPG_ARRAY_NONE
 };
 
-#define ECPG_IS_ARRAY(X) ((X) == ECPG_ARRAY_ARRAY || (X) == ECPG_ARRAY_VECTOR)
+/* Here are some methods used by the lib. */
+
+/* Returns a pointer to a string containing a simple type name. */
+void		ECPGadd_mem(void *ptr, int lineno);
+
+bool ECPGget_data(const PGresult *, int, int, int, enum ECPGttype type,
+			 enum ECPGttype, char *, char *, long, long, long,
+			 enum ARRAY_TYPE, enum COMPAT_MODE, bool);
+struct connection *ECPGget_connection(const char *);
+char	   *ECPGalloc(long, int);
+char	   *ECPGrealloc(void *, long, int);
+void		ECPGfree(void *);
+bool		ECPGinit(const struct connection *, const char *, const int);
+char	   *ECPGstrdup(const char *, int);
+const char *ECPGtype_name(enum ECPGttype);
+unsigned int ECPGDynamicType(Oid);
+void		ECPGfree_auto_mem(void);
+void		ECPGclear_auto_mem(void);
+
+struct descriptor *ecpggetdescp(int, char *);
 
 /* A generic varchar type. */
 struct ECPGgeneric_varchar
 {
 	int			len;
-	char		arr[FLEXIBLE_ARRAY_MEMBER];
+	char		arr[1];
 };
 
 /*
@@ -44,7 +53,7 @@ struct ECPGtype_information_cache
 {
 	struct ECPGtype_information_cache *next;
 	int			oid;
-	enum ARRAY_TYPE isarray;
+	bool		isarray;
 };
 
 /* structure to store one statement */
@@ -52,27 +61,11 @@ struct statement
 {
 	int			lineno;
 	char	   *command;
-	char	   *name;
 	struct connection *connection;
 	enum COMPAT_MODE compat;
 	bool		force_indicator;
-	enum ECPG_statement_type statement_type;
-	bool		questionmarks;
 	struct variable *inlist;
 	struct variable *outlist;
-	char	   *oldlocale;
-	int			nparams;
-	char	  **paramvalues;
-	PGresult   *results;
-};
-
-/* structure to store prepared statements for a connection */
-struct prepared_statement
-{
-	char	   *name;
-	bool		prepared;
-	struct statement *stmt;
-	struct prepared_statement *next;
 };
 
 /* structure to store connections */
@@ -80,9 +73,9 @@ struct connection
 {
 	char	   *name;
 	PGconn	   *connection;
-	bool		autocommit;
+	bool		committed;
+	int			autocommit;
 	struct ECPGtype_information_cache *cache_head;
-	struct prepared_statement *prep_stmts;
 	struct connection *next;
 };
 
@@ -95,6 +88,8 @@ struct descriptor
 	int			count;
 	struct descriptor_item *items;
 };
+
+extern struct descriptor *all_descriptors;
 
 struct descriptor_item
 {
@@ -125,74 +120,18 @@ struct variable
 	struct variable *next;
 };
 
-struct var_list
-{
-	int			number;
-	void	   *pointer;
-	struct var_list *next;
-};
+PGresult  **ECPGdescriptor_lvalue(int line, const char *descriptor);
 
-extern struct var_list *ivlist;
+bool ECPGstore_result(const PGresult *results, int act_field,
+				 const struct statement * stmt, struct variable * var);
+bool		ECPGstore_input(const int, const bool, const struct variable *, const char **, bool *);
 
-/* Here are some methods used by the lib. */
-
-bool		ecpg_add_mem(void *ptr, int lineno);
-
-bool ecpg_get_data(const PGresult *, int, int, int, enum ECPGttype type,
-			  enum ECPGttype, char *, char *, long, long, long,
-			  enum ARRAY_TYPE, enum COMPAT_MODE, bool);
-
-#ifdef ENABLE_THREAD_SAFETY
-void		ecpg_pthreads_init(void);
+#if defined(__GNUC__) && (defined (__powerpc__) || defined(__amd64__) || defined(__x86_64__))
+ /* work around a gcc/ABI bug with va_lists on ppc+amd64 */
+void		ECPGget_variable(va_list, enum ECPGttype, struct variable *, bool);
+#else
+void		ECPGget_variable(va_list *, enum ECPGttype, struct variable *, bool);
 #endif
-struct connection *ecpg_get_connection(const char *);
-char	   *ecpg_alloc(long, int);
-char	   *ecpg_auto_alloc(long, int);
-char	   *ecpg_realloc(void *, long, int);
-void		ecpg_free(void *);
-bool		ecpg_init(const struct connection *, const char *, const int);
-char	   *ecpg_strdup(const char *, int);
-const char *ecpg_type_name(enum ECPGttype);
-int			ecpg_dynamic_type(Oid);
-int			sqlda_dynamic_type(Oid, enum COMPAT_MODE);
-void		ecpg_free_auto_mem(void);
-void		ecpg_clear_auto_mem(void);
-
-struct descriptor *ecpggetdescp(int, char *);
-
-struct descriptor *ecpg_find_desc(int line, const char *name);
-
-struct prepared_statement *ecpg_find_prepared_statement(const char *,
-							 struct connection *, struct prepared_statement **);
-
-bool ecpg_store_result(const PGresult *results, int act_field,
-				  const struct statement *stmt, struct variable *var);
-bool		ecpg_store_input(const int, const bool, const struct variable *, char **, bool);
-void		ecpg_free_params(struct statement *stmt, bool print);
-bool ecpg_do_prologue(int, const int, const int, const char *, const bool,
-				 enum ECPG_statement_type, const char *, va_list,
-				 struct statement **);
-bool		ecpg_build_params(struct statement *);
-bool		ecpg_autostart_transaction(struct statement *stmt);
-bool		ecpg_execute(struct statement *stmt);
-bool		ecpg_process_output(struct statement *, bool);
-void		ecpg_do_epilogue(struct statement *);
-bool ecpg_do(const int, const int, const int, const char *, const bool,
-		const int, const char *, va_list);
-
-bool		ecpg_check_PQresult(PGresult *, int, PGconn *, enum COMPAT_MODE);
-void		ecpg_raise(int line, int code, const char *sqlstate, const char *str);
-void		ecpg_raise_backend(int line, PGresult *result, PGconn *conn, int compat);
-char	   *ecpg_prepared(const char *, struct connection *);
-bool		ecpg_deallocate_all_conn(int lineno, enum COMPAT_MODE c, struct connection *conn);
-void		ecpg_log(const char *format,...) pg_attribute_printf(1, 2);
-bool		ecpg_auto_prepare(int, const char *, const int, char **, const char *);
-void		ecpg_init_sqlca(struct sqlca_t *sqlca);
-
-struct sqlda_compat *ecpg_build_compat_sqlda(int, PGresult *, int, enum COMPAT_MODE);
-void		ecpg_set_compat_sqlda(int, struct sqlda_compat **, const PGresult *, int, enum COMPAT_MODE);
-struct sqlda_struct *ecpg_build_native_sqlda(int, PGresult *, int, enum COMPAT_MODE);
-void		ecpg_set_native_sqlda(int, struct sqlda_struct **, const PGresult *, int, enum COMPAT_MODE);
 
 /* SQLSTATE values generated or processed by ecpglib (intentionally
  * not exported -- users should refer to the codes directly) */
@@ -220,4 +159,4 @@ void		ecpg_set_native_sqlda(int, struct sqlda_struct **, const PGresult *, int, 
 #define ECPG_SQLSTATE_ECPG_INTERNAL_ERROR	"YE000"
 #define ECPG_SQLSTATE_ECPG_OUT_OF_MEMORY	"YE001"
 
-#endif							/* _ECPG_LIB_EXTERN_H */
+#endif   /* _ECPG_LIB_EXTERN_H */

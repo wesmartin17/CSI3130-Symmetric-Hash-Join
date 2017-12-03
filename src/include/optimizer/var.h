@@ -4,10 +4,10 @@
  *	  prototypes for optimizer/util/var.c.
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
- * src/include/optimizer/var.h
+ * $PostgreSQL: pgsql/src/include/optimizer/var.h,v 1.33 2005/06/05 22:32:58 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -16,25 +16,15 @@
 
 #include "nodes/relation.h"
 
-/* Bits that can be OR'd into the flags argument of pull_var_clause() */
-#define PVC_INCLUDE_AGGREGATES	0x0001	/* include Aggrefs in output list */
-#define PVC_RECURSE_AGGREGATES	0x0002	/* recurse into Aggref arguments */
-#define PVC_INCLUDE_WINDOWFUNCS 0x0004	/* include WindowFuncs in output list */
-#define PVC_RECURSE_WINDOWFUNCS 0x0008	/* recurse into WindowFunc arguments */
-#define PVC_INCLUDE_PLACEHOLDERS	0x0010	/* include PlaceHolderVars in
-											 * output list */
-#define PVC_RECURSE_PLACEHOLDERS	0x0020	/* recurse into PlaceHolderVar
-											 * arguments */
-
 
 extern Relids pull_varnos(Node *node);
-extern Relids pull_varnos_of_level(Node *node, int levelsup);
-extern void pull_varattnos(Node *node, Index varno, Bitmapset **varattnos);
-extern List *pull_vars_of_level(Node *node, int levelsup);
+extern bool contain_var_reference(Node *node, int varno, int varattno,
+					  int levelsup);
 extern bool contain_var_clause(Node *node);
 extern bool contain_vars_of_level(Node *node, int levelsup);
-extern int	locate_var_of_level(Node *node, int levelsup);
-extern List *pull_var_clause(Node *node, int flags);
+extern bool contain_vars_above_level(Node *node, int levelsup);
+extern int	find_minimum_var_level(Node *node);
+extern List *pull_var_clause(Node *node, bool includeUpperVars);
 extern Node *flatten_join_alias_vars(PlannerInfo *root, Node *node);
 
-#endif							/* VAR_H */
+#endif   /* VAR_H */

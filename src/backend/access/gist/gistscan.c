@@ -4,328 +4,439 @@
  *	  routines to manage scans on GiST index relations
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  src/backend/access/gist/gistscan.c
+ *	  $PostgreSQL: pgsql/src/backend/access/gist/gistscan.c,v 1.61 2005/09/22 20:44:36 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
+#include "access/genam.h"
 #include "access/gist_private.h"
 #include "access/gistscan.h"
-#include "access/relscan.h"
-#include "utils/lsyscache.h"
 #include "utils/memutils.h"
-#include "utils/rel.h"
+#include "utils/resowner.h"
 
-
-/*
- * Pairing heap comparison function for the GISTSearchItem queue
- */
-static int
-pairingheap_GISTSearchItem_cmp(const pairingheap_node *a, const pairingheap_node *b, void *arg)
-{
-	const GISTSearchItem *sa = (const GISTSearchItem *) a;
-	const GISTSearchItem *sb = (const GISTSearchItem *) b;
-	IndexScanDesc scan = (IndexScanDesc) arg;
-	int			i;
-
-	/* Order according to distance comparison */
-	for (i = 0; i < scan->numberOfOrderBys; i++)
-	{
-		if (sa->distances[i] != sb->distances[i])
-			return (sa->distances[i] < sb->distances[i]) ? 1 : -1;
-	}
-
-	/* Heap items go before inner pages, to ensure a depth-first search */
-	if (GISTSearchItemIsHeap(*sa) && !GISTSearchItemIsHeap(*sb))
-		return 1;
-	if (!GISTSearchItemIsHeap(*sa) && GISTSearchItemIsHeap(*sb))
-		return -1;
-
-	return 0;
-}
-
+/* routines defined and used here */
+static void gistregscan(IndexScanDesc scan);
+static void gistdropscan(IndexScanDesc scan);
+static void gistadjone(IndexScanDesc scan, int op, BlockNumber blkno,
+		   OffsetNumber offnum, XLogRecPtr newlsn, XLogRecPtr oldlsn);
+static void adjustiptr(IndexScanDesc scan, ItemPointer iptr, GISTSearchStack *stk,
+		   int op, BlockNumber blkno, OffsetNumber offnum, XLogRecPtr newlsn, XLogRecPtr oldlsn);
+static void gistfreestack(GISTSearchStack *s);
 
 /*
- * Index AM API functions for scanning GiST indexes
+ * Whenever we start a GiST scan in a backend, we register it in
+ * private space. Then if the GiST index gets updated, we check all
+ * registered scans and adjust them if the tuple they point at got
+ * moved by the update.  We only need to do this in private space,
+ * because when we update an GiST we have a write lock on the tree, so
+ * no other process can have any locks at all on it.  A single
+ * transaction can have write and read locks on the same object, so
+ * that's why we need to handle this case.
  */
-
-IndexScanDesc
-gistbeginscan(Relation r, int nkeys, int norderbys)
+typedef struct GISTScanListData
 {
+	IndexScanDesc gsl_scan;
+	ResourceOwner gsl_owner;
+	struct GISTScanListData *gsl_next;
+} GISTScanListData;
+
+typedef GISTScanListData *GISTScanList;
+
+/* pointer to list of local scans on GiSTs */
+static GISTScanList GISTScans = NULL;
+
+Datum
+gistbeginscan(PG_FUNCTION_ARGS)
+{
+	Relation	r = (Relation) PG_GETARG_POINTER(0);
+	int			nkeys = PG_GETARG_INT32(1);
+	ScanKey		key = (ScanKey) PG_GETARG_POINTER(2);
 	IndexScanDesc scan;
-	GISTSTATE  *giststate;
-	GISTScanOpaque so;
-	MemoryContext oldCxt;
 
-	scan = RelationGetIndexScan(r, nkeys, norderbys);
+	scan = RelationGetIndexScan(r, nkeys, key);
+	gistregscan(scan);
 
-	/* First, set up a GISTSTATE with a scan-lifespan memory context */
-	giststate = initGISTstate(scan->indexRelation);
-
-	/*
-	 * Everything made below is in the scanCxt, or is a child of the scanCxt,
-	 * so it'll all go away automatically in gistendscan.
-	 */
-	oldCxt = MemoryContextSwitchTo(giststate->scanCxt);
-
-	/* initialize opaque data */
-	so = (GISTScanOpaque) palloc0(sizeof(GISTScanOpaqueData));
-	so->giststate = giststate;
-	giststate->tempCxt = createTempGistContext();
-	so->queue = NULL;
-	so->queueCxt = giststate->scanCxt;	/* see gistrescan */
-
-	/* workspaces with size dependent on numberOfOrderBys: */
-	so->distances = palloc(sizeof(double) * scan->numberOfOrderBys);
-	so->qual_ok = true;			/* in case there are zero keys */
-	if (scan->numberOfOrderBys > 0)
-	{
-		scan->xs_orderbyvals = palloc0(sizeof(Datum) * scan->numberOfOrderBys);
-		scan->xs_orderbynulls = palloc(sizeof(bool) * scan->numberOfOrderBys);
-		memset(scan->xs_orderbynulls, true, sizeof(bool) * scan->numberOfOrderBys);
-	}
-
-	so->killedItems = NULL;		/* until needed */
-	so->numKilled = 0;
-	so->curBlkno = InvalidBlockNumber;
-	so->curPageLSN = InvalidXLogRecPtr;
-
-	scan->opaque = so;
-
-	/*
-	 * All fields required for index-only scans are initialized in gistrescan,
-	 * as we don't know yet if we're doing an index-only scan or not.
-	 */
-
-	MemoryContextSwitchTo(oldCxt);
-
-	return scan;
+	PG_RETURN_POINTER(scan);
 }
 
-void
-gistrescan(IndexScanDesc scan, ScanKey key, int nkeys,
-		   ScanKey orderbys, int norderbys)
+Datum
+gistrescan(PG_FUNCTION_ARGS)
 {
-	/* nkeys and norderbys arguments are ignored */
-	GISTScanOpaque so = (GISTScanOpaque) scan->opaque;
-	bool		first_time;
+	IndexScanDesc scan = (IndexScanDesc) PG_GETARG_POINTER(0);
+	ScanKey		key = (ScanKey) PG_GETARG_POINTER(1);
+	GISTScanOpaque so;
 	int			i;
-	MemoryContext oldCxt;
-
-	/* rescan an existing indexscan --- reset state */
 
 	/*
-	 * The first time through, we create the search queue in the scanCxt.
-	 * Subsequent times through, we create the queue in a separate queueCxt,
-	 * which is created on the second call and reset on later calls.  Thus, in
-	 * the common case where a scan is only rescan'd once, we just put the
-	 * queue in scanCxt and don't pay the overhead of making a second memory
-	 * context.  If we do rescan more than once, the first queue is just left
-	 * for dead until end of scan; this small wastage seems worth the savings
-	 * in the common case.
+	 * Clear all the pointers.
 	 */
-	if (so->queue == NULL)
+	ItemPointerSetInvalid(&scan->currentItemData);
+	ItemPointerSetInvalid(&scan->currentMarkData);
+
+	so = (GISTScanOpaque) scan->opaque;
+	if (so != NULL)
 	{
-		/* first time through */
-		Assert(so->queueCxt == so->giststate->scanCxt);
-		first_time = true;
-	}
-	else if (so->queueCxt == so->giststate->scanCxt)
-	{
-		/* second time through */
-		so->queueCxt = AllocSetContextCreate(so->giststate->scanCxt,
-											 "GiST queue context",
-											 ALLOCSET_DEFAULT_SIZES);
-		first_time = false;
+		/* rescan an existing indexscan --- reset state */
+		gistfreestack(so->stack);
+		gistfreestack(so->markstk);
+		so->stack = so->markstk = NULL;
+		so->flags = 0x0;
+		/* drop pins on buffers -- no locks held */
+		if (BufferIsValid(so->curbuf))
+		{
+			ReleaseBuffer(so->curbuf);
+			so->curbuf = InvalidBuffer;
+		}
+		if (BufferIsValid(so->markbuf))
+		{
+			ReleaseBuffer(so->markbuf);
+			so->markbuf = InvalidBuffer;
+		}
 	}
 	else
 	{
-		/* third or later time through */
-		MemoryContextReset(so->queueCxt);
-		first_time = false;
+		/* initialize opaque data */
+		so = (GISTScanOpaque) palloc(sizeof(GISTScanOpaqueData));
+		so->stack = so->markstk = NULL;
+		so->flags = 0x0;
+		so->tempCxt = createTempGistContext();
+		so->curbuf = so->markbuf = InvalidBuffer;
+		so->giststate = (GISTSTATE *) palloc(sizeof(GISTSTATE));
+		initGISTstate(so->giststate, scan->indexRelation);
+
+		scan->opaque = so;
 	}
-
-	/*
-	 * If we're doing an index-only scan, on the first call, also initialize a
-	 * tuple descriptor to represent the returned index tuples and create a
-	 * memory context to hold them during the scan.
-	 */
-	if (scan->xs_want_itup && !scan->xs_hitupdesc)
-	{
-		int			natts;
-		int			attno;
-
-		/*
-		 * The storage type of the index can be different from the original
-		 * datatype being indexed, so we cannot just grab the index's tuple
-		 * descriptor. Instead, construct a descriptor with the original data
-		 * types.
-		 */
-		natts = RelationGetNumberOfAttributes(scan->indexRelation);
-		so->giststate->fetchTupdesc = CreateTemplateTupleDesc(natts, false);
-		for (attno = 1; attno <= natts; attno++)
-		{
-			TupleDescInitEntry(so->giststate->fetchTupdesc, attno, NULL,
-							   scan->indexRelation->rd_opcintype[attno - 1],
-							   -1, 0);
-		}
-		scan->xs_hitupdesc = so->giststate->fetchTupdesc;
-
-		/* Also create a memory context that will hold the returned tuples */
-		so->pageDataCxt = AllocSetContextCreate(so->giststate->scanCxt,
-												"GiST page data context",
-												ALLOCSET_DEFAULT_SIZES);
-	}
-
-	/* create new, empty pairing heap for search queue */
-	oldCxt = MemoryContextSwitchTo(so->queueCxt);
-	so->queue = pairingheap_allocate(pairingheap_GISTSearchItem_cmp, scan);
-	MemoryContextSwitchTo(oldCxt);
-
-	so->firstCall = true;
 
 	/* Update scan key, if a new one is given */
 	if (key && scan->numberOfKeys > 0)
 	{
-		void	  **fn_extras = NULL;
-
-		/*
-		 * If this isn't the first time through, preserve the fn_extra
-		 * pointers, so that if the consistentFns are using them to cache
-		 * data, that data is not leaked across a rescan.
-		 */
-		if (!first_time)
-		{
-			fn_extras = (void **) palloc(scan->numberOfKeys * sizeof(void *));
-			for (i = 0; i < scan->numberOfKeys; i++)
-				fn_extras[i] = scan->keyData[i].sk_func.fn_extra;
-		}
-
 		memmove(scan->keyData, key,
 				scan->numberOfKeys * sizeof(ScanKeyData));
 
 		/*
-		 * Modify the scan key so that the Consistent method is called for all
-		 * comparisons. The original operator is passed to the Consistent
+		 * Modify the scan key so that all the Consistent method is called for
+		 * all comparisons. The original operator is passed to the Consistent
 		 * function in the form of its strategy number, which is available
 		 * from the sk_strategy field, and its subtype from the sk_subtype
 		 * field.
-		 *
-		 * Next, if any of keys is a NULL and that key is not marked with
-		 * SK_SEARCHNULL/SK_SEARCHNOTNULL then nothing can be found (ie, we
-		 * assume all indexable operators are strict).
 		 */
-		so->qual_ok = true;
-
 		for (i = 0; i < scan->numberOfKeys; i++)
-		{
-			ScanKey		skey = scan->keyData + i;
-
-			/*
-			 * Copy consistent support function to ScanKey structure instead
-			 * of function implementing filtering operator.
-			 */
-			fmgr_info_copy(&(skey->sk_func),
-						   &(so->giststate->consistentFn[skey->sk_attno - 1]),
-						   so->giststate->scanCxt);
-
-			/* Restore prior fn_extra pointers, if not first time */
-			if (!first_time)
-				skey->sk_func.fn_extra = fn_extras[i];
-
-			if (skey->sk_flags & SK_ISNULL)
-			{
-				if (!(skey->sk_flags & (SK_SEARCHNULL | SK_SEARCHNOTNULL)))
-					so->qual_ok = false;
-			}
-		}
-
-		if (!first_time)
-			pfree(fn_extras);
+			scan->keyData[i].sk_func = so->giststate->consistentFn[scan->keyData[i].sk_attno - 1];
 	}
 
-	/* Update order-by key, if a new one is given */
-	if (orderbys && scan->numberOfOrderBys > 0)
+	PG_RETURN_VOID();
+}
+
+Datum
+gistmarkpos(PG_FUNCTION_ARGS)
+{
+	IndexScanDesc scan = (IndexScanDesc) PG_GETARG_POINTER(0);
+	GISTScanOpaque so;
+	GISTSearchStack *o,
+			   *n,
+			   *tmp;
+
+	scan->currentMarkData = scan->currentItemData;
+	so = (GISTScanOpaque) scan->opaque;
+	if (so->flags & GS_CURBEFORE)
+		so->flags |= GS_MRKBEFORE;
+	else
+		so->flags &= ~GS_MRKBEFORE;
+
+	o = NULL;
+	n = so->stack;
+
+	/* copy the parent stack from the current item data */
+	while (n != NULL)
 	{
-		void	  **fn_extras = NULL;
-
-		/* As above, preserve fn_extra if not first time through */
-		if (!first_time)
-		{
-			fn_extras = (void **) palloc(scan->numberOfOrderBys * sizeof(void *));
-			for (i = 0; i < scan->numberOfOrderBys; i++)
-				fn_extras[i] = scan->orderByData[i].sk_func.fn_extra;
-		}
-
-		memmove(scan->orderByData, orderbys,
-				scan->numberOfOrderBys * sizeof(ScanKeyData));
-
-		so->orderByTypes = (Oid *) palloc(scan->numberOfOrderBys * sizeof(Oid));
-
-		/*
-		 * Modify the order-by key so that the Distance method is called for
-		 * all comparisons. The original operator is passed to the Distance
-		 * function in the form of its strategy number, which is available
-		 * from the sk_strategy field, and its subtype from the sk_subtype
-		 * field.
-		 */
-		for (i = 0; i < scan->numberOfOrderBys; i++)
-		{
-			ScanKey		skey = scan->orderByData + i;
-			FmgrInfo   *finfo = &(so->giststate->distanceFn[skey->sk_attno - 1]);
-
-			/* Check we actually have a distance function ... */
-			if (!OidIsValid(finfo->fn_oid))
-				elog(ERROR, "missing support function %d for attribute %d of index \"%s\"",
-					 GIST_DISTANCE_PROC, skey->sk_attno,
-					 RelationGetRelationName(scan->indexRelation));
-
-			/*
-			 * Look up the datatype returned by the original ordering
-			 * operator. GiST always uses a float8 for the distance function,
-			 * but the ordering operator could be anything else.
-			 *
-			 * XXX: The distance function is only allowed to be lossy if the
-			 * ordering operator's result type is float4 or float8.  Otherwise
-			 * we don't know how to return the distance to the executor.  But
-			 * we cannot check that here, as we won't know if the distance
-			 * function is lossy until it returns *recheck = true for the
-			 * first time.
-			 */
-			so->orderByTypes[i] = get_func_rettype(skey->sk_func.fn_oid);
-
-			/*
-			 * Copy distance support function to ScanKey structure instead of
-			 * function implementing ordering operator.
-			 */
-			fmgr_info_copy(&(skey->sk_func), finfo, so->giststate->scanCxt);
-
-			/* Restore prior fn_extra pointers, if not first time */
-			if (!first_time)
-				skey->sk_func.fn_extra = fn_extras[i];
-		}
-
-		if (!first_time)
-			pfree(fn_extras);
+		tmp = (GISTSearchStack *) palloc(sizeof(GISTSearchStack));
+		tmp->lsn = n->lsn;
+		tmp->parentlsn = n->parentlsn;
+		tmp->block = n->block;
+		tmp->next = o;
+		o = tmp;
+		n = n->next;
 	}
 
-	/* any previous xs_hitup will have been pfree'd in context resets above */
-	scan->xs_hitup = NULL;
+	gistfreestack(so->markstk);
+	so->markstk = o;
+
+	/* Update markbuf: make sure to bump ref count on curbuf */
+	if (BufferIsValid(so->markbuf))
+	{
+		ReleaseBuffer(so->markbuf);
+		so->markbuf = InvalidBuffer;
+	}
+	if (BufferIsValid(so->curbuf))
+	{
+		IncrBufferRefCount(so->curbuf);
+		so->markbuf = so->curbuf;
+	}
+
+	PG_RETURN_VOID();
+}
+
+Datum
+gistrestrpos(PG_FUNCTION_ARGS)
+{
+	IndexScanDesc scan = (IndexScanDesc) PG_GETARG_POINTER(0);
+	GISTScanOpaque so;
+	GISTSearchStack *o,
+			   *n,
+			   *tmp;
+
+	scan->currentItemData = scan->currentMarkData;
+	so = (GISTScanOpaque) scan->opaque;
+	if (so->flags & GS_MRKBEFORE)
+		so->flags |= GS_CURBEFORE;
+	else
+		so->flags &= ~GS_CURBEFORE;
+
+	o = NULL;
+	n = so->markstk;
+
+	/* copy the parent stack from the current item data */
+	while (n != NULL)
+	{
+		tmp = (GISTSearchStack *) palloc(sizeof(GISTSearchStack));
+		tmp->lsn = n->lsn;
+		tmp->parentlsn = n->parentlsn;
+		tmp->block = n->block;
+		tmp->next = o;
+		o = tmp;
+		n = n->next;
+	}
+
+	gistfreestack(so->stack);
+	so->stack = o;
+
+	/* Update curbuf: be sure to bump ref count on markbuf */
+	if (BufferIsValid(so->curbuf))
+	{
+		ReleaseBuffer(so->curbuf);
+		so->curbuf = InvalidBuffer;
+	}
+	if (BufferIsValid(so->markbuf))
+	{
+		IncrBufferRefCount(so->markbuf);
+		so->curbuf = so->markbuf;
+	}
+
+	PG_RETURN_VOID();
+}
+
+Datum
+gistendscan(PG_FUNCTION_ARGS)
+{
+	IndexScanDesc scan = (IndexScanDesc) PG_GETARG_POINTER(0);
+	GISTScanOpaque so;
+
+	so = (GISTScanOpaque) scan->opaque;
+
+	if (so != NULL)
+	{
+		gistfreestack(so->stack);
+		gistfreestack(so->markstk);
+		if (so->giststate != NULL)
+			freeGISTstate(so->giststate);
+		/* drop pins on buffers -- we aren't holding any locks */
+		if (BufferIsValid(so->curbuf))
+			ReleaseBuffer(so->curbuf);
+		if (BufferIsValid(so->markbuf))
+			ReleaseBuffer(so->markbuf);
+		MemoryContextDelete(so->tempCxt);
+		pfree(scan->opaque);
+	}
+
+
+	gistdropscan(scan);
+
+	PG_RETURN_VOID();
+}
+
+static void
+gistregscan(IndexScanDesc scan)
+{
+	GISTScanList l;
+
+	l = (GISTScanList) palloc(sizeof(GISTScanListData));
+	l->gsl_scan = scan;
+	l->gsl_owner = CurrentResourceOwner;
+	l->gsl_next = GISTScans;
+	GISTScans = l;
+}
+
+static void
+gistdropscan(IndexScanDesc scan)
+{
+	GISTScanList l;
+	GISTScanList prev;
+
+	prev = NULL;
+
+	for (l = GISTScans; l != NULL && l->gsl_scan != scan; l = l->gsl_next)
+		prev = l;
+
+	if (l == NULL)
+		elog(ERROR, "GiST scan list corrupted -- could not find 0x%p",
+			 (void *) scan);
+
+	if (prev == NULL)
+		GISTScans = l->gsl_next;
+	else
+		prev->gsl_next = l->gsl_next;
+
+	pfree(l);
+}
+
+/*
+ * ReleaseResources_gist() --- clean up gist subsystem resources.
+ *
+ * This is here because it needs to touch this module's static var GISTScans.
+ */
+void
+ReleaseResources_gist(void)
+{
+	GISTScanList l;
+	GISTScanList prev;
+	GISTScanList next;
+
+	/*
+	 * Note: this should be a no-op during normal query shutdown. However, in
+	 * an abort situation ExecutorEnd is not called and so there may be open
+	 * index scans to clean up.
+	 */
+	prev = NULL;
+
+	for (l = GISTScans; l != NULL; l = next)
+	{
+		next = l->gsl_next;
+		if (l->gsl_owner == CurrentResourceOwner)
+		{
+			if (prev == NULL)
+				GISTScans = next;
+			else
+				prev->gsl_next = next;
+
+			pfree(l);
+			/* prev does not change */
+		}
+		else
+			prev = l;
+	}
 }
 
 void
-gistendscan(IndexScanDesc scan)
+gistadjscans(Relation rel, int op, BlockNumber blkno, OffsetNumber offnum, XLogRecPtr newlsn, XLogRecPtr oldlsn)
+{
+	GISTScanList l;
+	Oid			relid;
+
+	if (XLogRecPtrIsInvalid(newlsn) || XLogRecPtrIsInvalid(oldlsn))
+		return;
+
+	relid = RelationGetRelid(rel);
+	for (l = GISTScans; l != NULL; l = l->gsl_next)
+	{
+		if (l->gsl_scan->indexRelation->rd_id == relid)
+			gistadjone(l->gsl_scan, op, blkno, offnum, newlsn, oldlsn);
+	}
+}
+
+/*
+ *	gistadjone() -- adjust one scan for update.
+ *
+ *		By here, the scan passed in is on a modified relation.	Op tells
+ *		us what the modification is, and blkno and offind tell us what
+ *		block and offset index were affected.  This routine checks the
+ *		current and marked positions, and the current and marked stacks,
+ *		to see if any stored location needs to be changed because of the
+ *		update.  If so, we make the change here.
+ */
+static void
+gistadjone(IndexScanDesc scan,
+		   int op,
+		   BlockNumber blkno,
+		   OffsetNumber offnum, XLogRecPtr newlsn, XLogRecPtr oldlsn)
 {
 	GISTScanOpaque so = (GISTScanOpaque) scan->opaque;
 
-	/*
-	 * freeGISTstate is enough to clean up everything made by gistbeginscan,
-	 * as well as the queueCxt if there is a separate context for it.
-	 */
-	freeGISTstate(so->giststate);
+	adjustiptr(scan, &(scan->currentItemData), so->stack, op, blkno, offnum, newlsn, oldlsn);
+	adjustiptr(scan, &(scan->currentMarkData), so->markstk, op, blkno, offnum, newlsn, oldlsn);
+}
+
+/*
+ *	adjustiptr() -- adjust current and marked item pointers in the scan
+ *
+ *		Depending on the type of update and the place it happened, we
+ *		need to do nothing, to back up one record, or to start over on
+ *		the same page.
+ */
+static void
+adjustiptr(IndexScanDesc scan,
+		   ItemPointer iptr, GISTSearchStack *stk,
+		   int op,
+		   BlockNumber blkno,
+		   OffsetNumber offnum, XLogRecPtr newlsn, XLogRecPtr oldlsn)
+{
+	OffsetNumber curoff;
+	GISTScanOpaque so;
+
+	if (ItemPointerIsValid(iptr))
+	{
+		if (ItemPointerGetBlockNumber(iptr) == blkno)
+		{
+			curoff = ItemPointerGetOffsetNumber(iptr);
+			so = (GISTScanOpaque) scan->opaque;
+
+			switch (op)
+			{
+				case GISTOP_DEL:
+					/* back up one if we need to */
+					if (curoff >= offnum && XLByteEQ(stk->lsn, oldlsn)) /* the same vesrion of
+																		 * page */
+					{
+						if (curoff > FirstOffsetNumber)
+						{
+							/* just adjust the item pointer */
+							ItemPointerSet(iptr, blkno, OffsetNumberPrev(curoff));
+						}
+						else
+						{
+							/*
+							 * remember that we're before the current tuple
+							 */
+							ItemPointerSet(iptr, blkno, FirstOffsetNumber);
+							if (iptr == &(scan->currentItemData))
+								so->flags |= GS_CURBEFORE;
+							else
+								so->flags |= GS_MRKBEFORE;
+						}
+						stk->lsn = newlsn;
+					}
+					break;
+				default:
+					elog(ERROR, "unrecognized GiST scan adjust operation: %d",
+						 op);
+			}
+		}
+	}
+}
+
+static void
+gistfreestack(GISTSearchStack *s)
+{
+	while (s != NULL)
+	{
+		GISTSearchStack *p = s->next;
+
+		pfree(s);
+		s = p;
+	}
 }

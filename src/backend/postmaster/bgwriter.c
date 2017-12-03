@@ -2,132 +2,191 @@
  *
  * bgwriter.c
  *
- * The background writer (bgwriter) is new as of Postgres 8.0.  It attempts
+ * The background writer (bgwriter) is new in Postgres 8.0.  It attempts
  * to keep regular backends from having to write out dirty shared buffers
  * (which they would only do when needing to free a shared buffer to read in
  * another page).  In the best scenario all writes from shared buffers will
- * be issued by the background writer process.  However, regular backends are
+ * be issued by the background writer process.	However, regular backends are
  * still empowered to issue writes if the bgwriter fails to maintain enough
  * clean shared buffers.
  *
- * As of Postgres 9.2 the bgwriter no longer handles checkpoints.
+ * The bgwriter is also charged with handling all checkpoints.	It will
+ * automatically dispatch a checkpoint after a certain amount of time has
+ * elapsed since the last one, and it can be signaled to perform requested
+ * checkpoints as well.  (The GUC parameter that mandates a checkpoint every
+ * so many WAL segments is implemented by having backends signal the bgwriter
+ * when they fill WAL segments; the bgwriter itself doesn't watch for the
+ * condition.)
  *
  * The bgwriter is started by the postmaster as soon as the startup subprocess
- * finishes, or as soon as recovery begins if we are doing archive recovery.
- * It remains alive until the postmaster commands it to terminate.
- * Normal termination is by SIGTERM, which instructs the bgwriter to exit(0).
- * Emergency termination is by SIGQUIT; like any backend, the bgwriter will
- * simply abort and exit on SIGQUIT.
+ * finishes.  It remains alive until the postmaster commands it to terminate.
+ * Normal termination is by SIGUSR2, which instructs the bgwriter to execute
+ * a shutdown checkpoint and then exit(0).	(All backends must be stopped
+ * before SIGUSR2 is issued!)  Emergency termination is by SIGQUIT; like any
+ * backend, the bgwriter will simply abort and exit on SIGQUIT.
  *
  * If the bgwriter exits unexpectedly, the postmaster treats that the same
  * as a backend crash: shared memory may be corrupted, so remaining backends
- * should be killed by SIGQUIT and then a recovery cycle started.
+ * should be killed by SIGQUIT and then a recovery cycle started.  (Even if
+ * shared memory isn't corrupted, we have lost information about which
+ * files need to be fsync'd for the next checkpoint, and so a system
+ * restart needs to be forced.)
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  *
  *
  * IDENTIFICATION
- *	  src/backend/postmaster/bgwriter.c
+ *	  $PostgreSQL: pgsql/src/backend/postmaster/bgwriter.c,v 1.21.2.1 2005/12/08 19:19:31 tgl Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
 #include <signal.h>
-#include <sys/time.h>
-#include <unistd.h>
+#include <time.h>
 
 #include "access/xlog.h"
-#include "access/xlog_internal.h"
 #include "libpq/pqsignal.h"
 #include "miscadmin.h"
-#include "pgstat.h"
 #include "postmaster/bgwriter.h"
 #include "storage/bufmgr.h"
-#include "storage/buf_internals.h"
-#include "storage/condition_variable.h"
 #include "storage/fd.h"
+#include "storage/freespace.h"
 #include "storage/ipc.h"
-#include "storage/lwlock.h"
-#include "storage/proc.h"
-#include "storage/shmem.h"
+#include "storage/pmsignal.h"
 #include "storage/smgr.h"
-#include "storage/spin.h"
-#include "storage/standby.h"
+#include "tcop/tcopprot.h"
 #include "utils/guc.h"
 #include "utils/memutils.h"
 #include "utils/resowner.h"
-#include "utils/timestamp.h"
 
+
+/*----------
+ * Shared memory area for communication between bgwriter and backends
+ *
+ * The ckpt counters allow backends to watch for completion of a checkpoint
+ * request they send.  Here's how it works:
+ *	* At start of a checkpoint, bgwriter increments ckpt_started.
+ *	* On completion of a checkpoint, bgwriter sets ckpt_done to
+ *	  equal ckpt_started.
+ *	* On failure of a checkpoint, bgwrite first increments ckpt_failed,
+ *	  then sets ckpt_done to equal ckpt_started.
+ * All three fields are declared sig_atomic_t to ensure they can be read
+ * and written without explicit locking.  The algorithm for backends is:
+ *	1. Record current values of ckpt_failed and ckpt_started (in that
+ *	   order!).
+ *	2. Send signal to request checkpoint.
+ *	3. Sleep until ckpt_started changes.  Now you know a checkpoint has
+ *	   begun since you started this algorithm (although *not* that it was
+ *	   specifically initiated by your signal).
+ *	4. Record new value of ckpt_started.
+ *	5. Sleep until ckpt_done >= saved value of ckpt_started.  (Use modulo
+ *	   arithmetic here in case counters wrap around.)  Now you know a
+ *	   checkpoint has started and completed, but not whether it was
+ *	   successful.
+ *	6. If ckpt_failed is different from the originally saved value,
+ *	   assume request failed; otherwise it was definitely successful.
+ *
+ * An additional field is ckpt_time_warn; this is also sig_atomic_t for
+ * simplicity, but is only used as a boolean.  If a backend is requesting
+ * a checkpoint for which a checkpoints-too-close-together warning is
+ * reasonable, it should set this field TRUE just before sending the signal.
+ *
+ * The requests array holds fsync requests sent by backends and not yet
+ * absorbed by the bgwriter.  Unlike the checkpoint fields, the requests
+ * fields are protected by BgWriterCommLock.
+ *----------
+ */
+typedef struct
+{
+	RelFileNode rnode;
+	BlockNumber segno;
+	/* might add a request-type field later */
+} BgWriterRequest;
+
+typedef struct
+{
+	pid_t		bgwriter_pid;	/* PID of bgwriter (0 if not started) */
+
+	sig_atomic_t ckpt_started;	/* advances when checkpoint starts */
+	sig_atomic_t ckpt_done;		/* advances when checkpoint done */
+	sig_atomic_t ckpt_failed;	/* advances when checkpoint fails */
+
+	sig_atomic_t ckpt_time_warn;	/* warn if too soon since last ckpt? */
+
+	int			num_requests;	/* current # of requests */
+	int			max_requests;	/* allocated array size */
+	BgWriterRequest requests[1];	/* VARIABLE LENGTH ARRAY */
+} BgWriterShmemStruct;
+
+static BgWriterShmemStruct *BgWriterShmem;
 
 /*
  * GUC parameters
  */
 int			BgWriterDelay = 200;
-
-/*
- * Multiplier to apply to BgWriterDelay when we decide to hibernate.
- * (Perhaps this needs to be configurable?)
- */
-#define HIBERNATE_FACTOR			50
-
-/*
- * Interval in which standby snapshots are logged into the WAL stream, in
- * milliseconds.
- */
-#define LOG_SNAPSHOT_INTERVAL_MS 15000
-
-/*
- * LSN and timestamp at which we last issued a LogStandbySnapshot(), to avoid
- * doing so too often or repeatedly if there has been no other write activity
- * in the system.
- */
-static TimestampTz last_snapshot_ts;
-static XLogRecPtr last_snapshot_lsn = InvalidXLogRecPtr;
+int			CheckPointTimeout = 300;
+int			CheckPointWarning = 30;
 
 /*
  * Flags set by interrupt handlers for later service in the main loop.
  */
 static volatile sig_atomic_t got_SIGHUP = false;
+static volatile sig_atomic_t checkpoint_requested = false;
 static volatile sig_atomic_t shutdown_requested = false;
 
-/* Signal handlers */
+/*
+ * Private state
+ */
+static bool am_bg_writer = false;
+
+static bool ckpt_active = false;
+
+static time_t last_checkpoint_time;
+
 
 static void bg_quickdie(SIGNAL_ARGS);
 static void BgSigHupHandler(SIGNAL_ARGS);
+static void ReqCheckpointHandler(SIGNAL_ARGS);
 static void ReqShutdownHandler(SIGNAL_ARGS);
-static void bgwriter_sigusr1_handler(SIGNAL_ARGS);
 
 
 /*
  * Main entry point for bgwriter process
  *
- * This is invoked from AuxiliaryProcessMain, which has already created the
- * basic execution environment, but not enabled signals yet.
+ * This is invoked from BootstrapMain, which has already created the basic
+ * execution environment, but not enabled signals yet.
  */
 void
 BackgroundWriterMain(void)
 {
 	sigjmp_buf	local_sigjmp_buf;
 	MemoryContext bgwriter_context;
-	bool		prev_hibernate;
-	WritebackContext wb_context;
+
+	Assert(BgWriterShmem != NULL);
+	BgWriterShmem->bgwriter_pid = MyProcPid;
+	am_bg_writer = true;
 
 	/*
-	 * Properly accept or ignore signals the postmaster might send us.
+	 * Properly accept or ignore signals the postmaster might send us
 	 *
-	 * bgwriter doesn't participate in ProcSignal signalling, but a SIGUSR1
-	 * handler is still needed for latch wakeups.
+	 * Note: we deliberately ignore SIGTERM, because during a standard Unix
+	 * system shutdown cycle, init will SIGTERM all processes at once.	We
+	 * want to wait for the backends to exit, whereupon the postmaster will
+	 * tell us it's okay to shut down (via SIGUSR2).
+	 *
+	 * SIGUSR1 is presently unused; keep it spare in case someday we want this
+	 * process to participate in sinval messaging.
 	 */
 	pqsignal(SIGHUP, BgSigHupHandler);	/* set flag to read config file */
-	pqsignal(SIGINT, SIG_IGN);
-	pqsignal(SIGTERM, ReqShutdownHandler);	/* shutdown */
-	pqsignal(SIGQUIT, bg_quickdie); /* hard crash time */
+	pqsignal(SIGINT, ReqCheckpointHandler);		/* request checkpoint */
+	pqsignal(SIGTERM, SIG_IGN); /* ignore SIGTERM */
+	pqsignal(SIGQUIT, bg_quickdie);		/* hard crash time */
 	pqsignal(SIGALRM, SIG_IGN);
 	pqsignal(SIGPIPE, SIG_IGN);
-	pqsignal(SIGUSR1, bgwriter_sigusr1_handler);
-	pqsignal(SIGUSR2, SIG_IGN);
+	pqsignal(SIGUSR1, SIG_IGN); /* reserve for sinval */
+	pqsignal(SIGUSR2, ReqShutdownHandler);		/* request shutdown */
 
 	/*
 	 * Reset some signals that are accepted by postmaster but not here
@@ -139,19 +198,23 @@ BackgroundWriterMain(void)
 	pqsignal(SIGWINCH, SIG_DFL);
 
 	/* We allow SIGQUIT (quickdie) at all times */
+#ifdef HAVE_SIGPROCMASK
 	sigdelset(&BlockSig, SIGQUIT);
+#else
+	BlockSig &= ~(sigmask(SIGQUIT));
+#endif
 
 	/*
-	 * Create a resource owner to keep track of our resources (currently only
-	 * buffer pins).
+	 * Initialize so that first time-driven checkpoint happens at the correct
+	 * time.
+	 */
+	last_checkpoint_time = time(NULL);
+
+	/*
+	 * Create a resource owner to keep track of our resources (currently
+	 * only buffer pins).
 	 */
 	CurrentResourceOwner = ResourceOwnerCreate(NULL, "Background Writer");
-
-	/*
-	 * We just started, assume there has been either a shutdown or
-	 * end-of-recovery snapshot.
-	 */
-	last_snapshot_ts = GetCurrentTimestamp();
 
 	/*
 	 * Create a memory context that we will do all our work in.  We do this so
@@ -161,10 +224,10 @@ BackgroundWriterMain(void)
 	 */
 	bgwriter_context = AllocSetContextCreate(TopMemoryContext,
 											 "Background Writer",
-											 ALLOCSET_DEFAULT_SIZES);
+											 ALLOCSET_DEFAULT_MINSIZE,
+											 ALLOCSET_DEFAULT_INITSIZE,
+											 ALLOCSET_DEFAULT_MAXSIZE);
 	MemoryContextSwitchTo(bgwriter_context);
-
-	WritebackContextInit(&wb_context, &bgwriter_flush_after);
 
 	/*
 	 * If an exception is encountered, processing resumes here.
@@ -184,11 +247,10 @@ BackgroundWriterMain(void)
 
 		/*
 		 * These operations are really just a minimal subset of
-		 * AbortTransaction().  We don't have very many resources to worry
+		 * AbortTransaction().	We don't have very many resources to worry
 		 * about in bgwriter, but we do have LWLocks, buffers, and temp files.
 		 */
 		LWLockReleaseAll();
-		ConditionVariableCancelSleep();
 		AbortBufferIO();
 		UnlockBuffers();
 		/* buffer pins are released here: */
@@ -197,9 +259,18 @@ BackgroundWriterMain(void)
 							 false, true);
 		/* we needn't bother with the other ResourceOwnerRelease phases */
 		AtEOXact_Buffers(false);
-		AtEOXact_SMgr();
 		AtEOXact_Files();
-		AtEOXact_HashTables(false);
+
+		/* Warn any waiting backends that the checkpoint failed. */
+		if (ckpt_active)
+		{
+			/* use volatile pointer to prevent code rearrangement */
+			volatile BgWriterShmemStruct *bgs = BgWriterShmem;
+
+			bgs->ckpt_failed++;
+			bgs->ckpt_done = bgs->ckpt_started;
+			ckpt_active = false;
+		}
 
 		/*
 		 * Now return to normal top-level context and clear ErrorContext for
@@ -211,9 +282,6 @@ BackgroundWriterMain(void)
 		/* Flush any leaked data in the top-level context */
 		MemoryContextResetAndDeleteChildren(bgwriter_context);
 
-		/* re-initialize to avoid repeated errors causing problems */
-		WritebackContextInit(&wb_context, &bgwriter_flush_after);
-
 		/* Now we can allow interrupts again */
 		RESUME_INTERRUPTS();
 
@@ -223,16 +291,6 @@ BackgroundWriterMain(void)
 		 * fast as we can.
 		 */
 		pg_usleep(1000000L);
-
-		/*
-		 * Close all open files after any error.  This is helpful on Windows,
-		 * where holding deleted files open causes various strange errors.
-		 * It's not clear we need it elsewhere, but shouldn't hurt.
-		 */
-		smgrcloseall();
-
-		/* Report wait end here, when there is no further possibility of wait */
-		pgstat_report_wait_end();
 	}
 
 	/* We can now handle ereport(ERROR) */
@@ -244,153 +302,133 @@ BackgroundWriterMain(void)
 	PG_SETMASK(&UnBlockSig);
 
 	/*
-	 * Reset hibernation state after any error.
-	 */
-	prev_hibernate = false;
-
-	/*
 	 * Loop forever
 	 */
 	for (;;)
 	{
-		bool		can_hibernate;
-		int			rc;
+		bool		do_checkpoint = false;
+		bool		force_checkpoint = false;
+		time_t		now;
+		int			elapsed_secs;
+		long		udelay;
 
-		/* Clear any already-pending wakeups */
-		ResetLatch(MyLatch);
+		/*
+		 * Emergency bailout if postmaster has died.  This is to avoid the
+		 * necessity for manual cleanup of all postmaster children.
+		 */
+		if (!PostmasterIsAlive(true))
+			exit(1);
+
+		/*
+		 * Process any requests or signals received recently.
+		 */
+		AbsorbFsyncRequests();
 
 		if (got_SIGHUP)
 		{
 			got_SIGHUP = false;
 			ProcessConfigFile(PGC_SIGHUP);
 		}
+		if (checkpoint_requested)
+		{
+			checkpoint_requested = false;
+			do_checkpoint = true;
+			force_checkpoint = true;
+		}
 		if (shutdown_requested)
 		{
-			/*
-			 * From here on, elog(ERROR) should end with exit(1), not send
-			 * control back to the sigsetjmp block above
-			 */
-			ExitOnAnyError = true;
+			ShutdownXLOG(0, 0);
+			DumpFreeSpaceMap(0, 0);
 			/* Normal exit from the bgwriter is here */
 			proc_exit(0);		/* done */
 		}
 
 		/*
-		 * Do one cycle of dirty-buffer writing.
+		 * Do an unforced checkpoint if too much time has elapsed since the
+		 * last one.
 		 */
-		can_hibernate = BgBufferSync(&wb_context);
+		now = time(NULL);
+		elapsed_secs = now - last_checkpoint_time;
+		if (elapsed_secs >= CheckPointTimeout)
+			do_checkpoint = true;
 
 		/*
-		 * Send off activity statistics to the stats collector
+		 * Do a checkpoint if requested, otherwise do one cycle of
+		 * dirty-buffer writing.
 		 */
-		pgstat_send_bgwriter();
-
-		if (FirstCallSinceLastCheckpoint())
+		if (do_checkpoint)
 		{
 			/*
-			 * After any checkpoint, close all smgr files.  This is so we
+			 * We will warn if (a) too soon since last checkpoint (whatever
+			 * caused it) and (b) somebody has set the ckpt_time_warn flag
+			 * since the last checkpoint start.  Note in particular that this
+			 * implementation will not generate warnings caused by
+			 * CheckPointTimeout < CheckPointWarning.
+			 */
+			if (BgWriterShmem->ckpt_time_warn &&
+				elapsed_secs < CheckPointWarning)
+				ereport(LOG,
+						(errmsg("checkpoints are occurring too frequently (%d seconds apart)",
+								elapsed_secs),
+						 errhint("Consider increasing the configuration parameter \"checkpoint_segments\".")));
+			BgWriterShmem->ckpt_time_warn = false;
+
+			/*
+			 * Indicate checkpoint start to any waiting backends.
+			 */
+			ckpt_active = true;
+			BgWriterShmem->ckpt_started++;
+
+			CreateCheckPoint(false, force_checkpoint);
+
+			/*
+			 * After any checkpoint, close all smgr files.	This is so we
 			 * won't hang onto smgr references to deleted files indefinitely.
 			 */
 			smgrcloseall();
-		}
-
-		/*
-		 * Log a new xl_running_xacts every now and then so replication can
-		 * get into a consistent state faster (think of suboverflowed
-		 * snapshots) and clean up resources (locks, KnownXids*) more
-		 * frequently. The costs of this are relatively low, so doing it 4
-		 * times (LOG_SNAPSHOT_INTERVAL_MS) a minute seems fine.
-		 *
-		 * We assume the interval for writing xl_running_xacts is
-		 * significantly bigger than BgWriterDelay, so we don't complicate the
-		 * overall timeout handling but just assume we're going to get called
-		 * often enough even if hibernation mode is active. It's not that
-		 * important that log_snap_interval_ms is met strictly. To make sure
-		 * we're not waking the disk up unnecessarily on an idle system we
-		 * check whether there has been any WAL inserted since the last time
-		 * we've logged a running xacts.
-		 *
-		 * We do this logging in the bgwriter as it is the only process that
-		 * is run regularly and returns to its mainloop all the time. E.g.
-		 * Checkpointer, when active, is barely ever in its mainloop and thus
-		 * makes it hard to log regularly.
-		 */
-		if (XLogStandbyInfoActive() && !RecoveryInProgress())
-		{
-			TimestampTz timeout = 0;
-			TimestampTz now = GetCurrentTimestamp();
-
-			timeout = TimestampTzPlusMilliseconds(last_snapshot_ts,
-												  LOG_SNAPSHOT_INTERVAL_MS);
 
 			/*
-			 * Only log if enough time has passed and interesting records have
-			 * been inserted since the last snapshot.  Have to compare with <=
-			 * instead of < because GetLastImportantRecPtr() points at the
-			 * start of a record, whereas last_snapshot_lsn points just past
-			 * the end of the record.
+			 * Indicate checkpoint completion to any waiting backends.
 			 */
-			if (now >= timeout &&
-				last_snapshot_lsn <= GetLastImportantRecPtr())
-			{
-				last_snapshot_lsn = LogStandbySnapshot();
-				last_snapshot_ts = now;
-			}
+			BgWriterShmem->ckpt_done = BgWriterShmem->ckpt_started;
+			ckpt_active = false;
+
+			/*
+			 * Note we record the checkpoint start time not end time as
+			 * last_checkpoint_time.  This is so that time-driven checkpoints
+			 * happen at a predictable spacing.
+			 */
+			last_checkpoint_time = now;
 		}
+		else
+			BgBufferSync();
 
 		/*
-		 * Sleep until we are signaled or BgWriterDelay has elapsed.
+		 * Nap for the configured time, or sleep for 10 seconds if there is no
+		 * bgwriter activity configured.
 		 *
-		 * Note: the feedback control loop in BgBufferSync() expects that we
-		 * will call it every BgWriterDelay msec.  While it's not critical for
-		 * correctness that that be exact, the feedback loop might misbehave
-		 * if we stray too far from that.  Hence, avoid loading this process
-		 * down with latch events that are likely to happen frequently during
-		 * normal operation.
-		 */
-		rc = WaitLatch(MyLatch,
-					   WL_LATCH_SET | WL_TIMEOUT | WL_POSTMASTER_DEATH,
-					   BgWriterDelay /* ms */ , WAIT_EVENT_BGWRITER_MAIN);
-
-		/*
-		 * If no latch event and BgBufferSync says nothing's happening, extend
-		 * the sleep in "hibernation" mode, where we sleep for much longer
-		 * than bgwriter_delay says.  Fewer wakeups save electricity.  When a
-		 * backend starts using buffers again, it will wake us up by setting
-		 * our latch.  Because the extra sleep will persist only as long as no
-		 * buffer allocations happen, this should not distort the behavior of
-		 * BgBufferSync's control loop too badly; essentially, it will think
-		 * that the system-wide idle interval didn't exist.
+		 * On some platforms, signals won't interrupt the sleep.  To ensure we
+		 * respond reasonably promptly when someone signals us, break down the
+		 * sleep into 1-second increments, and check for interrupts after each
+		 * nap.
 		 *
-		 * There is a race condition here, in that a backend might allocate a
-		 * buffer between the time BgBufferSync saw the alloc count as zero
-		 * and the time we call StrategyNotifyBgWriter.  While it's not
-		 * critical that we not hibernate anyway, we try to reduce the odds of
-		 * that by only hibernating when BgBufferSync says nothing's happening
-		 * for two consecutive cycles.  Also, we mitigate any possible
-		 * consequences of a missed wakeup by not hibernating forever.
+		 * We absorb pending requests after each short sleep.
 		 */
-		if (rc == WL_TIMEOUT && can_hibernate && prev_hibernate)
+		if ((bgwriter_all_percent > 0.0 && bgwriter_all_maxpages > 0) ||
+			(bgwriter_lru_percent > 0.0 && bgwriter_lru_maxpages > 0))
+			udelay = BgWriterDelay * 1000L;
+		else
+			udelay = 10000000L;
+		while (udelay > 1000000L)
 		{
-			/* Ask for notification at next buffer allocation */
-			StrategyNotifyBgWriter(MyProc->pgprocno);
-			/* Sleep ... */
-			rc = WaitLatch(MyLatch,
-						   WL_LATCH_SET | WL_TIMEOUT | WL_POSTMASTER_DEATH,
-						   BgWriterDelay * HIBERNATE_FACTOR,
-						   WAIT_EVENT_BGWRITER_HIBERNATE);
-			/* Reset the notification request in case we timed out */
-			StrategyNotifyBgWriter(-1);
+			if (got_SIGHUP || checkpoint_requested || shutdown_requested)
+				break;
+			pg_usleep(1000000L);
+			AbsorbFsyncRequests();
+			udelay -= 1000000L;
 		}
-
-		/*
-		 * Emergency bailout if postmaster has died.  This is to avoid the
-		 * necessity for manual cleanup of all postmaster children.
-		 */
-		if (rc & WL_POSTMASTER_DEATH)
-			exit(1);
-
-		prev_hibernate = can_hibernate;
+		if (!(got_SIGHUP || checkpoint_requested || shutdown_requested))
+			pg_usleep(udelay);
 	}
 }
 
@@ -412,57 +450,263 @@ bg_quickdie(SIGNAL_ARGS)
 	PG_SETMASK(&BlockSig);
 
 	/*
-	 * We DO NOT want to run proc_exit() callbacks -- we're here because
-	 * shared memory may be corrupted, so we don't want to try to clean up our
-	 * transaction.  Just nail the windows shut and get out of town.  Now that
-	 * there's an atexit callback to prevent third-party code from breaking
-	 * things by calling exit() directly, we have to reset the callbacks
-	 * explicitly to make this work as intended.
-	 */
-	on_exit_reset();
-
-	/*
-	 * Note we do exit(2) not exit(0).  This is to force the postmaster into a
+	 * DO NOT proc_exit() -- we're here because shared memory may be
+	 * corrupted, so we don't want to try to clean up our transaction. Just
+	 * nail the windows shut and get out of town.
+	 *
+	 * Note we do exit(1) not exit(0).	This is to force the postmaster into a
 	 * system reset cycle if some idiot DBA sends a manual SIGQUIT to a random
 	 * backend.  This is necessary precisely because we don't clean up our
-	 * shared memory state.  (The "dead man switch" mechanism in pmsignal.c
-	 * should ensure the postmaster sees this as a crash, too, but no harm in
-	 * being doubly sure.)
+	 * shared memory state.
 	 */
-	exit(2);
+	exit(1);
 }
 
 /* SIGHUP: set flag to re-read config file at next convenient time */
 static void
 BgSigHupHandler(SIGNAL_ARGS)
 {
-	int			save_errno = errno;
-
 	got_SIGHUP = true;
-	SetLatch(MyLatch);
-
-	errno = save_errno;
 }
 
-/* SIGTERM: set flag to shutdown and exit */
+/* SIGINT: set flag to run a normal checkpoint right away */
+static void
+ReqCheckpointHandler(SIGNAL_ARGS)
+{
+	checkpoint_requested = true;
+}
+
+/* SIGUSR2: set flag to run a shutdown checkpoint and exit */
 static void
 ReqShutdownHandler(SIGNAL_ARGS)
 {
-	int			save_errno = errno;
-
 	shutdown_requested = true;
-	SetLatch(MyLatch);
-
-	errno = save_errno;
 }
 
-/* SIGUSR1: used for latch wakeups */
-static void
-bgwriter_sigusr1_handler(SIGNAL_ARGS)
+
+/* --------------------------------
+ *		communication with backends
+ * --------------------------------
+ */
+
+/*
+ * BgWriterShmemSize
+ *		Compute space needed for bgwriter-related shared memory
+ */
+Size
+BgWriterShmemSize(void)
 {
-	int			save_errno = errno;
+	Size		size;
 
-	latch_sigusr1_handler();
+	/*
+	 * Currently, the size of the requests[] array is arbitrarily set equal to
+	 * NBuffers.  This may prove too large or small ...
+	 */
+	size = offsetof(BgWriterShmemStruct, requests);
+	size = add_size(size, mul_size(NBuffers, sizeof(BgWriterRequest)));
 
-	errno = save_errno;
+	return size;
+}
+
+/*
+ * BgWriterShmemInit
+ *		Allocate and initialize bgwriter-related shared memory
+ */
+void
+BgWriterShmemInit(void)
+{
+	bool		found;
+
+	BgWriterShmem = (BgWriterShmemStruct *)
+		ShmemInitStruct("Background Writer Data",
+						BgWriterShmemSize(),
+						&found);
+	if (BgWriterShmem == NULL)
+		ereport(FATAL,
+				(errcode(ERRCODE_OUT_OF_MEMORY),
+				 errmsg("not enough shared memory for background writer")));
+	if (found)
+		return;					/* already initialized */
+
+	MemSet(BgWriterShmem, 0, sizeof(BgWriterShmemStruct));
+	BgWriterShmem->max_requests = NBuffers;
+}
+
+/*
+ * RequestCheckpoint
+ *		Called in backend processes to request an immediate checkpoint
+ *
+ * If waitforit is true, wait until the checkpoint is completed
+ * before returning; otherwise, just signal the request and return
+ * immediately.
+ *
+ * If warnontime is true, and it's "too soon" since the last checkpoint,
+ * the bgwriter will log a warning.  This should be true only for checkpoints
+ * caused due to xlog filling, else the warning will be misleading.
+ */
+void
+RequestCheckpoint(bool waitforit, bool warnontime)
+{
+	/* use volatile pointer to prevent code rearrangement */
+	volatile BgWriterShmemStruct *bgs = BgWriterShmem;
+	sig_atomic_t old_failed = bgs->ckpt_failed;
+	sig_atomic_t old_started = bgs->ckpt_started;
+
+	/*
+	 * If in a standalone backend, just do it ourselves.
+	 */
+	if (!IsPostmasterEnvironment)
+	{
+		CreateCheckPoint(false, true);
+
+		/*
+		 * After any checkpoint, close all smgr files.	This is so we won't
+		 * hang onto smgr references to deleted files indefinitely.
+		 */
+		smgrcloseall();
+
+		return;
+	}
+
+	/* Set warning request flag if appropriate */
+	if (warnontime)
+		bgs->ckpt_time_warn = true;
+
+	/*
+	 * Send signal to request checkpoint.  When waitforit is false, we
+	 * consider failure to send the signal to be nonfatal.
+	 */
+	if (BgWriterShmem->bgwriter_pid == 0)
+		elog(waitforit ? ERROR : LOG,
+			 "could not request checkpoint because bgwriter not running");
+	if (kill(BgWriterShmem->bgwriter_pid, SIGINT) != 0)
+		elog(waitforit ? ERROR : LOG,
+			 "could not signal for checkpoint: %m");
+
+	/*
+	 * If requested, wait for completion.  We detect completion according to
+	 * the algorithm given above.
+	 */
+	if (waitforit)
+	{
+		while (bgs->ckpt_started == old_started)
+		{
+			CHECK_FOR_INTERRUPTS();
+			pg_usleep(100000L);
+		}
+		old_started = bgs->ckpt_started;
+
+		/*
+		 * We are waiting for ckpt_done >= old_started, in a modulo sense.
+		 * This is a little tricky since we don't know the width or signedness
+		 * of sig_atomic_t.  We make the lowest common denominator assumption
+		 * that it is only as wide as "char".  This means that this algorithm
+		 * will cope correctly as long as we don't sleep for more than 127
+		 * completed checkpoints.  (If we do, we will get another chance to
+		 * exit after 128 more checkpoints...)
+		 */
+		while (((signed char) (bgs->ckpt_done - old_started)) < 0)
+		{
+			CHECK_FOR_INTERRUPTS();
+			pg_usleep(100000L);
+		}
+		if (bgs->ckpt_failed != old_failed)
+			ereport(ERROR,
+					(errmsg("checkpoint request failed"),
+					 errhint("Consult the server log for details.")));
+	}
+}
+
+/*
+ * ForwardFsyncRequest
+ *		Forward a file-fsync request from a backend to the bgwriter
+ *
+ * Whenever a backend is compelled to write directly to a relation
+ * (which should be seldom, if the bgwriter is getting its job done),
+ * the backend calls this routine to pass over knowledge that the relation
+ * is dirty and must be fsync'd before next checkpoint.
+ *
+ * If we are unable to pass over the request (at present, this can happen
+ * if the shared memory queue is full), we return false.  That forces
+ * the backend to do its own fsync.  We hope that will be even more seldom.
+ *
+ * Note: we presently make no attempt to eliminate duplicate requests
+ * in the requests[] queue.  The bgwriter will have to eliminate dups
+ * internally anyway, so we may as well avoid holding the lock longer
+ * than we have to here.
+ */
+bool
+ForwardFsyncRequest(RelFileNode rnode, BlockNumber segno)
+{
+	BgWriterRequest *request;
+
+	if (!IsUnderPostmaster)
+		return false;			/* probably shouldn't even get here */
+	Assert(BgWriterShmem != NULL);
+
+	LWLockAcquire(BgWriterCommLock, LW_EXCLUSIVE);
+	if (BgWriterShmem->bgwriter_pid == 0 ||
+		BgWriterShmem->num_requests >= BgWriterShmem->max_requests)
+	{
+		LWLockRelease(BgWriterCommLock);
+		return false;
+	}
+	request = &BgWriterShmem->requests[BgWriterShmem->num_requests++];
+	request->rnode = rnode;
+	request->segno = segno;
+	LWLockRelease(BgWriterCommLock);
+	return true;
+}
+
+/*
+ * AbsorbFsyncRequests
+ *		Retrieve queued fsync requests and pass them to local smgr.
+ *
+ * This is exported because it must be called during CreateCheckPoint;
+ * we have to be sure we have accepted all pending requests *after* we
+ * establish the checkpoint REDO pointer.  Since CreateCheckPoint
+ * sometimes runs in non-bgwriter processes, do nothing if not bgwriter.
+ */
+void
+AbsorbFsyncRequests(void)
+{
+	BgWriterRequest *requests = NULL;
+	BgWriterRequest *request;
+	int			n;
+
+	if (!am_bg_writer)
+		return;
+
+	/*
+	 * We have to PANIC if we fail to absorb all the pending requests (eg,
+	 * because our hashtable runs out of memory).  This is because the system
+	 * cannot run safely if we are unable to fsync what we have been told to
+	 * fsync.  Fortunately, the hashtable is so small that the problem is
+	 * quite unlikely to arise in practice.
+	 */
+	START_CRIT_SECTION();
+
+	/*
+	 * We try to avoid holding the lock for a long time by copying the request
+	 * array.
+	 */
+	LWLockAcquire(BgWriterCommLock, LW_EXCLUSIVE);
+
+	n = BgWriterShmem->num_requests;
+	if (n > 0)
+	{
+		requests = (BgWriterRequest *) palloc(n * sizeof(BgWriterRequest));
+		memcpy(requests, BgWriterShmem->requests, n * sizeof(BgWriterRequest));
+	}
+	BgWriterShmem->num_requests = 0;
+
+	LWLockRelease(BgWriterCommLock);
+
+	for (request = requests; n > 0; request++, n--)
+		RememberFsyncRequest(request->rnode, request->segno);
+
+	if (requests)
+		pfree(requests);
+
+	END_CRIT_SECTION();
 }

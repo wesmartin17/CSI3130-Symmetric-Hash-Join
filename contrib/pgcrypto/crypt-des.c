@@ -1,8 +1,6 @@
 /*
  * FreeSec: libcrypt for NetBSD
  *
- * contrib/pgcrypto/crypt-des.c
- *
  * Copyright (c) 1994 David Burren
  * All rights reserved.
  *
@@ -29,7 +27,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -61,15 +59,15 @@
  */
 
 #include "postgres.h"
-#include "miscadmin.h"
-#include "port/pg_bswap.h"
 
+#include "px.h"
 #include "px-crypt.h"
 
-#define _PASSWORD_EFMT1 '_'
+/* for ntohl/htonl */
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
-static const char _crypt_a64[] =
-"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+#define _PASSWORD_EFMT1 '_'
 
 static uint8 IP[64] = {
 	58, 50, 42, 34, 26, 18, 10, 2, 60, 52, 44, 36, 28, 20, 12, 4,
@@ -203,18 +201,18 @@ static inline int
 ascii_to_bin(char ch)
 {
 	if (ch > 'z')
-		return 0;
+		return (0);
 	if (ch >= 'a')
 		return (ch - 'a' + 38);
 	if (ch > 'Z')
-		return 0;
+		return (0);
 	if (ch >= 'A')
 		return (ch - 'A' + 12);
 	if (ch > '9')
-		return 0;
+		return (0);
 	if (ch >= '.')
 		return (ch - '.');
-	return 0;
+	return (0);
 }
 
 static void
@@ -405,19 +403,19 @@ des_setkey(const char *key)
 	if (!des_initialised)
 		des_init();
 
-	rawkey0 = pg_ntoh32(*(const uint32 *) key);
-	rawkey1 = pg_ntoh32(*(const uint32 *) (key + 4));
+	rawkey0 = ntohl(*(uint32 *) key);
+	rawkey1 = ntohl(*(uint32 *) (key + 4));
 
 	if ((rawkey0 | rawkey1)
 		&& rawkey0 == old_rawkey0
 		&& rawkey1 == old_rawkey1)
 	{
 		/*
-		 * Already setup for this key. This optimization fails on a zero key
+		 * Already setup for this key. This optimisation fails on a zero key
 		 * (which is weak and has bad parity anyway) in order to simplify the
 		 * starting conditions.
 		 */
-		return 0;
+		return (0);
 	}
 	old_rawkey0 = rawkey0;
 	old_rawkey1 = rawkey1;
@@ -476,7 +474,7 @@ des_setkey(const char *key)
 			| comp_maskr[6][(t1 >> 7) & 0x7f]
 			| comp_maskr[7][t1 & 0x7f];
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -497,7 +495,7 @@ do_des(uint32 l_in, uint32 r_in, uint32 *l_out, uint32 *r_out, int count)
 	int			round;
 
 	if (count == 0)
-		return 1;
+		return (1);
 	else if (count > 0)
 	{
 		/*
@@ -538,8 +536,6 @@ do_des(uint32 l_in, uint32 r_in, uint32 *l_out, uint32 *r_out, int count)
 
 	while (count--)
 	{
-		CHECK_FOR_INTERRUPTS();
-
 		/*
 		 * Do each round.
 		 */
@@ -610,7 +606,7 @@ do_des(uint32 l_in, uint32 r_in, uint32 *l_out, uint32 *r_out, int count)
 		| fp_maskr[5][(r >> 16) & 0xff]
 		| fp_maskr[6][(r >> 8) & 0xff]
 		| fp_maskr[7][r & 0xff];
-	return 0;
+	return (0);
 }
 
 static int
@@ -631,20 +627,18 @@ des_cipher(const char *in, char *out, long salt, int count)
 	/* copy data to avoid assuming input is word-aligned */
 	memcpy(buffer, in, sizeof(buffer));
 
-	rawl = pg_ntoh32(buffer[0]);
-	rawr = pg_ntoh32(buffer[1]);
+	rawl = ntohl(buffer[0]);
+	rawr = ntohl(buffer[1]);
 
 	retval = do_des(rawl, rawr, &l_out, &r_out, count);
-	if (retval)
-		return retval;
 
-	buffer[0] = pg_hton32(l_out);
-	buffer[1] = pg_hton32(r_out);
+	buffer[0] = htonl(l_out);
+	buffer[1] = htonl(r_out);
 
 	/* copy data to avoid assuming output is word-aligned */
 	memcpy(out, buffer, sizeof(buffer));
 
-	return retval;
+	return (retval);
 }
 
 char *
@@ -672,30 +666,19 @@ px_crypt_des(const char *key, const char *setting)
 	q = (uint8 *) keybuf;
 	while (q - (uint8 *) keybuf - 8)
 	{
-		*q++ = *key << 1;
-		if (*key != '\0')
+		if ((*q++ = *key << 1))
 			key++;
 	}
 	if (des_setkey((char *) keybuf))
-		return NULL;
+		return (NULL);
 
 #ifndef DISABLE_XDES
 	if (*setting == _PASSWORD_EFMT1)
 	{
 		/*
-		 * "new"-style: setting must be a 9-character (underscore, then 4
-		 * bytes of count, then 4 bytes of salt) string. See CRYPT(3) under
-		 * the "Extended crypt" heading for further details.
-		 *
-		 * Unlimited characters of the input key are used. This is known as
-		 * the "Extended crypt" DES method.
-		 *
+		 * "new"-style: setting - underscore, 4 bytes of count, 4 bytes of
+		 * salt key - unlimited characters
 		 */
-		if (strlen(setting) < 9)
-			ereport(ERROR,
-					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-					 errmsg("invalid salt")));
-
 		for (i = 1, count = 0L; i < 5; i++)
 			count |= ascii_to_bin(setting[i]) << (i - 1) * 6;
 
@@ -708,7 +691,7 @@ px_crypt_des(const char *key, const char *setting)
 			 * Encrypt the key with itself.
 			 */
 			if (des_cipher((char *) keybuf, (char *) keybuf, 0L, 1))
-				return NULL;
+				return (NULL);
 
 			/*
 			 * And XOR with the next 8 characters of the key.
@@ -718,31 +701,26 @@ px_crypt_des(const char *key, const char *setting)
 				*q++ ^= *key++ << 1;
 
 			if (des_setkey((char *) keybuf))
-				return NULL;
+				return (NULL);
 		}
-		StrNCpy(output, setting, 10);
+		strncpy(output, setting, 9);
 
 		/*
 		 * Double check that we weren't given a short setting. If we were, the
-		 * above code will probably have created weird values for count and
+		 * above code will probably have created wierd values for count and
 		 * salt, but we don't really care. Just make sure the output string
 		 * doesn't have an extra NUL in it.
 		 */
+		output[9] = '\0';
 		p = output + strlen(output);
 	}
 	else
-#endif							/* !DISABLE_XDES */
+#endif   /* !DISABLE_XDES */
 	{
 		/*
-		 * "old"-style: setting - 2 bytes of salt key - only up to the first 8
-		 * characters of the input key are used.
+		 * "old"-style: setting - 2 bytes of salt key - up to 8 characters
 		 */
 		count = 25;
-
-		if (strlen(setting) < 2)
-			ereport(ERROR,
-					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-					 errmsg("invalid salt")));
 
 		salt = (ascii_to_bin(setting[1]) << 6)
 			| ascii_to_bin(setting[0]);
@@ -764,7 +742,7 @@ px_crypt_des(const char *key, const char *setting)
 	 * Do it.
 	 */
 	if (do_des(0L, 0L, &r0, &r1, count))
-		return NULL;
+		return (NULL);
 
 	/*
 	 * Now encode the result...
@@ -787,5 +765,5 @@ px_crypt_des(const char *key, const char *setting)
 	*p++ = _crypt_a64[l & 0x3f];
 	*p = 0;
 
-	return output;
+	return (output);
 }

@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,12 +26,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * contrib/pgcrypto/pgp.c
+ * $PostgreSQL: pgsql/contrib/pgcrypto/pgp.c,v 1.3 2005/10/15 02:49:06 momjian Exp $
  */
 
 #include "postgres.h"
 
 #include "px.h"
+#include "mbuf.h"
 #include "pgp.h"
 
 /*
@@ -40,7 +41,6 @@
 static int	def_cipher_algo = PGP_SYM_AES_128;
 static int	def_s2k_cipher_algo = -1;
 static int	def_s2k_mode = PGP_S2K_ISALTED;
-static int	def_s2k_count = -1;
 static int	def_s2k_digest_algo = PGP_DIGEST_SHA1;
 static int	def_compress_algo = PGP_COMPR_NONE;
 static int	def_compress_level = 6;
@@ -165,7 +165,7 @@ pgp_get_cipher_block_size(int code)
 }
 
 int
-pgp_load_cipher(int code, PX_Cipher **res)
+pgp_load_cipher(int code, PX_Cipher ** res)
 {
 	int			err;
 	const struct cipher_info *i = get_cipher_info(code);
@@ -181,7 +181,7 @@ pgp_load_cipher(int code, PX_Cipher **res)
 }
 
 int
-pgp_load_digest(int code, PX_MD **res)
+pgp_load_digest(int code, PX_MD ** res)
 {
 	int			err;
 	const char *name = pgp_get_digest_name(code);
@@ -197,7 +197,7 @@ pgp_load_digest(int code, PX_MD **res)
 }
 
 int
-pgp_init(PGP_Context **ctx_p)
+pgp_init(PGP_Context ** ctx_p)
 {
 	PGP_Context *ctx;
 
@@ -207,7 +207,6 @@ pgp_init(PGP_Context **ctx_p)
 	ctx->cipher_algo = def_cipher_algo;
 	ctx->s2k_cipher_algo = def_s2k_cipher_algo;
 	ctx->s2k_mode = def_s2k_mode;
-	ctx->s2k_count = def_s2k_count;
 	ctx->s2k_digest_algo = def_s2k_digest_algo;
 	ctx->compress_algo = def_compress_algo;
 	ctx->compress_level = def_compress_level;
@@ -222,38 +221,38 @@ pgp_init(PGP_Context **ctx_p)
 }
 
 int
-pgp_free(PGP_Context *ctx)
+pgp_free(PGP_Context * ctx)
 {
 	if (ctx->pub_key)
 		pgp_key_free(ctx->pub_key);
-	px_memset(ctx, 0, sizeof *ctx);
+	memset(ctx, 0, sizeof *ctx);
 	px_free(ctx);
 	return 0;
 }
 
 int
-pgp_disable_mdc(PGP_Context *ctx, int disable)
+pgp_disable_mdc(PGP_Context * ctx, int disable)
 {
 	ctx->disable_mdc = disable ? 1 : 0;
 	return 0;
 }
 
 int
-pgp_set_sess_key(PGP_Context *ctx, int use)
+pgp_set_sess_key(PGP_Context * ctx, int use)
 {
 	ctx->use_sess_key = use ? 1 : 0;
 	return 0;
 }
 
 int
-pgp_set_convert_crlf(PGP_Context *ctx, int doit)
+pgp_set_convert_crlf(PGP_Context * ctx, int doit)
 {
 	ctx->convert_crlf = doit ? 1 : 0;
 	return 0;
 }
 
 int
-pgp_set_s2k_mode(PGP_Context *ctx, int mode)
+pgp_set_s2k_mode(PGP_Context * ctx, int mode)
 {
 	int			err = PXE_OK;
 
@@ -272,18 +271,7 @@ pgp_set_s2k_mode(PGP_Context *ctx, int mode)
 }
 
 int
-pgp_set_s2k_count(PGP_Context *ctx, int count)
-{
-	if (ctx->s2k_mode == PGP_S2K_ISALTED && count >= 1024 && count <= 65011712)
-	{
-		ctx->s2k_count = count;
-		return PXE_OK;
-	}
-	return PXE_ARGUMENT_ERROR;
-}
-
-int
-pgp_set_compress_algo(PGP_Context *ctx, int algo)
+pgp_set_compress_algo(PGP_Context * ctx, int algo)
 {
 	switch (algo)
 	{
@@ -298,7 +286,7 @@ pgp_set_compress_algo(PGP_Context *ctx, int algo)
 }
 
 int
-pgp_set_compress_level(PGP_Context *ctx, int level)
+pgp_set_compress_level(PGP_Context * ctx, int level)
 {
 	if (level >= 0 && level <= 9)
 	{
@@ -309,14 +297,14 @@ pgp_set_compress_level(PGP_Context *ctx, int level)
 }
 
 int
-pgp_set_text_mode(PGP_Context *ctx, int mode)
+pgp_set_text_mode(PGP_Context * ctx, int mode)
 {
 	ctx->text_mode = mode;
 	return 0;
 }
 
 int
-pgp_set_cipher_algo(PGP_Context *ctx, const char *name)
+pgp_set_cipher_algo(PGP_Context * ctx, const char *name)
 {
 	int			code = pgp_get_cipher_code(name);
 
@@ -327,7 +315,7 @@ pgp_set_cipher_algo(PGP_Context *ctx, const char *name)
 }
 
 int
-pgp_set_s2k_cipher_algo(PGP_Context *ctx, const char *name)
+pgp_set_s2k_cipher_algo(PGP_Context * ctx, const char *name)
 {
 	int			code = pgp_get_cipher_code(name);
 
@@ -338,7 +326,7 @@ pgp_set_s2k_cipher_algo(PGP_Context *ctx, const char *name)
 }
 
 int
-pgp_set_s2k_digest_algo(PGP_Context *ctx, const char *name)
+pgp_set_s2k_digest_algo(PGP_Context * ctx, const char *name)
 {
 	int			code = pgp_get_digest_code(name);
 
@@ -349,20 +337,20 @@ pgp_set_s2k_digest_algo(PGP_Context *ctx, const char *name)
 }
 
 int
-pgp_get_unicode_mode(PGP_Context *ctx)
+pgp_get_unicode_mode(PGP_Context * ctx)
 {
 	return ctx->unicode_mode;
 }
 
 int
-pgp_set_unicode_mode(PGP_Context *ctx, int mode)
+pgp_set_unicode_mode(PGP_Context * ctx, int mode)
 {
 	ctx->unicode_mode = mode ? 1 : 0;
 	return 0;
 }
 
 int
-pgp_set_symkey(PGP_Context *ctx, const uint8 *key, int len)
+pgp_set_symkey(PGP_Context * ctx, const uint8 *key, int len)
 {
 	if (key == NULL || len < 1)
 		return PXE_ARGUMENT_ERROR;

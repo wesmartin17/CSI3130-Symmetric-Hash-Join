@@ -3,28 +3,22 @@
  * rewriteSupport.c
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/rewrite/rewriteSupport.c
+ *	  $PostgreSQL: pgsql/src/backend/rewrite/rewriteSupport.c,v 1.62 2005/10/15 02:49:24 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
 #include "access/heapam.h"
-#include "access/htup_details.h"
 #include "catalog/indexing.h"
-#include "catalog/pg_rewrite.h"
 #include "rewrite/rewriteSupport.h"
-#include "utils/fmgroids.h"
 #include "utils/inval.h"
-#include "utils/lsyscache.h"
-#include "utils/rel.h"
 #include "utils/syscache.h"
-#include "utils/tqual.h"
 
 
 /*
@@ -33,15 +27,17 @@
 bool
 IsDefinedRewriteRule(Oid owningRel, const char *ruleName)
 {
-	return SearchSysCacheExists2(RULERELNAME,
-								 ObjectIdGetDatum(owningRel),
-								 PointerGetDatum(ruleName));
+	return SearchSysCacheExists(RULERELNAME,
+								ObjectIdGetDatum(owningRel),
+								PointerGetDatum(ruleName),
+								0, 0);
 }
 
 
 /*
  * SetRelationRuleStatus
- *		Set the value of the relation's relhasrules field in pg_class.
+ *		Set the value of the relation's relhasrules field in pg_class;
+ *		if the relation is becoming a view, also adjust its relkind.
  *
  * NOTE: caller must be holding an appropriate lock on the relation.
  *
@@ -52,7 +48,8 @@ IsDefinedRewriteRule(Oid owningRel, const char *ruleName)
  * row.
  */
 void
-SetRelationRuleStatus(Oid relationId, bool relHasRules)
+SetRelationRuleStatus(Oid relationId, bool relHasRules,
+					  bool relIsBecomingView)
 {
 	Relation	relationRelation;
 	HeapTuple	tuple;
@@ -62,17 +59,25 @@ SetRelationRuleStatus(Oid relationId, bool relHasRules)
 	 * Find the tuple to update in pg_class, using syscache for the lookup.
 	 */
 	relationRelation = heap_open(RelationRelationId, RowExclusiveLock);
-	tuple = SearchSysCacheCopy1(RELOID, ObjectIdGetDatum(relationId));
+	tuple = SearchSysCacheCopy(RELOID,
+							   ObjectIdGetDatum(relationId),
+							   0, 0, 0);
 	if (!HeapTupleIsValid(tuple))
 		elog(ERROR, "cache lookup failed for relation %u", relationId);
 	classForm = (Form_pg_class) GETSTRUCT(tuple);
 
-	if (classForm->relhasrules != relHasRules)
+	if (classForm->relhasrules != relHasRules ||
+		(relIsBecomingView && classForm->relkind != RELKIND_VIEW))
 	{
 		/* Do the update */
 		classForm->relhasrules = relHasRules;
+		if (relIsBecomingView)
+			classForm->relkind = RELKIND_VIEW;
 
-		CatalogTupleUpdate(relationRelation, &tuple->t_self, tuple);
+		simple_heap_update(relationRelation, &tuple->t_self, tuple);
+
+		/* Keep the catalog indexes up to date */
+		CatalogUpdateIndexes(relationRelation, tuple);
 	}
 	else
 	{
@@ -82,35 +87,4 @@ SetRelationRuleStatus(Oid relationId, bool relHasRules)
 
 	heap_freetuple(tuple);
 	heap_close(relationRelation, RowExclusiveLock);
-}
-
-/*
- * Find rule oid.
- *
- * If missing_ok is false, throw an error if rule name not found.  If
- * true, just return InvalidOid.
- */
-Oid
-get_rewrite_oid(Oid relid, const char *rulename, bool missing_ok)
-{
-	HeapTuple	tuple;
-	Oid			ruleoid;
-
-	/* Find the rule's pg_rewrite tuple, get its OID */
-	tuple = SearchSysCache2(RULERELNAME,
-							ObjectIdGetDatum(relid),
-							PointerGetDatum(rulename));
-	if (!HeapTupleIsValid(tuple))
-	{
-		if (missing_ok)
-			return InvalidOid;
-		ereport(ERROR,
-				(errcode(ERRCODE_UNDEFINED_OBJECT),
-				 errmsg("rule \"%s\" for relation \"%s\" does not exist",
-						rulename, get_rel_name(relid))));
-	}
-	Assert(relid == ((Form_pg_rewrite) GETSTRUCT(tuple))->ev_class);
-	ruleoid = HeapTupleGetOid(tuple);
-	ReleaseSysCache(tuple);
-	return ruleoid;
 }

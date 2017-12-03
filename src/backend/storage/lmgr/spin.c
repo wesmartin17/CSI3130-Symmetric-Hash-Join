@@ -5,41 +5,27 @@
  *
  *
  * For machines that have test-and-set (TAS) instructions, s_lock.h/.c
- * define the spinlock implementation.  This file contains only a stub
+ * define the spinlock implementation.	This file contains only a stub
  * implementation for spinlocks using PGSemaphores.  Unless semaphores
  * are implemented in a way that doesn't involve a kernel call, this
  * is too slow to be very useful :-(
  *
  *
- * Portions Copyright (c) 1996-2017, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
  * IDENTIFICATION
- *	  src/backend/storage/lmgr/spin.c
+ *	  $PostgreSQL: pgsql/src/backend/storage/lmgr/spin.c,v 1.17.2.1 2005/11/22 18:23:19 momjian Exp $
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
+#include "storage/lwlock.h"
 #include "storage/pg_sema.h"
-#include "storage/shmem.h"
 #include "storage/spin.h"
 
-
-#ifndef HAVE_SPINLOCKS
-PGSemaphore *SpinlockSemaArray;
-#endif
-
-/*
- * Report the amount of shared memory needed to store semaphores for spinlock
- * support.
- */
-Size
-SpinlockSemaSize(void)
-{
-	return SpinlockSemas() * sizeof(PGSemaphore);
-}
 
 #ifdef HAVE_SPINLOCKS
 
@@ -64,61 +50,30 @@ SpinlockSemas(void)
 int
 SpinlockSemas(void)
 {
-	return NUM_SPINLOCK_SEMAPHORES + NUM_ATOMICS_SEMAPHORES;
-}
-
-/*
- * Initialize spinlock emulation.
- *
- * This must be called after PGReserveSemaphores().
- */
-void
-SpinlockSemaInit(void)
-{
-	PGSemaphore *spinsemas;
-	int			nsemas = SpinlockSemas();
-	int			i;
-
 	/*
-	 * We must use ShmemAllocUnlocked(), since the spinlock protecting
-	 * ShmemAlloc() obviously can't be ready yet.
+	 * It would be cleaner to distribute this logic into the affected modules,
+	 * similar to the way shmem space estimation is handled.
+	 *
+	 * For now, though, we just need a few spinlocks (10 should be plenty)
+	 * plus one for each LWLock.
 	 */
-	spinsemas = (PGSemaphore *) ShmemAllocUnlocked(SpinlockSemaSize());
-	for (i = 0; i < nsemas; ++i)
-		spinsemas[i] = PGSemaphoreCreate();
-	SpinlockSemaArray = spinsemas;
+	return NumLWLocks() + 10;
 }
 
 /*
- * s_lock.h hardware-spinlock emulation using semaphores
- *
- * We map all spinlocks onto a set of NUM_SPINLOCK_SEMAPHORES semaphores.
- * It's okay to map multiple spinlocks onto one semaphore because no process
- * should ever hold more than one at a time.  We just need enough semaphores
- * so that we aren't adding too much extra contention from that.
- *
- * slock_t is just an int for this implementation; it holds the spinlock
- * number from 1..NUM_SPINLOCK_SEMAPHORES.  We intentionally ensure that 0
- * is not a valid value, so that testing with this code can help find
- * failures to initialize spinlocks.
+ * s_lock.h hardware-spinlock emulation
  */
 
 void
-s_init_lock_sema(volatile slock_t *lock, bool nested)
+s_init_lock_sema(volatile slock_t *lock)
 {
-	static int	counter = 0;
-
-	*lock = ((++counter) % NUM_SPINLOCK_SEMAPHORES) + 1;
+	PGSemaphoreCreate((PGSemaphore) lock);
 }
 
 void
 s_unlock_sema(volatile slock_t *lock)
 {
-	int			lockndx = *lock;
-
-	if (lockndx <= 0 || lockndx > NUM_SPINLOCK_SEMAPHORES)
-		elog(ERROR, "invalid spinlock number: %d", lockndx);
-	PGSemaphoreUnlock(SpinlockSemaArray[lockndx - 1]);
+	PGSemaphoreUnlock((PGSemaphore) lock);
 }
 
 bool
@@ -132,12 +87,8 @@ s_lock_free_sema(volatile slock_t *lock)
 int
 tas_sema(volatile slock_t *lock)
 {
-	int			lockndx = *lock;
-
-	if (lockndx <= 0 || lockndx > NUM_SPINLOCK_SEMAPHORES)
-		elog(ERROR, "invalid spinlock number: %d", lockndx);
 	/* Note that TAS macros return 0 if *success* */
-	return !PGSemaphoreTryLock(SpinlockSemaArray[lockndx - 1]);
+	return !PGSemaphoreTryLock((PGSemaphore) lock);
 }
 
-#endif							/* !HAVE_SPINLOCKS */
+#endif   /* !HAVE_SPINLOCKS */
