@@ -46,19 +46,19 @@ TupleTableSlot *				/* return: a tuple or NULL */
 ExecHashJoin(HashJoinState *node)
 {
 	EState	   *estate;
-	HashState  *outer_hashNode;
+	HashState  *outer_hashNode; //CSI3130
 	HashState  *inner_hashNode;
 	List	   *joinqual;
 	List	   *otherqual;
 	TupleTableSlot *outer_tuple;
-	TupleTableSlot *inner_tuple;
+	TupleTableSlot *inner_tuple; //CSI3130
 	ExprContext *econtext;
 	ExprDoneCond isDone;
 	HashJoinTable outer_hashTable;
-	HashJoinTable inner_hashTable;
+	HashJoinTable inner_hashTable; //CSI3130
 	HeapTuple	curtuple;
 	TupleTableSlot *outerTupleSlot;
-	TupleTableSlot *innerTupleSlot;
+	TupleTableSlot *innerTupleSlot; //CSI3130
 	uint32		hashvalue;
 	int			batchno;
 
@@ -69,13 +69,13 @@ ExecHashJoin(HashJoinState *node)
 	joinqual = node->js.joinqual;
 	otherqual = node->js.ps.qual;
 	inner_hashNode = (HashState *) innerPlanState(node);
-	outer_hashNode = (HashState *) outerPlanState(node);
+	outer_hashNode = (HashState *) outerPlanState(node); //CSI3130
 
 	/*
 	 * get information from HashJoin state
 	 */
 	inner_hashTable = node->inner_hj_HashTable;
-	outer_hashTable = node->outer_hj_HashTable;
+	outer_hashTable = node->outer_hj_HashTable; //CSI3130
 	econtext = node->js.ps.ps_ExprContext;
 
 	/*
@@ -255,7 +255,7 @@ ExecHashJoin(HashJoinState *node)
 				{
 					node->hj_NeedNewInner=false;
 					bool isNullAttr;
-
+					printf("got new inner \n"); //CSI3130
 					ExprContext *econtext = node->js.ps.ps_ExprContext;
 					econtext->ecxt_innertuple = innerTupleSlot;
 					hashvalue = ExecHashGetHashValue(outer_hashTable,econtext,node->hj_InnerHashKeys);
@@ -308,6 +308,7 @@ ExecHashJoin(HashJoinState *node)
 		/*
 		 * OK, scan the selected hash bucket for matches
 		 */
+		 if(!TupIsNull(node->js.ps.ps_InnerTupleSlot)) //CSI3130
 		for (;;)
 		{
 
