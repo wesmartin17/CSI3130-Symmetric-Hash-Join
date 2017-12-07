@@ -463,7 +463,7 @@ ExecInitHashJoin(HashJoin *node, EState *estate)
 	 * initialize child nodes
 	 */
 	outerHashNode = (Hash*) outerPlan(node); //CSI3130
-	hashHashNode = (Hash *) innerPlan(node);
+	hashNode = (Hash *) innerPlan(node);
 
 	outerPlanState(hjstate) = ExecInitNode((Plan*) outerHashNode, estate);
 	innerPlanState(hjstate) = ExecInitNode((Plan *) innerHashNode, estate); //CsI3130

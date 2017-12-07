@@ -1451,7 +1451,8 @@ create_hashjoin_plan(PlannerInfo *root,
 	List	   *otherclauses;
 	List	   *hashclauses;
 	HashJoin   *join_plan;
-	Hash	   *hash_plan; //CSI3130
+	Hash	   *outer_hash_plan; //CSI3130
+	Hash	   *inner_hash_plan; //CSI3130
 
 	/* Get the join qual clauses (in plain expression form) */
 	if (IS_OUTER_JOIN(best_path->jpath.jointype))
@@ -1491,12 +1492,14 @@ create_hashjoin_plan(PlannerInfo *root,
 	/*
 	 * Build the hash node and hash join node.
 	 */
-	hash_plan = make_hash(inner_plan); //CSI3130
+	inner_hash_plan = make_hash(inner_plan); //CSI3130
+	outer_hash_plan = make_hash(outer_plan); //CSI3130
 	join_plan = make_hashjoin(tlist,
 							  joinclauses,
 							  otherclauses,
 							  hashclauses,
-							  (Plan *) hash_plan //CSI3130
+							  (Plan *) inner_hash_plan, //CSI3130
+							  (Plan *) outer_hash_plan, //CSI3130
 							  best_path->jpath.jointype);
 
 	copy_path_costsize(&join_plan->join.plan, &best_path->jpath.path);
